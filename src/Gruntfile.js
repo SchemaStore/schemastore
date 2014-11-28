@@ -43,8 +43,8 @@ module.exports = function (grunt) {
 
         watch: {
             tv4: {
-                files: ["test/**/*.json", "schemas/json/*.json", "api/json/*.json"],
-                tasks: ["default"]
+                files: ["test/**/*.json", "schemas/json/*.json"],
+                tasks: ["setup", "tv4"]
             },
             gruntfile: {
                 files: "gruntfile.js"
