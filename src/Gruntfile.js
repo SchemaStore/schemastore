@@ -19,7 +19,7 @@ module.exports = function (grunt) {
                     banUnknown: false,
                     root: grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
                 },
-                src: ["schemas/json/*.json"]
+                src: ["schemas/json/*.json", "!**/composer.json"] // composer.json is not valid draft v4. PR sent to them
             },
             options: {
                 schemas: {
@@ -27,6 +27,17 @@ module.exports = function (grunt) {
                     "http://json.schemastore.org/jshintrc": grunt.file.readJSON("schemas/json/jshintrc.json"),
                     "http://json.schemastore.org/grunt-task": grunt.file.readJSON("schemas/json/grunt-task.json")
                 },
+            }
+        },
+
+        http: {
+            composer: {
+                options: { url: "https://raw.githubusercontent.com/composer/composer/master/res/composer-schema.json" },
+                dest: "schemas/json/composer.json"
+            },
+            contribute: {
+                options: { url: "https://raw.githubusercontent.com/mozilla/contribute.json/master/schema.json" },
+                dest: "schemas/json/contribute.json"
             }
         },
 
@@ -46,7 +57,7 @@ module.exports = function (grunt) {
     });
 
     grunt.registerTask("setup", "Dynamically load schema validation based on the files and folders in /test/", function () {
-        var fs = require("fs");
+        var fs = require('fs');
         var dir = "test";
         var schemas = fs.readdirSync("schemas/json");
 
@@ -54,9 +65,11 @@ module.exports = function (grunt) {
         var tv4 = {};
 
         schemas.forEach(function (schema) {
-            var name = schema.replace(".json", "")//.replace(".", "_");
-            tv4[name] = {};
-            tv4[name].files = [];
+            var name = schema.replace(".json", "");
+            if (!grunt.config.data.http[name]) {
+                tv4[name] = {};
+                tv4[name].files = [];
+            }
         });
 
         folders.forEach(function (folder) {
@@ -86,6 +99,7 @@ module.exports = function (grunt) {
 
     grunt.loadNpmTasks("grunt-tv4");
     grunt.loadNpmTasks("grunt-contrib-watch");
+    grunt.loadNpmTasks("grunt-http");
 
-    grunt.registerTask("default", ["setup", "tv4"]);
+    grunt.registerTask("default", ["setup", "tv4", "http"]);
 };
