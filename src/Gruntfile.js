@@ -1,5 +1,4 @@
-/// <binding SolutionOpened='watch' />
-
+/// <binding ProjectOpened='watch' />
 module.exports = function (grunt) {
     "use strict";
 
@@ -66,7 +65,7 @@ module.exports = function (grunt) {
 
         schemas.forEach(function (schema) {
             var name = schema.replace(".json", "");
-            if (!grunt.config.data.http[name]) {
+            if (!grunt.config.data.http[name]) { // Don't include the downloaded schemas
                 tv4[name] = {};
                 tv4[name].files = [];
             }
