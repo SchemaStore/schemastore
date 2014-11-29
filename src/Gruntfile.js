@@ -1,4 +1,4 @@
-/// <binding ProjectOpened='watch' />
+/// <binding AfterBuild='build' ProjectOpened='watch' />
 module.exports = function (grunt) {
     "use strict";
 
@@ -37,6 +37,10 @@ module.exports = function (grunt) {
             contribute: {
                 options: { url: "https://raw.githubusercontent.com/mozilla/contribute.json/master/schema.json" },
                 dest: "schemas/json/contribute.json"
+            },
+            swagger20: {
+                options: { url: "https://raw.githubusercontent.com/swagger-api/swagger-spec/master/schemas/v2.0/schema.json" },
+                dest: "schemas/json/swagger-2.0.json"
             }
         },
 
@@ -96,10 +100,10 @@ module.exports = function (grunt) {
         });
     });
 
+    grunt.registerTask("build", ["setup", "tv4"]);
+    grunt.registerTask("default", ["http", "build"]);
+
     grunt.loadNpmTasks("grunt-tv4");
     grunt.loadNpmTasks("grunt-contrib-watch");
     grunt.loadNpmTasks("grunt-http");
-
-    grunt.registerTask("build", ["setup", "tv4"]);
-    grunt.registerTask("default", ["http", "build"]);
 };
