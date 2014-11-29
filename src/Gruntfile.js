@@ -100,5 +100,6 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks("grunt-contrib-watch");
     grunt.loadNpmTasks("grunt-http");
 
-    grunt.registerTask("default", ["setup", "tv4", "http"]);
+    grunt.registerTask("build", ["setup", "tv4"]);
+    grunt.registerTask("default", ["http", "build"]);
 };
