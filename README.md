@@ -1,8 +1,7 @@
 #JSON Schema Store
 
 ###A collection of JSON schemas 
-[![Build status](https://ci.appveyor.com/api/projects/status/ab34h2jsrjfiw2xq?svg=true)](https://ci.appveyor.com/project/madskristensen/schemastore-371)  
-[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
+[![Build status](https://ci.appveyor.com/api/projects/status/ab34h2jsrjfiw2xq?svg=true)](https://ci.appveyor.com/project/madskristensen/schemastore-371)
 
 The repository is meant as a universal JSON schema store, 
 where schemas for popular JSON documents can be found.
@@ -22,3 +21,5 @@ the version number: *myschema-1.2.json*
 
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
+
+[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
