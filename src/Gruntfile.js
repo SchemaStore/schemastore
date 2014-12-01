@@ -41,6 +41,10 @@ module.exports = function (grunt) {
             swagger20: {
                 options: { url: "https://raw.githubusercontent.com/swagger-api/swagger-spec/master/schemas/v2.0/schema.json" },
                 dest: "schemas/json/swagger-2.0.json"
+            },
+            resume: {
+                options: { url: "https://raw.githubusercontent.com/jsonresume/resume-schema/master/schema.json" },
+                dest: "schemas/json/resume.json"
             }
         },
 
@@ -69,7 +73,7 @@ module.exports = function (grunt) {
 
         schemas.forEach(function (schema) {
             var name = schema.replace(".json", "");
-            if (!grunt.config.data.http[name]) { // Don't include the downloaded schemas
+            if (name !== "composer") { // composer.json is written in draft v3.
                 tv4[name] = {};
                 tv4[name].files = [];
             }
