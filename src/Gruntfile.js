@@ -45,6 +45,10 @@ module.exports = function (grunt) {
             resume: {
                 options: { url: "https://raw.githubusercontent.com/jsonresume/resume-schema/master/schema.json" },
                 dest: "schemas/json/resume.json"
+            },
+            jsonld: {
+                options: { url: "https://raw.githubusercontent.com/json-ld/json-ld.org/master/schemas/jsonld-schema.json" },
+                dest: "schemas/json/jsonld.json"
             }
         },
 
