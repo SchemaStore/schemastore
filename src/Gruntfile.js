@@ -18,7 +18,7 @@ module.exports = function (grunt) {
                     banUnknown: false,
                     root: grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
                 },
-                src: ["schemas/json/*.json", "!**/composer.json"] // composer.json is not valid draft v4. PR sent to them
+                src: ["schemas/json/*.json"]
             },
             options: {
                 schemas: {
@@ -77,10 +77,8 @@ module.exports = function (grunt) {
 
         schemas.forEach(function (schema) {
             var name = schema.replace(".json", "");
-            if (name !== "composer") { // composer.json is written in draft v3.
-                tv4[name] = {};
-                tv4[name].files = [];
-            }
+            tv4[name] = {};
+            tv4[name].files = [];
         });
 
         folders.forEach(function (folder) {
