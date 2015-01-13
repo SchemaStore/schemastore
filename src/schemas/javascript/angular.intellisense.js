@@ -1,5 +1,6 @@
-﻿(function (intellisense) {
+(function (intellisense) {
     // If AngularJS is undefined, then bypass AngularJS Intellisense.
+    intellisense.logMessage("yellow")
     if (!angular) {
         return;
     }
@@ -275,7 +276,7 @@
             return $delegate;
         }]);
 
-        // Decorate the $httpBackend service to execute the callback rather than using
+        // Decorate the $httpBackend service to execute the callback rather than using 
         // XHR, so that functions handling the response are called during Intellisense.
         $provide.decorator('$httpBackend', [function () {
             return function (method, url, post, callback) {
@@ -283,7 +284,7 @@
             };
         }]);
 
-        // Decorate the $rootScope to always call event listeners registered
+        // Decorate the $rootScope to always call event listeners registered 
         // with $on, so that listener functions are called during Intellisense.
         $provide.decorator('$rootScope', ['$delegate', function ($delegate) {
             var original$On = $delegate.$on;
@@ -300,7 +301,7 @@
         }]);
     }]);
 
-    // Decorate angular.forEach to always call the callback once, even if it wouldn't
+    // Decorate angular.forEach to always call the callback once, even if it wouldn't 
     // normally be called, so that closure variables will be available via Intellisense.
     var originalForEach = angular.forEach;
 
@@ -408,7 +409,7 @@
     }
 
     function decorateModuleProviderFunctions(module) {
-        // Initialize each component with empty object dependencies.
+        // Initialize each component with empty object dependencies. 
         forEach(moduleProviderFunctions, function (providerFunction) {
 
             // Decorate the component type function to call component functions with correct arguments.
@@ -688,3 +689,5 @@
         });
     }
 })(window.intellisense);
+
+
