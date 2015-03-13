@@ -1,4 +1,4 @@
-/// <binding AfterBuild='build' ProjectOpened='watch' />
+/// <binding AfterBuild='build' />
 module.exports = function (grunt) {
     "use strict";
 
@@ -18,7 +18,7 @@ module.exports = function (grunt) {
                     banUnknown: false,
                     root: grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
                 },
-                src: ["schemas/json/*.json"]
+                src: ["schemas/json/*.json", "!schemas/json/ninjs.json"] // ninjs is draft v3
             },
             options: {
                 schemas: {
@@ -49,6 +49,10 @@ module.exports = function (grunt) {
             jsonld: {
                 options: { url: "https://raw.githubusercontent.com/json-ld/json-ld.org/master/schemas/jsonld-schema.json" },
                 dest: "schemas/json/jsonld.json"
+            },
+            ninjs: {
+                options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
+                dest: "schemas/json/ninjs.json"
             }
         },
 
@@ -99,10 +103,10 @@ module.exports = function (grunt) {
                 src: files
             });
 
-            tv4[name].files = files;
+            //tv4[name].files = files;
 
-            // Write the config to disk so it can be consumed by the browser based test infrastru
-            fs.writeFileSync("test/tests.json", JSON.stringify(tv4));
+            //// Write the config to disk so it can be consumed by the browser based test infrastru
+            //fs.writeFileSync("test/tests.json", JSON.stringify(tv4));
         });
     });
 
