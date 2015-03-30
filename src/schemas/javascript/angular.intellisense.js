@@ -1,6 +1,5 @@
 (function (intellisense) {
     // If AngularJS is undefined, then bypass AngularJS Intellisense.
-    intellisense.logMessage("yellow")
     if (!angular) {
         return;
     }
@@ -237,6 +236,89 @@
         // Keep track of the the provider injector.
         providerInjector = $injector;
 
+        $provide.decorator("$http", ['$delegate', function ($delegate) {
+            /**
+            * @typedef {Object} httpConfig
+            * @property {String} method HTTP method (e.g. 'GET', 'POST', etc)
+            *    @property {String} url Absolute or relative URL of the resource that is being requested.
+            * @property {Object.<string|Object>} params  – Map of strings or objects which will be turned
+            *      to `?key1=value1&key2=value2` after the url. If the value is not a string, it will be
+            *      JSONified.
+            * @property {string|Object} data  – Data to be sent as the request message data.
+            * @property {Object} headers  – Map of strings or functions which return strings representing
+            *      HTTP headers to send to the server. If the return value of a function is null, the
+            *      header will not be sent.
+            * @property {string} xsrfHeaderName  – Name of HTTP header to populate with the XSRF token.
+            * @property {string} xsrfCookieName  – Name of cookie containing the XSRF token.
+            * @property {function(data, headersGetter)|Array.<function(data, headersGetter)>} transformRequest  –
+            *      transform function or an array of such functions. The transform function takes the http
+            *      request body and headers and returns its transformed (typically serialized) version.
+            * @property {function(data, headersGetter)|Array.<function(data, headersGetter)>} transformResponse  –
+            *      transform function or an array of such functions. The transform function takes the http
+            *      response body and headers and returns its transformed (typically deserialized) version.
+            * @property {boolean|Cache} cache  – If true, a default $http cache will be used to cache the
+            *      GET request, otherwise if a cache instance built with
+            *      {@link ng.$cacheFactory $cacheFactory}, this cache will be used for
+            *      caching.
+            * @property {number|Promise} timeout  – timeout in milliseconds, or {@link ng.$q promise}
+            *      that should abort the request when resolved.
+            * @property {boolean} withCredentials  - whether to set the `withCredentials` flag on the
+            *      XHR object.
+            * @property {string} responseType
+            */
+
+            /**
+            * @param {string} url
+            * @param {httpConfig} [config]
+            */
+            function httpGetDocs(url, config) {
+            }
+            /**
+            * @param {string} url
+            * @param {httpConfig} [config]
+            */
+            function httpHeadDocs(url, config) { }
+            /**
+            * @param {string} url
+            * @param {httpConfig} [config]
+            */
+            function httpJsonpDocs(url, config) { }
+            /**
+            * @param {string} url
+            * @param {httpConfig} [config]
+            */
+            function httpDeleteDocs(url, config) { }
+            /**
+            * @param {string} url
+            * @param {*} data
+            * @param {httpConfig} [config]
+            */
+            function httpPostDocs(url, data, config) { }
+            /**
+            * @param {string} url
+            * @param {*} data
+            * @param {httpConfig} [config]
+            */
+            function httpPutDocs(url, data, config) {
+            }
+            /**
+            * @param {string} url
+            * @param {*} data
+            * @param {httpConfig} [config]
+            */
+            function httpPatchDocs(url, data, config) {
+            }
+
+            intellisense.annotate($delegate.get, httpGetDocs);
+            intellisense.annotate($delegate.delete, httpDeleteDocs);
+            intellisense.annotate($delegate.jsonp, httpJsonpDocs);
+            intellisense.annotate($delegate.head, httpHeadDocs);
+            intellisense.annotate($delegate.post, httpPostDocs);
+            intellisense.annotate($delegate.put, httpPutDocs);
+            intellisense.annotate($delegate.patch, httpPatchDocs);
+            return $delegate;
+        }]);
+
         // Decorate the $q service to resolve deferred objects at the end of the digest cycle.
         $provide.decorator('$q', ['$rootScope', '$delegate', function ($rootScope, $delegate) {
             var originalDefer = $delegate.defer;
@@ -276,7 +358,7 @@
             return $delegate;
         }]);
 
-        // Decorate the $httpBackend service to execute the callback rather than using 
+        // Decorate the $httpBackend service to execute the callback rather than using
         // XHR, so that functions handling the response are called during Intellisense.
         $provide.decorator('$httpBackend', [function () {
             return function (method, url, post, callback) {
@@ -284,7 +366,7 @@
             };
         }]);
 
-        // Decorate the $rootScope to always call event listeners registered 
+        // Decorate the $rootScope to always call event listeners registered
         // with $on, so that listener functions are called during Intellisense.
         $provide.decorator('$rootScope', ['$delegate', function ($delegate) {
             var original$On = $delegate.$on;
@@ -301,7 +383,7 @@
         }]);
     }]);
 
-    // Decorate angular.forEach to always call the callback once, even if it wouldn't 
+    // Decorate angular.forEach to always call the callback once, even if it wouldn't
     // normally be called, so that closure variables will be available via Intellisense.
     var originalForEach = angular.forEach;
 
@@ -377,6 +459,10 @@
     function trackModule(moduleOrName) {
         var moduleName, module;
 
+        // Tell the JavaScript editor that progress is being made in building the
+        // IntelliSense simulation, giving us more time to process modules before timing out
+        intellisense.progress();
+
         if (angular.isString(moduleOrName)) {
             // If the argument is a module name, retrieve the module from the angular.module function.
             moduleName = moduleOrName;
@@ -388,15 +474,14 @@
         }
 
         if (requiredModuleMap[moduleName] === undefined) {
-            // Recursively process dependent modules.
-            forEach(module.requires, trackModule);
-
             logMessage(LOG_LEVEL.INFO, 'Tracking module "' + moduleName + '".');
 
             // Store the module name mapped to the names of all required modules.
             var requiredModuleNames = [moduleName];
 
+            // Recursively process dependent modules.
             forEach(module.requires, function (requiredModuleName) {
+                trackModule(requiredModuleName);
                 requiredModuleNames.splice(requiredModuleNames.length, 0, requiredModuleMap[requiredModuleName]);
             });
 
@@ -405,11 +490,27 @@
             // Decorate module provider functions.
             decorateModuleProviderFunctions(module);
         }
-
     }
 
     function decorateModuleProviderFunctions(module) {
-        // Initialize each component with empty object dependencies. 
+        function addNavBarOverride(name, providerFn, callBackDefinition) {
+            if (!intellisense.declareNavigationContainer) {
+                return;
+            }
+
+            // When the callback defintion is an array, pull the actual callback off the end
+            if (angular.isArray(callBackDefinition)) {
+                callBackDefinition = callBackDefinition[callBackDefinition.length - 1];
+            }
+
+            // Add an entry to the nav bar for the current provider function
+            intellisense.declareNavigationContainer(
+            { callback: callBackDefinition },
+                name + ' (' + providerFn + ')',
+                'vs:GlyphGroupType')
+        }
+
+        // Initialize each component with empty object dependencies.
         forEach(moduleProviderFunctions, function (providerFunction) {
 
             // Decorate the component type function to call component functions with correct arguments.
@@ -417,7 +518,7 @@
 
             // Only decorate the provider function if the module has it (which it may not for animate).
             if (originalProviderFunction) {
-                module[providerFunction] = function () {
+                module[providerFunction] = function (name, callBackDefinition) {
                     logMessage(LOG_LEVEL.VERBOSE, 'Calling provider function "' + providerFunction + '" with the following arguments:');
                     logValue(LOG_LEVEL.VERBOSE, arguments);
 
@@ -434,6 +535,11 @@
 
                         // Factories, services, providers, etc.
                         logMessage(LOG_LEVEL.INFO, 'Creating instance of ' + providerFunction + ' "' + arguments[0] + '".');
+                        addNavBarOverride(name, providerFunction, callBackDefinition);
+
+                        // Before calling the injector, make sure the JS editor knows that progress has been made.
+                        // This helps avoid a "timeout" situation.
+                        intellisense.progress();
 
                         // Initialize the component based on the provider function.
                         switch (providerFunction) {
@@ -579,10 +685,24 @@
             }
         });
     }
-    function callComponentFunctions(injector, component, locals) {
+    function callComponentFunctions(injector, component, locals, recursionDepth) {
+        // A recursion guard, to prevent this code from recursing too long and
+        // causing the IntelliSense engine to timeout
+        if (!recursionDepth) {
+            recursionDepth = 0;
+        }
+        if (recursionDepth++ >= 2) {
+            return;
+        }
+
+        // Tell the JavaScript editor that progress is being made in building the
+        // IntelliSense simulation, giving us more time to call component functions before timing out
+        intellisense.progress();
+
         if (component) {
-            if (angular.isElement(component)) {
-                // Bypass calling component functions on elements.
+            if (angular.isElement(component) || angular.isString(component) || angular.isNumber(component) || angular.isDate(component)) {
+                // Bypass calling component functions when there likely aren't any user-defined
+                // functions to call
                 return;
             } else if (angular.isArray(component) || angular.isFunction(component)) {
                 // If the component itself is a function, then call it.
@@ -592,7 +712,7 @@
                 logValue(LOG_LEVEL.VERBOSE, returnValue);
 
                 // Recursively call functions on the return value.
-                callComponentFunctions(injector, returnValue, locals);
+                callComponentFunctions(injector, returnValue, locals, recursionDepth);
             } else {
                 logMessage(LOG_LEVEL.VERBOSE, 'Calling all functions on the following component:');
                 logValue(LOG_LEVEL.VERBOSE, component);
@@ -606,7 +726,7 @@
                         logValue(LOG_LEVEL.VERBOSE, returnValue);
 
                         // Recursively call functions on the return value.
-                        callComponentFunctions(injector, returnValue, locals);
+                        callComponentFunctions(injector, returnValue, locals, recursionDepth);
                     }
                 });
             }
@@ -689,5 +809,3 @@
         });
     }
 })(window.intellisense);
-
-
