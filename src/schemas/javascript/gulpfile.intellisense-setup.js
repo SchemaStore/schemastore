@@ -47,7 +47,7 @@
         this.removeListener = function () { return this; };
 
         /**
-         * Removes all listeners, or those of the specified event. It's not a good idea to remove listeners that were added elsewhere in the code, especially when it's on an emitter that you didn't create (e.g. sockets or file streams). 
+         * Removes all listeners, or those of the specified event. It's not a good idea to remove listeners that were added elsewhere in the code, especially when it's on an emitter that you didn't create (e.g. sockets or file streams).
          * @param {String} [event] The name of the event, such as "data", "error" etc.
          */
         this.removeAllListeners = function () { return this; };
@@ -82,6 +82,7 @@
              * This method pulls all the data out of a readable stream, and writes it to the supplied destination, automatically managing the flow so that the destination is not overwhelmed by a fast readable stream.
              * @param {Stream} stream The destination for writing data.
              * @param {Object} [options]
+             * @returns {Stream}
              */
             pipe: function (stream) {
 
@@ -163,28 +164,45 @@
              * @param {String} name The name of the task. Tasks that you want to run from the command line should not have spaces in them.
              * @param {Array} [deps] An array of tasks to be executed and completed before your task will run.
              * @param {Function} [fn] The function that performs the task's operations. Generally this takes the form of gulp.src().pipe(someplugin()).
+             * @returns {Task}
              */
             task: function () {
-                return {
-                    isRunning: false,
-                    start: function () { },
-                    stop: function () { },
-                    doneCallback: function () { }
-                };
+                return this;
             },
 
-            tasks: {},
+            /// <field name="tasks" type="Array">Names of task(s) to run when a file changes, added with gulp.task().</field>
+            tasks: [],
 
             /**
              * Checks if a task has been registered with Gulp.
              * @param {String} name The name of the task.
+             * @returns {Boolean}
              */
             hasTask: function () { return true; },
 
+            /// <field name="isRunning" type="Boolean" />
             isRunning: true,
             domain: null,
             seq: [],
-            doneCallback: undefined,
+
+            /**
+             * A function that is being called after all tasks have finished.
+             * @param {Object} err Error object
+             * @returns {Function}
+             */
+            doneCallback: function (err) { },
+
+            /**
+             * Starts a task.
+             * @param {String|Array} task The name of the task or an array of names.
+             * @param {Function} [cb] Callback to call after run completed. Passes single argument: err (Boolean).
+             */
+            start: function () { },
+
+            /**
+            * Stop an orchestration run currently in process
+            */
+            stop: function () { },
 
             dest: dependencies.vfs.dest,
             src: dependencies.vfs.src,
@@ -426,7 +444,7 @@
             /**
              * Writes the sourcemap.
              * @param {sourcemapsWriteConfig} [options] A configuration object for sourcemaps.
-             * @param {string} [path] To write external source map files, pass a path relative to the destination to  sourcemaps.write() 
+             * @param {string} [path] To write external source map files, pass a path relative to the destination to  sourcemaps.write()
              */
             write: function () { }
         };
@@ -586,26 +604,28 @@
     };
 
     modules["glob-watcher"] = function () {
+
+        global.watchConfig = function () {
+            return {
+                /// <field name="interval" type="Integer">Interval to pass to 'fs.watchFile'.</field>
+                interval: 0,
+                /// <field name="debounceDelay" type="Integer">Delay for events called in succession for the same file/event.</field>
+                debounceDelay: 0,
+                /// <field name="mode" type="String">Force the watch mode. Either 'auto' (default), 'watch' (force native events), or 'poll' (force stat polling).</field>
+                mode: "default",
+                /// <field name="cwd" type="String">The current working directory to base file patterns from. Default is 'process.cwd()'.</field>
+                cwd: ""
+            }
+        };
+
         /**
          * Watch files and do something when a file changes. This always returns an EventEmitter that emits change events.
-         * @param {String} glob A single glob or array of globs that indicate which files to watch for changes.
-         * @param {Object} [options] Optional configuration object, that are passed to "gaze".
-         * @param {Array} tasks Names of task(s) to run when a file changes, added with "gulp.task()".
+         * @param {String|Array} glob A single glob or array of globs that indicate which files to watch for changes.
+         * @param {watchConfig} [options] Optional configuration object, that are passed to "gaze".
+         * @param {Array|Function} tasks Names of task(s) to run when a file changes, added with "gulp.task()" or a callback function.
+         * @returns {EventEmitter}
          */
-        function fn() {
-            return {
-                end: function () { },
-                add: function () { },
-                remove: function () { },
-
-                /**
-                 * Hook into events.
-                 * @param {String} event The name of the event, such as "data", "error" etc.
-                 * @param {Function} callback The callback function to execute when the event fires.
-                 */
-                on: function () { }
-            };
-        }
+        function fn() { }
 
         return fn;
     };
@@ -615,17 +635,39 @@
             watcher: modules["glob-watcher"]()
         };
 
+        global.srcConfig = function () {
+            return {
+                /// <field name="buffer" type="Boolean">Setting this to false will return 'file.contents' as a stream and not buffer files. This is useful when working with large files.</field>
+                buffer: true,
+                /// <field name="read" type="Boolean">Setting this to false will return 'file.contents' as null and not read the file at all.</field>
+                read: true,
+                /// <field name="base" type="String" />
+                base: ""
+            }
+        };
+
+        global.destConfig = function () {
+            return {
+                /// <field name="cwd" type="String">'cwd' for the output folder, only has an effect if provided output folder is relative.</field>
+                cwd: "",
+                /// <field name="mode" type="String">Octal permission string specifying mode for any folders that need to be created for output folder.</field>
+                mode: "",
+            }
+        };
+
         return {
             /**
             * Emits files matching provided glob or an array of globs. Returns a stream of Vinyl files that can be piped to plugins.
-            * @param {String} glob Glob or array of globs to read.
-            * @param {Object} [options] Options to pass to node-glob through glob-stream.
+            * @param {String|Array} glob Glob or array of globs to read.
+            * @param {srcConfig} [options] Options to pass to node-glob through glob-stream.
+            * @returns {Stream}
             */
             src: function () { return new Stream().Readable(); },
 
             /**
              * @param {String} outFolder The path (output folder) to write files to.
-             * @param {Object} [options] A configuration object.
+             * @param {destConfig} [options] A configuration object.
+             * @returns {Stream}
              */
             dest: function () { return new Stream().Readable(); },
 
@@ -651,5 +693,6 @@
 
     // Set global properties to make them visible in Intellisense inside gulpfile.js.
     global.require = require;
+    global.EventEmitter = EventEmitter;
 
 })(this);
