@@ -829,6 +829,144 @@
         return rimraf;
     };
 
+    modules["gulp-watch"] = function () {
+
+        global.gulpWatchConfig = function () {
+            return {
+                /// <field name="ignoreInitial" type="Boolean">Indicates whether chokidar should ignore the initial add events or not.</field>
+                ignoreInitial: false,
+                /// <field name="gently" type="Array">List of events, that should be watched by gulp-watch. Contains event names from chokidar.</field>
+                events: [],
+                /// <field name="base" type="String">Use explicit base path for files from glob. Read more about base and cwd in gulpjs docs.</field>
+                base: "",
+                /// <field name="name" type="String">Name of the watcher. If it present in options, you will get more readable output.</field>
+                name: "",
+                /// <field name="verbose" type="Boolean">This options will enable verbose output.</field>
+                verbose: "",
+                /// <field name="readDelay" type="Number">Wait for readDealy milliseconds before read file.</field>
+                readDelay: "",
+            }
+        };
+
+        /**
+         * File watcher, that uses super-fast chokidar and emits vinyl objects.
+         * @param {String|Array} pattern File globbing pattern.
+         * @param {gulpWatchConfig} [options]
+         * @param {Function} [callback]
+         * @returns {Stream}
+         */
+        var gulpwatch = function () {
+            var writeable = new Stream().Writable();
+
+            var obj = {
+
+                /**
+                 * Adds files to be .
+                 * @param {String|Array} pattern File globbing pattern.
+                 */
+                add: function () { },
+                /**
+                 * Removes files from being watched.
+                 * @param {String|Array} pattern File globbing pattern.
+                 */
+                unwatch: function () { },
+
+                // Closes the watcher.
+                close: function () { }
+            }
+
+            return merge(writeable, obj);
+        };
+
+        return gulpwatch;
+    };
+
+    modules["gulp-rename"] = function () {
+
+        global.renameConfig = function () {
+            return {
+                /// <field name="dirname" type="String">The relative path from the base directory set by gulp.src to the filename.</field>
+                dirname: "",
+                /// <field name="basename" type="String">The filename without the extension like path.basename(filename, path.extname(filename)).</field>
+                basename: "",
+                /// <field name="prefix" type="String" />
+                prefix: "",
+                /// <field name="suffix" type="String" />
+                suffix: "",
+                /// <field name="extname" type="String">The file extension including the '.' like path.extname(filename).</field>
+                extname: ""
+            }
+        };
+
+        var rename = function () {
+            /// <signature>
+            ///   <param name="config" type="renameConfig">A configuration object.</param>
+            ///   <returns type="Stream" />
+            /// </signature>
+            /// <signature>
+            ///   <param name="fileName" type="String">The resulting file name.</param>
+            ///   <returns type="Stream" />
+            /// </signature>
+            /// <signature>
+            ///   <param name="fn(path)" type="Funtion">A custom function.</param>
+            ///   <returns type="Stream" />
+            /// </signature>
+        };
+
+        return rename;
+    };
+
+    modules["gulp-imagemin"] = function () {
+
+        global.imageminConfig = function () {
+            return {
+                /// <field name="optimizationLevel" type="Number">Select an optimization level between 0 and 7.</field>
+                optimizationLevel: 3,
+                /// <field name="progressive" type="Boolean">Lossless conversion to progressive.</field>
+                progressive: true,
+                /// <field name="interlaced" type="Boolean">Interlace gif for progressive rendering.</field>
+                interlaced: "",
+                /// <field name="multipass" type="Boolean">Optimize svg multiple times until it's fully optimized.</field>
+                multipass: "",
+                /// <field name="svgoPlugins" type="Array">Customize which SVGO plugins to use.</field>
+                svgoPlugins: "",
+                /// <field name="use" type="Array">Additional plugins to use with imagemin.</field>
+                use: ""
+            }
+        };
+
+        /**
+         * Minify PNG, JPEG, GIF and SVG images
+         * @param {imageminConfig} options
+         * @returns {Stream}
+         */
+        return function () { return new Stream().Writable(); };
+    };
+
+    modules["gulp-plumber"] = function () {
+
+        global.plumberConfig = function () {
+            return {
+                /// <field name="inherit" type="Boolean|Function">Monkeypatch pipe functions in underlying streams in pipeline.</field>
+                inherit: false,
+                /// <field name="errorHandler" type="Boolean|Function">Handle errors in underlying streams and output them to console.</field>
+                errorHandler: false
+            }
+        };
+
+        /**
+         * Prevent pipe breaking caused by errors from gulp plugins.
+         * @param {plumberConfig} [options]
+         * @returns {Stream}
+         */
+        var plumber = function () { return new Stream().Writable(); };
+
+        // This method will return default behaviour for pipeline after it was piped.
+        plumber.stop = function () { };
+
+        return plumber;
+    };
+
     // Helper function that merges two objects
     function merge(obj1, obj2) {
         for (var attrname in obj2) { obj1[attrname] = obj2[attrname]; }
