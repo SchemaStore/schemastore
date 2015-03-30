@@ -521,24 +521,58 @@
 
         global.typescriptConfig = function () {
             return {
-                /// <field name="removeComments" type="Boolean" />
-                removeComments: true,
-                /// <field name="noImplicitAny" type="Boolean" />
+                /// <field name="charset" type="String" />
+                charset: "",
+                /// <field name="codepage" type="Number" />
+                codepage: 0,
+                /// <field name="declaration" type="Boolean">Generates corresponding d.ts files.</field>
+                declaration: true,
+                /// <field name="diagnostics" type="Boolean" />
+                diagnostics: true,
+                /// <field name="emitBOM" type="Boolean" />
+                emitBOM: true,
+                /// <field name="listFiles" type="Boolean" />
+                listFiles: true,
+                /// <field name="locale" type="String" />
+                locale: true,
+                /// <field name="mapRoot" type="String">Specifies the location where debugger should locate map files instead of generated locations.</field>
+                mapRoot: "",
+                /// <field name="module" type="String">Specify module code generation: 'commonjs' or 'amd'.</field>
+                module: "",
+                /// <field name="noEmit" type="Boolean">Do not emit output.</field>
+                noEmit: "",
+                /// <field name="noEmitOnError" type="Boolean">Do not emit outputs if any type checking errors were reported.</field>
+                noEmitOnError: "",
+                /// <field name="noImplicitAny" type="Boolean">Warn on expressions and declarations with an implied 'any' type.</field>
                 noImplicitAny: true,
                 /// <field name="noLib" type="Boolean" />
                 noLib: true,
-                /// <field name="target" type="String" />
-                target: "",
-                /// <field name="module" type="String" />
-                module: "",
-                /// <field name="sourceRoot" type="String" />
+                /// <field name="noLibCheck" type="Boolean" />
+                noLibCheck: true,
+                /// <field name="noResolve" type="Boolean" />
+                noResolve: true,
+                /// <field name="out" type="String">Concatenate and emit output to single file.</field>
+                out: "",
+                /// <field name="outDir" type="String">Redirect output structure to the directory.</field>
+                outDir: "",
+                /// <field name="preserveConstEnums" type="Boolean">Do not erase const enum declarations in generated code.</field>
+                preserveConstEnums: true,
+                /// <field name="project" type="String">Compile the project in the given directory.</field>
+                project: "",
+                /// <field name="removeComments" type="Boolean">Do not emit comments to output.</field>
+                removeComments: true,
+                /// <field name="sourceMap" type="Boolean">Generates corresponding '.map' file.</field>
+                sourceMap: true,
+                /// <field name="sourceRoot" type="String">Specifies the location where debugger should locate TypeScript files instead of source locations.</field>
                 sourceRoot: "",
-                /// <field name="declarationFiles" type="Boolean" />
-                declarationFiles: true,
-                /// <field name="noExternalResolve" type="Boolean" />
-                noExternalResolve: true,
-                /// <field name="sortOutput" type="Boolean" />
-                sortOutput: true
+                /// <field name="suppressImplicitAnyIndexErrors" type="Boolean">Suppress noImplicitAny errors for indexing objects lacking index signatures.</field>
+                suppressImplicitAnyIndexErrors: true,
+                /// <field name="target" type="String">Specify ECMAScript target version. Valid values are 'es3', 'es5' and 'es6'.</field>
+                target: "",
+                /// <field name="version" type="Boolean">Print the compiler's version.</field>
+                version: true,
+                /// <field name="watch" type="Boolean">Watch input files.</field>
+                watch: true
             };
         };
 
