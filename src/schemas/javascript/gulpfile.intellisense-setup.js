@@ -679,6 +679,156 @@
         return new Stream();
     };
 
+    modules["fs"] = function () {
+
+        var stats = {
+            isFile: function () { return true; },
+            isDirectory: function () { return true; },
+            isBlockDevice: function () { return true; },
+            isCharacterDevice: function () { return true; },
+            isSymbolicLink: function () { return true; },
+            isFIFO: function () { return true; },
+            isSocket: function () { return true; },
+        };
+
+        return {
+            rename: function (oldName, newName, callback) { },
+            renameSync: function (oldName, newName) { },
+            ftruncate: function (fd, len, callback) { },
+            ftruncateSync: function (fd, len) { },
+            truncate: function (path, len, callback) { },
+            truncateSync: function (path, len) { },
+            fchown: function (fd, uid, gid, callback) { },
+            fchownSync: function (fd, uid, gid) { },
+            lchown: function (fd, uid, gid, callback) { },
+            lchownSync: function (fd, uid, gid) { },
+            chown: function (path, uid, gid, callback) { },
+            chownSync: function (path, uid, gid, callback) { },
+            chmod: function (path, mode, callback) { },
+            chmodSync: function (path, mode) { },
+            stat: function (path, callback) { return stats },
+            statSync: function (path) { },
+            lstat: function (path, callback) { return stats },
+            lstatSync: function (path) { },
+            fstat: function (fd, callback) { return stats },
+            fstatSync: function (fd) { },
+            link: function (srcpath, dstpath, callback) { },
+            linkSync: function (srcpath, dstpath) { },
+            symlink: function (srcpath, dstpath, type, callback) { },
+            symlinkSync: function (srcpath, dstpath, type) { },
+            // The callback gets two arguments (err, linkString).
+            readlink: function (path, callback) { },
+            // Returns the symbolic link's string value.
+            readlinkSync: function (path) { },
+            realpath: function (path, cache, callback) { },
+            // Returns the resolved path.
+            realpathSync: function (path, cache) { },
+            // No arguments other than a possible exception are given to the completion callback.
+            unlink: function (path, callback) { },
+            unlinkSync: function (path) { },
+            // No arguments other than a possible exception are given to the completion callback.
+            rmdir: function (path, callback) { },
+            rmdirSync: function (path) { },
+            mkdir: function (path, mode, callback) { },
+            mkdirSync: function (path, mode) { },
+            readdir: function (path, callback) { },
+            // Returns an array of filenames excluding '.' and '..'.
+            readdirSync: function (path, callback) { },
+            // No arguments other than a possible exception are given to the completion callback.
+            close: function (fd, callback) { },
+            closeSync: function (fd) { },
+            // Asynchronous file open.
+            open: function (path, flags, mode, callback) { },
+            // Synchronous version of fs.open().
+            openSync: function (path, flags, mode) { },
+            // Change file timestamps of the file referenced by the supplied path.
+            utimes: function (path, atime, mtime, callback) { },
+            // Change file timestamps of the file referenced by the supplied path.
+            utimesSync: function (path, atime, mtime) { },
+            write: function (fd, buffer, offset, length, position, callback) { },
+            writeSync: function (fd, buffer, offset, length, position) { },
+            read: function (fd, buffer, offset, length, position, callback) { },
+            readSync: function (fd, buffer, offset, length, position) { },
+            readFile: function (filename, options, callback) { },
+            readFileSync: function (filename, options) { },
+            writeFile: function (filename, data, options, callback) { },
+            writeFileSync: function (filename, data, options) { },
+            appendFile: function (filename, data, options, callback) { },
+            appendFileSync: function (filename, data, options) { },
+            // Watch for changes on filename. The callback listener will be called each time the file is accessed.
+            watchFile: function (filename, options, listener) { },
+            // Stop watching for changes on filename. If listener is specified, only that particular listener is removed. Otherwise, all listeners are removed and you have effectively stopped watching filename.
+            unwatchFile: function (filename, listener) { },
+            // Watch for changes on filename, where filename is either a file or a directory.
+            watch: function (filename, options, listener) { },
+            // Test whether or not the given path exists by checking with the file system. Then call the callback argument with either true or false.
+            exists: function (path, callback) { },
+            // Synchronous version of fs.exists.
+            existsSync: function (path) { },
+            // Tests a user's permissions for the file specified by path. mode is an optional integer that specifies the accessibility checks to be performed.
+            access: function (path, mode, callback) { },
+            accessSync: function (path, mode) { },
+            createReadStream: function (path, options) { return new Stream().Readable(); },
+            createWriteStream: function (path, options) { return new Stream().Writable(); },
+        };
+    };
+
+    modules["del"] = function () {
+
+        global.delConfig = function () {
+            return {
+                /// <field name="force" type="Boolean">Allow deleting the current working directory and files/folders outside it.</field>
+                force: false
+            }
+        };
+
+        /**
+         * Delete files/folders using globs.
+         * @param {String|Array} patterns Globbing pattern(s).
+         * @param {delConfig} [options]
+         * @param {Function} callback
+         */
+        var del = function () { };
+
+        /**
+         * Delete files/folders using globs.
+         * @param {String|Array} patterns Globbing pattern(s).
+         * @param {delConfig} [options]
+         */
+        del.sync = function () { };
+
+        return del;
+    };
+
+    modules["rimraf"] = function () {
+
+        global.rimrafConfig = function () {
+            return {
+                /// <field name="maxBusyTries" type="Integer">The number of times to retry a file or folder in the event of an EBUSY error. The default is 3.</field>
+                maxBusyTries: false,
+                /// <field name="gently" type="String">If provided a gently path, then rimraf will only delete files and folders that are beneath this path, and only delete symbolic links that point to a place within this path.</field>
+                gently: false
+            }
+        };
+
+        /**
+         * A deep deletion module for node
+         * @param {String} pattern File globbing pattern.
+         * @param {rimrafConfig} [options]
+         * @param {Function} callback
+         */
+        var rimraf = function () { };
+
+        /**
+         * A deep deletion module for node
+         * @param {String} pattern File globbing pattern.
+         * @param {rimrafConfig} [options]
+         */
+        rimraf.sync = function () { };
+
+        return rimraf;
+    };
+
     // Helper function that merges two objects
     function merge(obj1, obj2) {
         for (var attrname in obj2) { obj1[attrname] = obj2[attrname]; }
