@@ -17,29 +17,34 @@
 
     var ul = document.querySelector("#schemalist ul");
     var p = document.getElementById("count");
+    var schemas = document.getElementById("schemas");
 
     if (!ul || !p)
         return;
 
-    get("/api/json/catalog.json", true, function (catalog) {
+    if (schemas !== null) {
+        var api = schemas.getAttribute("data-api");
 
-        p.innerHTML = p.innerHTML.replace("{0}", catalog.schemas.length);
+        get(api, true, function (catalog) {
 
-        for (var i = 0; i < catalog.schemas.length; i++) {
+            p.innerHTML = p.innerHTML.replace("{0}", catalog.schemas.length);
 
-            var schema = catalog.schemas[i];
-            var li = document.createElement("li");
-            var a = document.createElement("a");
-            a.href = schema.url;
-            a.title = schema.description;
-            a.innerHTML = schema.name;
+            for (var i = 0; i < catalog.schemas.length; i++) {
 
-            li.appendChild(a);
-            ul.appendChild(li);
-        }
+                var schema = catalog.schemas[i];
+                var li = document.createElement("li");
+                var a = document.createElement("a");
+                a.href = schema.url;
+                a.title = schema.description;
+                a.innerHTML = schema.name;
 
-        ul.parentNode.style.maxHeight = "9999px";
-    });
+                li.appendChild(a);
+                ul.appendChild(li);
+            }
+
+            ul.parentNode.style.maxHeight = "9999px";
+        });
+    }
 
 }(typeof window !== undefined ? window : this));
 
