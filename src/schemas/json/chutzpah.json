@@ -12,13 +12,19 @@
 					"description": "The path to either a file or a folder. If given a folder, it will be scanned recursively. This path can be relative to the location of the chutzpah.json file.",
 					"type": "string"
 				},
-				"Include": {
-					"description": "This is an optional include glob pattern. This is used when the Path is a folder. Only files matching the Include pattern will be added.",
-					"type": "string"
+				"Includes": {
+					"description": "This is an optional array of include glob patterns. Only files matching the Include pattern will be added.",
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
 				},
-				"Exclude": {
-					"description": "This is an optional include glob pattern. This is used when the Path is a folder. Only files matching the Include pattern will be added.",
-					"type": "string"
+				"Excludes": {
+					"description": "This is an optional array of exclude glob patterns.  Only files not matching the Exclude patterns will be added.",
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
 				},
 				"IncludeInTestHarness": {
 					"description": "This determines if the reference should be injected into the test harness. When referencing files like .d.ts or files that you plan to load using require.js you should set this to false. Defaults to true.",
@@ -38,12 +44,30 @@
 					"description": "The path to either a file or a folder. If given a folder, it will be scanned recursively. This path can be relative to the location of the chutzpah.json file.",
 					"type": "string"
 				},
-				"Include": {
-					"description": "This is an optional include glob pattern. This is used when the Path is a folder. Only files matching the Include pattern will be added.",
+				"Includes": {
+					"description": "This is an optional array of include glob patterns. Only files matching the Include pattern will be added.",
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"Excludes": {
+					"description": "This is an optional array of exclude glob patterns.  Only files not matching the Exclude patterns will be added.",
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			}
+		},		
+		"transformConfig": {
+			"properties": {
+				"Name": {
+					"description": "The name of the transform to execute",
 					"type": "string"
 				},
-				"Exclude": {
-					"description": "This is an optional include glob pattern. This is used when the Path is a folder. Only files matching the Include pattern will be added.",
+				"Path": {
+					"description": "The file for the transform to save its output to.",
 					"type": "string"
 				}
 			}
@@ -103,6 +127,11 @@
 					"type": "string",
 					"enum": [ "Executable", "External" ],
 					"default": "Executable"
+				},
+				"UseSourceMaps": {
+					"description": "Configures whether .map files should be loaded (if available) to convert under-test JS line numbers to those of their original source files.",
+					"type": "boolean",
+					"default": false
 				}
 			}
 		}
@@ -130,6 +159,13 @@
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/testSettings"
+			}
+		},
+		"Transforms": {
+			"description": "List of transformers to run after testing to generate output files",
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/transformConfig"
 			}
 		},
 		"Compile": {
@@ -162,6 +198,10 @@
 			"description": "If true, forces code coverage to run always. If null or not not set, allows code coverage to run if invoked using test adapter, command line or context menu options (default). If false, forces code coverage to never run.",
 			"type": [ "boolean", "null" ]
 		},
+		"CodeCoverageSuccessPercentage": {
+			"description": "The percentage of lines needing to be covered to show the coverage output as success or failure. By default this is 60.",
+			"type": "number"
+		},
 		"CodeCoverageIncludes": {
 			"description": "The collection code coverage file patterns to include in coverage. These are in glob format. If you specify none all files are included.",
 			"type": "array",
@@ -180,13 +220,21 @@
 			"description": "The CustomTestHarnessPath setting allows you to override the default template Chutzpah uses for the HTML test harness. This is an advanced feature which should only be used as a last resort.",
 			"type": "string"
 		},
-		"CoffeeScriptBareMode": {
-			"description": "The CoffeeScriptBareMode indicates if you want CoffeeScript compilation to output scripts in bare mode or not. In bare mode CoffeeScript won’t wrap the generated JavaScript in a function to protect the scope.",
-			"type": "boolean",
-			"default": true
+		"MochaInterface": {
+			"description": "The name of the Mocha interface to use. Overrides the default detection mechanism.",
+			"type": "string",
+			"enum": [ "bdd", "tdd", "qunit" ]
 		},
-		"AMDBasePath": {
-			"description": "Lets you configure Chutzpah to work in with RequireJS when you are setting a baseurl in your Require.js config. This should point to the same location.",
+		"AMDBaseUrl": {
+			"description": "Set the baseurl for Chutzpah to use when generating the test harness. Defaults to the test harness directory if not set.",
+			"type": "string"
+		},		
+		"AMDAppDirectory": {
+			"description": "Sets the root directory for your AMD paths. This is only needed if your baseUrl is a different location than your source directory. This is common if you are compiling from another language to JavaScript and copying those compiled files to a different folder. For example if you have all your .ts files in /src and you compile them to a /out directry then your AMDBaseUrl is /out and AMDAppDirectory is /src. Defaults to the test harness directory if not set.",
+			"type": "string"
+		},
+		"UserAgent": {
+			"description": "The user agent to use when making web requests",
 			"type": "string"
 		},
 		"TestPattern": {
@@ -194,13 +242,17 @@
 			"type": "string",
 			"format": "regex"
 		},
-		"TypeScriptCodeGenTarget": {
-			"type": "string",
-			"enum": [ "ES3", "ES5" ]
+		"EnableTestFileBatching": {
+			"description": "Determines if batch all test files for this chutzpah.json file should be batched into one test harness. This will often make your test run much faster.",
+			"type": "boolean"
+		},		
+		"InheritFromParent": {
+			"description": "Determines if this settings file should inherit and merge with the settings of its parent settings file. The parent is found by recursively walking up the tree.",
+			"type": "boolean"
 		},
-		"TypeScriptModuleKind": {
-			"type": "string",
-			"enum": [ "CommonJS", "AMD" ]
+		"IgnoreResourceLoadingErrors": {
+			"description": "Suppress errors that are reported when a script request to load a url (e.g. xhr/script/image) fails.",
+			"type": "boolean"
 		}
 	}
 }
