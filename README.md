@@ -1,14 +1,14 @@
-#JSON Schema Store
+# JSON Schema Store
 
-###A collection of JSON schemas 
+### A collection of JSON schemas
 [![Build status](https://ci.appveyor.com/api/projects/status/ab34h2jsrjfiw2xq?svg=true)](https://ci.appveyor.com/project/madskristensen/schemastore-371)
 
-The repository is meant as a universal JSON schema store, 
+The repository is meant as a universal JSON schema store,
 where schemas for popular JSON documents can be found.
 
 Website: [schemastore.org](http://schemastore.org)
 
-###Contribute
+### Contribute
 You can contribute in a various different ways.
 
 1. Submit new JSON schema files
