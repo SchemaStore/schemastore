@@ -48,8 +48,11 @@ After cloning this project to your local machine, copy
 the 
 [XML schema files](/src/schemas/css) to this folder:
 
-**C:\Users\[username]\AppData\Roaming\Microsoft\VisualStudio\14.0\schemas\css**
+**C:\Users\[username]\AppData\Roaming\Microsoft\VisualStudio\14.0\schemas\css** where
+_14.0_ refers the version of Visual Studio.
 
-If the folder doesn't exist, you should create it. Visual
-Studio will now use these schema files instead of the ones
-it ships with.
+If the last part of the path (_schemas\css_) doesn't exist, 
+you should create it manually. 
+
+Visual Studio will now use these schema files instead of
+the ones it ships with.
