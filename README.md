@@ -40,3 +40,16 @@ Here are some ways to contribute:
 2. Add missing properties and values
 3. Update the supported browsers attribute
 4. Add new CSS modules by creating a new file
+
+The easiest way to contribute is to use Visual Studio 2012
+or newer, since it has native support for this XML format.
+
+After cloning this project to your local machine, copy
+the 
+[XML schema files](/src/schemas/css) to this folder:
+
+**C:\Users\[username]\AppData\Roaming\Microsoft\VisualStudio\14.0\schemas\css**
+
+If the folder doesn't exist, you should create it. Visual
+Studio will now use these schema files instead of the ones
+it ships with.
