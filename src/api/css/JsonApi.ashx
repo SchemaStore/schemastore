@@ -10,8 +10,9 @@ public class JsonApi : IHttpHandler
 
     public void ProcessRequest(HttpContext context)
     {
-        context.Response.ContentType = "application/json";
         string path = System.IO.Path.Combine(context.Request.PhysicalApplicationPath, "api\\css\\css-main.xml");
+
+        SetHeaders(context, path);
 
         XmlDocument doc = new XmlDocument();
         doc.Load(path);
@@ -39,6 +40,15 @@ public class JsonApi : IHttpHandler
         string output = serializer.Serialize(api);
 
         context.Response.Write(output);
+    }
+
+    private void SetHeaders(HttpContext context, string path)
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.AddFileDependency(path);
+        context.Response.Cache.SetCacheability(HttpCacheability.ServerAndPrivate);
+        context.Response.Cache.SetLastModifiedFromFileDependencies();
+        context.Response.Cache.SetValidUntilExpires(true);
     }
 
     public bool IsReusable
