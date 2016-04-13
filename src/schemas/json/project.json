@@ -31,6 +31,10 @@
 					"type": "boolean",
 					"default": false
 				},
+				"platform": {
+				  "type": "string",
+				  "enum": [ "anycpu", "anycpu32bitpreferred", "ARM", "x86", "x64", "Itanium" ]
+				},
 				"languageVersion": {
 					"type": "string",
 					"enum": [ "csharp1", "csharp2", "csharp3", "csharp4", "csharp5", "csharp6", "experimental" ]
@@ -42,9 +46,17 @@
 					"type": "boolean",
 					"default": false
 				},
-				"useOssSigning": {
+				"publicSign": {
 					"type": "boolean",
 					"default": false
+				},
+				"debugType": {
+					"type": "string",
+					"enum": [ "portable", "full", "none" ]
+				},
+				"preserveCompilationContext": {
+				  "type": "boolean",
+				  "description": "Set this option to preserve reference assemblies and other context data to allow for runtime compilation"
 				}
 			}
 		},
@@ -53,8 +65,28 @@
 			"properties": {
 				"dependencies": { "$ref": "#/definitions/dependencies" },
 				"compilationOptions": { "$ref": "#/definitions/compilationOptions" },
-				"frameworkAssemblies": { "$ref": "#/definitions/dependencies" }
+				"frameworkAssemblies": { "$ref": "#/definitions/dependencies" },
+				"imports": {
+				  "type": [ "string", "array" ],
+				  "description": "Allow packages supporting these frameworks to be installed in this target, regardless of the compatibility rules.",
+			    "items": {
+				    "type": "string"
+			    }
+				}
 			}
+		},
+		"libraryIncludeFlag": {
+			"type": "string",
+			"enum": [ "all", "runtime", "compile", "build", "contentFiles", "native", "analyzers" ]
+		},
+		"libraryIncludeFlags": {
+			"oneOf": [
+				{ "$ref": "#/definitions/libraryIncludeFlag" },
+				{
+					"type": "array",
+					"items": { "$ref": "#/definitions/libraryIncludeFlag" }
+				}
+			]
 		},
 		"dependencies": {
 			"type": "object",
@@ -67,12 +99,21 @@
 					"type": {
 						"type": "string",
 						"default": "default",
-						"enum": [ "default", "build" ]
+						"enum": [ "default", "build", "platform" ]
 					},
 					"target": {
-					  "type": "string",
-					  "description": "Restrict this dependency to matching only a Project or a Package",
-					  "enum": [ "project", "package" ]
+						"type": "string",
+						"description": "Restrict this dependency to matching only a Project or a Package",
+						"enum": [ "project", "package" ]
+					},
+					"include": {
+						"$ref": "#/definitions/libraryIncludeFlags"
+					},
+					"exclude": {
+						"$ref": "#/definitions/libraryIncludeFlags"
+					},
+					"suppressParent": {
+						"$ref": "#/definitions/libraryIncludeFlags"
 					}
 				}
 			}
@@ -96,8 +137,8 @@
 		},
 
 		"packInclude": {
-		  "description": "Pairs of destination folders and glob patterns specifying additional files to include in the output NuGet package. (data type: JSON map). Example: { \"tools/\": \"tools/**/*.*\" }",
-		  "type": "object"
+			"description": "Pairs of destination folders and glob patterns specifying additional files to include in the output NuGet package. (data type: JSON map). Example: { \"tools/\": \"tools/**/*.*\" }",
+			"type": "object"
 		},
 
 		"publishExclude": {
@@ -239,6 +280,10 @@
 			},
 			"default": [ "bin/**", "obj/**", "**/*.xproj" ]
 		},
+		"testRunner": {
+		  "description": "The name of the test runner to use with this project",
+		  "type": "string"
+		},
 
 		"commands": {
 			"type": "object",
@@ -329,15 +374,15 @@
 			"type": "object",
 			"description": "Contains information about the repository where the project is stored.",
 			"properties": {
-        "type": {
-          "type": "string",
-          "enum": [ "git" ],
-          "default": "git"
-        },
-        "url": {
-          "type": "string",
-          "format": "uri"
-        }
+				"type": {
+					"type": "string",
+					"enum": [ "git" ],
+					"default": "git"
+				},
+				"url": {
+					"type": "string",
+					"format": "uri"
+				}
 			},
 			"additionalProperties": {
 				"type": "string"
@@ -361,6 +406,18 @@
 		"version": {
 			"description": "The version of the project/package. Examples: 1.2.3, 1.2.3-beta, 1.2.3-*",
 			"type": "string"
+		},
+		"tools": {
+			"description": "Project-specific command line tools accessible when in the project.json directory.",
+			"type": "object",
+			"additionalProperties": {
+				"type": [ "string", "object" ],
+				"properties": {
+					"version": {
+						"type": "string"
+					}
+				}
+			}
 		}
 	}
 }
