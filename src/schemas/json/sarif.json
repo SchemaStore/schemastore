@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "Static Analysis Results Format (SARIF) Version 1.0.0 JSON Schema",
   "description": "Static Analysis Results Format (SARIF) Version 1.0.0 JSON Schema: a standard format for the output of static analysis and other tools.",
@@ -36,10 +36,16 @@
       "properties": {
 
         "id": {
-          "description": "An identifier for the location, unique within the scope of the code flow within which it occurs.",
+          "description": "OBSOLETE (use \"step\" instead): An identifier for the location, unique within the scope of the code flow within which it occurs.",
           "type": [ "integer", "string" ],
           "pattern": "^[1-9][0-9]*$",
           "minimum": 1
+        },
+
+        "step": {
+          "description": "The 0-based sequence number of the location in the code flow within which it occurs.",
+          "type": "integer",
+          "minimum": 0
         },
 
         "physicalLocation": {
@@ -73,13 +79,23 @@
         },
 
         "kind": {
-          "description": "A descriptive identifier that categorizes the annotation.",
-          "enum": [ "alias", "branch", "call", "callReturn", "declaration", "functionEnter", "functionExit", "sanitizer", "sink", "source", "usage" ]
+          "description": "Describes the location.",
+          "enum": [ "alias", "assignment", "branch", "call", "callReturn", "continuation", "declaration", "functionEnter", "functionExit", "sanitizer", "sink", "source", "usage" ]
         },
 
         "essential": {
-          "description": "True if this location is essential to understanding the code flow in which it occurs.",
+          "description": "OBSOLETE (use \"importance\" instead): True if this location is essential to understanding the code flow in which it occurs.",
           "type": "boolean"
+        },
+
+        "importance": {
+          "description": "Specifies the importance of this location in understanding the code flow in which it occurs. The order from most to least important is \"essential\", \"important\", \"unimportant\". Default: \"important\".",
+          "enum": [ "important", "essential", "unimportant" ]
+        },
+
+        "snippet": {
+          "description": "The source code at the specified location.",
+          "type": "string"
         },
 
         "properties": {
@@ -99,8 +115,7 @@
             }
           }
         }
-      },
-      "required": [ "physicalLocation" ]
+      }
     },
     "codeFlow": {
       "type": "object",
@@ -194,7 +209,11 @@
           }
         }
       },
-      "required": [ "uri", "replacements" ]
+
+      "required": [ "uri", "replacements" ],
+      "dependencies": {
+        "uriBaseId": [ "uri" ]
+      }
     },
     "file": {
       "description": "A single file. In some cases, this file might be nested within another file.",
@@ -261,6 +280,10 @@
             }
           }
         }
+      },
+
+      "dependencies": {
+        "uriBaseId": [ "uri" ]
       }
     },
     "fix": {
@@ -553,7 +576,7 @@
           "type": "string",
           "format": "uri"
         },
-        
+
         "uriBaseId": {
           "description": "A string that identifies the conceptual base for the 'uri' property (if it is relative), e.g.,'$(SolutionDir)' or '%SRCROOT%'.",
           "type": "string"
@@ -564,7 +587,11 @@
           "$ref": "#/definitions/region"
         }
       },
-      "required": [ "uri" ]
+
+      "required": [ "uri" ],
+      "dependencies": {
+        "uriBaseId": [ "uri" ]
+      }
     },
     "region": {
       "description": "A region within a file where a result was detected.",
@@ -726,7 +753,7 @@
           "items": {
             "description": "A flag value indicating one or more suppression conditions.",
             "enum": [
-              "suppressedInSource"
+              "suppressedInSource", "suppressedExternally"
             ]
           }
         },
@@ -902,6 +929,11 @@
           "description": "An identifier for the run.",
           "type": "string"
         },
+
+        "stableId": {
+          "description": "A stable identifier for a run, for example, 'nightly Clang analyzer run'. Multiple runs of the same type can have the same stableId.",
+          "type": "string"
+        },
         
         "automationId": {
           "description": "A global identifier that allows the run to be correlated with other artifacts produced by a larger automation process.",
@@ -1050,7 +1082,12 @@
         }
       },
 
-      "required": ["fullyQualifiedLogicalName"]
+      "required": [ "fullyQualifiedLogicalName" ],
+      "dependencies": {
+        "uriBaseId": [ "uri" ],
+        "line": [ "uri" ],
+        "column": [ "line" ]
+      }
     },
     "tool": {
       "description": "The analysis tool that was run.",
