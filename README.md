@@ -14,7 +14,7 @@ Contributions are more than welcome. Both to the website
 itself or to the various schema files.
 
 ### JSON Schema
-You can contribute in a various different ways.
+You can contribute in a variety of ways. For a detailed tutorial, read [Scott Addie](https://twitter.com/Scott_Addie)'s [**Community-Driven JSON Schemas in Visual Studio 2015**](https://scottaddie.com/2016/08/02/community-driven-json-schemas-in-visual-studio-2015/) blog post.
 
 1. Submit new JSON schema files
 2. Add a JSON schema file to the [schema catalog](src/api/json/catalog.json)
@@ -49,7 +49,7 @@ the
 [XML schema files](/src/schemas/css) to this folder:
 
 **C:\Users\[username]\AppData\Roaming\Microsoft\VisualStudio\14.0\schemas\css** where
-_14.0_ refers the version of Visual Studio.
+_14.0_ refers to the version of Visual Studio.
 
 If the last part of the path (_schemas\css_) doesn't exist, 
 you should create it manually. 
