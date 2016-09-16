@@ -24,7 +24,8 @@ module.exports = function (grunt) {
                 schemas: {
                     "http://json-schema.org/draft-04/schema#": grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
                     "http://json.schemastore.org/jshintrc": grunt.file.readJSON("schemas/json/jshintrc.json"),
-                    "http://json.schemastore.org/grunt-task": grunt.file.readJSON("schemas/json/grunt-task.json")
+                    "http://json.schemastore.org/grunt-task": grunt.file.readJSON("schemas/json/grunt-task.json"),
+                    "http://json.schemastore.org/jsonld": grunt.file.readJSON("schemas/json/jsonld.json")
                 },
             }
         },
