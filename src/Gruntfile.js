@@ -32,10 +32,10 @@ module.exports = function (grunt) {
         },
 
         http: {
-            composer: {
-                options: { url: "https://raw.githubusercontent.com/composer/composer/master/res/composer-schema.json" },
-                dest: "schemas/json/composer.json"
-            },
+            //composer: {
+            //    options: { url: "https://raw.githubusercontent.com/composer/composer/master/res/composer-schema.json" },
+            //    dest: "schemas/json/composer.json"
+            //},
             contribute: {
                 options: { url: "https://raw.githubusercontent.com/mozilla/contribute.json/master/schema.json" },
                 dest: "schemas/json/contribute.json"
