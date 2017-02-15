@@ -16,7 +16,7 @@ module.exports = function (grunt) {
             schemas: {
                 options: {
                     banUnknown: false,
-                    root: grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
+                    root: grunt.file.readJSON("schemas/json/schema-draft-v4.json")
                 },
                 src: ["schemas/json/*.json", "!schemas/json/ninjs.json"] // ninjs is draft v3
             },
@@ -26,8 +26,9 @@ module.exports = function (grunt) {
                     "http://json.schemastore.org/jshintrc": grunt.file.readJSON("schemas/json/jshintrc.json"),
                     "http://json.schemastore.org/grunt-task": grunt.file.readJSON("schemas/json/grunt-task.json"),
                     "http://json.schemastore.org/jsonld": grunt.file.readJSON("schemas/json/jsonld.json"),
-                    "http://json.schemastore.org/schema-org-thing": grunt.file.readJSON("schemas/json/schema-org-thing.json")
-                },
+                    "http://json.schemastore.org/schema-org-thing": grunt.file.readJSON("schemas/json/schema-org-thing.json"),
+                    "http://json-schemastore.org/xunit.runner.schema": grunt.file.readJSON("schemas/json/xunit.runner.schema.json")
+                }
             }
         },
 
@@ -99,7 +100,7 @@ module.exports = function (grunt) {
 
             var name = folder.replace("_", ".");
             var schema = grunt.file.readJSON("schemas/json/" + name + ".json");
-            var files = fs.readdirSync(dir + "/" + folder).map(function (file) { return dir + "/" + folder + "/" + file });
+            var files = fs.readdirSync(dir + "/" + folder).map(function (file) { return dir + "/" + folder + "/" + file; });
 
             grunt.config.set("tv4." + folder, {
                 options: {
