@@ -27,7 +27,7 @@ module.exports = function (grunt) {
                     "http://json.schemastore.org/grunt-task": grunt.file.readJSON("schemas/json/grunt-task.json"),
                     "http://json.schemastore.org/jsonld": grunt.file.readJSON("schemas/json/jsonld.json"),
                     "http://json.schemastore.org/schema-org-thing": grunt.file.readJSON("schemas/json/schema-org-thing.json"),
-                    "http://json-schemastore.org/xunit.runner.schema": grunt.file.readJSON("schemas/json/xunit.runner.schema.json")
+                    "http://json.schemastore.org/xunit.runner.schema": grunt.file.readJSON("schemas/json/xunit.runner.schema.json")
                 }
             }
         },
