@@ -57,8 +57,8 @@ module.exports = function (grunt) {
                 options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
                 dest: "schemas/json/ninjs.json"
             },
-            xunit_v21rc: {
-                options: { url: "http://xunit.github.io/schema/v2.1-rc1/xunit.runner.schema.json" },
+            xunit_v22: {
+                options: { url: "http://xunit.github.io/schema/v2.2/xunit.runner.schema.json" },
                 dest: "schemas/json/xunit.runner.schema.json"
             }
         },
