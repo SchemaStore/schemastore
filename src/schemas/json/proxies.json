@@ -1,0 +1,217 @@
+﻿{
+  "title": "JSON schema for Azure Functions Proxies proxies.json files",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "proxies": {
+      "type": "object",
+      "patternProperties": {
+        "^.+$": {
+          "$ref": "#/definitions/proxy-schema"
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "proxies"
+  ],
+  "definitions": {
+    "proxy-schema": {
+      "type": "object",
+      "properties": {
+        "desc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "matchCondition": {
+          "$ref": "#/definitions/match-condition-schema",
+          "description": "Required - an object defining the requests that will trigger the execution of this proxy. It contains two properties shared with HTTP triggers - methods and route"
+        },
+        "backendUri": {
+          "type": "string",
+          "description": "The URL of the backend resource to which the request should be proxied. This value may be templated. If this property is not included, Azure Functions will respond with an HTTP 200 OK"
+        },
+        "requestOverrides": {
+          "$ref": "#/definitions/requestOverrides-schema"
+        },
+        "responseOverrides": {
+          "$ref": "#/definitions/responseOverrides-schema"
+        },
+        "debug": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "matchCondition"
+      ],
+      "additionalProperties": false
+    },
+    "match-condition-schema": {
+      "type": "object",
+      "properties": {
+        "route": {
+          "type": "string",
+          "description": "Required - This defines the route template, controlling to which request URLs your proxy will respond. Unlike in HTTP triggers, there is no default value"
+        },
+        "methods": {
+          "type": "array",
+          "description": "This is an array of the HTTP methods to which the proxy will respond. If not specified, the proxy will respond to all HTTP methods on the route.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/http-method-schema"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "route"
+      ]
+    },
+    "requestOverrides-schema": {
+      "type": "object",
+      "properties": {
+        "backend.request.method": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/http-method-schema"
+            },
+            {
+              "$ref": "#/definitions/request-overrides-value-expression-schema"
+            }
+          ]
+        },
+        "backend.request.querystring.<<QueryParamName>>": {
+          "$ref": "#/definitions/request-overrides-value-expression-schema"
+        },
+        "backend.request.headers.<<HeaderName>>": {
+          "$ref": "#/definitions/request-overrides-value-expression-schema"
+        }
+      },
+      "patternProperties": {
+        "^backend\\.request\\.querystring\\..+$": {
+          "$ref": "#/definitions/request-overrides-value-expression-schema"
+        },
+        "^backend\\.request\\.headers\\..+$": {
+          "$ref": "#/definitions/request-overrides-value-expression-schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    "responseOverrides-schema": {
+      "type": "object",
+      "properties": {
+        "response.statusCode": {
+          "$ref": "#/definitions/response-overrides-value-expression-schema"
+        },
+        "response.statusReason": {
+          "$ref": "#/definitions/response-overrides-value-expression-schema"
+        },
+        "response.body": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "object" }
+          ]
+        },
+        "response.headers.<<HeaderName>>": {
+          "$ref": "#/definitions/response-overrides-value-expression-schema"
+        }
+      },
+      "patternProperties": {
+        "^response\\.headers\\..+$": {
+          "$ref": "#/definitions/response-overrides-value-expression-schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request-overrides-value-expression-schema": {
+      "type": "string",
+      "defaultSnippets": [
+        {
+          "label": "Request Header",
+          "description": "Read from one of the request headers",
+          "body": "{request.headers.<<HeaderName>>}"
+        },
+        {
+          "label": "Read Request QueryString parameter",
+          "description": "Read from one of the request QueryString parameters",
+          "body": "{request.querystring.<<QueryParamName>>}"
+        },
+        {
+          "label": "Request Method",
+          "description": "Read the request method",
+          "body": "{request.method}"
+        }
+      ]
+    },
+    "response-overrides-value-expression-schema": {
+      "type": "string",
+      "defaultSnippets": [
+        {
+          "label": "Backend Response Header",
+          "description": "Read from one of the backend response headers",
+          "body": "{backend.response.headers.<<HeaderName>>}"
+        },
+        {
+          "label": "Backend Response Status Code",
+          "description": "Read the Backend Response Status Code",
+          "body": "{backend.response.statusCode}"
+        },
+        {
+          "label": "Backend Response Status Reason",
+          "description": "Read the Backend Response Status Reason",
+          "body": "{backend.response.statusReason}"
+        },
+        {
+          "label": "Original Request Header",
+          "description": "Read from one of the original request headers",
+          "body": "{request.headers.<<HeaderName>>}"
+        },
+        {
+          "label": "Original Request QueryString",
+          "description": "Read from one of the original request QueryString parameters",
+          "body": "{request.querystring.<<QueryParamName>>}"
+        },
+        {
+          "label": "Original Request Method",
+          "description": "Read the original request method",
+          "body": "{request.method}"
+        },
+        {
+          "label": "Backend Request Header",
+          "description": "Read from backend request headers",
+          "body": "{backend.request.headers.<<HeaderName>>}"
+        },
+        {
+          "label": "Backend Request QueryString",
+          "description": "Read from one of the backend request QueryString parameters",
+          "body": "{backend.request.querystring.<<QueryParamName>>}"
+        },
+        {
+          "label": "Bbackend Request Method",
+          "description": "Read the backend request method",
+          "body": "{backend.request.method}"
+        }
+      ]
+    },
+    "http-method-schema": {
+      "enum": [
+        "GET",
+        "POST",
+        "HEAD",
+        "OPTIONS",
+        "PUT",
+        "TRACE",
+        "DELETE",
+        "PATCH",
+        "CONNECT"
+      ]
+    }
+  }
+}
