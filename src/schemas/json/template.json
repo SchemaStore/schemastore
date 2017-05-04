@@ -6,6 +6,151 @@
   "required": [ "author", "classifications", "identity", "name", "shortName" ],
 
   "definitions": {
+    "generatorConstant": {
+      "properties": {
+        "generator": {
+          "enum": [ "constant" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "The value to be assigned to the symbol",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "generatorEvaluate": {
+      "properties": {
+        "generator": {
+          "enum": [ "evaluate" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "The Boolean predicate whose evaluation result becomes the symbol value",
+              "type": "string"
+            },
+            "evaluator": {
+              "description": "A string indicating the predicate evaluator to evaluate the action against.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "generatorGuid": {
+      "properties": {
+        "generator": {
+          "enum": [ "guid" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "Must be the string literal \"new\".",
+              "enum": [ "new" ]
+            },
+            "format": {
+              "description": "When a string representation of the guid is needed, this is used as the format string in Guid.ToString().",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "generatorNow": {
+      "properties": {
+        "generator": {
+          "enum": [ "now" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "The format string to use when converting the date-time to a string representation.",
+              "type": "string"
+            },
+            "utc": {
+              "description": "If true, use UTC time. If false, use local time.",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "generatorRandom": {
+      "properties": {
+        "generator": {
+          "enum": [ "random" ]
+        },
+        "parameters": {
+          "required": [ "low" ],
+          "properties": {
+            "action": {
+              "description": "Must be the string literal \"new\"",
+              "enum": [ "new" ]
+            },
+            "low": {
+              "description": "An integer value indicating the low-end of the range to generate the random number in.",
+              "type": "integer"
+            },
+            "high": {
+              "description": "An integer value indicating the high-end of the range to generate the random number in. If not explicitly provided, defaults to int.MaxValue.",
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "generatorRegex": {
+      "properties": {
+        "generator": {
+          "enum": [ "regex" ]
+        },
+        "parameters": {
+          "required": ["action"],
+          "properties": {
+            "action": {
+              "description": "Must be the string literal \"replace\"",
+              "enum": [ "replace" ]
+            },
+            "source": {
+              "description": "The name of a different parameter in the template configuration. A copy of its value will be used by this generator's regex to generate the value for this parameter. The value of the source parameter is not modified",
+              "type": "string"
+            },
+            "steps": {
+              "description": "An ordered list of key-value pairs indicating the regex replacement actions. Each element of the list must contain exactly the keys 'regex' and 'replacement' - along with their values. These replacements will be applied to the result of the previous replacement (except the first, which acts on the original value from the source).",
+              "type": "array",
+              "items": {
+                "required": [ "regex", "replacement" ],
+                "properties": {
+                  "regex": {
+                    "type": "string"
+                  },
+                  "replacement": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "generatorOther": {
+      "properties": {
+        "generator": {
+          "enum": [ "casing", "coalesce", "port", "switch" ]
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    },
+    "guid": {
+      "pattern": "^[0-9A-Fa-f]{8}[-]?([0-9A-Fa-f]{4}[-]?){3}[0-9A-Fa-f]{12}?$",
+      "type": "string"
+    },
     "ice": {
       "anyOf": [
         {
@@ -110,8 +255,7 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "type": "string",
-        "pattern": "^[{(]?[0-9A-Fa-f]{8}[-]?([0-9A-Fa-f]{4}[-]?){3}[0-9A-Fa-f]{12}[)}]?$"
+        "$ref": "#/definitions/guid"
       }
     },
     "identity": {
@@ -134,13 +278,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [ "actionId" ],
+        "required": [ "actionId", "manualInstructions" ],
 
         "properties": {
           "actionId": {
             "description": "A guid uniquely defining the action. The value must correspond to a post-action known by the broker.",
-            "pattern": "^[{(]?[0-9A-Fa-f]{8}[-]?([0-9A-Fa-f]{4}[-]?){3}[0-9A-Fa-f]{12}[)}]?$",
-            "type": "string"
+            "allOf": [ { "$ref": "#/definitions/guid" } ]
           },
           "args": {
             "description": "A list of key-value pairs to use when performing the action. The specific parameters required / allowed are defined by the action itself.",
@@ -186,7 +329,8 @@
       }
     },
     "precedence": {
-      "type": "integer",
+      "type": [ "integer", "string" ],
+      "pattern": "^([0-9]+)$",
       "default": 0
     },
     "preferNameDirectory": {
@@ -240,23 +384,22 @@
         "required": [ "type" ],
         "oneOf": [
           {
+            "required": [ "generator" ],
             "properties": {
               "type": {
                 "description": "Defines the high level configuration of symbol",
                 "enum": [ "bind", "generated" ]
-              },
-              "generator": {
-                "description": "A string indicating the built-in generator for determining the symbol value. The valid generator values are:",
-                "anyOf": [
-                  {
-                    "enum": [ "regex", "switch", "coalesce", "guid", "constant", "random", "now", "evaluate", "casing", "port" ]
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
               }
-            }
+            },
+            "oneOf": [
+              { "$ref": "#/definitions/generatorConstant" },
+              { "$ref": "#/definitions/generatorEvaluate" },
+              { "$ref": "#/definitions/generatorGuid" },
+              { "$ref": "#/definitions/generatorNow" },
+              { "$ref": "#/definitions/generatorRandom" },
+              { "$ref": "#/definitions/generatorRegex" },
+              { "$ref": "#/definitions/generatorOther" }
+            ]
           },
           {
             "properties": {
@@ -266,7 +409,10 @@
               },
               "datatype": {
                 "description": "Indicates limitations on the valid values a symbol may be assigned. At this point, the only valid datatype is \"choice\", which also requires providing symbols.choices configuration for the symbol.",
-                "enum": [ "choice", "bool", "float", "int", "hex", "text" ]
+                "anyOf": [
+                  { "enum": [ "choice", "bool", "float", "int", "hex", "text" ] },
+                  { "pattern": "^(integer|string)$"}
+                ]
               },
               "choices": {
                 "description": "An array listing the valid choices for a symbol whose datatype = choice. If not provided, there are no valid choices for the symbol, so it can never be assigned a value.",
