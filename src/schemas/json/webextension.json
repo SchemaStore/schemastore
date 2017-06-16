@@ -7,6 +7,21 @@
   "required": [ "manifest_version", "name", "version" ],
 
   "properties": {
+    "applications": {
+      "type": "object",
+      "description": "The applications key contains keys that are specific to a particular host application.",
+      "properties": {
+        "gecko": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "strict_min_version": { "type": "string" },
+            "strict_max_version": { "type": "string" },
+            "update_url": { "type": "string" }
+          }
+        }
+      }
+    },
     "author": {
       "description": "\"The extension's author, intended for display in the browser's user interface. If the developer key is supplied and it contains the \"name\" property, it will override the author key. There's no way to specify multiple authors.\"",
       "type": "string"
@@ -34,27 +49,40 @@
       }
     },
     "browser_action": {
-      "allOf": [ { "$ref": "#/definitions/action" } ],
-      "description": "Use browser actions to put icons in the main Google Chrome toolbar, to the right of the address bar. In addition to its icon, a browser action can also have a tooltip, a badge, and a popup."
+      "allOf": [ { "$ref": "#/properties/page_action" } ],
+      "description": "browser action is a button that your extension adds to the browser's toolbar. The button has an icon, and may optionally have a popup whose content is specified using HTML, CSS, and JavaScript.",
+      "properties": {
+        "default_area": {
+          "description": "Defines the part of the browser in which the button is initially placed.",
+          "enum": [ "navbar", "menupanel", "tabstrip", "personaltoolbar" ],
+          "default": "navbar"
+        }
+      }
     },
     "chrome_settings_overrides": {
+      "description": "Use the chrome_settings_overrides key to override certain browser settings",
       "type": "object",
       "properties": {
         "homepage": {
+          "description": "Defines the page to be used as the browser's homepage.",
           "type": "string"
         }
       }
     },
     "chrome_url_overrides": {
+      "description": "Use the chrome_url_overrides key to provide a custom replacement for the documents loaded into various special pages usually provided by the browser itself.",
       "type": "object",
       "properties": {
         "bookmark": {
+          "description": "Provide a replacement for the page that shows the bookmarks. ",
           "type": "string"
         },
         "history": {
+          "description": "Provide a replacement for the page that shows the browsing history. ",
           "type": "string"
         },
         "newtab": {
+          "description": "Provide a replacement for the document that's shown in the \"new tab\" page",
           "type": "string"
         }
       }
@@ -62,10 +90,13 @@
     "commands": {
       "type": "object",
       "description": "Use the commands API to add keyboard shortcuts that trigger actions in your extension, for example, an action to open the browser action or send a command to the extension.",
-      "patternProperties": {
-        ".*": { "$ref": "#/definitions/command" },
-        "^_execute_browser_action$": { "$ref": "#/definitions/command" },
-        "^_execute_page_action$": { "$ref": "#/definitions/command" }
+      "properties": {
+        "_execute_browser_action": { "$ref": "#/definitions/command" },
+        "_execute_page_action": { "$ref": "#/definitions/command" },
+        "_execute_sidebar_action": { "$ref": "#/definitions/command" }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/command"
       }
     },
     "content_scripts": {
@@ -199,11 +230,10 @@
       "type": "string"
     },
     "icons": {
-      "type": "object",
       "description": "One or more icons that represent the extension, app, or theme. Recommended format: PNG; also BMP, GIF, ICO, JPEG.",
       "minProperties": 1,
       "patternProperties": {
-        "[0-9]+": {
+        "^[0-9]+$": {
           "type": "string"
         }
       }
@@ -211,7 +241,7 @@
     "incognito": {
       "type": "string",
       "description": "Specify how this extension will behave if allowed to run in incognito mode.",
-      "enum": [ "spanning", "split" ],
+      "enum": [ "spanning", "split", "not_allowed" ],
       "default": "spanning"
     },
     "manifest_version": {
@@ -230,7 +260,6 @@
       "type": "object",
       "description": "The omnibox API allows you to register a keyword with Google Chrome's address bar, which is also known as the omnibox.",
       "required": [ "keyword" ],
-      "additionalProperties": false,
       "properties": {
         "keyword": {
           "type": "string",
@@ -239,37 +268,109 @@
       }
     },
     "optional_permissions": {
-      "$ref": "#/definitions/permissions",
-      "description": "Use the chrome.permissions API to request declared optional permissions at run time rather than install time, so users understand why the permissions are needed and grant only those that are necessary."
+      "description": "Use the optional_permissions key to list permissions which you want to ask for at runtime, after your add-on has been installed.",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          { "type": "string" },
+          {
+            "enum": [
+              "activeTab",
+              "background",
+              "bookmarks",
+              "clipboardRead",
+              "clipboardWrite",
+              "contentSettings",
+              "contextMenus",
+              "cookies",
+              "debugger",
+              "geolocation",
+              "history",
+              "idle",
+              "management",
+              "notifications",
+              "pageCapture",
+              "tabs",
+              "topSites",
+              "webNavigation",
+              "webRequest",
+              "webRequestBlocking"
+            ]
+          }
+        ]
+      }
     },
     "options_ui": {
       "type": "object",
-      "description": "To allow users to customize the behavior of your extension, you may wish to provide an options page. If you do, an Options link will be shown on the extensions management page at chrome://extensions which opens a dialogue containing your options page.",
+      "description": "Use the options_ui key to define an options page for your add-on.",
       "required": [ "page" ],
       "properties": {
         "page": {
           "type": "string",
-          "description": "The path to your options page, relative to your extension's root."
+          "description": "The path to an HTML file containing the specification of your options page."
         },
-        "chrome_style": {
+        "browser_style": {
           "type": "boolean",
           "default": true,
-          "description": "If true, a Chrome user agent stylesheet will be applied to your options page. The default value is false, but we recommend you enable it for a consistent UI with Chrome."
+          "description": "Use this to include a stylesheet in your page that will make it look consistent with the browser's UI and with other add-ons that use the browser_style property."
         },
         "open_in_tab": {
           "type": "boolean",
           "default": false,
-          "description": "If true, your extension's options page will be opened in a new tab rather than embedded in chrome://extensions. The default is false, and we recommend that you don't change it. This is only useful to delay the inevitable deprecation of the old options UI! It will be removed soon, so try not to use it. It will break."
+          "description": "If true, the options page will open in a normal browser tab, rather than being integrated into the browser's add-ons manager."
         }
       }
     },
     "page_action": {
-      "allOf": [ { "$ref": "#/definitions/action" } ],
-      "description": "Use the chrome.pageAction API to put icons inside the address bar. Page actions represent actions that can be taken on the current page, but that aren't applicable to all pages."
+      "description": "Use the chrome.pageAction API to put icons inside the address bar. Page actions represent actions that can be taken on the current page, but that aren't applicable to all pages.",
+      "type": "object",
+      "properties": {
+        "browser_style": {
+          "description": "Use this to include a stylesheet in your popup that will make it look consistent with the browser's UI and with other add-ons that use the browser_style property. Although this key defaults to false, it's recommended that you include it and set it to true.",
+          "type": "boolean",
+          "default": false
+        },
+        "default_icon": {
+          "$ref": "#/definitions/icon"
+        },
+        "default_popup": {
+          "type": "string",
+          "description": "The popup appears when the user clicks the icon."
+        },
+        "default_title": {
+          "type": "string",
+          "description": "Tooltip for the main toolbar icon."
+        }
+      }
     },
     "permissions": {
       "$ref": "#/definitions/permissions",
       "description": "Permissions help to limit damage if your extension or app is compromised by malware. Some permissions are also displayed to users before installation, as detailed in Permission Warnings."
+    },
+    "protocol_handlers": {
+      "type": "object",
+      "description": "Use this key to register one of more web-based protocol handlers.",
+      "properties": {
+        "protocol": {
+          "anyOf": [
+            {
+              "enum": [ "bitcoin", "geo", "im", "irc", "ircs", "magnet", "mailto", "mms", "news", "nntp", "sip", "sms", "smsto", "ssh", "tel", "urn", "webcal", "wtai", "xmpp" ]
+            },
+            {
+              "type": "string",
+              "pattern": "^(ext|web)\\+.+"
+            }
+          ]
+        },
+        "name": {
+          "description": "A string representing the name of the protocol handler. This will be displayed to the user when they are being asked if they want this handler to open the link.",
+          "type": "string"
+        },
+        "uriTemplate": {
+          "description": "A string representing the URL of the handler. This string must include \"%s\" as a placeholder: this will be replaced with the escaped URL of the document to be handled. This URL might be a true URL, or it could be a phone number, email address, or so forth.",
+          "pattern": "%s"
+        }
+      }
     },
     "short_name": {
       "type": "string",
@@ -278,7 +379,20 @@
     },
     "sidebar_action": {
       "type": "object",
-      "description": "A sidebar is a pane that is displayed at the left-hand side of the browser window, next to the web page. The browser provides a UI that enables the user to see the currently available sidebars and to select a sidebar to display."
+      "description": "A sidebar is a pane that is displayed at the left-hand side of the browser window, next to the web page. The browser provides a UI that enables the user to see the currently available sidebars and to select a sidebar to display.",
+      "properties": {
+        "default_icon": {
+          "$ref": "#/definitions/icon"
+        },
+        "default_panel": {
+          "type": "string",
+          "description": "The path to an HTML file that specifies the sidebar's contents."
+        },
+        "default_title": {
+          "type": "string",
+          "description": "Title for the sidebar. This is used in the browser UI for listing and opening sidebars, and is displayed at the top of the sidebar when it is open."
+        }
+      }
     },
     "version": {
       "description": "One to four dot-separated integers identifying the version of this extension.",
@@ -299,49 +413,51 @@
     "action": {
       "type": "object",
       "properties": {
-        "default_title": {
-          "type": "string",
-          "description": "Tooltip for the main toolbar icon."
+        "browser_style": {
+          "description": "Use this to include a stylesheet in your popup that will make it look consistent with the browser's UI and with other add-ons that use the browser_style property. Although this key defaults to false, it's recommended that you include it and set it to true.",
+          "type": "boolean",
+          "default": false
+        },
+        "default_icon": {
+          "$ref": "#/definitions/icon"
         },
         "default_popup": {
           "type": "string",
           "description": "The popup appears when the user clicks the icon."
         },
-        "default_icon": {
-          "anyOf": [
-            {
-              "type": "string",
-              "description": "FIXME: String form is deprecated."
-            },
-            {
-              "type": "object",
-              "description": "Icon for the main toolbar.",
-              "patternProperties": {
-                "[0-9]+": {
-                  "type": "string"
-                }
-              }
-            }
-          ]
+        "default_title": {
+          "type": "string",
+          "description": "Tooltip for the main toolbar icon."
         }
       }
     },
     "command": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "description": {
           "type": "string"
         },
         "suggested_key": {
           "type": "object",
-          "additionalProperties": false,
-          "patternProperties": {
-            "^(default|mac|windows|linux|chromeos)$": {
-              "type": "string",
-              "pattern": "^(Ctrl|Command|MacCtrl|Alt|Option)\\+(Shift\\+)?[A-Z]"
-            }
+          "properties": {
+            "default": { "type": "string" },
+            "mac": { "type": "string" },
+            "linux": { "type": "string" },
+            "windows": { "type": "string" },
+            "chromeos": { "type": "string" },
+            "ios": { "type": "string" },
+            "android": { "type": "string" }
           }
+        }
+      }
+    },
+
+    "icon": {
+      "type": [ "string", "object" ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "string"
         }
       }
     },
