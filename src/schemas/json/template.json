@@ -1,0 +1,490 @@
+{
+  "title": "JSON schema .NET template files",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+
+  "type": "object",
+  "required": [ "author", "classifications", "identity", "name", "shortName" ],
+
+  "definitions": {
+    "generatorConstant": {
+      "properties": {
+        "generator": {
+          "enum": [ "constant" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "The value to be assigned to the symbol",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "generatorEvaluate": {
+      "properties": {
+        "generator": {
+          "enum": [ "evaluate" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "The Boolean predicate whose evaluation result becomes the symbol value",
+              "type": "string"
+            },
+            "evaluator": {
+              "description": "A string indicating the predicate evaluator to evaluate the action against.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "generatorGuid": {
+      "properties": {
+        "generator": {
+          "enum": [ "guid" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "Must be the string literal \"new\".",
+              "enum": [ "new" ]
+            },
+            "format": {
+              "description": "When a string representation of the guid is needed, this is used as the format string in Guid.ToString().",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "generatorNow": {
+      "properties": {
+        "generator": {
+          "enum": [ "now" ]
+        },
+        "parameters": {
+          "properties": {
+            "action": {
+              "description": "The format string to use when converting the date-time to a string representation.",
+              "type": "string"
+            },
+            "utc": {
+              "description": "If true, use UTC time. If false, use local time.",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "generatorRandom": {
+      "properties": {
+        "generator": {
+          "enum": [ "random" ]
+        },
+        "parameters": {
+          "required": [ "low" ],
+          "properties": {
+            "action": {
+              "description": "Must be the string literal \"new\"",
+              "enum": [ "new" ]
+            },
+            "low": {
+              "description": "An integer value indicating the low-end of the range to generate the random number in.",
+              "type": "integer"
+            },
+            "high": {
+              "description": "An integer value indicating the high-end of the range to generate the random number in. If not explicitly provided, defaults to int.MaxValue.",
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "generatorRegex": {
+      "properties": {
+        "generator": {
+          "enum": [ "regex" ]
+        },
+        "parameters": {
+          "required": [ "action" ],
+          "properties": {
+            "action": {
+              "description": "Must be the string literal \"replace\"",
+              "enum": [ "replace" ]
+            },
+            "source": {
+              "description": "The name of a different parameter in the template configuration. A copy of its value will be used by this generator's regex to generate the value for this parameter. The value of the source parameter is not modified",
+              "type": "string"
+            },
+            "steps": {
+              "description": "An ordered list of key-value pairs indicating the regex replacement actions. Each element of the list must contain exactly the keys 'regex' and 'replacement' - along with their values. These replacements will be applied to the result of the previous replacement (except the first, which acts on the original value from the source).",
+              "type": "array",
+              "items": {
+                "required": [ "regex", "replacement" ],
+                "properties": {
+                  "regex": {
+                    "type": "string"
+                  },
+                  "replacement": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "generatorOther": {
+      "properties": {
+        "generator": {
+          "enum": [ "casing", "coalesce", "port", "switch" ]
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    },
+    "guid": {
+      "pattern": "^{?[0-9A-Fa-f]{8}[-]?([0-9A-Fa-f]{4}[-]?){3}[0-9A-Fa-f]{12}}?$",
+      "type": "string"
+    },
+    "ice": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "uniqueItems": true
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "modifier": {
+      "type": "object",
+      "properties": {
+        "modifiers": {
+          "$ref": "#/definitions/source/properties/modifiers"
+        },
+        "condition": {
+          "description": "Boolean-evaluable condition to indicate if the sources configuration should be included or ignored. If the condition evaluates to true or is not provided, the sources config will be used for creating the template. If it evaluates to false, the sources config will be ignored.",
+          "type": "string"
+        },
+        "exclude": {
+          "description": "The set of globbing patterns indicating the content that was included by sources.include that should not be processed",
+          "allOf": [ { "$ref": "#/definitions/ice" } ],
+          "default": [ "**/[Bb]in/**", "**/[Oo]bj/**", ".template.config/**/*", "**/*.filelist", "**/*.user", "**/*.lock.json" ]
+        },
+        "include": {
+          "description": "The set of globbing patterns indicating the content to process in the path referred to by sources.source",
+          "allOf": [ { "$ref": "#/definitions/ice" } ],
+          "default": [ "**/*" ]
+        },
+        "copyOnly": {
+          "description": "The set of globbing patterns indicating the content that was included by sources.include, that hasn't been excluded by sources.exclude that should be placed in the user's directory without modification",
+          "allOf": [ { "$ref": "#/definitions/ice" } ],
+          "default": [ "**/node_modules/**/*" ]
+        },
+        "rename": {
+          "description": "The set of explicit renames to perform. Each key is a path to a file in the source, each value is a path to the target location - only the values will be evaluated with the information the user supplies",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "allOf": [ { "$ref": "#/definitions/modifier" } ],
+      "properties": {
+        "modifiers": {
+          "description": "A list of additional source information which gets added to the top-level source information, based on evaluation the corresponding source.modifiers.condition.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/modifier"
+          }
+        },
+        "source": {
+          "description": "The path in the template content (relative to the directory containing the .template.config folder) that should be processed",
+          "type": "string",
+          "default": "./"
+        },
+        "target": {
+          "description": "The path (relative to the directory the user has specified) that content should be written to",
+          "type": "string",
+          "default": "./"
+        }
+      }
+    }
+  },
+
+  "properties": {
+    "author": {
+      "description": "The author of the template",
+      "type": "string"
+    },
+    "classifications": {
+      "description": "Zero or more characteristics of the template that a user might search for it by",
+      "type": "array",
+
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "defaultName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatorVersions": {
+      "type": "string"
+    },
+    "groupIdentity": {
+      "description": "The ID of the group this template belongs to. When combined with the \"tags\" section, this allows multiple templates to be displayed as one, with the the decision for which one to use being presented as a choice in each one of the pivot categories (keys).",
+      "type": "string",
+      "minLength": 1
+    },
+    "guids": {
+      "description": "A list of guids which appear in the template source and should be replaced in the template output. For each guid listed, a replacement guid is generated, and replaces all occurrences of the source guid in the output.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/guid"
+      }
+    },
+    "identity": {
+      "description": "A unique name for this template",
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "description": "The name for the template that users should see",
+      "type": "string",
+      "minLength": 1
+    },
+    "placeholderFilename": {
+      "description": "A filename that will be completely ignored expect to indicate that its containing directory should be copied. This allows creation of empty directory in the created template, by having a corresponding source directory containing just the placeholder file. Completely empty directories are ignored.",
+      "type": "string",
+      "default": "-.-"
+    },
+    "postActions": {
+      "description": "Defines an ordered list of actions to perform after template generation. The post action information is provided to the creation broker, to act on as appropriate.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [ "actionId", "manualInstructions" ],
+
+        "properties": {
+          "actionId": {
+            "description": "A guid uniquely defining the action. The value must correspond to a post-action known by the broker.",
+            "allOf": [ { "$ref": "#/definitions/guid" } ]
+          },
+          "args": {
+            "description": "A list of key-value pairs to use when performing the action. The specific parameters required / allowed are defined by the action itself.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "condition": {
+            "type": "string"
+          },
+          "configFile": {
+            "description": "Additional configuration for the associated post action. The structure & content will vary based on the post action.",
+            "type": "string"
+          },
+          "continueOnError": {
+            "description": "If this action fails, the value of continueOnError indicates whether to attempt the next action, or stop processing the post actions. Should be set to true when subsequent actions rely on the success of the current action.",
+            "type": "boolean",
+            "default": false
+          },
+          "description": {
+            "description": "A human-readable description of the action.",
+            "type": "string"
+          },
+          "manualInstructions": {
+            "description": "An ordered list of possible instructions to display if the action cannot be performed. Each element in the list must contain a key named \"text\", whose value contains the instructions. Each element may also optionally provide a key named \"condition\" - a Boolean evaluate-able string. The first instruction whose condition is false or blank will be considered valid, all others are ignored.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [ "text" ],
+
+              "properties": {
+                "condition": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "precedence": {
+      "type": [ "integer", "string" ],
+      "pattern": "^([0-9]+)$",
+      "default": 0
+    },
+    "preferNameDirectory": {
+      "type": "boolean"
+    },
+    "primaryOutputs": {
+      "description": "A list of important output paths created during template generation. These paths need to be added to the newly created project at the end of template creation.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [ "path" ],
+
+        "properties": {
+          "path": {
+            "description": "One instance of a primary output path",
+            "type": "string"
+          },
+          "condition": {
+            "description": "If the condition evaluates to true, the corresponding path will be included in the output list. If false, the path is ignored",
+            "type": "string",
+            "default": "true"
+          }
+        }
+      }
+    },
+    "shortName": {
+      "description": "A default shorthand for selecting the template (applies to environments where the template name is specified by the user - not selected via a GUI)",
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceName": {
+      "description": "The name in the source tree to replace with the name the user specifies",
+      "type": "string"
+    },
+    "sources": {
+      "description": "The set of mappings in the template content to user directories",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/source"
+      },
+      "default": {
+        "source": "./",
+        "target": "./"
+      }
+    },
+    "symbols": {
+      "description": "The symbols section defines variables and their values, the values may be the defined in terms of other symbols. When a defined symbol name is encountered anywhere in the template definition, it is replaced by the value defined in this configuration. The symbols configuration is a collection of key-value pairs. The keys are the symbol names, and the value contains key-value-pair configuration information on how to assign the symbol a value.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [ "type" ],
+        "oneOf": [
+          {
+            "required": [ "generator" ],
+            "properties": {
+              "type": {
+                "description": "Defines the high level configuration of symbol",
+                "enum": [ "bind", "generated" ]
+              }
+            },
+            "oneOf": [
+              { "$ref": "#/definitions/generatorConstant" },
+              { "$ref": "#/definitions/generatorEvaluate" },
+              { "$ref": "#/definitions/generatorGuid" },
+              { "$ref": "#/definitions/generatorNow" },
+              { "$ref": "#/definitions/generatorRandom" },
+              { "$ref": "#/definitions/generatorRegex" },
+              { "$ref": "#/definitions/generatorOther" }
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "description": "Defines the high level configuration of symbol",
+                "enum": [ "parameter" ]
+              },
+              "datatype": {
+                "description": "Indicates limitations on the valid values a symbol may be assigned. At this point, the only valid datatype is \"choice\", which also requires providing symbols.choices configuration for the symbol.",
+                "anyOf": [
+                  { "enum": [ "choice", "bool", "float", "int", "hex", "text" ] },
+                  { "pattern": "^(integer|string)$" }
+                ]
+              },
+              "choices": {
+                "description": "An array listing the valid choices for a symbol whose datatype = choice. If not provided, there are no valid choices for the symbol, so it can never be assigned a value.",
+                "type": "array",
+                "items": {
+                  "required": [ "choice" ],
+                  "properties": {
+                    "choice": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "replaces": {
+                "type": "string"
+              },
+              "defaultValue": {
+                "description": "The value assigned to the symbol if no value for it is provided by the user or host.",
+                "type": "string"
+              },
+              "description": {
+                "description": "The description of the parameter",
+                "type": "string"
+              },
+              "onlyIf": {
+                "properties": {
+                  "after": {
+                    "description": "The replacement string occurs after this value",
+                    "type": "string"
+                  },
+                  "before": {
+                    "description": "The replacement string occurs before this value",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "description": "Defines the high level configuration of symbol",
+                "enum": [ "computed" ]
+              },
+              "value": {
+                "description": "An evaluate-able condition whose result defines the value of the symbol.",
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "tags": {
+      "type": "object",
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            { "enum": [ "project", "item" ] },
+            { "type": "string" }
+          ]
+        }
+      }
+    },
+    "thirdPartyNotices": {
+      "type": "string"
+    }
+  }
+}
