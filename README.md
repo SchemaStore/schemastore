@@ -26,6 +26,13 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
+If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
+```Shell
+cd src
+npm install
+./node_modules/.bin/grunt
+```
+
 ### CSS spec
 The CSS specification is divided into multple XML documents
 - one for each CSS module as specified by the W3C.
