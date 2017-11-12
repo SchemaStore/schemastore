@@ -9,7 +9,7 @@
             "oneOf" : [
                 {
                     "type"        : "integer",
-                    "description" : "The integer '1' is special cased",
+                    "description" : "The integer '1' is special case",
                     "minimum"     : 1,
                     "maximum"     : 1
                 },
@@ -64,6 +64,24 @@
             "description" : "The size of the download in bytes",
             "type"        : "integer"
         },
+        "download_hash" : {
+            "description" : "A object of hashes of the downloaded file",
+            "type"        : "object",
+            "properties" : {
+                "sha1" : {
+                    "description" : "SHA1 hash of the file",
+                    "type"        : "string"
+                },
+                "sha256" : {
+                    "description" : "SHA256 hash of the file",
+                    "type"        : "string"
+                }
+            }
+        },
+        "download_content_type" : {
+            "description" : "The content type of the download",
+            "type"        : "string"
+        },
         "license" : {
             "description" : "Machine readable license, or array of licenses",
             "$ref"        : "#/definitions/licenses"
@@ -91,6 +109,14 @@
         "ksp_version_strict" : {
             "description" : "Optional enforcement of strict version checks (defaults to false)",
             "type"        : "boolean"
+        },
+        "tags" : {
+            "description" : "A series of descriptive keywords to provide quick filtering and organization",
+            "type"        : "array",
+            "items" : {
+                "type" : "string",
+                "pattern" : "^[a-z0-9-]+$"
+            }
         },
         "depends" : {
             "description" : "Optional list of dependencies",
@@ -147,13 +173,13 @@
                     "type"        : "string",
                     "format"      : "uri"
                 },
-                "kerbalstuff" : {
-                    "description" : "Project on KerbalStuff",
+                "spacedock" : {
+                    "description" : "Project on SpaceDock",
                     "type"        : "string",
                     "format"      : "uri"
                 },
-                "spacedock" : {
-                    "description" : "Project on SpaceDock",
+                "curse" : {
+                    "description" : "Project on Curse",
                     "type"        : "string",
                     "format"      : "uri"
                 },
@@ -190,6 +216,11 @@
                         "description" : "Where file should be installed to",
                         "$ref"        : "#/definitions/install_to"
                     },
+                    "as": {
+                        "description" : "The name to give the matching directory or file when installed",
+                        "type"        : "string",
+                        "pattern"     : "^[^\\\\/]+$"
+                    },
                     "filter" : {
                         "description" : "List of files and directories that should be filtered from the install",
                         "$ref"        : "#/definitions/one_or_more_strings"
@@ -197,10 +228,44 @@
                     "filter_regexp" : {
                         "description" : "List of regexps that should filter files from this install",
                         "$ref"        : "#/definitions/one_or_more_strings"
+                    },
+                    "include_only" : {
+                        "description" : "List of files and directories that should not be excluded from the install",
+                        "$ref"        : "#/definitions/one_or_more_strings"
+                    },
+                    "include_only_regexp" : {
+                        "description" : "List of regexps that should include files in this install",
+                        "$ref"        : "#/definitions/one_or_more_strings"
                     }
                 },
+                "not" : {
+                    "anyOf" : [
+                        {
+                            "required" : [ "filter", "include_only" ]
+                        },
+                        {
+                            "required" : [ "filter", "include_only_regexp" ]
+                        },
+                        {
+                            "required" : [ "filter_regexp", "include_only" ]
+                        },
+                        {
+                            "required" : [ "filter_regexp", "include_only_regexp" ]
+                        }
+                    ]
+                },
                 "required" : [ "install_to" ],
-                "comment" : "One must have either file or find, is there a JSON Schema friendly way of specifying that?"
+                "oneOf": [
+                    {
+                        "required": [ "file" ]
+                    },
+                    {
+                        "required": [ "find" ]
+                    },
+                    {
+                        "required": [ "find_regexp" ]
+                    }
+                ]
             }
         }
     },
@@ -209,18 +274,33 @@
         "name",
         "abstract",
         "identifier",
-        "download",
         "license",
         "version"
+    ],
+    "oneOf": [
+        {
+            "required": [ "download" ]
+        },
+        {
+            "properties": {
+                "kind": {
+                    "enum": [ "metapackage" ]
+                }
+            },
+            "not": {
+                "required": [ "download" ]
+            },
+            "required": [ "kind" ]
+        }
     ],
     "definitions" : {
         "identifier" : {
             "description" : "Unique identifier for this mod.",
             "type"        : "string",
-            "pattern"     : "^[A-Za-z][A-Za-z0-9-]*$"
+            "pattern"     : "^[A-Za-z0-9-]*$"
         },
         "version" : {
-            "description" : "A verison string",
+            "description" : "A version string",
             "type"        : "string"
         },
         "ksp_version" : {
@@ -282,7 +362,10 @@
             "description" : "A license.",
             "enum" : [
                 "public-domain",
+                "AFL-3.0",
+                "AGPL-3.0",
                 "Apache", "Apache-1.0", "Apache-2.0",
+                "APSL-2.0",
                 "Artistic", "Artistic-1.0", "Artistic-2.0",
                 "BSD-2-clause", "BSD-3-clause", "BSD-4-clause",
                 "ISC",
@@ -291,6 +374,7 @@
                 "CC-BY-NC", "CC-BY-NC-1.0", "CC-BY-NC-2.0", "CC-BY-NC-2.5", "CC-BY-NC-3.0", "CC-BY-NC-4.0",
                 "CC-BY-NC-SA", "CC-BY-NC-SA-1.0", "CC-BY-NC-SA-2.0", "CC-BY-NC-SA-2.5", "CC-BY-NC-SA-3.0", "CC-BY-NC-SA-4.0",
                 "CC-BY-NC-ND", "CC-BY-NC-ND-1.0", "CC-BY-NC-ND-2.0", "CC-BY-NC-ND-2.5", "CC-BY-NC-ND-3.0", "CC-BY-NC-ND-4.0",
+                "CC-BY-ND", "CC-BY-ND-1.0", "CC-BY-ND-2.0", "CC-BY-ND-2.5", "CC-BY-ND-3.0", "CC-BY-ND-4.0",
                 "CC0",
                 "CDDL", "CPL",
                 "EFL-1.0", "EFL-2.0",
@@ -300,14 +384,16 @@
                 "GFDL-1.0", "GFDL-1.1", "GFDL-1.2", "GFDL-1.3",
                 "GFDL-NIV-1.0", "GFDL-NIV-1.1", "GFDL-NIV-1.2", "GFDL-NIV-1.3",
                 "LPPL-1.0", "LPPL-1.1", "LPPL-1.2", "LPPL-1.3c",
-                "MPL-1.1",
+                "MPL-1.0", "MPL-1.1",
+                "Ms-PL", "Ms-RL",
                 "Perl",
                 "Python-2.0",
                 "QPL-1.0",
+                "Unlicense",
                 "W3C",
+                "WTFPL",
                 "Zlib",
                 "Zope",
-                "WTFPL",
                 "open-source", "restricted", "unrestricted", "unknown"
             ]
         },
