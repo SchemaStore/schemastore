@@ -1,0 +1,617 @@
+{
+  "title": "JSON schema for CircleCI configuration files",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+
+  "definitions": {
+    "runStep": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command"],
+          "properties": {
+            "name": {
+              "description":
+                "Title of the step to be shown in the CircleCI UI (default: full `command`)",
+              "type": "string"
+            },
+            "command": {
+              "description": "Command to run via the shell",
+              "type": "string"
+            },
+            "shell": {
+              "description": "Shell to use for execution command",
+              "type": "string"
+            },
+            "environment": {
+              "description":
+                "Additional environmental variables, locally scoped to command",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "background": {
+              "description":
+                "Whether or not this step should run in the background (default: false)",
+              "default": false,
+              "type": "boolean"
+            },
+            "working_directory": {
+              "description":
+                "In which directory to run this step (default: `working_directory` of the job",
+              "type": "string"
+            },
+            "no_output_timeout": {
+              "description":
+                "Elapsed time the command can run without output. The string is a decimal with unit suffix, such as \"20m\", \"1.25h\", \"5s\" (default: 10 minutes)",
+              "type": "string",
+              "pattern": "\\d+(\\.\\d+)?[mhs]",
+              "default": "10m"
+            },
+            "when": {
+              "description":
+                "Specify when to enable or disable the step. Takes the following values: `always`, `on_success`, `on_fail` (default: `on_success`)",
+              "enum": ["always", "on_success", "on_fail"]
+            }
+          }
+        }
+      ]
+    },
+    "filter": {
+      "description": "A map defining rules for execution on specific branches",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "only": {
+          "description":
+            "Either a single branch specifier, or a list of branch specifiers",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "ignore": {
+          "description":
+            "Either a single branch specifier, or a list of branch specifiers",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "version": {
+      "description":
+        "The version field is intended to be used in order to issue warnings for deprecation or breaking changes.",
+      "default": 2,
+      "enum": [2]
+    },
+    "jobs": {
+      "type": "object",
+      "additionalProperties": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": ["steps"],
+            "properties": {
+              "shell": {
+                "description":
+                  "Shell to use for execution command in all steps. Can be overridden by shell in each step",
+                "type": "string"
+              },
+              "steps": {
+                "description": "A list of steps to be performed",
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "enum": ["checkout", "setup_remote_docker"]
+                    },
+                    {
+                      "type": "object",
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "$ref": "#/definitions/runStep"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "save_cache": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["paths", "key"],
+                              "properties": {
+                                "paths": {
+                                  "description":
+                                    "List of directories which should be added to the cache",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "key": {
+                                  "description":
+                                    "Unique identifier for this cache",
+                                  "type": "string"
+                                },
+                                "when": {
+                                  "description":
+                                    "Specify when to enable or disable the step. Takes the following values: `always`, `on_success`, `on_fail` (default: `on_success`)",
+                                  "enum": ["always", "on_success", "on_fail"]
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "restore_cache": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": ["key"],
+                                  "properties": {
+                                    "key": {
+                                      "type": "string",
+                                      "description":
+                                        "Single cache key to restore"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": ["keys"],
+                                  "properties": {
+                                    "keys": {
+                                      "description":
+                                        "List of cache keys to lookup for a cache to restore. Only first existing key will be restored.",
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "deploy": {
+                              "$ref": "#/definitions/runStep"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "store_artifacts": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["path"],
+                              "properties": {
+                                "path": {
+                                  "description":
+                                    "Directory in the primary container to save as job artifacts",
+                                  "type": "string"
+                                },
+                                "destination": {
+                                  "description":
+                                    "Prefix added to the artifact paths in the artifacts API (default: the directory of the file specified in `path`)",
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "store_test_results": {
+                              "description":
+                                "Special step used to upload test results so they can be used for timing analysis",
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["path"],
+                              "properties": {
+                                "path": {
+                                  "description":
+                                    "Directory containing JUnit XML or Cucumber JSON test metadata files",
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "persist_to_workspace": {
+                              "description":
+                                "Special step used to persist a temporary file to be used by another job in the workflow",
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["root", "paths"],
+                              "properties": {
+                                "root": {
+                                  "description":
+                                    "Either an absolute path or a path relative to `working_directory`",
+                                  "type": "string"
+                                },
+                                "paths": {
+                                  "description":
+                                    "Glob identifying file(s), or a non-glob path to a directory to add to the shared workspace. Interpreted as relative to the workspace root. Must not be the workspace root itself.",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "attach_workspace": {
+                              "description":
+                                "Special step used to attach the workflow's workspace to the current container. The full contents of the workspace are downloaded and copied into the directory the workspace is being attached at.",
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["at"],
+                              "properties": {
+                                "at": {
+                                  "description":
+                                    "Directory to attach the workspace to",
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "add_ssh_keys": {
+                              "description":
+                                "Special step that adds SSH keys configured in the project's UI to the container, and configure ssh to use them.",
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "fingerprints": {
+                                  "description":
+                                    "Directory to attach the workspace to",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "working_directory": {
+                "description":
+                  "In which directory to run the steps. (default: `~/project`. `project` is a literal string, not the name of the project.) You can also refer the directory with `$CIRCLE_WORKING_DIRECTORY` environment variable.",
+                "type": "string",
+                "default": "~/project"
+              },
+              "parallelism": {
+                "description":
+                  "Number of parallel instances of this job to run (default: 1)",
+                "type": "integer",
+                "default": 1
+              },
+              "environment": {
+                "description":
+                  "A map of environment variable names and variables (NOTE: these will override any environment variables you set in the CircleCI web interface).",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "branches": {
+                "description":
+                  "A map defining rules for whitelisting/blacklisting execution of specific branches for a single job that is **not** in a workflow (default: all whitelisted). See Workflows for configuring branch execution for jobs in a workflow.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["docker"],
+                "properties": {
+                  "docker": {
+                    "description":
+                      "Options for [docker executor](https://circleci.com/docs/2.0/configuration-reference/#docker)",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["image"],
+                      "properties": {
+                        "image": {
+                          "description":
+                            "The name of a custom docker image to use",
+                          "type": "string"
+                        },
+                        "entrypoint": {
+                          "description":
+                            "The command used as executable when launching the container",
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        },
+                        "command": {
+                          "description":
+                            "The command used as pid 1 (or args for entrypoint) when launching the container",
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        },
+                        "user": {
+                          "description": "Which user to run the command as",
+                          "type": "string"
+                        },
+                        "environment": {
+                          "description":
+                            "A map of environment variable names and values",
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "auth": {
+                          "description":
+                            "Authentication for registries using standard `docker login` credentials",
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "username": {
+                              "type": "string"
+                            },
+                            "password": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "aws_auth": {
+                          "description":
+                            "Authentication for AWS EC2 Container Registry (ECR)",
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "aws_access_key_id": {
+                              "type": "string"
+                            },
+                            "aws_secret_access_key": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "resource_class": {
+                    "description":
+                      "Amount of CPU and RAM allocated to each container in a job. (Only works with the `docker` key for paid accounts and is subject to change in a future pricing update. **Note:** Paid accounts must request to use this feature by opening a support ticket (or by contacting their Customer Success Manager when applicable) and non-paid users must request to use this feature by opening a ticket at <https://support.circleci.com/hc/en-us/requests/new>.)",
+                    "type": "string",
+                    "default": "medium",
+                    "enum": ["small", "medium", "medium+", "large", "xlarge"]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["machine"],
+                "properties": {
+                  "machine": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Options for machine executor",
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "description":
+                              "This must be true in order to enable the `machine` executor.  Is required if no other value is specified",
+                            "type": "boolean"
+                          },
+                          "image": {
+                            "description": "The image to use",
+                            "type": "string",
+                            "default": "circleci/classic:latest"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["macos"],
+                "properties": {
+                  "macos": {
+                    "description": "Options for macOS executor",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["xcode"],
+                    "properties": {
+                      "xcode": {
+                        "description":
+                          "The version of Xcode that is installed on the virtual machine",
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "workflows": {
+      "description":
+        "Used for orchestrating all jobs. Each workflow consists of the workflow name as a key and a map as a value",
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": {
+          "description":
+            "The Workflows `version` field is used to issue warnings for deprecation or breaking changes during Beta.",
+          "enum": [2]
+        }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "triggers": {
+            "description":
+              "Specifies which triggers will cause this workflow to be executed. Default behavior is to trigger the workflow when pushing to a branch.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cron": {
+                "description":
+                  "See the [crontab man page](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html)",
+                "type": "string"
+              },
+              "filters": {
+                "description":
+                  "A map defining rules for execution on specific branches",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "branches": {
+                    "$ref": "#/definitions/filter"
+                  }
+                }
+              }
+            }
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "requires": {
+                        "description":
+                          "Jobs are run in parallel by default, so you must explicitly require any dependencies by their job name.",
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "context": {
+                        "description":
+                          "The name of the context. The default name is `org-global`",
+                        "type": "string",
+                        "default": "org-global"
+                      },
+                      "type": {
+                        "description":
+                          "A job may have a `type` of `approval` indicating it must be manually approved before downstream jobs may proceed.",
+                        "enum": ["approval"]
+                      },
+                      "filters": {
+                        "description":
+                          "A map defining rules for execution on specific branches",
+                        "type": "object",
+                        "additionalProperties": {
+                          "branches": {
+                            "$ref": "#/definitions/filter"
+                          },
+                          "tags": {
+                            "$ref": "#/definitions/filter"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
