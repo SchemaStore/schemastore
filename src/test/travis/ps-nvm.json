@@ -1,0 +1,51 @@
+{
+  "language": "csharp",
+  "dotnet": "2.0.0",
+  "mono": "none",
+  "env": {
+    "global": ["include_integration_tests=true"]
+  },
+  "cache": {
+    "directories": ["$HOME/Library/Caches/Homebrew"]
+  },
+  "matrix": {
+    "include": [
+      {
+        "os": "osx",
+        "osx_image": "xcode9.1",
+        "before_install": [
+          "brew update",
+          "brew tap caskroom/cask",
+          "brew cask install powershell"
+        ]
+      },
+      {
+        "os": "linux",
+        "dist": "trusty",
+        "sudo": "required",
+        "addons": {
+          "apt": {
+            "sources": [
+              {
+                "sourceline":
+                  "deb [arch=amd64] https://packages.microsoft.com/ubuntu/14.04/prod trusty main",
+                "key_url": "https://packages.microsoft.com/keys/microsoft.asc"
+              }
+            ],
+            "packages": ["powershell"]
+          }
+        }
+      }
+    ]
+  },
+  "install": [
+    "pwsh -c \"Install-Module -Force -Scope CurrentUser Pester\"",
+    "cd .scripts && dotnet publish -o .. && cd .."
+  ],
+  "script": [
+    "pwsh .scripts/Generate-Documentation.ps1",
+    "git diff --exit-code .docs/reference.md",
+    "pwsh -c '& { Import-Module ./.scripts/CodeCovIo.psm1; $res = Invoke-Pester -PassThru -CodeCoverage nvm.psm1; Export-CodeCovIoJson -CodeCoverage $res.CodeCoverage -RepoRoot $pwd -Path coverage.json; if ($res.FailedCount -gt 0) { throw \"$($res.FailedCount) tests failed.\" } }'"
+  ],
+  "after_success": ["bash <(curl -s https://codecov.io/bash) -f coverage.json"]
+}

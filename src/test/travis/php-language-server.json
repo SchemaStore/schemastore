@@ -1,0 +1,65 @@
+{
+  "language": "php",
+  "php": ["7.0", "7.2.0RC5"],
+  "git": {
+    "depth": 10,
+    "submodules": false
+  },
+  "cache": {
+    "directories": [
+      "$HOME/Library/Caches/Homebrew",
+      "$HOME/.composer/cache",
+      "$HOME/.npm"
+    ]
+  },
+  "install": ["composer install --prefer-dist --no-interaction"],
+  "script": [
+    "vendor/bin/phpcs -n",
+    "vendor/bin/phpunit --coverage-clover=coverage.xml --colors=always",
+    "bash <(curl -s https://codecov.io/bash)"
+  ],
+  "jobs": {
+    "include": [
+      {
+        "stage": "test",
+        "os": "osx",
+        "osx_image": "xcode9.1",
+        "language": "generic",
+        "before_install": [
+          "brew update",
+          "brew tap homebrew/homebrew-php",
+          "brew install php71",
+          "brew install homebrew/php/php71-xdebug",
+          "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\"",
+          "php composer-setup.php",
+          "ln -s \"`pwd`/composer.phar\" /usr/local/bin/composer"
+        ]
+      },
+      {
+        "stage": "release",
+        "php": "7.0",
+        "services": ["docker"],
+        "install": [
+          "composer install --prefer-dist --no-interaction",
+          "nvm install 8",
+          "nvm use 8",
+          "npm install"
+        ],
+        "script": [
+          "docker build -t felixfbecker/php-language-server .",
+          "npm run semantic-release"
+        ]
+      }
+    ]
+  },
+  "stages": [
+    "test",
+    {
+      "name": "release",
+      "if": "branch = master AND type = push AND fork = false"
+    }
+  ],
+  "branches": {
+    "except": ["/^v\\d+\\.\\d+\\.\\d+$/"]
+  }
+}
