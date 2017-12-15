@@ -1,0 +1,158 @@
+{
+  "version": 2,
+  "workflows": {
+    "version": 2,
+    "chromeless": {
+      "jobs": [
+        "build_node_6",
+        "build_node_8",
+        {
+          "release": {
+            "requires": ["build_node_6", "build_node_8"],
+            "filters": {
+              "branches": {
+                "only": "master"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "restore_cache": {
+    "restore_cache": {
+      "keys": ["npm-cache-{{ checksum \"package-lock.json\" }}"]
+    }
+  },
+  "save_cache": {
+    "save_cache": {
+      "key": "npm-cache-{{ checksum \"package-lock.json\" }}",
+      "paths": ["~/.npm"]
+    }
+  },
+  "codecov": {
+    "run": {
+      "name": "Codecov",
+      "command":
+        "node_modules/.bin/nyc report --reporter=json && bash <(curl -s https://codecov.io/bash) -f coverage/coverage-final.json"
+    }
+  },
+  "jobs": {
+    "build_node_6": {
+      "working_directory": "~/chromeless",
+      "docker": [
+        {
+          "image": "circleci/node:6"
+        },
+        {
+          "image": "yukinying/chrome-headless-browser"
+        }
+      ],
+      "steps": [
+        {
+          "run": "sudo npm install -g npm@5 --quiet --no-progress --depth 0"
+        },
+        {
+          "run": "node -v; npm -v"
+        },
+        "checkout",
+        {
+          "restore_cache": {
+            "keys": ["npm-cache-{{ checksum \"package-lock.json\" }}"]
+          }
+        },
+        {
+          "run": "npm install"
+        },
+        {
+          "save_cache": {
+            "key": "npm-cache-{{ checksum \"package-lock.json\" }}",
+            "paths": ["~/.npm"]
+          }
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": {
+            "name": "Codecov",
+            "command":
+              "node_modules/.bin/nyc report --reporter=json && bash <(curl -s https://codecov.io/bash) -f coverage/coverage-final.json"
+          }
+        }
+      ]
+    },
+    "build_node_8": {
+      "working_directory": "~/chromeless",
+      "docker": [
+        {
+          "image": "circleci/node:8"
+        },
+        {
+          "image": "yukinying/chrome-headless-browser"
+        }
+      ],
+      "steps": [
+        {
+          "run": "node -v; npm -v"
+        },
+        "checkout",
+        {
+          "restore_cache": {
+            "keys": ["npm-cache-{{ checksum \"package-lock.json\" }}"]
+          }
+        },
+        {
+          "run": "npm install"
+        },
+        {
+          "save_cache": {
+            "key": "npm-cache-{{ checksum \"package-lock.json\" }}",
+            "paths": ["~/.npm"]
+          }
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": {
+            "name": "Codecov",
+            "command":
+              "node_modules/.bin/nyc report --reporter=json && bash <(curl -s https://codecov.io/bash) -f coverage/coverage-final.json"
+          }
+        }
+      ]
+    },
+    "release": {
+      "working_directory": "~/chromeless",
+      "docker": [
+        {
+          "image": "circleci/node:8"
+        }
+      ],
+      "steps": [
+        {
+          "run": "node -v; npm -v"
+        },
+        "checkout",
+        {
+          "restore_cache": {
+            "keys": ["npm-cache-{{ checksum \"package-lock.json\" }}"]
+          }
+        },
+        {
+          "run": "npm install"
+        },
+        {
+          "save_cache": {
+            "key": "npm-cache-{{ checksum \"package-lock.json\" }}",
+            "paths": ["~/.npm"]
+          }
+        },
+        {
+          "run": "npm run semantic-release"
+        }
+      ]
+    }
+  }
+}
