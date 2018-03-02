@@ -1,80 +1,369 @@
 {
-    "$schema": "http://json-schema.org/schema#",
-    "title": "JSON scheme for Cloudflare apps install.json configuration.",
-    "type": "object",
-    "definitions": {
-        "resource": {
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "script",
-                        "style"
-                    ]
-                },
-                "src": {
-                    "type": "string",
-                    "description": "Include a resource as a file"
-                },
-                "contents": {
-                    "type": "string",
-                    "description": "Include a resource as a string"
-                },
-                "if": {
-                    "type": "string",
-                    "description": "Optional Includes. You can specify that a resource should be conditionally included using the if option. The if option can be any single option which must be truthy for the value to be included. You may prefix the option’s name with a ! to invert the match."
-                }
-            },
-            "default": {
-                "type": "script",
-                "src": ""
-            }
-        }
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "title": "JSON schema for configuring Cloudflare Apps install.json files",
+  "type": "object",
+  "definitions": {
+    "src": {
+      "type": "string",
+      "title": "*nix style path to your resource",
+      "description": "This should be relative to the root of the project e.g. \"./source/app.js\"\n. Declared options may interpolate option keys in the path. e.g. ./path/{{options.optionName}}/file.ext. This allows you to include different files based on the options set by the customer."
     },
-    "properties": {
-        "resources": {
-            "title": "JavaScript and CSS files you want to be included in the page.",
+    "resource": {
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "Which HTML element your resource should be inserted as.",
+          "enum": [
+            "script",
+            "style"
+          ]
+        },
+        "src": {
+          "$ref": "#/definitions/src"
+        },
+        "if": {
+          "type": "string",
+          "title": "Conditionally include resource",
+          "description": "Specify that a resource should be conditionally included. Prefix the option’s name with a ! to invert the match."
+        }
+      },
+      "default": {
+        "type": "script",
+        "src": "./"
+      }
+    },
+    "optionDeclarationCommonProperties": {
+      "title": "An object containing your app's install options.",
+      "description": "Each declaration will appear in your app's installer for end-user customization. Their choices will accessible in your app's INSTALL_OPTIONS variable.",
+      "additionalProperties": {
+        "required": [
+          "order"
+        ],
+        "oneOf": [
+          {
+            "required": [
+              "title"
+            ]
+          },
+          {
+            "required": [
+              "helpvalue"
+            ]
+          }
+        ],
+        "type": "object",
+        "title": "The key which your option will be defined under.",
+        "description": "The key should be camelCased.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "The title realted to your form field.",
+            "description": "Each word should be capitalized."
+          },
+          "description": {
+            "type": "string",
+            "title": "The description which appears next to your form field.",
+            "description": "This should be omitted unless the field needs further detail. Descriptions often pose a question e.g. \"Where should the button appear on your site?\"\nSupports sanitized HTML. Use sparingly for links e.g.\n\t<a target=\"_blank\" href=\"https:\/\/example.com\">External Link</a>"
+          },
+          "helpvalue": {
+            "type": "string",
+            "title": "Extra instructions or context to the install process.",
+            "description": "Unlike every other option type, this doesn't collect any input nor set any value on the INSTALL_OPTIONS object.\n**This should be used sparingly.** If you believe your install option needs more context, consider separating the installation flow in to more steps, or move this content into the app configuration page “Additional Install Instructions” field."
+          },
+          "services": {
+            "title": "Service alias",
+            "description": "An string alias defined in the Cloudflare service creator.\nhttps://www.cloudflare.com/apps/services/new",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "showIf": {
+            "type": [
+              "string",
+              "object"
+            ],
+            "title": "Conditionally show a field",
+            "description": "The showIf property can accept a boolean option property key:\n\n\n\t\"showIf\": \"optionName\"\n\nAn object with a property key, operator, and expected value can also be used for more complex matching:\n\t\"showIf\": {\"optionName\": {\"op\": \"==\", \"value\": \"foo\"}}\n The showIf property can also accept multiple criteria, all of which must be matched for the field to be visible.",
+            "additionalProperties": {
+              "title": "A string matching another defined option key.",
+              "additionalProperties": false,
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "title": "JavaScript operator",
+                  "enum": [
+                    "==",
+                    "!=",
+                    "<",
+                    ">",
+                    "<=",
+                    ">="
+                  ]
+                },
+                "value": {
+                  "title": "Expected value",
+                  "type": [
+                    "string",
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Require field"
+          },
+          "enum": {
+            "type": "array",
+            "title": "Declare a list of values to select from",
+            "description": "Presented as a <select> element with enum strings as <option>s. \nDeclare \"enumNames\" for human-readable names\nDeclare \"format\": \"radios\" for radio buttons.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enumNames": {
             "type": "object",
-            "minProperties": 1,
+            "title": "Declare human readable names",
+            "description": "Used with \"enum\"",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "order": {
+            "type": "number",
+            "title": "The order the option appears in the install form.",
+            "description": "Note that JavaScript does **not** retain the order of keys in an object. This attribute must be added to ensure your options are rendered in the right order."
+          },
+          "type": {
+            "type": "string",
+            "title": "The type the option will appear as in your INSTALL_OPTIONS object.",
+            "default": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "object",
+              "help",
+              "hidden"
+            ]
+          },
+          "placeholder": {
+            "type": "string",
+            "title": "A value that describes what should be provided in the form field.",
+            "description": "Many developers duplicate the placeholder content as a default text in their app. This allows customers to always have sane default labels that can be overridden for localization. If this proves cumbersome, we recommend importing the install.json contents into your app JavaScript with Webpack."
+          },
+          "default": {
+            "title": "A default value that appears the form field.",
+            "description": "Ensure that your app renders correctly without the default value. Alternatively, use a \"placeholder\" property.",
+            "properties": {
+              "selector": {
+                "title": "CSS selector matching an element on the page.",
+                "description": "Used with the \"selector\" and \"element\" formats.",
+                "default": "body"
+              },
+              "method": {
+                "title": "The insertion strategy used by INSTALL.createElement",
+                "default": "prepend",
+                "enum": [
+                  "before",
+                  "after",
+                  "prepend",
+                  "replace"
+                ]
+              }
+            }
+          },
+          "format": {
+            "type": "string",
+            "title": "The format your input will appear as in the install form.",
+            "enum": [
+              "account",
+              "code",
+              "color",
+              "date-time",
+              "date",
+              "element",
+              "email",
+              "image",
+              "page",
+              "radios",
+              "richtext",
+              "selector",
+              "slider",
+              "textarea",
+              "time",
+              "url"
+            ]
+          },
+          "add": {
+            "type": "object",
+            "title": "Add item button declaration",
+            "properties": {
+              "description": {
+                "title": "Modal description"
+              },
+              "properties": {
+                "$ref": "#/definitions/optionDeclarationCommonProperties"
+              },
+              "buttonLabel": {
+                "type": "string",
+                "title": "Button label"
+              }
+            }
+          }
+        }
+      }
+    },
+    "optionDeclaration": {
+      "$ref": "#/definitions/optionDeclarationCommonProperties"
+    }
+  },
+  "properties": {
+    "resources": {
+      "title": "Files included in your app.",
+      "description": "Each resource should be unminified and human-readable.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "head": {
+          "title": "JavaScript and CSS files included in the <head> of a site.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/resource"
+          }
+        },
+        "body": {
+          "title": "JavaScript and CSS files included in the <body> of the site.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/resource"
+          }
+        },
+        "edge": {
+          "title": "(Alpha) JavaScript files executed before a request reaches a browser.",
+          "description": "Edge resources will be executed in WebWorker.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
             "additionalProperties": false,
             "properties": {
-                "head": {
-                    "title": "JavaScript and CSS files you want to be included in the <head> of the page",
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/resource"
-                    }
-                },
-                "body": {
-                    "title": "JavaScript and CSS files you want to be included in the <body> of the page.",
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/resource"
-                    }
-                }
+              "src": {
+                "$ref": "#/definitions/src"
+              }
             }
+          }
         },
-        "options": {
-            "title": "Allows for end-user customization of the installation of a set of resources.",
-            "type": "object",
+        "preview": {
+          "title": "(Alpha) JavaScript files executed in the install preview.",
+          "description": "Preview resources can be used for local hook events, allowing your app to modify the install record e.g. fetching data with an installer's OAuth token, then storing the value on an arbitrary option.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "additionalProperties": false,
             "properties": {
-                "properties": {
-                    "title": "Properties",
-                    "description": "Define an individual property for end-user customization",
-                    "additionalProperties": {
-                        "$ref": "http://json-schema.org/schema#"
-                    }
-                }
-            },
-            "required": [
-                "properties"
-            ]
+              "src": {
+                "$ref": "#/definitions/src"
+              }
+            }
+          }
         }
+      }
     },
-    "required": [
-        "resources",
-        "options"
-    ]
+    "preview": {
+      "title": "Configuration of the installer preview experience",
+      "description": "Preview options can be used to declare handlers that execute after an event has been triggered.",
+      "default": {
+        "handlers": [
+          {
+            "options": ["_default"],
+            "execute": "INSTALL_SCOPE.setOptions(INSTALL_OPTIONS)"
+          }
+        ]
+      },
+      "properties": {
+        "handlers": {
+          "type": "array",
+          "title": "Declarations for each group of matching options and their executing function. Multiple update handlers are useful when an app has options that have different updating procedures.",
+          "items": {
+            "properties": {
+              "options": {
+                "type": "array",
+                "title": "The options section is an array of property keys which this handler should apply to. When any of those options are changed during a preview, this handler will be triggered. A given property may have multiple handlers.\nOptions can also be handled using special keys:\n\"_default\": Trigger when any property that hasn't yet been handled by a more specific entry changes.\n\"_any\": Trigger when any property changes, regardless of any other entry.\n\"_product\": Trigger when the customer changes their chosen product.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "execute": {
+                "type": "string",
+                "title": "A function to execute when a matching option has changed. This function should be defined in your app's JavaScript. e.g.\n\tINSTALL_SCOPE = { updateOptions (nextOptions) { } }",
+                "default": "INSTALL_SCOPE.updateOptions(INSTALL_OPTIONS)"
+              }
+            }
+          }
+        },
+        "hide": {
+          "type": "boolean",
+          "title": "Hide the preview pane",
+          "default": true,
+          "description": "Some apps don't add anything visually to the site they're being installed upon. Showing a preview when nothing visually on the site has changed can be confusing to the customer, leading them to think your app is broken.\nOften it still makes sense to embed a message on the previewed page to explain to the customer what is being installed and how it works. For example, if you are building an analytics tool you could take the customer through a tour of the types of things which would be measured.\nIf you can't find such an opportunity however, you can disable the preview to prevent any confusion."
+        }
+      }
+    },
+    "hooks": {
+      "type": "array",
+      "title": "Hook declarations",
+      "description": "A Cloudflare hook is similar to other WebHooks, the key difference being that Cloudflare hooks are two-way: you can alter the install with your response. Hook events includes information about the customer, their site, and the action that triggered it.\nHook events can be handled with preview resources, or by an external server configured as a \"service\". You can optionally respond with changes we should make to that customer's installation experience.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "title": "URL to a server handling the POST request triggered from the event.",
+            "default": "https://"
+          },
+          "block": {
+            "type": "boolean",
+            "title": "Show a loading indicator until your response has been loaded. Your changes **will** be ignored if you do not set this property.",
+            "description": "Unlike most other WebHook implementations, Cloudflare hooks allow you to modify the elements you are being notified about. For example, you might choose to show a new option when the customer has selected a specific entry in one of your option's dropdowns. You may also wish to use the hooks feature to support OAuth-based login in your app."
+          },
+          "events": {
+            "type": "array",
+            "title": "Event names that trigger a hook event.",
+            "items": {
+              "type": "string",
+              "title": "Event name."
+            }
+          },
+          "authenticate": {
+            "type": "array",
+            "title": "Matching option keys of OAuth account fields.",
+            "description": "This option should contain:\n\t{\"type\": \"object\", \"format\": \"account\"}",
+            "items": {
+              "type": "string",
+              "title": "A string matching another defined option key."
+            }
+          }
+        }
+      }
+    },
+    "options": {
+      "title": "A parent object containing your app's install options.",
+      "description": "Must contain a \"properties\" object.",
+      "type": "object",
+      "required": ["properties"],
+      "properties": {
+        "properties": {
+          "$ref": "#/definitions/optionDeclaration"
+        }
+      }
+    }
+  }
 }
