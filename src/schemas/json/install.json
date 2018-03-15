@@ -37,7 +37,8 @@
       "description": "Each declaration will appear in your app's installer for end-user customization. Their choices will accessible in your app's JavaScript resources as the constant `INSTALL_OPTIONS`.",
       "additionalProperties": {
         "required": [
-          "order"
+          "order",
+          "type"
         ],
         "oneOf": [
           {
@@ -54,6 +55,11 @@
         "type": "object",
         "title": "The key which your option will be defined under.",
         "description": "The key should be camelCased.",
+        "default": {
+          "order": 0,
+          "title": "",
+          "type": ""
+        },
         "properties": {
           "title": {
             "type": "string",
@@ -86,9 +92,9 @@
               "object"
             ],
             "title": "Conditionally show a field",
-            "description": "The `showIf` property can accept a boolean option property key:\n\n\n\t\"showIf\": \"optionName\"\n\nAn object with a property key, operator, and expected value can also be used for more complex matching:\n\t\"showIf\": {\"optionName\": {\"op\": \"==\", \"value\": \"foo\"}}\n The showIf property can also accept multiple criteria, all of which must be matched for the field to be visible.",
+            "description": "The `showIf` property can accept a boolean option property key:\n\n\n\t\"showIf\": \"optionName\"\n\nAn object with a property key, operator, and expected value can also be used for more complex matching:\n\t\"showIf\": {\"optionName\": {\"op\": \"==\", \"value\": \"foo\"}}\nThe showIf property can also accept multiple criteria, all of which must be matched for the field to be visible.\nYou can also use `showIf` to show options based on the current product the customer has elected to purchase:\n\t\"showIf\": {\"INSTALL_PRODUCT.id\": \"business\"}",
             "additionalProperties": {
-              "title": "A string matching another defined option key.",
+              "title": "A string matching another defined option key, or `INSTALL_PRODUCT.id`",
               "additionalProperties": false,
               "properties": {
                 "op": {
@@ -139,18 +145,66 @@
             "title": "The order the option appears in the install form.",
             "description": "Note that JavaScript does **not** retain the order of keys in an object. This property must be added to ensure your options are rendered in the right order."
           },
+          "properties": {
+            "$ref": "#/definitions/optionDeclarationCommonProperties"
+          },
+          "maxItems": {
+            "title": "Specify the max number of entries in an array object.",
+            "type": "number"
+          },
+          "minimum": {
+            "title": "The minimum number allowed in the field.",
+            "type": "number"
+          },
+          "maximum": {
+            "title": "The maximum number allowed in the field.",
+            "type": "number"
+          },
+          "step": {
+            "title": "Declare the increment of a slider. Used with {\"type\": \"number\", \"format\": \"slider\"}",
+            "type": "number"
+          },
+          "products": {
+            "type": [
+              "array",
+              "object"
+            ],
+            "title": "Limit this option to a set of eligble products.",
+            "description": "Most option types can be limited to a set of eligble products with an array of qualifying product IDs:\n\t{\"products\": [\"pro\", \"enterprise\"]}\nRadio options can be limited to specific products with products. Much like `enumNames`, each key in the object is a string from the enum array. However the value is an array containing a string `productId` for each eligible product:\n\t\"{enumNames\":{\n\t\"announcement\": \"Just show a message\",\n\t\"cta\": \"Redirect them to a special page\",\n\t\"signup\": \"Gather emails to sign visitors up for your newsletter\"\n\t},\n\t\"products\": {\n\t\"cta\": [\"plus\", \"pro\"],\n\t\"signup\": [\"pro\"]\n\t}",
+            "items": {
+              "title": "An array containing a `productId` for each eligible product.",
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array"
+            }
+          },
+          "units": {
+            "title": "Declare which units the installer can choose. Used with {\"type\": \"object\", \"format\": \"number\"}",
+            "description": "Presented as a floating-point number input and unit selector. This is useful when a customer has to set a specific size on an element.",
+            "type": "array",
+            "default": [
+              "px",
+              "em",
+              "%"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
           "type": {
             "type": "string",
             "title": "Declares the type this option will use in your app's INSTALL_OPTIONS constant.",
             "default": "string",
             "enum": [
-              "string",
-              "number",
-              "boolean",
-              "object",
               "array",
+              "boolean",
               "help",
-              "hidden"
+              "hidden",
+              "integer",
+              "number",
+              "object",
+              "string"
             ]
           },
           "placeholder": {
@@ -192,6 +246,7 @@
               "element",
               "email",
               "image",
+              "number",
               "page",
               "radios",
               "richtext",
@@ -215,6 +270,20 @@
               "buttonLabel": {
                 "type": "string",
                 "title": "Button label"
+              }
+            }
+          },
+          "items": {
+            "title": "Declarations for each item in an array.",
+            "type": "object",
+            "description": "Used with {\"type\": \"array\"}. Must have \"properties\" key.",
+            "default": {
+              "type": "object",
+              "properties": {}
+            },
+            "properties": {
+              "properties": {
+                "$ref": "#/definitions/optionDeclarationCommonProperties"
               }
             }
           }
@@ -282,12 +351,14 @@
       }
     },
     "preview": {
-      "title": "Configuration of the installer preview experience",
+      "title": "Configuration of the installer preview experience.",
       "description": "Preview options can be used to declare handlers that execute after an event has been triggered.",
       "default": {
         "handlers": [
           {
-            "options": ["_default"],
+            "options": [
+              "_default"
+            ],
             "execute": "INSTALL_SCOPE.setOptions(INSTALL_OPTIONS)"
           }
         ]
@@ -315,7 +386,7 @@
         },
         "hide": {
           "type": "boolean",
-          "title": "Hide the preview pane",
+          "title": "Hide the preview pane.",
           "default": true,
           "description": "Some apps don't add anything visually to the site they're being installed upon. Showing a preview when nothing visually on the site has changed can be confusing to the customer, leading them to think your app is broken.\nOften it still makes sense to embed a message on the previewed page to explain to the customer what is being installed and how it works. For example, if you are building an analytics tool you could take the customer through a tour of the types of things which would be measured.\nIf you can't find such an opportunity however, you can disable the preview to prevent any confusion."
         }
@@ -362,7 +433,9 @@
       "title": "A parent object containing your app's install options.",
       "description": "Must contain a \"properties\" object.",
       "type": "object",
-      "required": ["properties"],
+      "required": [
+        "properties"
+      ],
       "properties": {
         "properties": {
           "$ref": "#/definitions/optionDeclaration"
