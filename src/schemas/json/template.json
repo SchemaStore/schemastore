@@ -6,6 +6,13 @@
   "required": [ "author", "classifications", "identity", "name", "shortName" ],
 
   "definitions": {
+    "datatype": {
+      "description": "Indicates limitations on the valid values a symbol may be assigned. At this point, the only valid datatype is \"choice\", which also requires providing symbols.choices configuration for the symbol.",
+      "anyOf": [
+        { "enum": [ "choice", "bool", "float", "int", "hex", "text" ] },
+        { "pattern": "^(integer|string)$" }
+      ]
+    },
     "generatorConstant": {
       "properties": {
         "generator": {
@@ -125,9 +132,11 @@
                 "required": [ "regex", "replacement" ],
                 "properties": {
                   "regex": {
+                    "description": "The regular expression to use to locate the sequence to replace",
                     "type": "string"
                   },
                   "replacement": {
+                    "description": "The replacement for any sequences matched by the supplied regular expression",
                     "type": "string"
                   }
                 }
@@ -137,13 +146,103 @@
         }
       }
     },
-    "generatorOther": {
+    "generatorCoalesce": {
       "properties": {
-        "generator": {
-          "enum": [ "casing", "coalesce", "port", "switch" ]
-        },
+        "generator": { "enum": [ "coalesce" ] },
         "parameters": {
-          "type": "object"
+          "type": "object",
+          "required": [ "sourceVariableName", "fallbackVariableName" ],
+          "properties": {
+            "sourceVariableName": {
+              "type": "string",
+              "description": "The name of the symbol whose value will be inspected - if the value is effectively equal to the default value, the value of the symbol referred to by fallbackVariableName is used, otherwise the value of this symbol"
+            },
+            "defaultValue": {
+              "type": "string",
+              "description": "The value to consider as being the default - if the value of the symbol referred to by sourceVariableName is equal to this, the value of the symbol referred to in fallbackVariableName is used instead",
+              "default": ""
+            },
+            "fallbackVariableName": {
+              "type": "string",
+              "description": "The name of the symbol to return the value of if the symbol referred to by sourceVariableName has a value equal to the value of defaultValue"
+            }
+          }
+        }
+      }
+    },
+    "generatorCasing": {
+      "properties": {
+        "generator": { "enum": [ "casing" ] },
+        "parameters": {
+          "required": [ "source" ],
+          "properties": {
+            "source": {
+              "description": "The name of the symbol whose value should have its case changed",
+              "type": "string"
+            },
+            "toLower": {
+              "description": "Whether the case changed to should be lower case, if false, the value is made to be uppercase instead",
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+    "generatorPort": {
+      "properties": {
+        "generator": { "enum": [ "port" ] },
+        "parameters": {
+          "properties": {
+            "low": {
+              "description": "The lower bound of acceptable port numbers",
+              "type": "integer",
+              "default": 1024
+            },
+            "high": {
+              "description": "The upper bound of acceptable port numbers",
+              "type": "integer",
+              "default": 65535
+            },
+            "fallback": {
+              "description": "The port number to use if no free ports could be found",
+              "type": "integer",
+              "default": 0
+            }
+          }
+        }
+      }
+    },
+    "generatorSwitch": {
+      "properties": {
+        "generator": { "enum": [ "switch" ] },
+        "parameters": {
+          "properties": {
+            "evaluator": {
+              "description": "The style of evaluator to use",
+              "enum": [ "C++", "C++2", "MSBUILD", "VB" ],
+              "default": "C++"
+            },
+            "datatype": { "$ref": "#/definitions/datatype" },
+            "cases": {
+              "description": "The set of cases to test for. The first one, in document order, to return true's value is used, if none return true, empty string is returned",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [ "condition", "value" ],
+                "properties": {
+                  "condition": {
+                    "description": "An expression to be interpreted by the specified evaluator type",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "The value to return if the condition evaluates to true",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -239,11 +338,14 @@
       }
     },
     "defaultName": {
+      "description": "The name to use during creation if no name has been specified and no other opinionation about naming has been provided from the host",
       "type": "string",
       "minLength": 1
     },
     "generatorVersions": {
-      "type": "string"
+      "description": "The semantic version range of the Microsoft.TemplateEngine.Orchestrator.RunnableProjects package that this template is usable with. In older versions of the engine, the four octet version string is used but is matched against a constant which was never changed from 1.0.0.0 - either syntax is now accepted, however the four octet string will not be changed from 1.0.0.0",
+      "type": "string",
+      "default": "[1.0.0.0-*)"
     },
     "groupIdentity": {
       "description": "The ID of the group this template belongs to. When combined with the \"tags\" section, this allows multiple templates to be displayed as one, with the the decision for which one to use being presented as a choice in each one of the pivot categories (keys).",
@@ -278,62 +380,234 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [ "actionId", "manualInstructions" ],
+        "allOf": [
+          {
+            "required": [ "actionId", "manualInstructions" ],
 
-        "properties": {
-          "actionId": {
-            "description": "A guid uniquely defining the action. The value must correspond to a post-action known by the broker.",
-            "allOf": [ { "$ref": "#/definitions/guid" } ]
-          },
-          "args": {
-            "description": "A list of key-value pairs to use when performing the action. The specific parameters required / allowed are defined by the action itself.",
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "condition": {
-            "type": "string"
-          },
-          "configFile": {
-            "description": "Additional configuration for the associated post action. The structure & content will vary based on the post action.",
-            "type": "string"
-          },
-          "continueOnError": {
-            "description": "If this action fails, the value of continueOnError indicates whether to attempt the next action, or stop processing the post actions. Should be set to true when subsequent actions rely on the success of the current action.",
-            "type": "boolean",
-            "default": false
-          },
-          "description": {
-            "description": "A human-readable description of the action.",
-            "type": "string"
-          },
-          "manualInstructions": {
-            "description": "An ordered list of possible instructions to display if the action cannot be performed. Each element in the list must contain a key named \"text\", whose value contains the instructions. Each element may also optionally provide a key named \"condition\" - a Boolean evaluate-able string. The first instruction whose condition is false or blank will be considered valid, all others are ignored.",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [ "text" ],
+            "properties": {
+              "actionId": {
+                "description": "A guid uniquely defining the action. The value must correspond to a post-action known by the broker.",
+                "allOf": [ { "$ref": "#/definitions/guid" } ]
+              },
+              "args": {
+                "description": "A list of key-value pairs to use when performing the action. The specific parameters required / allowed are defined by the action itself.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "condition": {
+                "description": "A C++ style expression that, if it evaluates to 'false' causes the post-action to be skipped. This expression may refer to any symbols that have been defined",
+                "type": "string"
+              },
+              "configFile": {
+                "description": "Additional configuration for the associated post action. The structure & content will vary based on the post action.",
+                "type": "string"
+              },
+              "continueOnError": {
+                "description": "If this action fails, the value of continueOnError indicates whether to attempt the next action, or stop processing the post actions. Should be set to true when subsequent actions rely on the success of the current action.",
+                "type": "boolean",
+                "default": false
+              },
+              "description": {
+                "description": "A human-readable description of the action.",
+                "type": "string"
+              },
+              "manualInstructions": {
+                "description": "An ordered list of possible instructions to display if the action cannot be performed. Each element in the list must contain a key named \"text\", whose value contains the instructions. Each element may also optionally provide a key named \"condition\" - a Boolean evaluate-able string. The first instruction whose condition is false or blank will be considered valid, all others are ignored.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [ "text" ],
 
-              "properties": {
-                "condition": {
-                  "type": "string"
-                },
-                "text": {
-                  "type": "string"
+                  "properties": {
+                    "condition": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
+          },
+          {
+            "oneOf": [
+              {
+                //Since this is an open set, allow other things to be specified
+                "not": {
+                  "required": [ "actionId" ],
+                  "properties": {
+                    "actionId": {
+                      "enum": [
+                        "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+                        "3A7C4B45-1F5D-4A30-959A-51B88E82B5D2",
+                        "B17581D1-C5C9-4489-8F0A-004BE667B814",
+                        "cb9a6cf3-4f5c-4860-b9d2-03a574959774",
+                        "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+                        "D396686C-DE0E-4DE6-906D-291CD29FC5DE",
+                        "84C0DA21-51C8-4541-9940-6CA19AF04EE6"
+                      ]
+                    }
+                  }
+
+                }
+              },
+              {
+                "description": "Instruction display - shows a message given by description and manualInstructions as well as an optional command line to ask the user to execute",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C" ]
+                  },
+                  "args": {
+                    "properties": {
+                      "executable": {
+                        "description": "The executable to instruct the user to run",
+                        "type": "string"
+                      },
+                      "args": {
+                        "description": "The arguments to instruct the user to run the executable with - if executable is not specified, this value is unused",
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "description": "Process start - starts a process",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "3A7C4B45-1F5D-4A30-959A-51B88E82B5D2" ]
+                  },
+                  "args": {
+                    "required": [ "executable" ],
+                    "properties": {
+                      "redirectStandardOutput": {
+                        "description": "Whether or not to redirect stdout for the process (prevents output from being displayed if true)",
+                        "type": "string",
+                        "enum": [ "true", "false" ],
+                        "default": "false"
+                      },
+                      "executable": {
+                        "description": "The executable to run",
+                        "type": "string"
+                      },
+                      "args": {
+                        "description": "The arguments to supply to the executable",
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "description": "Add reference - adds a reference to a project, package or framework assembly",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "B17581D1-C5C9-4489-8F0A-004BE667B814" ]
+                  },
+                  "args": {
+                    "required": [ "referenceType", "reference" ],
+                    "properties": {
+                      "referenceType": {
+                        "description": "The type of reference to add. project = A project to project reference. package = A NuGet package reference. framework - A framework assembly reference.",
+                        "type": "string",
+                        "enum": [ "project", "package", "framework" ],
+                        "default": "false"
+                      },
+                      "projectFileExtensions": {
+                        "description": "Must be a literal extension for the project file(s) of interest, may be a semicolon delimited list. If unspecified, any project file (*.*proj) is allowed",
+                        "type": "string"
+                      },
+                      "reference": {
+                        "description": "The reference to be added (if referenceType=package, this is the package ID; if referenceType=framework, this is the path or assembly name; if referenceType=project, this is the path to the project reference to add)",
+                        "type": "string"
+                      },
+                      "version": {
+                        "description": "The version of the package reference to add, applicable only if referenceType=package",
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "description": "chmod - runs chmod on a particular file",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "cb9a6cf3-4f5c-4860-b9d2-03a574959774" ]
+                  },
+                  "args": {
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "array",
+                          "description": "The set of files (or patterns) to apply the permission specified in the property name to"
+                        },
+                        {
+                          "type": "string",
+                          "description": "The file (or pattern) to apply the permission specified in the property name to"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "description": "NuGet package restore - restores NuGet packages for all primary outputs with file extensions *proj or sln",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "210D431B-A78B-4D2F-B762-4ED3E3EA9025" ]
+                  },
+                  "args": {}
+                }
+              },
+              {
+                "description": "Add to solution - Adds one or more of the primary outputs to the first sln file found (searches up the directory tree from the output folder)",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "D396686C-DE0E-4DE6-906D-291CD29FC5DE" ]
+                  },
+                  "args": {
+                    "properties": {
+                      "primaryOutputIndexes": {
+                        "type": "string",
+                        "description": "A semicolon delimited list of indexes of the primary outputs that should be added to the solution, if not specified, all primary outputs are used"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "description": "Open in editor - Adds one or more of the primary outputs to the first sln file found (searches up the directory tree from the output folder)",
+                "properties": {
+                  "actionId": {
+                    "enum": [ "84C0DA21-51C8-4541-9940-6CA19AF04EE6" ]
+                  },
+                  "args": {
+                    "properties": {
+                      "files": {
+                        "type": "string",
+                        "description": "A semicolon delimited list of indexes of the primary outputs that should be opened in the editor"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
           }
-        }
+        ]
       }
     },
     "precedence": {
+      "description": "A value used to determine how preferred this template is among the other templates with the same groupIdentity (higher values are more preferred)",
       "type": [ "integer", "string" ],
       "pattern": "^([0-9]+)$",
       "default": 0
     },
     "preferNameDirectory": {
+      "description": "Indicates whether to create a directory for the template if name is specified but an output directory is not set (instead of creating the content directly in the current directory)",
       "type": "boolean"
     },
     "primaryOutputs": {
@@ -345,11 +619,11 @@
 
         "properties": {
           "path": {
-            "description": "One instance of a primary output path",
+            "description": "The path to the file in the template content whose corresponding output file should be included as a primary output",
             "type": "string"
           },
           "condition": {
-            "description": "If the condition evaluates to true, the corresponding path will be included in the output list. If false, the path is ignored",
+            "description": "The condition for including the specified path in the primary outputs set",
             "type": "string",
             "default": "true"
           }
@@ -358,7 +632,7 @@
     },
     "shortName": {
       "description": "A shorthand name or a list of names for selecting the template (applies to environments where the template name is specified by the user - not selected via a GUI). The first entry is the preferred short name.",
-      "type": ["string", "array"],
+      "type": [ "string", "array" ],
       "minLength": 1
     },
     "sourceName": {
@@ -376,29 +650,220 @@
         "target": "./"
       }
     },
+    "forms": {
+      "type": "object",
+      "description": "Custom value forms used by the template",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "The identifier for the value form component that will be used to transform the value"
+          }
+        },
+        "oneOf": [
+          {
+            "not": {
+              "required": [ "identifier" ],
+              "properties": {
+                "identifier": {
+                  "enum": [
+                    "lowerCaseInvariant",
+                    "xmlEncode",
+                    "safe_name",
+                    "lower_safe_name",
+                    "upperCaseInvariant",
+                    "replace",
+                    "safe_namespace",
+                    "lower_safe_namespace",
+                    "chain",
+                    "lowerCase",
+                    "identity",
+                    "upperCase",
+                    "jsonEncode"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "description": "Lowercases the source value in a culture invariant way",
+            "properties": {
+              "identifier": {
+                "enum": [ "lowerCaseInvariant" ]
+              }
+            }
+          },
+          {
+            "description": "XML encodes the source value",
+            "properties": {
+              "identifier": {
+                "enum": [ "xmlEncode" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the source value to a string suitable for a C# identifier",
+            "properties": {
+              "identifier": {
+                "enum": [ "safe_name" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the source value to a lowercase string suitable for a C# identifier",
+            "properties": {
+              "identifier": {
+                "enum": [ "lower_safe_name" ]
+              }
+            }
+          },
+          {
+            "required": [ "pattern", "replacement" ],
+            "description": "Performs a regular expression replacement on the source value",
+            "properties": {
+              "identifier": {
+                "enum": [ "replace" ]
+              },
+              "pattern": {
+                "description": "A regular expression whose matches will be replaced with the literal value specified in replacement",
+                "type": "string"
+              },
+              "replacement": {
+                "description": "The value to replace the matches of the specified pattern in the source value with",
+                "type": "string"
+              }
+            }
+          },
+          {
+            "description": "Converts the source value to a string suitable for a C# namespace",
+            "properties": {
+              "identifier": {
+                "enum": [ "safe_namespace" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the source value to a lowercase string suitable for a C# namespace",
+            "properties": {
+              "identifier": {
+                "enum": [ "safe_namespace" ]
+              }
+            }
+          },
+          {
+            "required": [ "steps" ],
+            "description": "Performs a series of transforms",
+            "properties": {
+              "identifier": {
+                "enum": [ "chain" ]
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "The name of the form to apply to the previous step (or source value if this is the first step)"
+                }
+              }
+            }
+          },
+          {
+            "description": "Lowercases the source value",
+            "properties": {
+              "identifier": {
+                "enum": [ "lowerCase" ]
+              }
+            }
+          },
+          {
+            "description": "Returns the source value",
+            "properties": {
+              "identifier": {
+                "enum": [ "identity" ]
+              }
+            }
+          },
+          {
+            "description": "Uppercases the source value",
+            "properties": {
+              "identifier": {
+                "enum": [ "upperCase" ]
+              }
+            }
+          },
+          {
+            "description": "JSON encodes the source value",
+            "properties": {
+              "identifier": {
+                "enum": [ "jsonEncode" ]
+              }
+            }
+          }
+        ]
+      }
+    },
     "symbols": {
       "description": "The symbols section defines variables and their values, the values may be the defined in terms of other symbols. When a defined symbol name is encountered anywhere in the template definition, it is replaced by the value defined in this configuration. The symbols configuration is a collection of key-value pairs. The keys are the symbol names, and the value contains key-value-pair configuration information on how to assign the symbol a value.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
         "required": [ "type" ],
+        "properties": {
+          "replaces": {
+            "type": "string",
+            "description": "The text to replace with the value of this symbol"
+          },
+          "datatype": { "$ref": "#/definitions/datatype" }
+        },
         "oneOf": [
+          {
+            "required": [ "binding" ],
+            "properties": {
+              "type": {
+                "description": "Defines a symbol that has its value provided by the host",
+                "enum": [ "bind" ]
+              },
+              "binding": {
+                "description": "The name of the host property to take the value from",
+                "type": "string"
+              }
+            }
+          },
+          {
+            "required": [ "valueSource" ],
+            "properties": {
+              "type": {
+                "description": "The value of this symbol is derived from the value of another symbol by the application of value forms",
+                "enum": [ "derived" ]
+              },
+              "valueSource": {
+                "type": "string",
+                "description": "The name of the symbol that the value should be derived from"
+              },
+              "valueTransform": {
+                "type": "string",
+                "description": "The name of the value form that should be applied to the source value to use as the value of this symbol"
+              }
+            }
+          },
           {
             "required": [ "generator" ],
             "properties": {
               "type": {
                 "description": "Defines the high level configuration of symbol",
-                "enum": [ "bind", "generated" ]
+                "enum": [ "generated" ]
               }
             },
             "oneOf": [
+              { "$ref": "#/definitions/generatorCoalesce" },
               { "$ref": "#/definitions/generatorConstant" },
               { "$ref": "#/definitions/generatorEvaluate" },
               { "$ref": "#/definitions/generatorGuid" },
               { "$ref": "#/definitions/generatorNow" },
+              { "$ref": "#/definitions/generatorPort" },
               { "$ref": "#/definitions/generatorRandom" },
               { "$ref": "#/definitions/generatorRegex" },
-              { "$ref": "#/definitions/generatorOther" }
+              { "$ref": "#/definitions/generatorSwitch" }
             ]
           },
           {
@@ -407,12 +872,8 @@
                 "description": "Defines the high level configuration of symbol",
                 "enum": [ "parameter" ]
               },
-              "datatype": {
-                "description": "Indicates limitations on the valid values a symbol may be assigned. At this point, the only valid datatype is \"choice\", which also requires providing symbols.choices configuration for the symbol.",
-                "anyOf": [
-                  { "enum": [ "choice", "bool", "float", "int", "hex", "text" ] },
-                  { "pattern": "^(integer|string)$" }
-                ]
+              "isRequired": {
+                "type": "boolean"
               },
               "choices": {
                 "description": "An array listing the valid choices for a symbol whose datatype = choice. If not provided, there are no valid choices for the symbol, so it can never be assigned a value.",
@@ -421,16 +882,15 @@
                   "required": [ "choice" ],
                   "properties": {
                     "choice": {
+                      "description": "A valid value for the symbol",
                       "type": "string"
                     },
                     "description": {
+                      "description": "Help text describing the meaning of the corresponding value",
                       "type": "string"
                     }
                   }
                 }
-              },
-              "replaces": {
-                "type": "string"
               },
               "defaultValue": {
                 "description": "The value assigned to the symbol if no value for it is provided by the user or host.",
@@ -469,13 +929,38 @@
         ]
       }
     },
+    "baselines": {
+      "description": "Alternate sets of defaults for symbols",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "description": "A named set of alternate defaults",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "A string to use to indicate the intent of the baesline"
+          },
+          "defaultOverrides": {
+            "description": "A lookup of symbol names to new defaults",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "An updated default value for the specified symbol"
+            }
+          }
+        }
+      }
+    },
     "tags": {
+      "description": "Common information about templates, these are effectively interchangeable with choice type parameter symbols",
       "type": "object",
       "properties": {
         "language": {
+          "description": "The programming language the template primarily contains or is intended for use with",
           "type": "string"
         },
         "type": {
+          "description": "The type of template. Commonly this is either project or item (and special checks are performed for these values to show only project or item type templates in certain contexts) but any string is allowed",
           "anyOf": [
             { "enum": [ "project", "item" ] },
             { "type": "string" }
@@ -484,7 +969,12 @@
       }
     },
     "thirdPartyNotices": {
+      "description": "An URL for a document indicating any libraries used by the template that are not owned/provided by the template author",
       "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "A description of the template's purpose or contents for use in help"
     }
   }
 }
