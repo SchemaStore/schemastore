@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "Static Analysis Results Format (SARIF) Version 2.0.0 JSON Schema",
-  "description": "Static Analysis Results Format (SARIF) Version 2.0.0 JSON Schema: a standard format for the output of static analysis and other tools.",
+  "description": "Static Analysis Results Format (SARIF) Version 2.0.0 JSON Schema: a standard format for the output of static analysis tools.",
   "additionalProperties": false,
   "type": "object",
   "properties": {
@@ -28,11 +28,13 @@
   },
 
   "required": [ "version", "runs" ],
+
   "definitions": {
 
     "attachment": {
       "description": "A file relevant to a tool invocation or to a result.",
       "type": "object",
+      "additionalProperties": false,
       "properties": {
 
         "description": {
@@ -110,84 +112,6 @@
       },
 
       "required": [ "threadFlows" ]
-    },
-
-    "threadFlowLocation": {
-      "description": "A location visited by an analysis tool in the course of simulating or monitoring the execution of a program.",
-      "additionalProperties": false,
-      "type": "object",
-      "properties": {
-
-        "step": {
-          "description": "The 0-based sequence number of the location in the code flow within which it occurs.",
-          "type": "integer",
-          "minimum": 0
-        },
-
-        "location": {
-          "description": "The code location.",
-          "$ref": "#/definitions/location"
-        },
-
-        "stack": {
-          "description": "The call stack leading to this location.",
-          "$ref": "#/definitions/stack"
-        },
-
-        "kind": {
-          "description": "A string describing the type of this location.",
-          "type": "string"
-        },
-
-        "module": {
-          "description": "The name of the module that contains the code that is executing.",
-          "type": "string"
-        },
-
-        "state": {
-          "description": "A dictionary, each of whose keys specifies a variable or expression, the associated value of which represents the variable or expression value. For an annotation of kind 'continuation', for example, this dictionary might hold the current assumed values of a set of global variables.",
-          "type": "object"
-        },
-
-        "nestingLevel": {
-          "description": "An integer representing a containment hierarchy within the thread flow",
-          "type": "integer"
-        },
-
-        "executionOrder": {
-          "description": "An integer representing the temporal order in which execution reached this location.",
-          "type": "integer"
-        },
-
-        "timestamp": {
-          "description": "The time at which this location was executed.",
-          "type": "string",
-          "format": "date-time"
-        },
-
-        "importance": {
-          "description": "Specifies the importance of this location in understanding the code flow in which it occurs. The order from most to least important is \"essential\", \"important\", \"unimportant\". Default: \"important\".",
-          "enum": [ "important", "essential", "unimportant" ]
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the code location.",
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-
-            "tags": {
-              "description": "A set of distinct strings that provide additional information.",
-              "type": "array",
-              "uniqueItems": true,
-              "default": [],
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
     },
 
     "conversion": {
@@ -269,7 +193,7 @@
     },
 
     "edgeTraversal": {
-      "description": "Represents the traversal of a single edge in the course of a graph traversal.",
+      "description": "Represents the traversal of a single edge during a graph traversal.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -348,28 +272,57 @@
       }
     },
 
-    "fileChange": {
-      "description": "A change to a single file.",
+    "externalFiles": {
+      "description": "References to external files that should be inlined with the content of a root log file.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
 
-        "fileLocation": {
-          "description": "The location of the file to change.",
+        "conversion": {
+          "description": "The location of a file containing a run.conversion object to be merged with the root log file.",
           "$ref": "#/definitions/fileLocation"
         },
 
-        "replacements": {
-          "description": "An array of replacement objects, each of which represents the replacement of a single range of bytes in a single file specified by 'fileLocation'.",
+        "files": {
+          "description": "The location of a file containing a run.files object to be merged with the root log file.",
+          "$ref": "#/definitions/fileLocation"
+        },
+
+        "graphs": {
+          "description": "The location of a file containing a run.graphs object to be merged with the root log file.",
+          "$ref": "#/definitions/fileLocation"
+        },
+
+        "invocations": {
+          "description": "An array of locations of files containing arrays of run.invocation objects to be merged with the root log file.",
           "type": "array",
           "minItems": 1,
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/definitions/replacement"
+            "$ref": "#/definitions/fileLocation"
+          }
+        },
+
+        "logicalLocations": {
+          "description": "The location of a file containing a run.logicalLocations object to be merged with the root log file.",
+          "$ref": "#/definitions/fileLocation"
+        },
+
+        "resources": {
+          "description": "The location of a file containing a run.resources object to be merged with the root log file.",
+          "$ref": "#/definitions/fileLocation"
+        },
+
+        "results": {
+          "description": "An array of locations of files containins arrays of run.result objects to be merged with the root log file.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/fileLocation"
           }
         }
-      },
-
-      "required": [ "replacements" ]
+      }
     },
 
     "file": {
@@ -428,7 +381,7 @@
         },
 
         "contents": {
-          "description": "The contents of the file, expressed as a MIME Base64-encoded byte sequence.",
+          "description": "The contents of the file.",
           "$ref": "#/definitions/fileContent"
         },
 
@@ -473,10 +426,34 @@
       }
     },
 
-    "fileContent": {
-      "description": "Represents content from an external file.",
+    "fileChange": {
+      "description": "A change to a single file.",
       "additionalProperties": false,
       "type": "object",
+      "properties": {
+
+        "fileLocation": {
+          "description": "The location of the file to change.",
+          "$ref": "#/definitions/fileLocation"
+        },
+
+        "replacements": {
+          "description": "An array of replacement objects, each of which represents the replacement of a single region in a single file specified by 'fileLocation'.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/replacement"
+          }
+        }
+      },
+
+      "required": [ "fileLocation", "replacements" ]
+    },
+
+    "fileContent": {
+      "description": "Represents content from an external file.",
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
 
         "text": {
@@ -667,16 +644,6 @@
       "type": "object",
       "properties": {
 
-        "attachments": {
-          "description": "A set of files relevant to the invocation of the tool.",
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/definitions/attachment"
-          }
-        },
-
         "commandLine": {
           "description": "The command line used to invoke the tool.",
           "type": "string"
@@ -698,6 +665,16 @@
           }
         },
 
+        "attachments": {
+          "description": "A set of files relevant to the invocation of the tool.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/attachment"
+          }
+        },
+
         "startTime": {
           "description": "The date and time at which the run started. See \"Date/time properties\" in the SARIF spec for the required format.",
           "type": "string",
@@ -705,7 +682,7 @@
         },
 
         "endTime": {
-          "description": "The date and time at which the run ended. See \"Date/time properties\" in the  SARIF spec for the required format.",
+          "description": "The date and time at which the run ended. See \"Date/time properties\" in the SARIF spec for the required format.",
           "type": "string",
           "format": "date-time"
         },
@@ -716,7 +693,7 @@
         },
 
         "toolNotifications": {
-          "description": "A list of runtime conditions detected by the tool in the course of the analysis.",
+          "description": "A list of runtime conditions detected by the tool during the analysis.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/notification"
@@ -777,8 +754,8 @@
         },
 
         "workingDirectory": {
-          "description": "The working directory for the analysis rool run.",
-          "type": "string"
+          "description": "The working directory for the analysis tool run.",
+          "$ref": "#/definitions/fileLocation"
         },
 
         "environmentVariables": {
@@ -809,7 +786,7 @@
         },
 
         "properties": {
-          "description": "Key/value pairs that provide additional information about the run.",
+          "description": "Key/value pairs that provide additional information about the invocation.",
           "type": "object",
           "additionalProperties": true,
           "properties": {
@@ -829,18 +806,18 @@
     },
 
     "location": {
-      "description": "The location where an analysis tool produced a result.",
+      "description": "A location within a programming artifact.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
 
         "physicalLocation": {
-          "description": "Identifies the file where the analysis tool produced the result.",
+          "description": "Identifies the file and region.",
           "$ref": "#/definitions/physicalLocation"
         },
 
         "fullyQualifiedLogicalName": {
-          "description": "The human-readable fully qualified name of the logical location where the analysis tool produced the result.",
+          "description": "The human-readable fully qualified name of the logical location. If run.logicalLocations is present, this value matches a property name within that object, from which further information about the logical location can be obtained.",
           "type": "string"
         },
 
@@ -1003,8 +980,8 @@
     },
 
     "notification": {
-      "type": "object",
       "description": "Describes a condition relevant to the tool itself, as opposed to being relevant to a target being analyzed by the tool.",
+      "type": "object",
       "additionalProperties": false,
       "properties": {
 
@@ -1014,7 +991,7 @@
         },
 
         "ruleId": {
-          "description": "The stable, unique identifier of the rule (if any) to which this notification is relevant. If 'ruleKey' is not specified, this member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
+          "description": "The stable, unique identifier of the rule (if any) to which this notification is relevant. This member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
           "type": "string"
         },
 
@@ -1068,6 +1045,7 @@
           }
         }
       },
+
       "required": [ "message" ]
     },
 
@@ -1088,7 +1066,7 @@
         },
 
         "region": {
-          "description": "The region within the file where the result was detected.",
+          "description": "Specifies a portion of the file.",
           "$ref": "#/definitions/region"
         },
 
@@ -1201,7 +1179,7 @@
     },
 
     "replacement": {
-      "description": "The replacement of a single range of bytes in a file. Specifies the location within the file where the replacement is to be made, the number of bytes to remove at that location, and a sequence of bytes to insert at that location.",
+      "description": "The replacement of a single region of a file.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
@@ -1216,6 +1194,7 @@
           "$ref": "#/definitions/fileContent"
         }
       },
+
       "required": [ "deletedRegion" ]
     },
 
@@ -1249,7 +1228,7 @@
       "properties": {
 
         "ruleId": {
-          "description": "The stable, unique identifier of the rule (if any) to which this notification is relevant. If 'ruleKey' is not specified, this member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
+          "description": "The stable, unique identifier of the rule (if any) to which this notification is relevant. This member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
           "type": "string"
         },
 
@@ -1261,11 +1240,6 @@
         "message": {
           "description": "A message that describes the result. The first sentence of the message only will be displayed when visible space is limited.",
           "$ref": "#/definitions/message"
-        },
-
-        "ruleMessageId": {
-          "description": "A string that identifies the message within the metadata for the rule used in this result.",
-          "type": "string"
         },
 
         "analysisTarget": {
@@ -1360,9 +1334,9 @@
         },
 
         "suppressionStates": {
+          "description": "A set of flags indicating one or more suppression conditions.",
           "type": "array",
           "items": {
-            "description": "A flag value indicating one or more suppression conditions.",
             "enum": [
               "suppressedInSource",
               "suppressedExternally"
@@ -1401,7 +1375,7 @@
         },
 
         "conversionProvenance": {
-          "description": "An array of analysisToolLogFileContents objects which specify the portions of an analysis tool's output that a converter transformed into the result object.",
+          "description": "An array of physicalLocation objects which specify the portions of an analysis tool's output that a converter transformed into the result object.",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -1504,7 +1478,6 @@
           "additionalProperties": true,
           "properties": {
             "tags": {
-
               "description": "A set of distinct strings that provide additional information.",
               "type": "array",
               "uniqueItems": true,
@@ -1516,6 +1489,7 @@
           }
         }
       },
+
       "required": [ "id" ]
     },
 
@@ -1601,7 +1575,7 @@
         },
 
         "files": {
-          "description": "A dictionary each of whose keys is a URI and each of whose values is a file object.",
+          "description": "A dictionary, each of whose keys is a URI and each of whose values is a file object.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/file"
@@ -1627,7 +1601,7 @@
         },
 
         "results": {
-          "description": "The set of results contained in an SARIF log. The results array can be omitted when a run is solely exporting rules metadata. It must be present (but may be empty) in the event that a log file represents an actual scan.",
+          "description": "The set of results contained in an SARIF log. The results array can be omitted when a run is solely exporting rules metadata. It must be present (but may be empty) if a log file represents an actual scan.",
           "type": "array",
           "minItems": 0,
           "items": {
@@ -1645,8 +1619,13 @@
           "type": "string"
         },
 
+        "correlationGuid": {
+          "description": "A stable, unique identifier for the class of related runs to which this run belongs, in the form of a GUID.",
+          "type": "string"
+        },
+
         "logicalId": {
-          "description": "A logical identifier for a run, for example, 'nightly Clang analyzer run'. Multiple runs of the same type can have the same stableId.",
+          "description": "A logical identifier for a run, for example, 'nightly Clang analyzer run'. Multiple runs of the same type can have the same logical id.",
           "type": "string"
         },
 
@@ -1709,6 +1688,7 @@
           }
         }
       },
+
       "required": [ "tool" ]
     },
 
@@ -1823,12 +1803,12 @@
         },
 
         "message": {
-          "description": "A message relevant to the code flow.",
+          "description": "A message relevant to the thread flow.",
           "$ref": "#/definitions/message"
         },
 
         "locations": {
-          "description": "An array of 'threadFlowLocation' objects, each of which describes a single location visited by the tool in the course of producing the result.",
+          "description": "A temporally ordered array of 'threadFlowLocation' objects, each of which describes a location visited by the tool while producing the result.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -1837,7 +1817,7 @@
         },
 
         "properties": {
-          "description": "Key/value pairs that provide additional information about the code flow.",
+          "description": "Key/value pairs that provide additional information about the thread flow.",
           "type": "object",
           "additionalProperties": true,
           "properties": {
@@ -1854,7 +1834,86 @@
           }
         }
       },
+
       "required": [ "locations" ]
+    },
+
+    "threadFlowLocation": {
+      "description": "A location visited by an analysis tool while simulating or monitoring the execution of a program.",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+
+        "step": {
+          "description": "The 0-based sequence number of the location in the code flow within which it occurs.",
+          "type": "integer",
+          "minimum": 0
+        },
+
+        "location": {
+          "description": "The code location.",
+          "$ref": "#/definitions/location"
+        },
+
+        "stack": {
+          "description": "The call stack leading to this location.",
+          "$ref": "#/definitions/stack"
+        },
+
+        "kind": {
+          "description": "A string describing the type of this location.",
+          "type": "string"
+        },
+
+        "module": {
+          "description": "The name of the module that contains the code that is executing.",
+          "type": "string"
+        },
+
+        "state": {
+          "description": "A dictionary, each of whose keys specifies a variable or expression, the associated value of which represents the variable or expression value. For an annotation of kind 'continuation', for example, this dictionary might hold the current assumed values of a set of global variables.",
+          "type": "object"
+        },
+
+        "nestingLevel": {
+          "description": "An integer representing a containment hierarchy within the thread flow",
+          "type": "integer"
+        },
+
+        "executionOrder": {
+          "description": "An integer representing the temporal order in which execution reached this location.",
+          "type": "integer"
+        },
+
+        "timestamp": {
+          "description": "The time at which this location was executed.",
+          "type": "string",
+          "format": "date-time"
+        },
+
+        "importance": {
+          "description": "Specifies the importance of this location in understanding the code flow in which it occurs. The order from most to least important is \"essential\", \"important\", \"unimportant\". Default: \"important\".",
+          "enum": [ "important", "essential", "unimportant" ]
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the code location.",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+
+            "tags": {
+              "description": "A set of distinct strings that provide additional information.",
+              "type": "array",
+              "uniqueItems": true,
+              "default": [],
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     },
 
     "tool": {
@@ -1924,6 +1983,7 @@
           }
         }
       },
+
       "required": [ "name" ]
     },
 
