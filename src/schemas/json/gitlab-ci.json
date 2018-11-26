@@ -62,6 +62,19 @@
     "$ref": "#/definitions/job"
   },
   "definitions": {
+    "string_file_list": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "image": {
       "oneOf": [
         {
@@ -72,6 +85,7 @@
         {
           "type": "object",
           "description": "Specifies the docker image to use for the job or globally for all jobs. Job configuration takes precedence over global setting. Requires a certain kind of Gitlab runner executor.",
+          "additionalProperties": false,
           "properties": {
             "name": {
               "type": "string",
@@ -102,6 +116,7 @@
           {
             "type": "object",
             "description": "",
+            "additionalProperties": false,
             "properties": {
               "name": {
                 "type": "string",
@@ -272,8 +287,58 @@
               "items": {
                 "type": "string"
               }
+            },
+            "changes": {
+              "type": "array",
+              "description": "Filter job creation based on files that were modified in a git push.",
+              "items": {
+                "type": "string"
+              }
             }
           }
+        }
+      ]
+    },
+    "retry_max": {
+      "type": "integer",
+      "description": "The number of times the job will be retried if it fails. Defaults to 0 and can max be retried 2 times (3 times total).",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2
+    },
+    "retry_errors": {
+      "oneOf": [
+        {
+          "enum": ["always"],
+          "description": "Retry on any failure (default)."
+        },
+        {
+          "enum": ["unknown_failure"],
+          "description": "Retry when the failure reason is unknown."
+        },
+        {
+          "enum": ["script_failure"],
+          "description": "Retry when the script failed."
+        },
+        {
+          "enum": ["api_failure"],
+          "description": "Retry on API failure."
+        },
+        {
+          "enum": ["stuck_or_timeout_failure"],
+          "description": "Retry when the job got stuck or timed out."
+        },
+        {
+          "enum": ["runner_system_failure"],
+          "description": "Retry if there was a runner system failure (e.g. setting up the job failed)."
+        },
+        {
+          "enum": ["missing_dependency_failure"],
+          "description": "Retry if a dependency was missing."
+        },
+        {
+          "enum": ["runner_unsupported"],
+          "description": "Retry if the runner was unsupported."
         }
       ]
     },
@@ -362,8 +427,17 @@
             {
               "enum": ["manual"],
               "description": "Execute the job manually from Gitlab UI or API. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-manual"
+            },
+            {
+              "enum": ["delayed"],
+              "description": "Execute a job after the time limit in 'start_in' expires. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-delayed"
             }
           ]
+        },
+        "start_in": {
+          "type": "string",
+          "description": "Used in conjunction with 'when: delayed' to set how long to delay before starting a job.",
+          "minLength": 1
         },
         "dependencies": {
           "type": "array",
@@ -419,6 +493,8 @@
             },
             "reports":{
               "type": "object",
+              "description": "Reports will be uploaded as artifacts, and often displayed in the Gitlab UI, such as in Merge Requests.",
+              "additionalProperties": false,
               "properties": {
                 "junit": {
                   "description": "Path for file(s) that should be parsed as JUnit XML result",
@@ -429,13 +505,41 @@
                     },
                     {
                       "type": "array",
-                       "description": "A list of paths to XML files that will automatically be concatenated into a single file",
-                       "items": {
-                         "type": "string"
-                       },
+                      "description": "A list of paths to XML files that will automatically be concatenated into a single file",
+                      "items": {
+                        "type": "string"
+                      },
                       "minLength": 1
                     }
                   ]
+                },
+                "codequality": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with code quality report(s) (such as Code Climate)."
+                },
+                "sast": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with SAST vulnerabilities report(s)."
+                },
+                "dependency_scanning": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with Dependency scanning vulnerabilities report(s)."
+                },
+                "container_scanning": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with Container scanning vulnerabilities report(s)."
+                },
+                "dast": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with DAST vulnerabilities report(s)."
+                },
+                "license_management": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with license report(s)."
+                },
+                "performance": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with performance metrics report(s)."
                 }
               }
             }
@@ -475,13 +579,55 @@
           "pattern": "^\/.+\/$"
         },
         "retry": {
+          "description": "Retry a job if it fails. Can be a simple integer or object definition.",
+          "oneOf": [
+            { "$ref": "#/definitions/retry_max" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "max": { "$ref": "#/definitions/retry_max" },
+                "when": {
+                  "description": "Either a single or array of error types to trigger job retry.",
+                  "oneOf": [
+                    { "$ref": "#/definitions/retry_errors" },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/retry_errors"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "parallel": {
           "type": "integer",
-          "description": "The number of times the job will be retried if it fails. Defaults to 0 and can max be retried 2 times (3 times total).",
+          "description": "Parallel will split up a single job into several, and provide `CI_NODE_INDEX` and `CI_NODE_TOTAL` environment variables for the running jobs.",
           "default": 0,
-          "minimum": 0,
-          "maximum": 2
+          "minimum": 2,
+          "maximum": 50
         }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "when": { "enum": ["delayed"] }
+          },
+          "required": ["when", "start_in"]
+        },
+        {
+          "properties": {
+            "when": {
+              "not": {
+                "enum": ["delayed"]
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }
