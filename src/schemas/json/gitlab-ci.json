@@ -30,21 +30,12 @@
       "minItems": 1
     },
     "include": {
-      "description": "Can be string or array of strings which should be an URL or local file reference (e.g. '/templates/ci-template.yml'). The external content will be fetched, included and evaluated along the `.gitlab-ci.yml`.",
-      "default": [],
+      "description": "Can be `IncludeItem` or `IncludeItem[]`. Each `IncludeItem` will be a string, or an object with properties for the method if including external YAML file. The external content will be fetched, included and evaluated along the `.gitlab-ci.yml`.",
       "oneOf": [
-        {
-          "type": "string",
-          "format": "uri-reference",
-          "pattern": "^(https?:\/\/|\/).+"
-        },
+        { "$ref": "#/definitions/include_item" },
         {
           "type": "array",
-          "items": {
-            "type": "string",
-            "format": "uri-reference",
-            "pattern": "^(https?:\/\/|\/).+"
-          }
+          "items": { "$ref": "#/definitions/include_item" }
         }
       ]
     },
@@ -72,6 +63,76 @@
           "items": {
             "type": "string"
           }
+        }
+      ]
+    },
+    "include_item": {
+      "oneOf": [
+        {
+          "description": "Will infer the method based on the value. E.g. `https://...` strings will be of type `include:remote`, and `/templates/...` will be of type `include:local`.",
+          "type": "string",
+          "format": "uri-reference",
+          "pattern": "^(https?:\/\/|\/).+\\.ya?ml$"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "local": {
+              "description": "Relative path from local repository root (`/`) to the `yaml`/`yml` file template. The file must be on the same branch, and does not work across git submodules.",
+              "type": "string",
+              "format": "uri-reference",
+              "pattern": "\\.ya?ml$"
+            }
+          },
+          "required": ["local"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "project": {
+              "description": "Path to the project, e.g. `group/project`, or `group/sub-group/project`.",
+              "type": "string",
+              "pattern": "\\S/\\S"
+            },
+            "ref": {
+              "description": "Branch/Tag/Commit-hash for the target project.",
+              "type": "string"
+            },
+            "file": {
+              "description": "Relative path from project root (`/`) to the `yaml`/`yml` file template.",
+              "type": "string",
+              "pattern": "\\.ya?ml$"
+            }
+          },
+          "required": ["project", "file"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "template": {
+              "description": "Use a `.gitlab-ci.yml` template as a base, e.g. `Nodejs.gitlab-ci.yml`.",
+              "type": "string",
+              "format": "uri-reference",
+              "pattern": "\\.ya?ml$"
+            }
+          },
+          "required": ["template"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "description": "URL to a `yaml`/`yml` template file using HTTP/HTTPS.",
+              "type": "string",
+              "format": "uri-reference",
+              "pattern": "^https?:\/\/.+\\.ya?ml$"
+            }
+          },
+          "required": ["remote"]
         }
       ]
     },
@@ -559,7 +620,7 @@
               "type": "string",
               "description": "When set, this will expose buttons in various places for the current environment in Gitlab, that will take you to the defined URL.",
               "format": "uri",
-              "pattern": "^https?:\/\/.+"
+              "pattern": "^(https?:\/\/.+|\\$[A-Za-z]+)"
             },
             "on_stop": {
               "type": "string",
