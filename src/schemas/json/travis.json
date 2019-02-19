@@ -3,6 +3,65 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
 
   "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringArrayUnique": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/nonEmptyString"
+      }
+    },
+    "stringOrStringArrayUnique": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        {
+          "$ref": "#/definitions/stringArrayUnique"
+        }
+      ]
+    },
+    "stringOrNumber": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        {
+          "type": "number"
+        }
+      ]
+    },
+    "stringOrNumberAndBothAreTypeArrayUnique": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/stringOrNumber"
+      }
+    },
+    "stringOrNumberOrAcceptBothTypeAsArrayUnique": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/stringOrNumber"
+        },
+        {
+          "$ref": "#/definitions/stringOrNumberAndBothAreTypeArrayUnique"
+        }
+      ]
+    },
+    "secretString": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "secure": {
+          "$ref": "#/definitions/nonEmptyString"
+        }
+      }
+    },
     "possiblySecretString": {
       "oneOf": [
         {
@@ -72,7 +131,8 @@
         "cocoapods",
         "packages",
         "pip",
-        "yarn"
+        "yarn",
+        "npm"
       ]
     },
     "envVars": {
@@ -123,6 +183,7 @@
             "dart",
             "dartlang",
             "elixir",
+            "elm",
             "erlang",
             "generic",
             "go",
@@ -156,6 +217,15 @@
             "shell",
             "smalltalk"
           ]
+        },
+        "elm": {
+          "$ref": "#/definitions/stringOrStringArrayUnique"
+        },
+        "elm-test": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "elm-format": {
+          "$ref": "#/definitions/nonEmptyString"
         },
         "haxe": {
           "type": "array",
@@ -377,6 +447,9 @@
             },
             {
               "type": "string"
+            },
+            {
+              "type": "number"
             }
           ]
         },
@@ -403,6 +476,9 @@
             },
             {
               "type": "string"
+            },
+            {
+              "type": "number"
             }
           ]
         },
@@ -446,17 +522,7 @@
           ]
         },
         "rvm": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            {
-              "type": "string"
-            }
-          ]
+          "$ref": "#/definitions/stringOrNumberOrAcceptBothTypeAsArrayUnique"
         },
         "gemfile": {
           "oneOf": [
@@ -555,17 +621,42 @@
           ]
         },
         "osx_image": {
-          "enum": [
-            "xcode6.4",
-            "xcode7.3",
-            "xcode8",
-            "xcode8.3",
-            "xcode9",
-            "xcode9.1",
-            "xcode9.2",
-            "xcode9.3",
-            "xcode9.4",
-            "xcode10"
+          "oneOf": [
+            {
+              "enum": [
+                "xcode6.4",
+                "xcode7.3",
+                "xcode8",
+                "xcode8.3",
+                "xcode9",
+                "xcode9.1",
+                "xcode9.2",
+                "xcode9.3",
+                "xcode9.4",
+                "xcode10",
+                "xcode10.1",
+                "xcode10.2"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "xcode6.4",
+                  "xcode7.3",
+                  "xcode8",
+                  "xcode8.3",
+                  "xcode9",
+                  "xcode9.1",
+                  "xcode9.2",
+                  "xcode9.3",
+                  "xcode9.4",
+                  "xcode10",
+                  "xcode10.1",
+                  "xcode10.2"
+                ]
+              }
+            }
           ],
           "default": "xcode9.4"
         },
@@ -584,6 +675,11 @@
               "description":
                 "To install packages not included in the default container-based-infrastructure you need to use the APT addon, as sudo apt-get is not available",
               "properties": {
+                "update": {
+                  "type": "boolean",
+                  "description":
+                    "To update the list of available packages"
+                },
                 "sources": {
                   "type": "array",
                   "items": {
@@ -717,16 +813,143 @@
                 }
               ]
             },
-            "jwt": {
-              "description": "JWT addon",
+            "sonarcloud": {
+              "description": "SonarCloud addon",
+              "type": "object",
+              "properties": {
+                "organization": {
+                  "type": "string"
+                },
+                "token": {
+                  "$ref": "#/definitions/secretString"
+                }
+              }
+            },
+            "coverity_scan": {
+              "description": "Coverity Scan addon",
+              "type": "object",
+              "properties": {
+                "project": {
+                  "description": "GitHub project metadata",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                },
+                "notification_email": {
+                  "description": "Where email notification of build analysis results will be sent",
+                  "type": "string"
+                },
+                "build_command_prepend": {
+                  "description": "Commands to prepare for build_command",
+                  "type": "string"
+                },
+                "build_command": {
+                  "description": "The command that will be added as an argument to 'cov-build' to compile your project for analysis",
+                  "type": "string"
+                },
+                "branch_pattern": {
+                  "description": "Pattern to match selecting branches that will run analysis. We recommend leaving this set to 'coverity_scan'",
+                  "type": "string"
+                }
+              }
+            },
+            "homebrew": {
+              "description": "Homebrew addon",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "taps": {
+                  "$ref": "#/definitions/stringOrStringArrayUnique"
+                },
+                 "packages": {
+                  "$ref": "#/definitions/stringOrStringArrayUnique"
+                },
+                "casks": {
+                  "$ref": "#/definitions/stringOrStringArrayUnique"
+                },
+                "brewfile": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/definitions/nonEmptyString"
+                    },
+                    {
+                      "type": "boolean",
+                      "default": true
+                    }
+                  ]
+                },
+                "update": {
+                  "type": "boolean",
+                  "default": true
+                }
+              }
+            },
+            "srcclr": {
+              "description": "SourceClear addon",
               "oneOf": [
                 {
-                  "$ref": "#/definitions/possiblySecretString"
+                  "type": "boolean",
+                  "default": true
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "debug": {
+                      "type": "boolean",
+                      "default": true
+                    }
+                  }
+                }
+              ]
+            },
+            "snaps": {
+              "description": "Snaps addon",
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/nonEmptyString"
                 },
                 {
                   "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 1,
                   "items": {
-                    "$ref": "#/definitions/possiblySecretString"
+                    "oneOf": [
+                      {
+                        "$ref": "#/definitions/nonEmptyString"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "name"
+                        ],
+                        "properties": {
+                          "name": {
+                            "$ref": "#/definitions/nonEmptyString"
+                          },
+                          "channel": {
+                            "$ref": "#/definitions/nonEmptyString"
+                          },
+                          "classic": {
+                            "type": "boolean",
+                            "default": true
+                          }
+                        }
+                      }
+                    ]
                   }
                 }
               ]
@@ -746,7 +969,24 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/cache"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "$ref": "#/definitions/cache"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "directories": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                ]
               }
             },
             {
@@ -783,6 +1023,9 @@
                 },
                 "cargo": {
                   "type": "boolean"
+                },
+                "npm": {
+                  "type": "boolean"
                 }
               },
               "additionalProperties": false
@@ -818,6 +1061,10 @@
                   "enum": [false]
                 }
               ]
+            },
+            "quiet": {
+              "type": "boolean",
+              "description": "Travis CI clones repositories without the quiet flag (-q) by default. Enabling the quiet flag can be useful if you’re trying to avoid log file size limits or even if you just don’t need to include it."
             },
             "submodules": {
               "type": "boolean",
@@ -927,9 +1174,15 @@
               "type": "object",
               "properties": {
                 "tags": {
-                  "description":
-                    "Tell Travis CI to only deploy on tagged commits",
-                  "type": "boolean"
+                  "description": "Tell Travis CI to only deploy on tagged commits",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
                 },
                 "branch": {
                   "type": "string"
@@ -939,8 +1192,14 @@
                 },
                 "skip_cleanup": {
                   "type": "boolean",
-                  "description":
-                    "After your tests ran and before the release, Travis CI will clean up any additional files and changes you made. Maybe that is not what you want, as you might generate some artifacts that are supposed to be released, too."
+                  "description": "After your tests ran and before the release, Travis CI will clean up any additional files and changes you made. Maybe that is not what you want, as you might generate some artifacts that are supposed to be released, too."
+                },
+                "repo": {
+                  "type": "string"
+                },
+                "condition": {
+                  "type": "string",
+                  "description": "if [[ <condition> ]]; then <deploy>; fi"
                 }
               }
             }
@@ -1098,9 +1357,66 @@
               "type": "object",
               "properties": {
                 "provider": {
+                  "enum": ["s3"]
+                },
+                "access_key_id": {
+                  "$ref": "#/definitions/possiblySecretString"
+                },
+                "secret_access_key": {
+                  "$ref": "#/definitions/possiblySecretString"
+                },
+                "bucket": {
+                  "type": "string"
+                },
+                "region": {
+                  "type": "string"
+                },
+                "skip_cleanup": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "acl": {
+                  "enum": [
+                    "private",
+                    "public_read",
+                    "public_read_write",
+                    "authenticated_read",
+                    "bucket_owner_read",
+                    "bucket_owner_full_control"
+                  ]
+                },
+                "local_dir": {
+                  "type": "string"
+                },
+                "upload-dir": {
+                  "type": "string"
+                },
+                "detect_encoding": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "default_text_charset": {
+                  "type": "string"
+                },
+                "cache_control": {
+                  "type": "string"
+                },
+                "expires": {
+                  "type": "string"
+                },
+                "endpoint": {
+                  "type": "string"
+                }
+              },
+              "required": ["provider", "access_key_id", "secret_access_key", "bucket"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "provider": {
                   "type": "string",
                   "not": {
-                    "enum": ["script", "npm", "surge", "releases", "heroku"]
+                    "enum": ["script", "npm", "surge", "releases", "heroku", "s3"]
                   }
                 }
               },
@@ -1135,8 +1451,19 @@
                   "type": "object",
                   "properties": {
                     "urls": {
-                      "type": "string",
-                      "format": "uri"
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        }
+                      ]
                     }
                   },
                   "on_success": {
