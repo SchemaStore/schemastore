@@ -22,14 +22,24 @@
     "STAGE": "yep",
     "PROD": "nope"
   },
-  "include": "/path-to-file.yml",
-
+  "include": [
+    "https://gitlab.com/awesome-project/raw/master/.before-script-template.yml",
+    "/templates/.after-script-template.yml",
+    { "template": "Auto-DevOps.gitlab-ci.yml" },
+    { "project": "my-group/my-project", "ref": "master", "file": "/templates/.gitlab-ci-template.yml" }
+  ],
   "build": {
-    "image": "node:latest",
+    "image": {
+      "name": "node:latest"
+    },
     "services": [],
     "stage": "build",
     "script": "npm run build",
     "before_script": ["npm install"],
+    "retry": {
+      "max": 1,
+      "when": "stuck_or_timeout_failure"
+    },
     "cache": {
       "key": "$CI_COMMIT_REF_NAME",
       "paths": [
@@ -43,7 +53,17 @@
       ],
       "name": "bundles",
       "when": "on_success",
-      "expire_in": "1 week"
+      "expire_in": "1 week",
+      "reports": {
+        "junit": "result.xml",
+        "codequality": "codequality.json",
+        "sast": "sast.json",
+        "dependency_scanning": "scan.json",
+        "container_scanning": "scan2.json",
+        "dast": "dast.json",
+        "license_management": "license.json",
+        "performance": "performance.json"
+      }
     },
     "variables": {
       "FOO_BAR": "..."
@@ -52,6 +72,10 @@
       "kubernetes": "active",
       "variables": [
         "$FOO_BAR == '...'"
+      ],
+      "changes": [
+        "/path/to/file",
+        "/another/file"
       ]
     },
     "except": [
@@ -64,12 +88,54 @@
     "allow_failure": true,
     "when": "manual"
   },
+  "error-report": {
+    "when": "on_failure",
+    "script": "report error",
+    "stage": "test"
+  },
   "test": {
-    "image": "node:latest",
+    "image": {
+      "name": "node:latest",
+      "entrypoint": [""]
+    },
     "stage": "test",
     "script": "npm test",
+    "parallel": 5,
+    "retry": {
+      "max": 2,
+      "when": [
+        "runner_system_failure",
+        "missing_dependency_failure",
+        "runner_system_failure",
+        "stuck_or_timeout_failure",
+        "script_failure",
+        "unknown_failure",
+        "always"
+      ]
+    },
+    "artifacts": {
+      "reports": {
+        "junit": ["result.xml"],
+        "codequality": ["codequality.json"],
+        "sast": ["sast.json"],
+        "dependency_scanning": ["scan.json"],
+        "container_scanning": ["scan2.json"],
+        "dast": ["dast.json"],
+        "license_management": ["license.json"],
+        "performance": ["performance.json"]
+      }
+    },
     "coverage": "/Cycles: \\d+\\.\\d+$/",
     "dependencies": []
+  },
+  "docker": {
+    "script": "docker build -t foo:latest",
+    "when": "delayed",
+    "start_in": "10 min",
+    "retry": 1,
+    "only": {
+      "changes": ["Dockerfile", "docker/scripts/*"]
+    }
   },
   "deploy": {
     "services": [
@@ -95,5 +161,19 @@
     "only": [
       "master"
     ]
+  },
+  ".performance-tmpl": {
+    "after_script": ["echo after"],
+    "before_script": ["echo before"],
+    "variables": {
+      "SCRIPT_NOT_REQUIRED": "true"
+    }
+  },
+  "performance-a": {
+    "extends": ".performance-tmpl",
+    "script": "echo test"
+  },
+  "performance-b": {
+    "extends": ".performance-tmpl"
   }
 }

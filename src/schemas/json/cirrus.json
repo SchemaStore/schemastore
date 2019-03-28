@@ -28,6 +28,10 @@
           "description": "Boolean expression that can use environment variables.",
           "type": "string"
         },
+        "skip": {
+          "description": "Boolean expression that determines if task should be skipped and send a green status to GitHub",
+          "type": "string"
+        },
         "depends_on": {
           "anyOf": [
             {
@@ -62,16 +66,18 @@
         "os_version": {
           "description": "Windows version of container.",
           "enum": [
-            "2016",
             "1709",
-            "1803"
+            "1803",
+            "2016",
+            "2019",
+            "gcp2016"
           ]
         },
         "platform": {
           "description": "Container Platform.",
           "enum": [
-            "LINUX",
-            "WINDOWS"
+            "linux",
+            "windows"
           ]
         }
       },
@@ -143,6 +149,26 @@
           ],
           "type": "object"
         },
+        "(.*)file": {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "description": "Destination path.",
+              "type": "string"
+            },
+            "variable_name": {
+              "description": "Environment variable name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "variable_name"
+          ],
+          "type": "object"
+        },
         "(.*)script": {
           "anyOf": [
             {
@@ -161,16 +187,16 @@
       },
       "properties": {
         "allow_failures": {
-          "description": "Boolean expression that can use environment variables.",
-          "type": "string"
+          "$ref": "#/definitions/allow_failures",
+          "description": "Boolean expression that can use environment variables."
         },
         "anka_instance": {
           "$ref": "#/definitions/anka_instance",
           "description": "Anka Build Cloud Virtual Machine definition."
         },
         "auto_cancellation": {
-          "description": "Boolean expression that can use environment variables.",
-          "type": "string"
+          "$ref": "#/definitions/auto_cancellation",
+          "description": "Boolean expression that can use environment variables."
         },
         "azure_container_instance": {
           "$ref": "#/definitions/azure_container_instance",
@@ -207,6 +233,10 @@
           "$ref": "#/definitions/environment",
           "description": "Map represented as an object."
         },
+        "freebsd_instance": {
+          "$ref": "#/definitions/freebsd_instance",
+          "description": "macOS Virtual Machine definition for Community Cluster."
+        },
         "gce_instance": {
           "$ref": "#/definitions/gce_instance",
           "description": "Google Compute Engine Virtual Machine definition."
@@ -230,8 +260,16 @@
           "description": "macOS Virtual Machine definition for Community Cluster."
         },
         "skip_notifications": {
-          "description": "Boolean expression that can use environment variables.",
-          "type": "string"
+          "$ref": "#/definitions/skip_notifications",
+          "description": "Boolean expression that can use environment variables."
+        },
+        "timeout_in": {
+          "$ref": "#/definitions/timeout_in",
+          "description": "Task timeout in minutes"
+        },
+        "use_compute_credits": {
+          "$ref": "#/definitions/use_compute_credits",
+          "description": "Boolean expression that can use environment variables."
         },
         "windows_container": {
           "$ref": "#/definitions/windows_container",
@@ -242,6 +280,10 @@
     }
   },
   "properties": {
+    "allow_failures": {
+      "description": "Boolean expression that can use environment variables.",
+      "type": "string"
+    },
     "anka_instance": {
       "description": "Anka Build Cloud Virtual Machine definition.",
       "properties": {
@@ -264,6 +306,10 @@
       },
       "type": "object"
     },
+    "auto_cancellation": {
+      "description": "Boolean expression that can use environment variables.",
+      "type": "string"
+    },
     "azure_container_instance": {
       "description": "Azure Container Instance definition.",
       "properties": {
@@ -281,15 +327,15 @@
         "platform": {
           "description": "Container Platform.",
           "enum": [
-            "LINUX",
-            "WINDOWS"
+            "linux",
+            "windows"
           ]
         },
         "region": {
           "description": "Azure zone.",
           "enum": [
-            "AZURE_EAST_US",
-            "AZURE_WEST_US"
+            "azure_east_us",
+            "azure_west_us"
           ]
         },
         "resource_group": {
@@ -323,6 +369,22 @@
                       "type": "string"
                     }
                   }
+                },
+                "readiness_command": {
+                  "description": "Container readiness probe command.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": [
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  ]
                 },
                 "memory": {
                   "type": "string",
@@ -408,6 +470,23 @@
       },
       "type": "object"
     },
+    "freebsd_instance": {
+      "description": "macOS Virtual Machine definition for Community Cluster.",
+      "properties": {
+        "cpu": {
+          "type": "number"
+        },
+        "image": {
+          "description": "FreeBSD VM image.",
+          "type": "string"
+        },
+        "memory": {
+          "pattern": "\\d+(G|Mb)?",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "gce_instance": {
       "description": "Google Compute Engine Virtual Machine definition.",
       "properties": {
@@ -432,8 +511,9 @@
         "platform": {
           "description": "VM platform.",
           "enum": [
-            "LINUX",
-            "WINDOWS"
+            "freebsd",
+            "linux",
+            "windows"
           ]
         },
         "preemptible": {
@@ -456,12 +536,19 @@
           ],
           "description": "Google Cloud Scopes of the VM."
         },
+        "type": {
+          "description": "Machine Type.",
+          "type": "string"
+        },
         "zone": {
           "description": "Google Cloud zone where to start a VM.",
           "enum": [
+            "europe_west3_a",
+            "europe_west3_b",
+            "europe_west3_c",
             "us_central1_a",
-            "us_central1_c",
             "us_central1_b",
+            "us_central1_c",
             "us_central1_f"
           ]
         }
@@ -493,6 +580,22 @@
                       "type": "string"
                     }
                   }
+                },
+                "readiness_command": {
+                  "description": "Container readiness probe command.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": [
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  ]
                 },
                 "memory": {
                   "type": "string",
@@ -573,12 +676,18 @@
           "description": "Kubernetes namespace to schedule CI jobs in.",
           "type": "string"
         },
+        "use_in_memory_disk": {
+          "type": "boolean"
+        },
         "zone": {
           "description": "Google Cloud zone of the cluster.",
           "enum": [
+            "europe_west3_a",
+            "europe_west3_b",
+            "europe_west3_c",
             "us_central1_a",
-            "us_central1_c",
             "us_central1_b",
+            "us_central1_c",
             "us_central1_f"
           ]
         }
@@ -589,11 +698,23 @@
       "description": "macOS Virtual Machine definition for Community Cluster.",
       "properties": {
         "image": {
-          "description": "macOS VM image. ",
+          "description": "macOS VM image.",
           "type": "string"
         }
       },
       "type": "object"
+    },
+    "skip_notifications": {
+      "description": "Boolean expression that can use environment variables.",
+      "type": "string"
+    },
+    "timeout_in": {
+      "description": "Task timeout in minutes",
+      "type": "number"
+    },
+    "use_compute_credits": {
+      "description": "Boolean expression that can use environment variables.",
+      "type": "string"
     },
     "windows_container": {
       "description": "Windows Container definition for Community Cluster.",
@@ -616,9 +737,11 @@
         "os_version": {
           "description": "Windows version of container.",
           "enum": [
-            "2016",
             "1709",
-            "1803"
+            "1803",
+            "2016",
+            "2019",
+            "gcp2016"
           ]
         }
       },
