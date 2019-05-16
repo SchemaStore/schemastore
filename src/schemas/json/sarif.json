@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "Static Analysis Results Format (SARIF) Version 2.0.0-csd.2.beta.2018-10-10 JSON Schema",
-  "description": "Static Analysis Results Format (SARIF) Version 2.0.0-csd.2.beta.2018-10-10 JSON Schema: a standard format for the output of static analysis tools.",
+  "title": "Static Analysis Results Format (SARIF) Version 2.0.0-csd.2.beta.2019-01-24 JSON Schema",
+  "description": "Static Analysis Results Format (SARIF) Version 2.0.0-csd.2.beta-2019-01-24 JSON Schema: a standard format for the output of static analysis tools.",
   "additionalProperties": false,
   "type": "object",
   "properties": {
@@ -14,13 +14,14 @@
 
     "version": {
       "description": "The SARIF format version of this log file.",
-      "enum": [ "2.0.0-csd.2.beta.2018-10-10" ]
+      "enum": [ "2.0.0-csd.2.beta.2019-01-24" ]
     },
 
     "runs": {
       "description": "The set of runs contained in this log file.",
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
+      "uniqueItems": false,
       "items": {
         "$ref": "#/definitions/run"
       }
@@ -36,8 +37,190 @@
 
   "definitions": {
 
+    "artifact": {
+      "description": "A single artifact. In some cases, this artifact might be nested within another artifact.",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+
+        "location": {
+          "description": "The location of the artifact.",
+          "$ref": "#/definitions/artifactLocation"
+        },
+
+        "parentIndex": {
+          "description": "Identifies the index of the immediate parent of the artifact, if this artifact is nested.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "offset": {
+          "description": "The offset in bytes of the artifact within its containing artifact.",
+          "type": "integer"
+        },
+
+        "length": {
+          "description": "The length of the artifact in bytes.",
+          "type": "integer"
+        },
+
+        "roles": {
+          "description": "The role or roles played by the artifact in the analysis.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "enum": [
+              "analysisTarget",
+              "toolComponent",
+              "attachment",
+              "responseFile",
+              "resultFile",
+              "standardStream",
+              "traceFile",
+              "unmodifiedFile",
+              "modifiedFile",
+              "addedFile",
+              "deletedFile",
+              "renamedFile",
+              "uncontrolledFile"
+            ]
+          }
+        },
+
+        "mimeType": {
+          "description": "The MIME type (RFC 2045) of the artifact.",
+          "type": "string",
+          "pattern": "[^/]+/.+"
+        },
+
+        "contents": {
+          "description": "The contents of the artifact.",
+          "$ref": "#/definitions/artifactContent"
+        },
+
+        "encoding": {
+          "description": "Specifies the encoding for an artifact object that refers to a text file.",
+          "type": "string"
+        },
+
+        "sourceLanguage": {
+          "description": "Specifies the source language for any artifact object that refers to a text file that contains source code.",
+          "type": "string"
+        },
+
+        "hashes": {
+          "description": "A dictionary, each of whose keys is the name of a hash function and each of whose values is the hashed value of the artifact produced by the specified hash function.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+
+        "lastModifiedTimeUtc": {
+          "description": "The Coordinated Universal Time (UTC) date and time at which the artifact was most recently modified. See \"Date/time properties\" in the SARIF spec for the required format.",
+          "type": "string",
+          "format": "date-time"
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the artifact.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      }
+    },
+
+    "artifactChange": {
+      "description": "A change to a single artifact.",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+
+        "artifactLocation": {
+          "description": "The location of the artifact to change.",
+          "$ref": "#/definitions/artifactLocation"
+        },
+
+        "replacements": {
+          "description": "An array of replacement objects, each of which represents the replacement of a single region in a single artifact specified by 'artifactLocation'.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": false,
+          "items": {
+            "$ref": "#/definitions/replacement"
+          }
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the change.",
+          "$ref": "#/definitions/propertyBag"
+        }
+
+      },
+
+      "required": [ "artifactLocation", "replacements" ]
+    },
+
+    "artifactContent": {
+      "description": "Represents the contents of an artifact.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+
+        "text": {
+          "description": "UTF-8-encoded content from a text artifact.",
+          "type": "string"
+        },
+
+        "binary": {
+          "description": "MIME Base64-encoded content from a binary artifact, or from a text artifact in its original encoding.",
+          "type": "string"
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the artifact content.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      }
+    },
+
+    "artifactLocation": {
+      "description": "Specifies the location of an artifact.",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+
+        "uri": {
+          "description": "A string containing a valid relative or absolute URI.",
+          "type": "string",
+          "format": "uri-reference"
+        },
+
+        "uriBaseId": {
+          "description": "A string which indirectly specifies the absolute URI with respect to which a relative URI in the \"uri\" property is interpreted.",
+          "type": "string"
+        },
+
+        "index": {
+          "description": "The index within the run artifacts array of the artifact object associated with the artifact location.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the artifact location.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      },
+
+      "required": [ "uri" ]
+    },
+
     "attachment": {
-      "description": "A file relevant to a tool invocation or to a result.",
+      "description": "An artifact relevant to a tool invocation or to a result.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -47,16 +230,17 @@
           "$ref": "#/definitions/message"
         },
 
-        "fileLocation": {
+        "artifactLocation": {
           "description": "The location of the attachment.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "regions": {
           "description": "An array of regions of interest within the attachment.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/region"
           }
@@ -65,8 +249,9 @@
         "rectangles": {
           "description": "An array of rectangles specifying areas of interest within the image.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/rectangle"
           }
@@ -78,7 +263,7 @@
         }
       },
 
-      "required": [ "fileLocation" ]
+      "required": [ "artifactLocation" ]
     },
 
     "codeFlow": {
@@ -96,7 +281,7 @@
           "description": "An array of one or more unique threadFlow objects, each of which describes the progress of a program through a thread of execution.",
           "type": "array",
           "minItems": 1,
-          "uniqueItems": true,
+          "uniqueItems": false,
           "items": {
             "$ref": "#/definitions/threadFlow"
           }
@@ -130,10 +315,11 @@
         "analysisToolLogFiles": {
           "description": "The locations of the analysis tool's per-run log files.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
-            "$ref": "#/definitions/fileLocation"
+            "$ref": "#/definitions/artifactLocation"
           }
         },
 
@@ -242,6 +428,9 @@
         "innerExceptions": {
           "description": "An array of exception objects each of which is considered a cause of this exception.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/exception"
           }
@@ -254,231 +443,103 @@
       }
     },
 
-    "externalFiles": {
-      "description": "References to external files that should be inlined with the content of a root log file.",
+    "externalPropertyFile": {
+      "type": "object",
+      "properties": {
+        "artifactLocation": {
+          "description": "The location of the external property file.",
+          "$ref": "#/definitions/artifactLocation"
+        },
+
+        "instanceGuid": {
+          "description": "A stable, unique identifer for the external property file in the form of a GUID.",
+          "type": "string"
+        },
+
+        "itemCount": {
+          "description": "A non-negative integer specifying the number of items contained in the external property file.",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the external property file.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      }
+    },
+
+    "externalPropertyFiles": {
+      "description": "References to external property files that should be inlined with the content of a root log file.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
 
         "conversion": {
-          "description": "The location of a file containing a run.conversion object to be merged with the root log file.",
-          "$ref": "#/definitions/fileLocation"
-        },
-
-        "files": {
-          "description": "The location of a file containing a run.files object to be merged with the root log file.",
-          "$ref": "#/definitions/fileLocation"
+          "description": "An external property file containing a run.conversion object to be merged with the root log file.",
+          "$ref": "#/definitions/externalPropertyFile"
         },
 
         "graphs": {
-          "description": "The location of a file containing a run.graphs object to be merged with the root log file.",
-          "$ref": "#/definitions/fileLocation"
+          "description": "An external property file containing a run.graphs object to be merged with the root log file.",
+          "$ref": "#/definitions/externalPropertyFile"
         },
 
-        "invocations": {
-          "description": "An array of locations of files containing arrays of run.invocation objects to be merged with the root log file.",
+        "externalizedProperties": {
+          "description": "An external property file containing a run.properties object to be merged with the root log file.",
+          "$ref": "#/definitions/externalPropertyFile"
+        },
+
+        "artifacts": {
+          "description": "An array of external property files containing run.artifacts arrays to be merged with the root log file.",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
           "items": {
-            "$ref": "#/definitions/fileLocation"
+            "$ref": "#/definitions/externalPropertyFile"
+          }
+        },
+
+        "invocations": {
+          "description": "An array of external property files containing run.invocations arrays to be merged with the root log file.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/externalPropertyFile"
           }
         },
 
         "logicalLocations": {
-          "description": "The location of a file containing a run.logicalLocations object to be merged with the root log file.",
-          "$ref": "#/definitions/fileLocation"
-        },
-
-        "resources": {
-          "description": "The location of a file containing a run.resources object to be merged with the root log file.",
-          "$ref": "#/definitions/fileLocation"
+          "description": "An array of external property files containing run.logicalLocations arrays to be merged with the root log file.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/externalPropertyFile"
+          }
         },
 
         "results": {
-          "description": "An array of locations of files containins arrays of run.result objects to be merged with the root log file.",
+          "description": "An array of external property files containing run.results arrays to be merged with the root log file.",
           "type": "array",
           "minItems": 1,
-          "uniqueItems": true,
+          "uniqueItems": false,
           "items": {
-            "$ref": "#/definitions/fileLocation"
+            "$ref": "#/definitions/externalPropertyFile"
           }
         },
 
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the external files.",
-          "$ref": "#/definitions/propertyBag"
+        "tool": {
+          "description": "An external property file containing a run.tool object to be merged with the root log file.",
+          "$ref": "#/definitions/externalPropertyFile"
         }
       }
-    },
-
-    "file": {
-      "description": "A single file. In some cases, this file might be nested within another file.",
-      "additionalProperties": false,
-      "type": "object",
-      "properties": {
-
-        "fileLocation": {
-          "description": "The location of the file.",
-          "$ref": "#/definitions/fileLocation"
-        },
-
-        "parentKey": {
-          "description": "Identifies the key of the immediate parent of the file, if this file is nested.",
-          "type": "string"
-        },
-
-        "offset": {
-          "description": "The offset in bytes of the file within its containing file.",
-          "type": "integer"
-        },
-
-        "length": {
-          "description": "The length of the file in bytes.",
-          "type": "integer"
-        },
-
-        "roles": {
-          "description": "The role or roles played by the file in the analysis.",
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "analysisTarget",
-              "attachment",
-              "responseFile",
-              "resultFile",
-              "standardStream",
-              "traceFile",
-              "unmodifiedFile",
-              "modifiedFile",
-              "addedFile",
-              "deletedFile",
-              "renamedFile",
-              "uncontrolledFile"
-            ]
-          }
-        },
-
-        "mimeType": {
-          "description": "The MIME type (RFC 2045) of the file.",
-          "type": "string",
-          "pattern": "[^/]+/.+"
-        },
-
-        "contents": {
-          "description": "The contents of the file.",
-          "$ref": "#/definitions/fileContent"
-        },
-
-        "encoding": {
-          "description": "Specifies the encoding for a file object that refers to a text file.",
-          "type": "string"
-        },
-
-        "hashes": {
-          "description": "A dictionary, each of whose keys is the name of a hash function and each of whose values is the hashed value of the file produced by the specified hash function.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-
-        "lastModifiedTimeUtc": {
-          "description": "The Coordinated Universal Time (UTC) date and time at which the file was most recently modified. See \"Date/time properties\" in the SARIF spec for the required format.",
-          "type": "string",
-          "format": "date-time"
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the file.",
-          "$ref": "#/definitions/propertyBag"
-        }
-      }
-    },
-
-    "fileChange": {
-      "description": "A change to a single file.",
-      "additionalProperties": false,
-      "type": "object",
-      "properties": {
-
-        "fileLocation": {
-          "description": "The location of the file to change.",
-          "$ref": "#/definitions/fileLocation"
-        },
-
-        "replacements": {
-          "description": "An array of replacement objects, each of which represents the replacement of a single region in a single file specified by 'fileLocation'.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/replacement"
-          }
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the file change.",
-          "$ref": "#/definitions/propertyBag"
-        }
-
-      },
-
-      "required": [ "fileLocation", "replacements" ]
-    },
-
-    "fileContent": {
-      "description": "Represents content from an external file.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-
-        "text": {
-          "description": "UTF-8-encoded content from a text file.",
-          "type": "string"
-        },
-
-        "binary": {
-          "description": "MIME Base64-encoded content from a binary file, or from a text file in its original encoding.",
-          "type": "string"
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the external file.",
-          "$ref": "#/definitions/propertyBag"
-        }
-      }
-    },
-
-    "fileLocation": {
-      "description": "Specifies the location of a file.",
-      "additionalProperties": false,
-      "type": "object",
-      "properties": {
-
-        "uri": {
-          "description": "A string containing a valid relative or absolute URI.",
-          "type": "string",
-          "format": "uri-reference"
-        },
-
-        "uriBaseId": {
-          "description": "A string which indirectly specifies the absolute URI with respect to which a relative URI in the \"uri\" property is interpreted.",
-          "type": "string"
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the file location.",
-          "$ref": "#/definitions/propertyBag"
-        }
-      },
-
-      "required": [ "uri" ]
     },
 
     "fix": {
-      "description": "A proposed fix for the problem represented by a result object. A fix specifies a set of file to modify. For each file, it specifies a set of bytes to remove, and provides a set of new bytes to replace them.",
+      "description": "A proposed fix for the problem represented by a result object. A fix specifies a set of artifacts to modify. For each artifact, it specifies a set of bytes to remove, and provides a set of new bytes to replace them.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
@@ -488,11 +549,13 @@
           "$ref": "#/definitions/message"
         },
 
-        "fileChanges": {
-          "description": "One or more file changes that comprise a fix for a result.",
+        "changes": {
+          "description": "One or more artifact changes that comprise a fix for a result.",
           "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/definitions/fileChange"
+            "$ref": "#/definitions/artifactChange"
           }
         },
 
@@ -501,7 +564,7 @@
           "$ref": "#/definitions/propertyBag"
         }
       },
-      "required": [ "fileChanges" ]
+      "required": [ "changes" ]
     },
 
     "graph": {
@@ -523,6 +586,9 @@
         "nodes": {
           "description": "An array of node objects representing the nodes of the graph.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/node"
           }
@@ -531,6 +597,9 @@
         "edges": {
           "description": "An array of edge objects representing the edges of the graph.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/edge"
           }
@@ -542,7 +611,7 @@
         }
       },
 
-      "required": [ "id", "nodes", "edges" ]
+      "required": [ "id" ]
     },
 
     "graphTraversal": {
@@ -572,6 +641,9 @@
         "edgeTraversals": {
           "description": "The sequences of edges traversed by this graph traversal.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/edgeTraversal"
           }
@@ -583,7 +655,7 @@
         }
       },
 
-      "required": [ "graphId", "edgeTraversals" ]
+      "required": [ "graphId" ]
     },
 
     "invocation": {
@@ -600,6 +672,8 @@
         "arguments": {
           "description": "An array of strings, containing in order the command line arguments passed to the tool from the operating system.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
           "items": {
             "type": "string"
           }
@@ -608,16 +682,19 @@
         "responseFiles": {
           "description": "The locations of any response files specified on the tool's command line.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/definitions/fileLocation"
+            "$ref": "#/definitions/artifactLocation"
           }
         },
 
         "attachments": {
-          "description": "A set of files relevant to the invocation of the tool.",
+          "description": "A set of artifacts relevant to the invocation of the tool.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/attachment"
           }
@@ -640,9 +717,22 @@
           "type": "integer"
         },
 
+        "reportingConfigurationOverrides": {
+          "description": "An array of reportingConfigurationOverride objects that describe runtime reporting behavior.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/reportingConfigurationOverride"
+          }
+        },
+
         "toolNotifications": {
           "description": "A list of runtime conditions detected by the tool during the analysis.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/notification"
           }
@@ -651,6 +741,9 @@
         "configurationNotifications": {
           "description": "A list of conditions detected by the tool that are relevant to the tool's configuration.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/notification"
           }
@@ -698,12 +791,12 @@
 
         "executableLocation": {
           "description": "An absolute URI specifying the location of the analysis tool's executable.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "workingDirectory": {
           "description": "The working directory for the analysis tool run.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "environmentVariables": {
@@ -716,22 +809,22 @@
 
         "stdin": {
           "description": "A file containing the standard input stream to the process that was invoked.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "stdout": {
           "description": "A file containing the standard output stream from the process that was invoked.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "stderr": {
           "description": "A file containing the standard error stream from the process that was invoked.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "stdoutStderr": {
           "description": "A file containing the interleaved standard output and standard error stream from the process that was invoked.",
-          "$ref": "#/definitions/fileLocation"
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "properties": {
@@ -748,13 +841,20 @@
       "properties": {
 
         "physicalLocation": {
-          "description": "Identifies the file and region.",
+          "description": "Identifies the artifact and region.",
           "$ref": "#/definitions/physicalLocation"
         },
 
         "fullyQualifiedLogicalName": {
           "description": "The human-readable fully qualified name of the logical location. If run.logicalLocations is present, this value matches a property name within that object, from which further information about the logical location can be obtained.",
           "type": "string"
+        },
+
+        "logicalLocationIndex": {
+          "description": "The index within the logical locations array of the logical location associated with the result.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
         },
 
         "message": {
@@ -765,8 +865,9 @@
         "annotations": {
           "description": "A set of regions relevant to the location.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/region"
           }
@@ -800,13 +901,15 @@
           "type": "string"
         },
 
-        "parentKey": {
-          "description": "Identifies the key of the immediate parent of the construct in which the result was detected. For example, this property might point to a logical location that represents the namespace that holds a type.",
-          "type": "string"
+        "parentIndex": {
+          "description": "Identifies the index of the immediate parent of the construct in which the result was detected. For example, this property might point to a logical location that represents the namespace that holds a type.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
         },
 
         "kind": {
-          "description": "The type of construct this logicalLocationComponent refers to. Should be one of 'function', 'member', 'module', 'namespace', 'package', 'parameter', 'resource', 'returnType', 'type', or 'variable', if any of those accurately describe the construct.",
+          "description": "The type of construct this logical location component refers to. Should be one of 'function', 'member', 'module', 'namespace', 'parameter', 'resource', 'returnType', 'type', or 'variable', if any of those accurately describe the construct.",
           "type": "string"
         },
 
@@ -829,27 +932,49 @@
           "type": "string"
         },
 
+        "markdown": {
+          "description": "A Markdown message string.",
+          "type": "string"
+        },
+
         "messageId": {
-          "description": "The resource id for a plain text message string.",
-          "type": "string"
-        },
-
-        "richText": {
-          "description": "A rich text message string.",
-          "type": "string"
-        },
-
-        "richMessageId": {
-          "description": "The resource id for a rich text message string.",
+          "description": "The resource id for a plain text or Markdown message string.",
           "type": "string"
         },
 
         "arguments": {
           "description": "An array of strings to substitute into the message string.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "type": "string"
           }
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the message.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      }
+    },
+
+    "multiformatMessageString": {
+      "description": "A message string or message format string rendered in multiple formats.",
+      "type": "object",
+      "additionalProperties": false,
+
+      "properties": {
+
+        "text": {
+          "description": "A plain text message string or format string.",
+          "type": "string"
+        },
+
+        "markdown": {
+          "description": "A Markdown message string or format string.",
+          "type": "string"
         },
 
         "properties": {
@@ -884,7 +1009,9 @@
         "children": {
           "description": "Array of child nodes.",
           "type": "array",
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/node"
           }
@@ -911,12 +1038,19 @@
         },
 
         "ruleId": {
-          "description": "The stable, unique identifier of the rule (if any) to which this notification is relevant. This member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
+          "description": "The stable, unique identifier of the rule, if any, to which this notification is relevant.",
           "type": "string"
         },
 
+        "ruleIndex": {
+          "description": "The index within the run resources array of the rule object, if any, associated with this notification.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
         "physicalLocation": {
-          "description": "The file and region relevant to this notification.",
+          "description": "The artifact and region relevant to this notification.",
           "$ref": "#/definitions/physicalLocation"
         },
 
@@ -928,7 +1062,7 @@
         "level": {
           "description": "A value specifying the severity level of the notification.",
           "default": "warning",
-          "enum": [ "note", "warning", "error" ]
+          "enum": [ "none", "note", "warning", "error" ]
         },
 
         "threadId": {
@@ -967,18 +1101,18 @@
           "type": "integer"
         },
 
-        "fileLocation": {
-          "description": "The location of the file.",
-          "$ref": "#/definitions/fileLocation"
+        "artifactLocation": {
+          "description": "The location of the artifact.",
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "region": {
-          "description": "Specifies a portion of the file.",
+          "description": "Specifies a portion of the artifact.",
           "$ref": "#/definitions/region"
         },
 
         "contextRegion": {
-          "description": "Specifies a portion of the file that encloses the region. Allows a viewer to display additional context around the region.",
+          "description": "Specifies a portion of the artifact that encloses the region. Allows a viewer to display additional context around the region.",
           "$ref": "#/definitions/region"
         },
 
@@ -988,7 +1122,7 @@
         }
       },
 
-      "required": [ "fileLocation" ]
+      "required": [ "artifactLocation" ]
     },
 
     "propertyBag": {
@@ -1000,6 +1134,7 @@
 
           "description": "A set of distinct strings that provide additional information.",
           "type": "array",
+          "minItems": 0,
           "uniqueItems": true,
           "default": [],
           "items": {
@@ -1048,7 +1183,7 @@
     },
 
     "region": {
-      "description": "A region within a file where a result was detected.",
+      "description": "A region within an artifact where a result was detected.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
@@ -1078,9 +1213,10 @@
         },
 
         "charOffset": {
-          "description": "The zero-based offset from the beginning of the file of the first character in the region.",
+          "description": "The zero-based offset from the beginning of the artifact of the first character in the region.",
           "type": "integer",
-          "minimum": 0
+          "default": -1,
+          "minimum": -1
         },
 
         "charLength": {
@@ -1090,7 +1226,7 @@
         },
 
         "byteOffset": {
-          "description": "The zero-based offset from the beginning of the file of the first byte in the region.",
+          "description": "The zero-based offset from the beginning of the artifact of the first byte in the region.",
           "type": "integer",
           "minimum": 0
         },
@@ -1102,13 +1238,18 @@
         },
 
         "snippet": {
-          "description": "The portion of the file contents within the specified region.",
-          "$ref": "#/definitions/fileContent"
+          "description": "The portion of the artifact contents within the specified region.",
+          "$ref": "#/definitions/artifactContent"
         },
 
         "message": {
           "description": "A message relevant to the region.",
           "$ref": "#/definitions/message"
+        },
+
+        "sourceLanguage": {
+          "description": "Specifies the source language, if any, of the portion of the artifact specified by the region object.",
+          "type": "string"
         },
 
         "properties": {
@@ -1119,19 +1260,19 @@
     },
 
     "replacement": {
-      "description": "The replacement of a single region of a file.",
+      "description": "The replacement of a single region of an artifact.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
 
         "deletedRegion": {
-          "description": "The region of the file to delete.",
+          "description": "The region of the artifact to delete.",
           "$ref": "#/definitions/region"
         },
 
         "insertedContent": {
           "description": "The content to insert at the location specified by the 'deletedRegion' property.",
-          "$ref": "#/definitions/fileContent"
+          "$ref": "#/definitions/artifactContent"
         },
 
         "properties": {
@@ -1143,29 +1284,145 @@
       "required": [ "deletedRegion" ]
     },
 
-    "resources": {
-      "description": "Container for items that require localization.",
+    "reportingDescriptor": {
+      "description": "Metadata that describes a specific report produced by the tool, as part of the analysis it provides or its runtime reporting.",
+      "additionalProperties": false,
       "type": "object",
       "properties": {
 
-        "messageStrings": {
-          "description": "A dictionary, each of whose keys is a resource identifier and each of whose values is a localized string.",
-          "type": "object",
-          "additionalProperties": {
+        "id": {
+          "description": "A stable, opaque identifier for the report.",
+          "type": "string"
+        },
+
+        "deprecatedIds": {
+          "description": "An array of stable, opaque identifiers by which this report was known in some previous version of the analysis tool.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {
             "type": "string"
           }
         },
 
-        "rules": {
-          "description": "A dictionary, each of whose keys is a string and each of whose values is a 'rule' object, that describe all rules associated with an analysis tool or a specific run of an analysis tool.",
+        "name": {
+          "description": "A report identifier that is understandable to an end user.",
+          "$ref": "#/definitions/message"
+        },
+
+        "shortDescription": {
+          "description": "A concise description of the report. Should be a single sentence that is understandable when visible space is limited to a single line of text.",
+          "$ref": "#/definitions/message"
+        },
+
+        "fullDescription": {
+          "description": "A description of the report. Should, as far as possible, provide details sufficient to enable resolution of any problem indicated by the result.",
+          "$ref": "#/definitions/message"
+        },
+
+        "messageStrings": {
+          "description": "A set of name/value pairs with arbitrary names. Each value is a multiformatMessageString object, which holds message strings in plain text and (optionally) Markdown format. The strings can include placeholders, which can be used to construct a message in combination with an arbitrary number of additional string arguments.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/rule"
+            "$ref": "#/definitions/multiformatMessageString"
           }
         },
 
+        "defaultConfiguration": {
+          "description": "Default reporting configuration information.",
+          "$ref": "#/definitions/reportingConfiguration"
+        },
+
+        "helpUri": {
+          "description": "A URI where the primary documentation for the report can be found.",
+          "type": "string",
+          "format": "uri"
+        },
+
+        "help": {
+          "description": "Provides the primary documentation for the report, useful when there is no online documentation.",
+          "$ref": "#/definitions/message"
+        },
+
         "properties": {
-          "description": "Key/value pairs that provide additional information about the resources.",
+          "description": "Key/value pairs that provide additional information about the report.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      }
+    },
+
+    "reportingConfiguration": {
+      "description": "Information about a tool report that can be configured at runtime.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+
+        "enabled": {
+          "default": true,
+          "description": "Specifies whether the report may be produced during the scan.",
+          "type": "boolean"
+        },
+
+        "level": {
+          "description": "Specifies the failure level for the report.",
+          "default": "warning",
+          "enum": [ "none", "note", "warning", "error" ]
+        },
+
+        "rank": {
+          "description": "Specifies the relative priority of the report. Used for analysis output only.",
+          "type": "number",
+          "default": -1.0,
+          "minimum": -1.0,
+          "maximum": 100.0
+        },
+
+        "parameters": {
+          "description": "Contains configuration information specific to a report.",
+          "$ref": "#/definitions/propertyBag"
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the reporting configuration.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      }
+    },
+
+    "reportingConfigurationOverride": {
+      "description": "Information about how a specific tool report was reconfigured at runtime.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+
+        "configuration": {
+          "description": "Specifies how the report was configured during the scan.",
+          "$ref": "#/definitions/reportingConfiguration"
+        },
+
+        "notificationIndex": {
+          "description": "The index within the toolComponent.notificationDescriptors array of the reportingDescriptor associated with this override.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "ruleIndex": {
+          "description": "The index within the toolComponent.ruleDescriptors array of the reportingDescriptor associated with this override.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "extensionIndex": {
+          "description": "The index within the run.tool.extensions array of the toolComponent object which describes the plug-in or tool extension that produced the report.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the reporting configuration.",
           "$ref": "#/definitions/propertyBag"
         }
       }
@@ -1178,13 +1435,34 @@
       "properties": {
 
         "ruleId": {
-          "description": "The stable, unique identifier of the rule (if any) to which this notification is relevant. This member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
+          "description": "The stable, unique identifier of the rule, if any, to which this notification is relevant. This member can be used to retrieve rule metadata from the rules dictionary, if it exists.",
           "type": "string"
+        },
+
+        "ruleIndex": {
+          "description": "The index within the run resources array of the rule object associated with this result.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "ruleExtensionIndex": {
+          "description": "The index within the run.tool.extensions array of the tool component object which describes the plug-in or tool extension that produced the result.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "kind": {
+          "description": "A value that categorizes results by evaluation state.",
+          "default": "fail",
+          "enum": [ "notApplicable", "pass", "fail", "review", "open" ]
         },
 
         "level": {
           "description": "A value specifying the severity level of the result.",
-          "enum": [ "notApplicable", "pass", "note", "warning", "error", "open" ]
+          "default": "warning",
+          "enum": [ "none", "note", "warning", "error" ]
         },
 
         "message": {
@@ -1193,14 +1471,16 @@
         },
 
         "analysisTarget": {
-          "description": "Identifies the file that the analysis tool was instructed to scan. This need not be the same as the file where the result actually occurred.",
-          "$ref": "#/definitions/fileLocation"
+          "description": "Identifies the artifact that the analysis tool was instructed to scan. This need not be the same as the artifact where the result actually occurred.",
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "locations": {
-          "description": "One or more locations where the result occurred. Specify only one location unless the problem indicated by the result can only be corrected by making a change at every specified location.",
+          "description": "The set of locations where the result was detected. Specify only one location unless the problem indicated by the result can only be corrected by making a change at every specified location.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/location"
           }
@@ -1241,8 +1521,9 @@
         "stacks": {
           "description": "An array of 'stack' objects relevant to the result.",
           "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/stack"
           }
@@ -1251,8 +1532,9 @@
         "codeFlows": {
           "description": "An array of 'codeFlow' objects relevant to the result.",
           "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/codeFlow"
           }
@@ -1279,8 +1561,9 @@
         "relatedLocations": {
           "description": "A set of locations relevant to this result.",
           "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/location"
           }
@@ -1289,6 +1572,8 @@
         "suppressionStates": {
           "description": "A set of flags indicating one or more suppression conditions.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
           "items": {
             "enum": [
               "suppressedInSource",
@@ -1301,16 +1586,26 @@
           "description": "The state of a result relative to a baseline of a previous run.",
           "enum": [
             "new",
-            "existing",
+            "unchanged",
+            "updated",
             "absent"
           ]
         },
 
+        "rank": {
+          "description": "A number representing the priority or importance of the result.",
+          "type": "number",
+          "default": -1.0,
+          "minimum": -1.0,
+          "maximum": 100.0
+        },
+
         "attachments": {
-          "description": "A set of files relevant to the result.",
+          "description": "A set of artifacts relevant to the result.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/attachment"
           }
@@ -1325,7 +1620,7 @@
         "workItemUris": {
           "description": "The URIs of the work items associated with this result.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
           "items": {
             "type": "string",
@@ -1333,23 +1628,73 @@
           }
         },
 
-        "conversionProvenance": {
-          "description": "An array of physicalLocation objects which specify the portions of an analysis tool's output that a converter transformed into the result object.",
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/definitions/physicalLocation"
-          }
+        "provenance": {
+          "description": "Information about how and when the result was detected.",
+          "$ref": "#/definitions/resultProvenance"
         },
 
         "fixes": {
           "description": "An array of 'fix' objects, each of which represents a proposed fix to the problem indicated by the result.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/fix"
+          }
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the result.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      },
+      "required": [ "message" ]
+    },
+
+    "resultProvenance": {
+      "description": "Contains information about how and when a result was detected.",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+
+        "firstDetectionTimeUtc": {
+          "description": "The Coordinated Universal Time (UTC) date and time at which the result was first detected. See \"Date/time properties\" in the SARIF spec for the required format.",
+          "type": "string",
+          "format": "date-time"
+        },
+
+        "lastDetectionTimeUtc": {
+          "description": "The Coordinated Universal Time (UTC) date and time at which the result was most recently detected. See \"Date/time properties\" in the SARIF spec for the required format.",
+          "type": "string",
+          "format": "date-time"
+        },
+
+        "firstDetectionRunInstanceGuid": {
+          "description": "A GUID-valued string equal to the id.instanceGuid property of the run in which the result was first detected.",
+          "type": "string"
+        },
+
+        "lastDetectionRunInstanceGuid": {
+          "description": "A GUID-valued string equal to the id.instanceGuid property of the run in which the result was most recently detected.",
+          "type": "string"
+        },
+
+        "invocationIndex": {
+          "description": "The index within the run.invocations array of the invocation object which describes the tool invocation that detected the result.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "conversionSources": {
+          "description": "An array of physicalLocation objects which specify the portions of an analysis tool's output that a converter transformed into the result.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/physicalLocation"
           }
         },
 
@@ -1360,102 +1705,8 @@
       }
     },
 
-    "rule": {
-      "description": "Describes an analysis rule.",
-      "additionalProperties": false,
-      "type": "object",
-      "properties": {
-
-        "id": {
-          "description": "A stable, opaque identifier for the rule.",
-          "type": "string"
-        },
-
-        "name": {
-          "description": "A rule identifier that is understandable to an end user.",
-          "$ref": "#/definitions/message"
-        },
-
-        "shortDescription": {
-          "description": "A concise description of the rule. Should be a single sentence that is understandable when visible space is limited to a single line of text.",
-          "$ref": "#/definitions/message"
-        },
-
-        "fullDescription": {
-          "description": "A description of the rule. Should, as far as possible, provide details sufficient to enable resolution of any problem indicated by the result.",
-          "$ref": "#/definitions/message"
-        },
-
-        "messageStrings": {
-          "description": "A set of name/value pairs with arbitrary names. The value within each name/value pair consists of plain text interspersed with placeholders, which can be used to construct a message in combination with an arbitrary number of additional string arguments.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-
-        "richMessageStrings": {
-          "description": "A set of name/value pairs with arbitrary names. The value within each name/value pair consists of rich text interspersed with placeholders, which can be used to construct a message in combination with an arbitrary number of additional string arguments.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-
-        "configuration": {
-          "description": "Information about the rule that can be configured at runtime.",
-          "$ref": "#/definitions/ruleConfiguration"
-        },
-
-        "helpUri": {
-          "description": "A URI where the primary documentation for the rule can be found.",
-          "type": "string",
-          "format": "uri"
-        },
-
-        "help": {
-          "description": "Provides the primary documentation for the rule, useful when there is no online documentation.",
-          "$ref": "#/definitions/message"
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the rule.",
-          "$ref": "#/definitions/propertyBag"
-        }
-      }
-    },
-
-    "ruleConfiguration": {
-      "description": "Information about a rule that can be configured at runtime.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-
-        "enabled": {
-          "description": "Specifies whether the rule will be evaluated during the scan.",
-          "type": "boolean"
-        },
-
-        "defaultLevel": {
-          "description": "Specifies the default severity level of the result.",
-          "default": "warning",
-          "enum": [ "note", "warning", "error", "open" ]
-        },
-
-        "parameters": {
-          "description": "Contains configuration information specific to this rule.",
-          "$ref": "#/definitions/propertyBag"
-        },
-
-        "properties": {
-          "description": "Key/value pairs that provide additional information about the rule configuration.",
-          "$ref": "#/definitions/propertyBag"
-        }
-      }
-    },
-
     "run": {
-      "description": "Describes a single run of an analysis tool, and contains the output of that run.",
+      "description": "Describes a single run of an analysis tool, and contains the reported output of that run.",
       "additionalProperties": false,
       "type": "object",
       "properties": {
@@ -1468,48 +1719,55 @@
         "invocations": {
           "description": "Describes the invocation of the analysis tool.",
           "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "$ref": "#/definitions/invocation"
           }
         },
 
         "conversion": {
-          "description": "A conversion object that describes how a converter transformed an analysis tool's native output format into the SARIF format.",
+          "description": "A conversion object that describes how a converter transformed an analysis tool's native reporting format into the SARIF format.",
           "$ref": "#/definitions/conversion"
         },
 
         "versionControlProvenance": {
-          "description": "Specifies the revision in version control of the files that were scanned.",
+          "description": "Specifies the revision in version control of the artifacts that were scanned.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/versionControlDetails"
           }
         },
 
         "originalUriBaseIds": {
-          "description": "The file location specified by each uriBaseId symbol on the machine where the tool originally ran.",
+          "description": "The artifact location specified by each uriBaseId symbol on the machine where the tool originally ran.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/fileLocation"
+            "$ref": "#/definitions/artifactLocation"
           }
         },
 
-        "files": {
-          "description": "A dictionary, each of whose keys is a URI and each of whose values is a file object.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/file"
+        "artifacts": {
+          "description": "An array of artifact objects relevant to the run.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/artifact"
           }
         },
 
         "logicalLocations": {
-          "description": "A dictionary, each of whose keys specifies a logical location such as a namespace, type or function.",
-          "type": "object",
-          "additionalProperties": {
+          "description": "An array of logical locations such as namespaces, types or functions.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
             "$ref": "#/definitions/logicalLocation"
           }
         },
@@ -1526,14 +1784,10 @@
           "description": "The set of results contained in an SARIF log. The results array can be omitted when a run is solely exporting rules metadata. It must be present (but may be empty) if a log file represents an actual scan.",
           "type": "array",
           "minItems": 0,
+          "uniqueItems": false,
           "items": {
             "$ref": "#/definitions/result"
           }
-        },
-
-        "resources": {
-          "description": "Items that can be localized, such as message strings and rule metadata.",
-          "$ref": "#/definitions/resources"
         },
 
         "id": {
@@ -1545,6 +1799,8 @@
           "description": "Automation details that describe the aggregate of runs to which this run belongs.",
           "type": "array",
           "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/runAutomationDetails"
           }
@@ -1555,13 +1811,8 @@
           "type": "string"
         },
 
-        "architecture": {
-          "description": "The hardware architecture for which the run was targeted.",
-          "type": "string"
-        },
-
-        "richMessageMimeType": {
-          "description": "The MIME type of all rich text message properties in the run. Default: \"text/markdown;variant=GFM\"",
+        "markdownMessageMimeType": {
+          "description": "The MIME type of all Markdown text message properties in the run. Default: \"text/markdown;variant=GFM\"",
           "type": "string",
           "default": "text/markdown;variant=GFM"
         },
@@ -1572,13 +1823,35 @@
         },
 
         "defaultFileEncoding": {
-          "description": "Specifies the default encoding for any file object that refers to a text file.",
+          "description": "Specifies the default encoding for any artifact object that refers to a text file.",
           "type": "string"
+        },
+
+        "defaultSourceLanguage": {
+          "description": "Specifies the default source language for any artifact object that refers to a text file that contains source code.",
+          "type": "string"
+        },
+
+        "newlineSequences": {
+          "description": "An ordered list of character sequences that were treated as line breaks when computing region information for the run.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [ "\r\n", "\n" ],
+          "items": {
+            "type": "string"
+          }
         },
 
         "columnKind": {
           "description": "Specifies the unit in which the tool measures columns.",
-          "enum": [ "utf16CodeUnits", "unicodeCodePoints" ]
+          "enum": [ "utf16CodeUnits", "unicodeCodePoints" ],
+          "default": "unicodeCodePoints"
+        },
+
+        "externalPropertyFiles": {
+          "description": "References to external property files that should be inlined with the content of a root log file.",
+          "$ref": "#/definitions/externalPropertyFiles"
         },
 
         "properties": {
@@ -1589,7 +1862,6 @@
 
       "required": [ "tool" ]
     },
-
 
     "runAutomationDetails": {
       "description": "Information that describes a run's identity and role within an engineering system process.",
@@ -1638,7 +1910,8 @@
         "frames": {
           "description": "An array of stack frames that represents a sequence of calls, rendered in reverse chronological order, that comprise the call stack.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
+          "uniqueItems": false,
           "items": {
             "$ref": "#/definitions/stackFrame"
           }
@@ -1686,6 +1959,9 @@
         "parameters": {
           "description": "The parameters of the call that is executing.",
           "type": "array",
+          "minItems": 0,
+          "uniqueItems": false,
+          "default": [],
           "items": {
             "type": "string",
             "default": []
@@ -1717,6 +1993,7 @@
           "description": "A temporally ordered array of 'threadFlowLocation' objects, each of which describes a location visited by the tool while producing the result.",
           "type": "array",
           "minItems": 1,
+          "uniqueItems": false,
           "items": {
             "$ref": "#/definitions/threadFlowLocation"
           }
@@ -1747,9 +2024,15 @@
           "$ref": "#/definitions/stack"
         },
 
-        "kind": {
-          "description": "A string describing the type of this location.",
-          "type": "string"
+        "kinds": {
+          "description": "A set of distinct strings that categorize the thread flow location. Well-known kinds include acquire, release, enter, exit, call, return, branch, implicit, false, true, caution, danger, unknown, unreachable, taint, function, handler, lock, memory, resource, and scope.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "type": "string"
+          }
         },
 
         "module": {
@@ -1799,47 +2082,26 @@
       "type": "object",
       "properties": {
 
-        "name": {
-          "description": "The name of the tool.",
-          "type": "string"
-        },
-
-        "fullName": {
-          "description": "The name of the tool along with its version and any other useful identifying information, such as its locale.",
-          "type": "string"
-        },
-
-        "version": {
-          "description": "The tool version, in whatever format the tool natively provides.",
-          "type": "string"
-        },
-
-        "semanticVersion": {
-          "description": "The tool version in the format specified by Semantic Versioning 2.0.",
-          "type": "string"
-        },
-
-        "fileVersion": {
-          "description": "The binary version of the tool's primary executable file (for operating systems such as Windows that provide that information).",
-          "type": "string",
-          "pattern": "[0-9]+(\\.[0-9]+){3}"
-        },
-
-        "downloadUri": {
-          "description": "The absolute URI from which the tool can be downloaded.",
-          "type": "string",
-          "format": "uri"
-        },
-
-        "sarifLoggerVersion": {
-          "description": "A version that uniquely identifies the SARIF logging component that generated this file, if it is versioned separately from the tool.",
-          "type": "string"
-        },
-
         "language": {
           "description": "The tool language (expressed as an ISO 649 two-letter lowercase culture code) and region (expressed as an ISO 3166 two-letter uppercase subculture code associated with a country or region).",
           "type": "string",
           "default": "en-US"
+        },
+
+        "driver": {
+          "description": "The analysis tool that was run.",
+          "$ref": "#/definitions/toolComponent"
+        },
+
+        "extensions": {
+          "description": "Tool extensions that contributed to or reconfigured the analysis tool that was run.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/toolComponent"
+          }
         },
 
         "properties": {
@@ -1848,11 +2110,95 @@
         }
       },
 
+      "required": [ "driver" ]
+    },
+
+    "toolComponent": {
+      "description": "A component, such as a plug-in or the default driver, of the analysis tool that was run.",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+
+        "name": {
+          "description": "The name of the component.",
+          "type": "string"
+        },
+
+        "fullName": {
+          "description": "The name of the component along with its version and any other useful identifying information, such as its locale.",
+          "type": "string"
+        },
+
+        "version": {
+          "description": "The component version, in whatever format the component natively provides.",
+          "type": "string"
+        },
+
+        "semanticVersion": {
+          "description": "The component version in the format specified by Semantic Versioning 2.0.",
+          "type": "string"
+        },
+
+        "dottedQuadFileVersion": {
+          "description": "The binary version of the component's primary executable file expressed as four non-negative integers separated by a period (for operating systems that express file versions in this way).",
+          "type": "string",
+          "pattern": "[0-9]+(\\.[0-9]+){3}"
+        },
+
+        "downloadUri": {
+          "description": "The absolute URI from which the component can be downloaded.",
+          "type": "string",
+          "format": "uri"
+        },
+
+        "globalMessageStrings": {
+          "description": "A dictionary, each of whose keys is a resource identifier and each of whose values is a multiformatMessageString object, which holds message strings in plain text and (optionally) Markdown format. The strings can include placeholders, which can be used to construct a message in combination with an arbitrary number of additional string arguments.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/multiformatMessageString"
+          }
+        },
+
+        "notificationDescriptors": {
+          "description": "An array of reportDescriptor objects relevant to the notifications related to the configuration and runtime execution of the component.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/reportingDescriptor"
+          }
+        },
+
+        "ruleDescriptors": {
+          "description": "An array of reportDescriptor objects relevant to the analysis performed by the component.",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/reportingDescriptor"
+          }
+        },
+
+        "artifactIndex": {
+          "description": "The index within the run artifacts array of the artifact object associated with the component.",
+          "type": "integer",
+          "default": -1,
+          "minimum": -1
+        },
+
+        "properties": {
+          "description": "Key/value pairs that provide additional information about the component.",
+          "$ref": "#/definitions/propertyBag"
+        }
+      },
+
       "required": [ "name" ]
     },
 
     "versionControlDetails": {
-      "descriptipn": "Specifies the information necessary to retrieve a desired revision from a version control system.",
+      "description": "Specifies the information necessary to retrieve a desired revision from a version control system.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1882,6 +2228,11 @@
           "description": "A Coordinated Universal Time (UTC) date and time that can be used to synchronize an enlistment to the state of the repository at that time.",
           "type": "string",
           "format": "date-time"
+        },
+
+        "mappedTo": {
+          "description": "The location in the local file system to which the root of the repository was mapped at the time of the analysis.",
+          "$ref": "#/definitions/artifactLocation"
         },
 
         "properties": {
