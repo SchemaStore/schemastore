@@ -1,0 +1,207 @@
+{
+  "_schema-version": "3.2",
+  "ID": "com.acme.scheduling",
+  "version": "1.132.1-edfsd+ewfe",
+  "parameters": {
+    "deployer-version": ">=1.2.0"
+  },
+  "build-parameters": {
+    "before-all": {
+      "builders": [
+        {
+          "builder": "mybuilder"
+        }
+      ]
+    },
+    "after-all": {
+      "builders": [
+        {
+          "builder": "otherbuilder"
+        }
+      ]
+    }
+  },
+  "modules": [
+    {
+      "name": "backend",
+      "type": "java.tomcat",
+      "path": "java",
+      "build-parameters": {
+        "builder": "maven"
+      },
+      "properties": {
+        "backend_type": null
+      },
+      "properties-metadata": {
+        "backend_type": {
+          "optional": false,
+          "overwritable": true,
+          "datatype": "str"
+        }
+      },
+      "parameters": {
+        "domain": null,
+        "password": null
+      },
+      "parameters-metadata": {
+        "domain": {
+          "optional": false,
+          "overwritable": true
+        }
+      },
+      "includes": [
+        {
+          "name": "config",
+          "path": "cfg/parameters.json"
+        }
+      ],
+      "provides": [
+        {
+          "name": "backend_task",
+          "public": true,
+          "properties": {
+            "url": "${default-url}/tasks"
+          },
+          "properties-metadata": {
+            "url": {
+              "optional": true,
+              "overwritable": true
+            }
+          }
+        }
+      ],
+      "requires": [
+        {
+          "name": "database"
+        },
+        {
+          "name": "scheduler_api",
+          "list": "mylist",
+          "properties": {
+            "scheduler_url": "~{url}"
+          },
+          "properties-metadata": {
+            "scheduler_url": {
+              "optional": false
+            }
+          },
+          "includes": [
+            {
+              "name": "config",
+              "path": "cfg/parameters.json"
+            }
+          ]
+        }
+      ],
+      "deployed-after": [
+        "scheduler"
+      ]
+    },
+    {
+      "name": "scheduler",
+      "type": "javascript.nodejs",
+      "provides": [
+        {
+          "name": "scheduler_api",
+          "properties": {
+            "url": "${default-url}/api/v2"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "name": "backend_task",
+          "properties": {
+            "task_url": "~{url}"
+          }
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "name": "database",
+      "type": "postgresql"
+    },
+    {
+      "name": "plugins",
+      "type": "configuration",
+      "optional": true,
+      "active": false,
+      "requires": [
+        {
+          "name": "scheduler_api",
+          "parameters": {
+            "par1": "value"
+          },
+          "properties": {
+            "prop1": "${value}-~{url}"
+          }
+        }
+      ],
+      "includes": [
+        {
+          "name": "config",
+          "path": "cfg/security.json"
+        },
+        {
+          "name": "creation",
+          "path": "djdk.yaml"
+        }
+      ],
+      "parameters": {
+        "filter": {
+          "type": "com.acme.plugin"
+        }
+      },
+      "parameters-metadata": {
+        "filter": {
+          "optional": false,
+          "overwritable": false
+        }
+      },
+      "properties": {
+        "plugin_name": "${name}",
+        "plugin_url": "${url}/sources"
+      },
+      "properties-metadata": {
+        "plugin_name": {
+          "optional": true
+        }
+      }
+    }
+  ],
+  "module-types": [
+    {
+      "name": "java.tomcat",
+      "extends": "java",
+      "parameters": {
+        "buildpack": null,
+        "memory": "256M"
+      },
+      "parameters-metadata": {
+        "buildpack": {
+          "optional": false
+        }
+      },
+      "properties": {
+        "TARGET_RUNTIME": "tomcat"
+      }
+    }
+  ],
+  "resource-types": [
+    {
+      "name": "postgresql",
+      "extends": "managed-service",
+      "parameters": {
+        "service": "postgresql",
+        "service-plan": null
+      },
+      "parameters-metadata": {
+        "service-plan": {
+          "optional": false
+        }
+      }
+    }
+  ]
+}
