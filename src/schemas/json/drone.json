@@ -1,0 +1,337 @@
+{
+  "title": "Drone CI configuration file",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "type": "string",
+          "enum": [
+            "linux",
+            "windows"
+          ]
+        },
+        "arсh": {
+          "type": "string",
+          "enum": [
+            "arm",
+            "arm64",
+            "amd64"
+          ]
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/nonEmptyString"
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "from_secret"
+            ],
+            "properties": {
+              "from_secret": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "condition": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "conditions": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/condition"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "include": {
+              "$ref": "#/definitions/condition"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exclude": {
+              "$ref": "#/definitions/condition"
+            }
+          }
+        }
+      ]
+    },
+    "allConditions": {
+      "type": "object",
+      "properties": {
+        "branch": {
+          "$ref": "#/definitions/conditions"
+        },
+        "event": {
+          "$ref": "#/definitions/conditions"
+        },
+        "ref": {
+          "$ref": "#/definitions/conditions"
+        },
+        "repo": {
+          "$ref": "#/definitions/conditions"
+        },
+        "status": {
+          "$ref": "#/definitions/condition"
+        },
+        "target": {
+          "$ref": "#/definitions/condition"
+        }
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "path": {
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "required": [
+    "kind"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "kind": {
+          "const": "pipeline"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "clone": {
+          "type": "object",
+          "properties": {
+            "depth": {
+              "type": "integer"
+            },
+            "disable": {
+              "const": true
+            }
+          }
+        },
+        "platform": {
+          "$ref": "#/definitions/platform"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "image"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/nonEmptyString"
+              },
+              "image": {
+                "$ref": "#/definitions/nonEmptyString"
+              },
+              "when": {
+                "$ref": "#/definitions/allConditions"
+              },
+              "platform": {
+                "$ref": "#/definitions/platform"
+              },
+              "commands": {
+                "$ref": "#/definitions/commands"
+              },
+              "detach": {
+                "type": "boolean"
+              },
+              "environment": {
+                "$ref": "#/definitions/environment"
+              },
+              "privileged": {
+                "type": "boolean"
+              },
+              "pull": {
+                "const": "always"
+              },
+              "volumes": {
+                "$ref": "#/definitions/volumes"
+              }
+            }
+          }
+        },
+        "trigger": {
+          "$ref": "#/definitions/allConditions"
+        },
+        "node": {
+          "type": "object",
+          "properties": {
+            "instance": {
+              "type": "string"
+            }
+          }
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "image"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/nonEmptyString"
+              },
+              "image": {
+                "$ref": "#/definitions/nonEmptyString"
+              },
+              "command": {
+                "$ref": "#/definitions/commands"
+              },
+              "entrypoint": {
+                "$ref": "#/definitions/commands"
+              },
+              "environment": {
+                "$ref": "#/definitions/environment"
+              },
+              "privileged": {
+                "type": "boolean"
+              },
+              "pull": {
+                "const": "always"
+              },
+              "volumes": {
+                "$ref": "#/definitions/volumes"
+              },
+              "working_dir": {
+                "$ref": "#/definitions/nonEmptyString"
+              }
+            }
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              {
+                "required": [
+                  "name",
+                  "host"
+                ]
+              },
+              {
+                "required": [
+                  "name",
+                  "temp"
+                ]
+              }
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/nonEmptyString"
+              },
+              "host": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "$ref": "#/definitions/nonEmptyString"
+                  }
+                }
+              },
+              "temp": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "hmac"
+      ],
+      "properties": {
+        "kind": {
+          "const": "signature"
+        },
+        "hmac": {
+          "type": "string",
+          "minLength": 40,
+          "maxLength": 40
+        }
+      }
+    },
+    {
+      "required": [
+        "name",
+        "get"
+      ],
+      "properties": {
+        "kind": {
+          "const": "secret"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "get": {
+          "type": "object",
+          "required": [
+            "path",
+            "name"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/nonEmptyString"
+            },
+            "name": {
+              "$ref": "#/definitions/nonEmptyString"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
