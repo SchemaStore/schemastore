@@ -1,0 +1,390 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "cloud-config-schema",
+    "allOf": [
+        {
+            "id": "cc_snap",
+            "name": "Snap",
+            "title": "Install, configure and manage snapd and snap packages",
+            "description": "This module provides a simple configuration namespace in cloud-init to\nboth setup snapd and install snaps.\n\n.. note::\n    Both ``assertions`` and ``commands`` values can be either a\n    dictionary or a list. If these configs are provided as a\n    dictionary, the keys are only used to order the execution of the\n    assertions or commands and the dictionary is merged with any\n    vendor-data snap configuration provided. If a list is provided by\n    the user instead of a dict, any vendor-data snap configuration is\n    ignored.\n\nThe ``assertions`` configuration option is a dictionary or list of\nproperly-signed snap assertions which will run before any snap\n``commands``. They will be added to snapd's assertion database by\ninvoking ``snap ack <aggregate_assertion_file>``.\n\nSnap ``commands`` is a dictionary or list of individual snap\ncommands to run on the target system. These commands can be used to\ncreate snap users, install snaps and provide snap configuration.\n\n.. note::\n    If 'side-loading' private/unpublished snaps on an instance, it is\n    best to create a snap seed directory and seed.yaml manifest in\n    **/var/lib/snapd/seed/** which snapd automatically installs on\n    startup.\n\n**Development only**: The ``squashfuse_in_container`` boolean can be\nset true to install squashfuse package when in a container to enable\nsnap installs. Default is false.\n",
+            "distros": [
+                "ubuntu"
+            ],
+            "examples": [
+                "snap:\n    assertions:\n      00: |\n      signed_assertion_blob_here\n      02: |\n      signed_assertion_blob_here\n    commands:\n      00: snap create-user --sudoer --known <snap-user>@mydomain.com\n      01: snap install canonical-livepatch\n      02: canonical-livepatch enable <AUTH_TOKEN>\n",
+                "# LXC-based containers require squashfuse before snaps can be installed\nsnap:\n    commands:\n        00: apt-get install squashfuse -y\n        11: snap install emoj\n\n",
+                "# Convenience: the snap command can be omitted when specifying commands\n# as a list and 'snap' will automatically be prepended.\n# The following commands are equivalent:\nsnap:\n    commands:\n        00: ['install', 'vlc']\n        01: ['snap', 'install', 'vlc']\n        02: snap install vlc\n        03: 'snap install vlc'\n"
+            ],
+            "frequency": "once-per-instance",
+            "type": "object",
+            "properties": {
+                "snap": {
+                    "type": "object",
+                    "properties": {
+                        "assertions": {
+                            "type": [
+                                "object",
+                                "array"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "additionalItems": false,
+                            "minItems": 1,
+                            "minProperties": 1,
+                            "uniqueItems": true
+                        },
+                        "commands": {
+                            "type": [
+                                "object",
+                                "array"
+                            ],
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            },
+                            "additionalItems": false,
+                            "minItems": 1,
+                            "minProperties": 1
+                        },
+                        "squashfuse_in_container": {
+                            "type": "boolean"
+                        }
+                    },
+                    "additionalProperties": false,
+                    "required": [],
+                    "minProperties": 1
+                }
+            }
+        },
+        {
+            "id": "cc_ubuntu_drivers",
+            "name": "Ubuntu Drivers",
+            "title": "Interact with third party drivers in Ubuntu.",
+            "description": "This module interacts with the 'ubuntu-drivers' command to install\nthird party driver packages.",
+            "distros": [
+                "ubuntu"
+            ],
+            "examples": [
+                "drivers:\n  nvidia:\n    license-accepted: true\n"
+            ],
+            "frequency": "once-per-instance",
+            "type": "object",
+            "properties": {
+                "drivers": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "nvidia": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                                "license-accepted"
+                            ],
+                            "properties": {
+                                "license-accepted": {
+                                    "type": "boolean",
+                                    "description": "Do you accept the NVIDIA driver license?"
+                                },
+                                "version": {
+                                    "type": "string",
+                                    "description": "The version of the driver to install (e.g. \"390\", \"410\"). Defaults to the latest version."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": "cc_resizefs",
+            "name": "Resizefs",
+            "title": "Resize filesystem",
+            "description": "Resize a filesystem to use all avaliable space on partition. This\nmodule is useful along with ``cc_growpart`` and will ensure that if the\nroot partition has been resized the root filesystem will be resized\nalong with it. By default, ``cc_resizefs`` will resize the root\npartition and will block the boot process while the resize command is\nrunning. Optionally, the resize operation can be performed in the\nbackground while cloud-init continues running modules. This can be\nenabled by setting ``resize_rootfs`` to ``true``. This module can be\ndisabled altogether by setting ``resize_rootfs`` to ``false``.",
+            "distros": [
+                "all"
+            ],
+            "examples": [
+                "resize_rootfs: false  # disable root filesystem resize operation"
+            ],
+            "frequency": "always",
+            "type": "object",
+            "properties": {
+                "resize_rootfs": {
+                    "enum": [
+                        true,
+                        false,
+                        "noblock"
+                    ],
+                    "description": "Whether to resize the root partition. Default: 'true'"
+                }
+            }
+        },
+        {
+            "id": "cc_ntp",
+            "name": "NTP",
+            "title": "enable and configure ntp",
+            "description": "Handle ntp configuration. If ntp is not installed on the system and\nntp configuration is specified, ntp will be installed. If there is a\ndefault ntp config file in the image or one is present in the\ndistro's ntp package, it will be copied to ``/etc/ntp.conf.dist``\nbefore any changes are made. A list of ntp pools and ntp servers can\nbe provided under the ``ntp`` config key. If no ntp ``servers`` or\n``pools`` are provided, 4 pools will be used in the format\n``{0-3}.{distro}.pool.ntp.org``.",
+            "distros": [
+                "centos",
+                "debian",
+                "fedora",
+                "opensuse",
+                "rhel",
+                "sles",
+                "ubuntu"
+            ],
+            "examples": [
+                "# Override ntp with chrony configuration on Ubuntu\nntp:\n  enabled: true\n  ntp_client: chrony  # Uses cloud-init default chrony configuration\n",
+                "# Provide a custom ntp client configuration\nntp:\n  enabled: true\n  ntp_client: myntpclient\n  config:\n     confpath: /etc/myntpclient/myntpclient.conf\n     check_exe: myntpclientd\n     packages:\n       - myntpclient\n     service_name: myntpclient\n     template: |\n         ## template:jinja\n         # My NTP Client config\n         {% if pools -%}# pools{% endif %}\n         {% for pool in pools -%}\n         pool {{pool}} iburst\n         {% endfor %}\n         {%- if servers %}# servers\n         {% endif %}\n         {% for server in servers -%}\n         server {{server}} iburst\n         {% endfor %}\n  pools: [0.int.pool.ntp.org, 1.int.pool.ntp.org, ntp.myorg.org]\n  servers:\n    - ntp.server.local\n    - ntp.ubuntu.com\n    - 192.168.23.2"
+            ],
+            "frequency": "once-per-instance",
+            "type": "object",
+            "properties": {
+                "ntp": {
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "properties": {
+                        "pools": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "hostname"
+                            },
+                            "uniqueItems": true,
+                            "description": "List of ntp pools. If both pools and servers are\n empty, 4 default pool servers will be provided of\n the format ``{0-3}.{distro}.pool.ntp.org``."
+                        },
+                        "servers": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "hostname"
+                            },
+                            "uniqueItems": true,
+                            "description": "List of ntp servers. If both pools and servers are\n empty, 4 default pool servers will be provided with\n the format ``{0-3}.{distro}.pool.ntp.org``."
+                        },
+                        "ntp_client": {
+                            "type": "string",
+                            "default": "auto",
+                            "description": "Name of an NTP client to use to configure system NTP.\n When unprovided or 'auto' the default client preferred\n by the distribution will be used. The following\n built-in client names can be used to override existing\n configuration defaults: chrony, ntp, ntpdate,\n systemd-timesyncd."
+                        },
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Attempt to enable ntp clients if set to True.  If set\n to False, ntp client will not be configured or\n installed"
+                        },
+                        "config": {
+                            "description": "Configuration settings or overrides for the\n ``ntp_client`` specified.",
+                            "type": [
+                                "object"
+                            ],
+                            "properties": {
+                                "confpath": {
+                                    "type": "string",
+                                    "description": "The path to where the ``ntp_client``\n configuration is written."
+                                },
+                                "check_exe": {
+                                    "type": "string",
+                                    "description": "The executable name for the ``ntp_client``.\n For example, ntp service ``check_exe`` is\n 'ntpd' because it runs the ntpd binary."
+                                },
+                                "packages": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "uniqueItems": true,
+                                    "description": "List of packages needed to be installed for the\n selected ``ntp_client``."
+                                },
+                                "service_name": {
+                                    "type": "string",
+                                    "description": "The systemd or sysvinit service name used to\n start and stop the ``ntp_client``\n service."
+                                },
+                                "template": {
+                                    "type": "string",
+                                    "description": "Inline template allowing users to define their\n own ``ntp_client`` configuration template.\n The value must start with '## template:jinja'\n to enable use of templating support.\n"
+                                }
+                            },
+                            "required": [],
+                            "minProperties": 1,
+                            "additionalProperties": false
+                        }
+                    },
+                    "required": [],
+                    "additionalProperties": false
+                }
+            }
+        },
+        {
+            "id": "cc_ubuntu_advantage",
+            "name": "Ubuntu Advantage",
+            "title": "Configure Ubuntu Advantage support services",
+            "description": "Attach machine to an existing Ubuntu Advantage support contract and\nenable or disable support services such as Livepatch, ESM,\nFIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,\none can also specify services to enable.  When the 'enable'\nlist is present, any named service will be enabled and all absent\nservices will remain disabled.\n\nNote that when enabling FIPS or FIPS updates you will need to schedule\na reboot to ensure the machine is running the FIPS-compliant kernel.\nSee :ref:`Power State Change` for information on how to configure\ncloud-init to perform this reboot.\n",
+            "distros": [
+                "ubuntu"
+            ],
+            "examples": [
+                "# Attach the machine to an Ubuntu Advantage support contract with a\n# UA contract token obtained from https://ubuntu.com/advantage.\nubuntu_advantage:\n  token: <ua_contract_token>\n",
+                "# Attach the machine to an Ubuntu Advantage support contract enabling\n# only fips and esm services. Services will only be enabled if\n# the environment supports said service. Otherwise warnings will\n# be logged for incompatible services specified.\nubuntu-advantage:\n  token: <ua_contract_token>\n  enable:\n  - fips\n  - esm\n",
+                "# Attach the machine to an Ubuntu Advantage support contract and enable\n# the FIPS service.  Perform a reboot once cloud-init has\n# completed.\npower_state:\n  mode: reboot\nubuntu-advantage:\n  token: <ua_contract_token>\n  enable:\n  - fips\n"
+            ],
+            "frequency": "once-per-instance",
+            "type": "object",
+            "properties": {
+                "ubuntu_advantage": {
+                    "type": "object",
+                    "properties": {
+                        "enable": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "token": {
+                            "type": "string",
+                            "description": "A contract token obtained from https://ubuntu.com/advantage."
+                        }
+                    },
+                    "required": [
+                        "token"
+                    ],
+                    "additionalProperties": false
+                }
+            }
+        },
+        {
+            "id": "cc_bootcmd",
+            "name": "Bootcmd",
+            "title": "Run arbitrary commands early in the boot process",
+            "description": "This module runs arbitrary commands very early in the boot process,\nonly slightly after a boothook would run. This is very similar to a\nboothook, but more user friendly. The environment variable\n``INSTANCE_ID`` will be set to the current instance id for all run\ncommands. Commands can be specified either as lists or strings. For\ninvocation details, see ``runcmd``.\n\n.. note::\n    bootcmd should only be used for things that could not be done later\n    in the boot process.\n\n.. note::\n\n  when writing files, do not use /tmp dir as it races with\n  systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.\n",
+            "distros": [
+                "all"
+            ],
+            "examples": [
+                "bootcmd:\n    - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts\n    - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]\n"
+            ],
+            "frequency": "always",
+            "type": "object",
+            "properties": {
+                "bootcmd": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "additionalItems": false,
+                    "additionalProperties": false,
+                    "minItems": 1,
+                    "required": []
+                }
+            }
+        },
+        {
+            "id": "cc_runcmd",
+            "name": "Runcmd",
+            "title": "Run arbitrary commands",
+            "description": "Run arbitrary commands at a rc.local like level with output to the\nconsole. Each item can be either a list or a string. If the item is a\nlist, it will be properly executed as if passed to ``execve()`` (with\nthe first arg as the command). If the item is a string, it will be\nwritten to a file and interpreted\nusing ``sh``.\n\n.. note::\n\n  all commands must be proper yaml, so you have to quote any characters\n  yaml would eat (':' can be problematic)\n\n.. note::\n\n  when writing files, do not use /tmp dir as it races with\n  systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.\n",
+            "distros": [
+                "all"
+            ],
+            "examples": [
+                "runcmd:\n    - [ ls, -l, / ]\n    - [ sh, -xc, \"echo $(date) ': hello world!'\" ]\n    - [ sh, -c, echo \"=========hello world'=========\" ]\n    - ls -l /root\n    - [ wget, \"http://example.org\", -O, /tmp/index.html ]\n"
+            ],
+            "frequency": "once-per-instance",
+            "type": "object",
+            "properties": {
+                "runcmd": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "additionalItems": false,
+                    "additionalProperties": false,
+                    "minItems": 1,
+                    "required": []
+                }
+            }
+        },
+        {
+            "id": "cc_zypper_add_repo",
+            "name": "ZypperAddRepo",
+            "title": "Configure zypper behavior and add zypper repositories",
+            "description": "Configure zypper behavior by modifying /etc/zypp/zypp.conf. The\nconfiguration writer is \"dumb\" and will simply append the provided\nconfiguration options to the configuration file. Option settings\nthat may be duplicate will be resolved by the way the zypp.conf file\nis parsed. The file is in INI format.\nAdd repositories to the system. No validation is performed on the\nrepository file entries, it is assumed the user is familiar with\nthe zypper repository file format.",
+            "distros": [
+                "opensuse",
+                "sles"
+            ],
+            "examples": [
+                "zypper:\n  repos:\n    - id: opensuse-oss\n      name: os-oss\n      baseurl: http://dl.opensuse.org/dist/leap/v/repo/oss/\n      enabled: 1\n      autorefresh: 1\n    - id: opensuse-oss-update\n      name: os-oss-up\n      baseurl: http://dl.opensuse.org/dist/leap/v/update\n      # any setting per\n      # https://en.opensuse.org/openSUSE:Standards_RepoInfo\n      # enable and autorefresh are on by default\n  config:\n    reposdir: /etc/zypp/repos.dir\n    servicesdir: /etc/zypp/services.d\n    download.use_deltarpm: true\n    # any setting in /etc/zypp/zypp.conf\n"
+            ],
+            "frequency": "always",
+            "type": "object",
+            "properties": {
+                "zypper": {
+                    "type": "object",
+                    "properties": {
+                        "repos": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "string",
+                                        "description": "The unique id of the repo, used when\n writing\n/etc/zypp/repos.d/<id>.repo."
+                                    },
+                                    "baseurl": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "description": "The base repositoy URL"
+                                    }
+                                },
+                                "required": [
+                                    "id",
+                                    "baseurl"
+                                ],
+                                "additionalProperties": true
+                            },
+                            "minItems": 1
+                        },
+                        "config": {
+                            "type": "object",
+                            "description": "Any supported zypo.conf key is written to\n/etc/zypp/zypp.conf'"
+                        }
+                    },
+                    "required": [],
+                    "minProperties": 1,
+                    "additionalProperties": false
+                }
+            }
+        }
+    ]
+}
