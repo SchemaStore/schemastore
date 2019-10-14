@@ -46,7 +46,111 @@
       "items": {
         "$ref": "#/definitions/filepath_glob"
       }
+    },
+    "remote_write": {
+      "description": "Settings related to the remote write feature.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "description": "The URL of the endpoint to send samples to.",
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "remote_timeout": {
+            "description": "Timeout for requests to the remote write endpoint.",
+            "$ref": "#/definitions/duration",
+            "default": "30s"
+          },
+          "write_relabel_configs": {
+            "description": "List of remote write relabel configurations.",
+            "$ref": "#/definitions/relabel_configs"
+          },
+          "tls_config": {
+            "description": "Configures the remote write request's TLS settings.",
+            "$ref": "#/definitions/tls_config"
+          },
+          "proxy_url": {
+            "description": "Optional proxy URL.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri-reference"
+          },
+          "queue_config": {
+            "description": "Configures the queue used to write to remote storage.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "capacity": {
+                "description": "Number of samples to buffer per shard before we block reading of more samples from the WAL. It is recommended to have enough capacity in each shard to buffer several requests to keep throughput up while processing occasional slow remote requests.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": 500
+              },
+              "max_shards": {
+                "description": "Maximum number of shards, i.e. amount of concurrency.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": 1000
+              },
+              "min_shards": {
+                "description": "Minimum number of shards, i.e. amount of concurrency.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": 1
+              },
+              "max_samples_per_send": {
+                "description": "Maximum number of samples per send.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": 100
+              },
+              "batch_send_deadline": {
+                "description": "Maximum time a sample will wait in buffer.",
+                "$ref": "#/definitions/duration",
+                "default": "5s"
+              },
+              "min_backoff": {
+                "description": "Initial retry delay. Gets doubled for every retry.",
+                "$ref": "#/definitions/duration",
+                "default": "30ms"
+              },
+              "max_backoff": {
+                "description": "Maximum retry delay.",
+                "$ref": "#/definitions/duration",
+                "default": "100ms"
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/definitions/auth"
+          }
+        ],
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ]
+      }
     }
+
   },
   "additionalProperties": false,
   "definitions": {
@@ -78,6 +182,191 @@
     },
     "filepath_glob": {
       "type": "string"
+    },
+    "basic_auth": {
+      "description": "Sets the `Authorization` header on every remote write request with the configured username and password. password and password_file are mutually exclusive.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "username": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "password": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "password_file": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "required": [
+        "username"
+      ]
+    },
+    "bearer_token": {
+      "description": "Sets the `Authorization` header on every scrape request with the configured bearer token. It is mutually exclusive with `bearer_token_file`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "bearer_token_file": {
+      "description": "Sets the `Authorization` header on every scrape request with the bearer token read from the configured file. It is mutually exclusive with `bearer_token`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "auth": {
+      "anyOf": [
+        {
+          "properties": {
+            "basic_auth": {
+              "$ref": "#/definitions/basic_auth"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "bearer_token": {
+              "$ref": "#/definitions/bearer_token"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "bearer_token_file": {
+              "$ref": "#/definitions/bearer_token_file"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "relabel_configs": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_labels": {
+            "description": "The source labels select values from existing labels. Their content is concatenated using the configured separator and matched against the configured regular expression for the replace, keep, and drop actions.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/label_name"
+            }
+          },
+          "separator": {
+            "description": "Separator placed between concatenated source label values.",
+            "type": "string",
+            "default": ";"
+          },
+          "target_label": {
+            "description": "Label to which the resulting value is written in a replace action. It is mandatory for replace actions. Regex capture groups are available.",
+            "$ref": "#/definitions/label_name"
+          },
+          "regex": {
+            "description": "Regular expression against which the extracted value is matched.",
+            "type": "string",
+            "default": "(.*)",
+            "format": "regex"
+          },
+          "modulus": {
+            "description": "Modulus to take of the hash of the source label values.",
+            "type": "integer"
+          },
+          "replacement": {
+            "description": "Replacement value against which a regex replace is performed if the regular expression matches. Regex capture groups are available.",
+            "type": "string",
+            "default": "$1"
+          },
+          "action": {
+            "description": "Action to perform based on regex matching.",
+            "type": "string",
+            "enum": [
+              "replace",
+              "keep",
+              "drop",
+              "hashmod",
+              "labelmap",
+              "labeldrop",
+              "labelkeep"
+            ],
+            "default": "replace"
+          }
+        },
+        "if": {
+          "properties": {
+            "action": {
+              "const": "replace"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "target_label"
+          ]
+        }
+      }
+    },
+    "filepath": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri-reference"
+    },
+    "tls_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "ca_file": {
+          "description": "CA certificate to validate API server certificate with.",
+          "$ref": "#/definitions/filepath"
+        },
+        "cert_file": {
+          "description": "Certificate file for client cert authentication to the server.",
+          "$ref": "#/definitions/filepath"
+        },
+        "key_file": {
+          "description": "Key file for client cert authentication to the server.",
+          "$ref": "#/definitions/filepath"
+        },
+        "server_name": {
+          "description": "ServerName extension to indicate the name of the server.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "insecure_skip_verify": {
+          "description": "Disable validation of the server certificate.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
