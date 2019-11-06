@@ -1,0 +1,502 @@
+{
+  "title": "Drone CI configuration file",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "type": "string",
+          "enum": [
+            "linux",
+            "windows",
+            "darwin",
+            "freebsd",
+            "netbsd",
+            "openbsd",
+            "dragonfly",
+            "solaris"
+          ]
+        },
+        "arсh": {
+          "type": "string",
+          "enum": [
+            "arm",
+            "arm64",
+            "amd64",
+            "386"
+          ]
+        },
+        "variant": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/nonEmptyString"
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/secret"
+          }
+        ]
+      }
+    },
+    "condition": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "conditions": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/condition"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "include": {
+              "$ref": "#/definitions/condition"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exclude": {
+              "$ref": "#/definitions/condition"
+            }
+          }
+        }
+      ]
+    },
+    "allConditions": {
+      "type": "object",
+      "properties": {
+        "branch": {
+          "$ref": "#/definitions/conditions"
+        },
+        "event": {
+          "$ref": "#/definitions/conditions"
+        },
+        "ref": {
+          "$ref": "#/definitions/conditions"
+        },
+        "repo": {
+          "$ref": "#/definitions/conditions"
+        },
+        "status": {
+          "$ref": "#/definitions/condition"
+        },
+        "target": {
+          "$ref": "#/definitions/condition"
+        }
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "path": {
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "required": [
+        "from_secret"
+      ],
+      "properties": {
+        "from_secret": {
+          "type": "string"
+        }
+      }
+    },
+    "stringOrSecret": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        {
+          "$ref": "#/definitions/secret"
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "commands"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "failure": {
+          "type": "string",
+          "enum": [
+            "always",
+            "ignore"
+          ]
+        },
+        "commands": {
+          "$ref": "#/definitions/commands"
+        },
+        "detach": {
+          "type": "boolean"
+        },
+        "environment": {
+          "$ref": "#/definitions/environment"
+        },
+        "when": {
+          "$ref": "#/definitions/allConditions"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        }
+      }
+    },
+    "step_docker": {
+      "$ref": "#/definitions/step",
+      "required": [
+        "image"
+      ],
+      "properties": {
+        "command": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "entrypoint": {
+          "$ref": "#/definitions/commands"
+        },
+        "image": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "network_mode": {
+          "type": "string"
+        },
+        "privileged": {
+          "type": "boolean"
+        },
+        "pull": {
+          "type": "string",
+          "enum": [
+            "always",
+            "never",
+            "if-not-exists"
+          ]
+        },
+        "user": {
+          "type": "string"
+        },
+        "volumes": {
+          "$ref": "#/definitions/volumes"
+        }
+      }
+    },
+    "step_exec": {
+      "$ref": "#/definitions/step"
+    },
+    "step_ssh": {
+      "$ref": "#/definitions/step"
+    },
+    "step_digitalocean": {
+      "$ref": "#/definitions/step"
+    }
+  },
+  "type": "object",
+  "required": [
+    "kind"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "type",
+        "name",
+        "steps"
+      ],
+      "properties": {
+        "kind": {
+          "const": "pipeline"
+        },
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "platform": {
+          "$ref": "#/definitions/platform"
+        },
+        "clone": {
+          "type": "object",
+          "properties": {
+            "depth": {
+              "type": "integer"
+            },
+            "disable": {
+              "const": true
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minLength": 1
+        },
+        "trigger": {
+          "$ref": "#/definitions/allConditions"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "docker"
+            },
+            "steps": {
+              "items": {
+                "$ref": "#/definitions/step_docker"
+              }
+            },
+            "volumes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "oneOf": [
+                  {
+                    "required": [
+                      "name",
+                      "host"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "name",
+                      "temp"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "name": {
+                    "$ref": "#/definitions/nonEmptyString"
+                  },
+                  "host": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "$ref": "#/definitions/nonEmptyString"
+                      }
+                    }
+                  },
+                  "temp": {
+                    "type": "object",
+                    "additionalProperties": false
+                  }
+                }
+              }
+            },
+            "services": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "image"
+                ],
+                "properties": {
+                  "name": {
+                    "$ref": "#/definitions/nonEmptyString"
+                  },
+                  "image": {
+                    "$ref": "#/definitions/nonEmptyString"
+                  },
+                  "command": {
+                    "$ref": "#/definitions/commands"
+                  },
+                  "entrypoint": {
+                    "$ref": "#/definitions/commands"
+                  },
+                  "environment": {
+                    "$ref": "#/definitions/environment"
+                  },
+                  "privileged": {
+                    "type": "boolean"
+                  },
+                  "pull": {
+                    "const": "always"
+                  },
+                  "volumes": {
+                    "$ref": "#/definitions/volumes"
+                  },
+                  "working_dir": {
+                    "$ref": "#/definitions/nonEmptyString"
+                  }
+                }
+              }
+            },
+            "image_pull_secrets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "node": {
+              "type": "object",
+              "properties": {
+                "instance": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "exec"
+            },
+            "steps": {
+              "items": {
+                "$ref": "#/definitions/step_exec"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "server"
+          ],
+          "properties": {
+            "type": {
+              "const": "ssh"
+            },
+            "steps": {
+              "items": {
+                "$ref": "#/definitions/step_ssh"
+              }
+            },
+            "server": {
+              "required": [
+                "host",
+                "user"
+              ],
+              "properties": {
+                "host": {
+                  "$ref": "#/definitions/stringOrSecret"
+                },
+                "user": {
+                  "$ref": "#/definitions/stringOrSecret"
+                },
+                "password": {
+                  "$ref": "#/definitions/stringOrSecret"
+                },
+                "ssh_key": {
+                  "$ref": "#/definitions/stringOrSecret"
+                }
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "token"
+          ],
+          "properties": {
+            "type": {
+              "const": "digitalocean"
+            },
+            "token": {
+              "$ref": "#/definitions/stringOrSecret"
+            },
+            "steps": {
+              "items": {
+                "$ref": "#/definitions/step_digitalocean"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "required": [
+        "hmac"
+      ],
+      "properties": {
+        "kind": {
+          "const": "signature"
+        },
+        "hmac": {
+          "type": "string",
+          "minLength": 40,
+          "maxLength": 40
+        }
+      }
+    },
+    {
+      "required": [
+        "name",
+        "get"
+      ],
+      "properties": {
+        "kind": {
+          "const": "secret"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "get": {
+          "type": "object",
+          "required": [
+            "path",
+            "name"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/nonEmptyString"
+            },
+            "name": {
+              "$ref": "#/definitions/nonEmptyString"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

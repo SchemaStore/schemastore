@@ -15,6 +15,16 @@
     "after_script": { "$ref": "#/definitions/after_script" },
     "variables": { "$ref": "#/definitions/variables" },
     "cache": { "$ref": "#/definitions/cache" },
+    "default": {
+      "type": "object",
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "services": { "$ref": "#/definitions/services" },
+        "before_script": { "$ref": "#/definitions/before_script" },
+        "after_script": { "$ref": "#/definitions/after_script" },
+        "cache": { "$ref": "#/definitions/cache" }
+      }
+    },
     "stages": {
       "type": "array",
       "description": "Groups jobs into stages. All jobs in one stage must complete before next stage is executed. Defaults to ['build', 'test', 'deploy'].",
@@ -46,7 +56,10 @@
   },
   "patternProperties": {
     "^[.]": {
-      "$ref": "#/definitions/job_template"
+      "oneOf": [
+        { "$ref": "#/definitions/job_template" },
+        { "type": "string" }
+      ]
     }
   },
   "additionalProperties": {
@@ -225,12 +238,73 @@
         "type": "string"
       }
     },
+    "rules": {
+      "type": "array",
+      "description": "rules allows for an array of individual rule objects to be evaluated in order, until one matches and dynamically provides attributes to the job.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "if": {
+            "type": "string",
+            "description": "Expression to evaluate whether additional attributes should be provided to the job"
+          },
+          "changes": {
+            "type": "array",
+            "description": "Additional attributes will be provided to job if any of the provided paths matches a modified file",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exists": {
+            "type": "array",
+            "description": "Additional attributes will be provided to job if any of the provided paths matches an existing file in the repository",
+            "items": {
+              "type": "string"
+            }
+          },
+          "when": { "$ref": "#/definitions/when" },
+          "start_in": { "$ref": "#/definitions/start_in" }
+        }
+      }
+    },
     "variables": {
       "type": "object",
       "description": "Defines environment variables for specific jobs or globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off.",
       "additionalProperties": {
         "type": ["string", "integer"]
       }
+    },
+    "start_in": {
+      "type": "string",
+      "description": "Used in conjunction with 'when: delayed' to set how long to delay before starting a job.",
+      "minLength": 1
+    },
+    "when": {
+      "description": "Describes the conditions for when to run the job. Defaults to 'on_success'.",
+      "default": "on_success",
+      "oneOf": [
+        {
+          "enum": ["on_success"],
+          "description": "Execute job only when all jobs from prior stages succeed."
+        },
+        {
+          "enum": ["on_failure"],
+          "description": "Execute job when at least one job from prior stages fails."
+        },
+        {
+          "enum": ["always"],
+          "description": "Execute job regardless of the status from prior stages."
+        },
+        {
+          "enum": ["manual"],
+          "description": "Execute the job manually from Gitlab UI or API. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-manual"
+        },
+        {
+          "enum": ["delayed"],
+          "description": "Execute a job after the time limit in 'start_in' expires. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-delayed"
+        }
+      ]
     },
     "cache": {
       "type": "object",
@@ -422,6 +496,7 @@
         "services": { "$ref": "#/definitions/services" },
         "before_script": { "$ref": "#/definitions/before_script" },
         "after_script": { "$ref": "#/definitions/after_script" },
+        "rules": { "$ref": "#/definitions/rules" },
         "variables": { "$ref": "#/definitions/variables" },
         "cache": { "$ref": "#/definitions/cache" },
         "script": {
@@ -450,8 +525,27 @@
           "description": "Job will run *only* when these filtering options match."
         },
         "extends": {
-          "type": "string",
-          "description": "The name of a job to inherit configuration from."
+          "description": "The name of one or more jobs to inherit configuration from.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          ]
+        },
+        "needs": {
+          "description": "The list of jobs in previous stages whose sole completion is needed to start the current job.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
         },
         "except": {
           "$ref": "#/definitions/filter",
@@ -470,35 +564,10 @@
           "default": false
         },
         "when": {
-          "description": "Describes the conditions for when to run the job. Defaults to 'on_success'.",
-          "default": "on_success",
-          "oneOf": [
-            {
-              "enum": ["on_success"],
-              "description": "Execute job only when all jobs from prior stages succeed."
-            },
-            {
-              "enum": ["on_failure"],
-              "description": "Execute job when at least one job from prior stages fails."
-            },
-            {
-              "enum": ["always"],
-              "description": "Execute job regardless of the status from prior stages."
-            },
-            {
-              "enum": ["manual"],
-              "description": "Execute the job manually from Gitlab UI or API. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-manual"
-            },
-            {
-              "enum": ["delayed"],
-              "description": "Execute a job after the time limit in 'start_in' expires. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-delayed"
-            }
-          ]
+          "$ref": "#/definitions/when"
         },
         "start_in": {
-          "type": "string",
-          "description": "Used in conjunction with 'when: delayed' to set how long to delay before starting a job.",
-          "minLength": 1
+          "$ref": "#/definitions/start_in"
         },
         "dependencies": {
           "type": "array",
@@ -601,6 +670,10 @@
                 "performance": {
                   "$ref": "#/definitions/string_file_list",
                   "description": "Path to file or list of files with performance metrics report(s)."
+                },
+                "metrics": {
+                  "$ref": "#/definitions/string_file_list",
+                  "description": "Path to file or list of files with custom metrics report(s)."
                 }
               }
             }
@@ -670,6 +743,11 @@
           "default": 0,
           "minimum": 2,
           "maximum": 50
+        },
+        "interruptible": {
+          "type": "boolean",
+          "description": "Interruptible is used to indicate that a job should be canceled if made redundant by a newer pipeline run.",
+          "default": false
         }
       },
       "oneOf": [

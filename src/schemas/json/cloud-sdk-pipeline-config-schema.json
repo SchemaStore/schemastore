@@ -1,0 +1,1027 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "SAP Cloud SDK pipeline_config JSON schema",
+    "description": "The configuration file of the SAP Cloud SDK Continuous Delivery Toolkit. For more information please visit https://github.com/SAP/cloud-s4-sdk-pipeline",
+    "type": "object",
+    "properties": {
+        "general": {
+            "description": "The general configuration of the pipeline",
+            "type": [
+                "object",
+                "null"
+            ],
+            "properties": {
+                "productiveBranch": {
+                    "description": "The name of your default branch. This branch will be used for deploying your application. Other branches will skip deployment.",
+                    "type": "string",
+                    "default": "master"
+                },
+                "projectName": {
+                    "description": "Name of the project. Will be used as identifier e.g. when creating a hdi container or executing code scans.",
+                    "type": "string"
+                },
+                "collectTelemetryData": {
+                    "description": "No personal data is collected. For details, consult the analytics documentation.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "unsafeMode": {
+                    "description": "Enable unsafe mode to skip checking environment variables for insecure elements. Only use this for demo purposes, never for productive usage.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "automaticVersioning": {
+                    "description": "Apply automated versioning scheme. To disable this feature, set the value to false",
+                    "type": "boolean",
+                    "default": true
+                },
+                "features": {
+                    "description": "Allows to enable or disable certain optional features",
+                    "type": "object",
+                    "properties": {
+                        "parallelTestExecution": {
+                            "description": "Run E2E Tests in parallel. This feature is disabled by default because it is not supported in Blue Ocean. If this feature is enabled, we suggest not using the Blue Ocean interface and rely on the classic UI instead.",
+                            "type": "string",
+                            "enum": [
+                                "on",
+                                "off"
+                            ],
+                            "default": "off"
+                        }
+                    },
+                    "additionalProperties": true
+                },
+                "jenkinsKubernetes": {
+                    "description": "If the Jenkins is running on a kubernetes cluster as a pod, we can use the dynamic scaling feature in the pipeline. In order to enable this, an environment variable ON_K8S has to be set to true on the jenkins.",
+                    "type": "object",
+                    "properties": {
+                        "jnlpAgent": {
+                            "description": "Docker image for jnlp agent to be used.",
+                            "type": "string",
+                            "default": "jenkins/jnlp-slave:latest"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            "additionalProperties": false
+        },
+        "stages": {
+            "description": "Configuration which will modify the behaviour of stages in the SAP Cloud SDK Pipeline.",
+            "type": [
+                "object",
+                "null"
+            ],
+            "properties": {
+                "staticCodeChecks": {
+                    "type": "object",
+                    "properties": {
+                        "pmdExcludes": {
+                            "description": "A comma-separated list of exclusions (.java source files) expressed as an Ant-style pattern relative to the sources root folder, i.e. application/src/main/java for maven projects and srv/src/main/java for MTA projects.\nExample: generated/**/*.java. Please find more details in the maven plugin documentation for pmd.",
+                            "type": "string"
+                        },
+                        "findbugsExcludesFile": {
+                            "description": "Path to a FindBugs XML exclusion file relative to the application folder.",
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "unitTests": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "maven:3.6.1-jdk-8-alpine"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "backendIntegrationTests": {
+                    "type": "object",
+                    "properties": {
+                        "retry": {
+                            "description": "The number of times that integration tests will retry before aborting the build. Note: This will consume more time for the jenkins build.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "forkCount": {
+                            "description": "The number of JVM processes that are spawned to run the tests in parallel in case of using a maven based project structure. For more details visit the surefire documentation.",
+                            "type": "string",
+                            "default": "1C"
+                        },
+                        "credentials": {
+                            "description": "The list of system credentials to be injected during integration tests. The following example will provide the username and password for the systems with the aliases ERP and SFSF. For this, it will use the Jenkins credentials entries erp-credentials and successfactors-credentials. You have to ensure that corresponding credential entries exist in your Jenkins configuration.",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "alias": {
+                                        "type": "string"
+                                    },
+                                    "credentialId": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "alias",
+                                    "credentialId"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "createHdiContainer": {
+                            "description": "Activates the creation of a HDI containers in CAP projects. The name of the container will contain the project name and a random id.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "cloudFoundry": {
+                            "$ref": "#/definitions/cloudFoundry"
+                        },
+                        "sidecarImage": {
+                            "description": "Name of the Docker image that should be used.",
+                            "type": "string"
+                        },
+                        "sidecarName": {
+                            "description": "On Docker: Name of the container in local network. On Kubernetes: Name of the container.",
+                            "type": "string"
+                        },
+                        "sidecarReadyCommand": {
+                            "description": "Command executed inside the container which returns exit code 0 when the container is ready to be used.",
+                            "type": "string"
+                        },
+                        "sidecarEnvVars": {
+                            "description": "Environment variables to set in the container.",
+                            "type": "object"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "frontEndIntegrationTests": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "frontEndUnitTests": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "endToEndTests": {
+                    "type": "object",
+                    "properties": {
+                        "enableZeroDowntimeDeployment": {
+                            "description": "It is possible to activate zero downtime deployment in end-to-end tests with the option enableZeroDowntimeDeployment. This will lead to a blue-green-deployment on SCP Cloud Foundry respectively to a rolling update on SCP Neo. By default this feature is turned off.",
+                            "type": "boolean"
+                        },
+                        "onlyRunInProductiveBranch": {
+                            "description": "Running end-to-end tests can be restricted to the productiveBranch with the option onlyRunInProductiveBranch. This might be useful when the end-to-end tests slow down development, and build failure on the productiveBranch is acceptable. By default this feature is turned off.",
+                            "type": "boolean"
+                        },
+                        "appUrls": {
+                            "$ref": "#/definitions/appUrls"
+                        }
+                    }
+                },
+                "npmAudit": {
+                    "description": "This stage uses the npm audit command to check for known vulnerabilities in dependencies.",
+                    "type": "object",
+                    "properties": {
+                        "auditedAdvisories": {
+                            "description": "In case you audited an advisory, and it turns out to be a false positive, you can mark it as audited by adding its id to the auditedAdvisories in the stage configuration. A false positive in this case is when you are confident that your application is not affected in any way by the underlying bug or vulnerability.",
+                            "type": "array",
+                            "items": {
+                                "type": ["integer", "string"]
+                            }
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "performanceTests": {
+                    "type": "object",
+                    "properties": {
+                        "neoTargets": {
+                            "$ref": "#/definitions/neoTargets"
+                        },
+                        "cfTargets": {
+                            "$ref": "#/definitions/cfTargets"
+                        }
+                    }
+                },
+                "s4SdkQualityChecks": {
+                    "type": "object",
+                    "properties": {
+                        "jacocoExcludes": {
+                            "description": "A list of exclusions expressed as an Ant-style pattern relative to the application folder. An example can be found below.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "customOdataServices": {
+                            "description": "We recommend only using OData services listed in the in SAP API Business Hub. Despite that for using custom business objects you can add those APIs here.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "nonErpDestinations": {
+                            "description": "List of destination names that do not refer to ERP systems. Use this parameter to exclude specific destinations from being checked in context of ERP API whitelists.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "nonErpUrls": {
+                            "description": "List of URLs that are not defined as destinations. Use this parameter to exclude specific URLs from being checked in context of ERP API whitelists.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "codeCoverageFrontend": {
+                            "description": "A map containing the thresholds unstable and failing. If the code coverage is lower than what is configured in unstable, the pipeline result is unstable. If it is lower than what is configured in failing, the pipeline will fail.",
+                            "type": "object"
+                        },
+                        "threshold": {
+                            "type": "object",
+                            "description": "This setting allows the code coverage to be stricter compared to the default values. By default, the pipeline will fail if the coverage is below 65% line coverage (unstableCoverage), and will be unstable if it is less than 70% (successCoverage). If lower numbers are configured, or this configuration is left out, the default values are applied.",
+                            "properties": {
+                                "successCoverage": {
+                                    "type": "integer",
+                                    "minimum": 70
+                                },
+                                "unstableCoverage": {
+                                    "type": "integer",
+                                    "minimum": 65
+                                }
+                            },
+                            "additionalProperties": false,
+                            "required": ["successCoverage", "unstableCoverage"]
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "checkmarxScan": {
+                    "description": "Checkmarx is one of the security analysis tools which is supported by the pipeline.",
+                    "type": "object",
+                    "properties": {
+                        "groupId": {
+                            "description": "Checkmarx Group ID",
+                            "type": "string"
+                        },
+                        "checkMarxProjectName": {
+                            "description": "Name of the project on Checkmarx server.",
+                            "type": "string"
+                        },
+                        "filterPattern": {
+                            "description": "Files which needs to be skipped during scanning.",
+                            "type": "string",
+                            "default": "!**/*.log, !**/*.lock, !**/*.json, !**/*.html, !**/Cx*, !**/test/**, !s4hana_pipeline/**, !**/unit-tests/**, !**/integration-tests/**, !**/frontend-unit-tests/**, !**/e2e-tests/**, !**/performance-tests/**, **/*.js, **/*.java, **/*.ts"
+                        },
+                        "fullScansScheduled": {
+                            "description": "Toggle to enable or disable full scan on a certain schedule.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "incremental": {
+                            "description": "Perform incremental scan with every run. If turned false, complete project is scanned on every submission.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "vulnerabilityThresholdMedium": {
+                            "description": "The threshold for medium level threats. If the findings are greater than this value, pipeline execution will result in failure.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "vulnerabilityThresholdLow": {
+                            "description": "The threshold for low level threats. If the findings are greater than this value, pipeline execution will result in failure.",
+                            "type": "integer",
+                            "default": 99999
+                        },
+                        "preset": {
+                            "description": "Name or numerical ID of Checkmarx preset to be used when scanning this project. When a name (string) is specified, the pipeline will try to discover the corresponding numerical ID via the Checkmarx API. Please also make sure to specify checkmarxCredentialsId and checkmarxServerUrl in such a case. For determining available presets in your Checkmarx webclient, go to Checkmarx -> Management -> Scan Settings -> Preset Manager. Alternatively, you can determine the numerical ID of your targeted preset by following those guides: Token-based Authentication and Get All Preset Details.",
+                            "type": [
+                                "integer",
+                                "string"
+                            ],
+                            "default": 36
+                        },
+                        "checkmarxCredentialsId": {
+                            "description": "The Credential ID to connect to Checkmarx server. The credentials must be type username with password. This property becomes mandatory if the credentials are not configured in the Jenkins plugin itself.",
+                            "type": "string"
+                        },
+                        "checkmarxServerUrl": {
+                            "description": "An URL to Checkmarx server. This property becomes mandatory if the URL to the Checkmarx server is not configured in the Jenkins plugin itself or if the checkmarxCredentialsId is configured.",
+                            "type": "string"
+                        },
+                        "generatePdfReport": {
+                            "description": "Possibility to generate PDF reports of the scan.",
+                            "type": "boolean"
+                        }
+                    },
+                    "required": [
+                        "groupId"
+                    ],
+                    "additionalProperties": false
+                },
+                "productionDeployment": {
+                    "type": "object",
+                    "properties": {
+                        "appUrls": {
+                            "$ref": "#/definitions/appUrls"
+                        },
+                        "neoTargets": {
+                            "$ref": "#/definitions/neoTargets"
+                        },
+                        "cfTargets": {
+                            "$ref": "#/definitions/cfTargets"
+                        }
+                    }
+                },
+                "artifactDeployment": {
+                    "description": "The deployment of artifacts to nexus can be configured with a map containing the following properties.",
+                    "type": "object",
+                    "properties": {
+                        "nexus": {
+                            "type": "object",
+                            "properties": {
+                                "version": {
+                                    "description": "Version of nexus. Can be nexus2 or nexus3.",
+                                    "type": "string",
+                                    "enum": [
+                                        "nexus2",
+                                        "nexus3"
+                                    ],
+                                    "default": "nexus3"
+                                },
+                                "url": {
+                                    "description": "URL of the nexus. The scheme part of the URL will not be considered, because only http is supported.",
+                                    "type": "string"
+                                },
+                                "repository": {
+                                    "description": "Name of the nexus repository.",
+                                    "type": "string"
+                                },
+                                "additionalClassifiers": {
+                                    "description": "List of additional classifiers that should be deployed to nexus. Each item is a map of a type and a classifier name.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                },
+                                "credentialsId": {
+                                    "$ref": "#/definitions/credentialsId"
+                                }
+                            },
+                            "required": [
+                                "url",
+                                "repository"
+                            ]
+                        }
+                    },
+                    "additionalProperties": true
+                },
+                "whitesourceScan": {
+                    "description": "Configure credentials for WhiteSource scans. The minimum required Maven WhiteSource plugin version is 18.6.2, ensure this in the plugins section of the project pom.xml file.\n\nPipeline will execute npx whitesource run for npm projects. Please ensure that all package.json files have a name and version configured so that it is possible to distinguish between the different packages.",
+                    "type": "object",
+                    "properties": {
+                        "product": {
+                            "description": "Name of your product in WhiteSource.",
+                            "type": "string"
+                        },
+                        "credentialsId": {
+                            "$ref": "#/definitions/credentialsId"
+                        },
+                        "whitesourceUserTokenCredentialsId": {
+                            "description": "Unique identifier of the Secret Text on Jenkins server that stores WhiteSource userKey of a user. This is required only if the administrator of the WhiteSource service has enabled additional access level control. More details can be found here.",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "product",
+                        "credentialsId"
+                    ],
+                    "additionalProperties": true
+                },
+                "sourceClearScan": {
+                    "description": "Configure SourceClear scans.Note: Please note that the SourceClear stage of this pipeline is not actively maintained anymore. In case of issues, feel free to contribute to this project by opening a pull request.",
+                    "type": "object",
+                    "properties": {
+                        "credentialsId": {
+                            "$ref": "#/definitions/credentialsId"
+                        },
+                        "config": {
+                            "description": "Additional configuration for the SourceClear agent. The key-value pairs will be added to srcclr.yml.",
+                            "type": "object",
+                            "properties": {
+                                "vuln_methods_extra_ignored_directories": {
+                                    "type": "string"
+                                },
+                                "scope": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "required": [
+                        "credentialsId"
+                    ],
+                    "additionalProperties": false
+                },
+                "fortifyScan": {
+                    "description": "Configure Fortify scans.",
+                    "type": "object",
+                    "properties": {
+                        "sscUrl": {
+                            "description": "URL how your Fortify Software Security Center client can be reached.",
+                            "type": "string"
+                        },
+                        "fortifyCredentialId": {
+                            "description": "ID of the credentials (username, password) you want to use for the Fortify Software Security Center. Can be configured in executeFortifyScan or here.",
+                            "type": "string"
+                        },
+                        "fortifyProjectName": {
+                            "description": "Name of your project in Fortify.",
+                            "type": "string"
+                        },
+                        "projectVersionId": {
+                            "description": "ID of your project in Fortify.",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "sscUrl",
+                        "fortifyCredentialId",
+                        "fortifyProjectName",
+                        "projectVersionId"
+                    ],
+                    "additionalProperties": true
+                },
+                "lint": {
+                    "description": "The lint stage can enforce common coding guidelines within a team.It supports the SAPUI5 best practices linter which operates on SAPUI5 components. A component is identified by a Component.js file in the directory.",
+                    "type": "object",
+                    "properties": {
+                        "ui5BestPractices": {
+                            "type": "object",
+                            "properties": {
+                                "enableES6": {
+                                    "type": "boolean"
+                                },
+                                "failThreshold": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "integer"
+                                        },
+                                        "warning": {
+                                            "type": "integer"
+                                        },
+                                        "info": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "additionalProperties": false
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "steps": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "properties": {
+                "mavenExecute": {
+                    "description": "The mavenExecute step is used for all invocations of the mvn build tool. It is either used directly for executing specific maven phases such as test, or indirectly for steps that execute maven plugins such as checkPmd.",
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "maven:3.6.1-jdk-8-alpine"
+                        },
+                        "projectSettingsFile": {
+                            "description": "The project settings.xml to be used for maven builds. You can specify a relative path to your project root or a URL starting with http or https.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "executeNpm": {
+                    "description": "The executeNpm step is used for all invocations of the npm build tool. It is, for example, used for building the frontend and for executing end to end tests.",
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/node-browsers"
+                        },
+                        "defaultNpmRegistry": {
+                            "description": "The default npm registry url to be used as the remote mirror. Bypasses the local download cache if specified.",
+                            "type": "string"
+                        },
+                        "sapNpmRegistry": {
+                            "description": "The default npm registry url to be used as the remote mirror for the SAP npm packages. Bypasses the local download cache if specified.",
+                            "type": "string"
+                        }
+                    }
+                },
+                "executeSourceClearScan": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/mta-archive-builder"
+                        }
+                    }
+                },
+                "cloudFoundryDeploy": {
+                    "description": "A step configuration regarding Cloud Foundry deployment. This is required by stages like end-to-end tests, performance tests, and production deployment.",
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/cf-cli"
+                        },
+                        "smokeTestStatusCode": {
+                            "description": "Expected return code for smoke test success.",
+                            "type": "integer",
+                            "default": 200
+                        },
+                        "keepOldInstance": {
+                            "description": "In case of a blue-green deployment the old instance will be stopped and will remain in the Cloud Foundry space by default. If this option is set to false, the old instance will be deleted.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "cloudFoundry": {
+                            "$ref": "#/definitions/cloudFoundry"
+                        }
+                    }
+                },
+                "neoDeploy": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/neo-cli"
+                        },
+                        "neo": {
+                            "description": "The map for neo.",
+                            "type": "object",
+                            "properties": {
+                                "host": {
+                                    "$ref": "#/definitions/host"
+                                },
+                                "account": {
+                                    "$ref": "#/definitions/account"
+                                },
+                                "application": {
+                                    "$ref": "#/definitions/application"
+                                },
+                                "credentialsId": {
+                                    "$ref": "#/definitions/credentialsId"
+                                },
+                                "environment": {
+                                    "$ref": "#/definitions/environment"
+                                },
+                                "vmArguments": {
+                                    "$ref": "#/definitions/vmArguments"
+                                },
+                                "size": {
+                                    "$ref": "#/definitions/size"
+                                },
+                                "runtime": {
+                                    "$ref": "#/definitions/runtime"
+                                },
+                                "runtimeVersion": {
+                                    "$ref": "#/definitions/runtimeVersion"
+                                }
+                            },
+                            "required": [
+                                "host",
+                                "account",
+                                "application",
+                                "runtime",
+                                "runtimeVersion"
+                            ],
+                            "additionalProperties": false
+                        }
+                    }
+                },
+                "checkFindBugs": {
+                    "description": "SpotBugs static code analysis is executed as part of the static code checks.",
+                    "type": "object",
+                    "properties": {
+                        "includeFilterFile": {
+                            "description": "Bug definition filter file.",
+                            "type": "string",
+                            "default": "s4hana_findbugs_include_filter.xml"
+                        }
+                    }
+                },
+                "checkGatling": {
+                    "description": "Gatling is used as one of the performance tests tool.",
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "You can enable Gatling tests by turning the flag to true.",
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                },
+                "checkJMeter": {
+                    "description": "Apache JMeter is executed as part of performance tests of the application. The user is free to choose between JMeter and Gatling or both.",
+                    "type": "object",
+                    "properties": {
+                        "options": {
+                            "description": "Options such as proxy.",
+                            "type": "string"
+                        },
+                        "testPlan": {
+                            "description": "The directory where the test plans reside. Should reside in a subdirectory under performance-tests directory if both JMeter and Gatling are enabled.",
+                            "type": "string",
+                            "default": "./performance-tests/*"
+                        },
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "famiko/jmeter-base"
+                        },
+                        "failThreshold": {
+                            "description": "Marks build as FAILURE if the value exceeds the threshold.",
+                            "type": "integer",
+                            "default": 100
+                        },
+                        "unstableThreshold": {
+                            "description": "Marks build as UNSTABLE if the value exceeds the threshold.",
+                            "type": "integer",
+                            "default": 90
+                        }
+                    }
+                },
+                "executeFortifyScan": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage"
+                        },
+                        "verbose": {
+                            "description": "Sends the verbose out put to the Jenkins log.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "sourceVersion": {
+                            "description": "Java version of the source code that needs to be scanned",
+                            "type": "string",
+                            "default": "1.8"
+                        },
+                        "buildId": {
+                            "description": "The build ID for the Fortify scan.",
+                            "type": "string",
+                            "default": "pom.artifactId-pom.version"
+                        },
+                        "use64BitVersion": {
+                            "description": "Runs Fortify SCA inside the 64-bit JRE.",
+                            "type": "string",
+                            "default": true
+                        },
+                        "maximumMemoryUsage": {
+                            "description": "Maximum heap size of the JVM which runs Fortify SCA.",
+                            "type": "string",
+                            "default": "3000M"
+                        },
+                        "exclude": {
+                            "description": "File and directories that needs to excluded from the scanning.",
+                            "type": "string",
+                            "default": "**/resources/**/*,**/target/**/*,**/unit-tests/**/*,**/integration-tests/**/*"
+                        },
+                        "skipNgComponents": {
+                            "description": "Skip the node modules from the scanning.",
+                            "type": "string",
+                            "default": true
+                        },
+                        "additionalScanOptions": {
+                            "description": "Additional Fortify options such as thread count, alias usage etc.",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "dockerImage"
+                    ]
+                },
+                "mtaBuild": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/mta-archive-builder"
+                        },
+                        "buildTarget": {
+                            "type": "string",
+                            "description": "The target platform to which the mtar can be deployed.",
+                            "default": "NEO"
+                        },
+                        "applicationName": {
+                            "description": "The name of the application which is being built. If the parameter has been provided and no mta.yaml exists, the mta.yaml will be automatically generated using this parameter and the information (name and version) from package.json before the actual build starts.",
+                            "type": "string"
+                        },
+                        "defaultNpmRegistry": {
+                            "type": "string",
+                            "description": "Url to the npm registry that should be used for installing npm dependencies."
+                        },
+                        "dockerOptions": {
+                            "type": [
+                                "array",
+                                "string"
+                            ],
+                            "description": "Docker options to be set when starting the container (List or String)."
+                        },
+                        "extension": {
+                            "type": "string",
+                            "description": "The path to the extension descriptor file."
+                        },
+                        "globalSettingsFile": {
+                            "type": "string",
+                            "description": "Path or url to the mvn settings file that should be used as global settings file."
+                        },
+                        "projectSettingsFile": {
+                            "type": "string",
+                            "description": "Path or url to the mvn settings file that should be used as project settings file."
+                        },
+                        "mtaJarLocation": {
+                            "type": "string",
+                            "description": "The location of the SAP Multitarget Application Archive Builder jar file, including file name and extension. If it is not provided, the SAP Multitarget Application Archive Builder is expected on PATH.",
+                            "default": "/opt/sap/mta/lib/mta.jar"
+                        }
+                    }
+                },
+                "createHdiContainer": {
+                    "type": "object",
+                    "properties": {
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/cf-cli"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "postActions": {
+        "type": "object",
+        "properties": {
+            "sendNotification": {
+                "description": "The sendNotification post-build action can be used to send notifications to project members in case of an unsuccessful build outcome or if the build goes back to normal. By default, an email is sent to the list of users who committed a change since the last non-broken build. Additionally, a set of recipients can be defined that should always receive notifications.",
+                "type": [
+                    "object",
+                    "null"
+                ],
+                "properties": {
+                    "enabled": {
+                        "description": "If set to true, notifications will be sent.",
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "skipFeatureBranches": {
+                        "description": "If set to true, notifications will only be sent for the productive branch as defined in the general configuration section.",
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "recipients": {
+                        "description": "List of email addresses that should be notified in addition to the standard recipients.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "archiveDebugLog": {
+                "description": "The archiveDebugLog post-build action can be used to create confidential (instead of redacted) debug logs. The difference between the redacted and the confidential debug log is, that potentially confidential information, such as the GitHub repository and branch, global extension repository and shared libraries, are included in the confidential debug log. It is the user's responsibility to make sure that the debug log does not contain any confidential information.",
+                "type": "object",
+                "properties": {
+                    "shareConfidentialInformation": {
+                        "description": "If set to true, a confidential debug log is being generated with each build.",
+                        "type": "boolean",
+                        "default": false
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dockerImage": {
+            "description": "The image used in the step or stage.",
+            "type": "string"
+        },
+        "org": {
+            "description": "Cloud Foundry organization.",
+            "type": "string"
+        },
+        "space": {
+            "description": "Cloud Foundry space.",
+            "type": "string"
+        },
+        "appName": {
+            "description": "Name of the application.",
+            "type": "string"
+        },
+        "manifest": {
+            "description": "Manifest file that needs to be used.",
+            "type": "string"
+        },
+        "credentialsId": {
+            "description": "ID to the credentials that will be used.",
+            "type": "string"
+        },
+        "apiEndpoint": {
+            "description": "URL to the Cloud Foundry endpoint.",
+            "type": "string",
+            "default": "https://api.cf.eu10.hana.ondemand.com"
+        },
+        "mtaExtensionDescriptor": {
+            "description": "(Only for MTA-projects) Path to the mta extension description file. For more information on how to use those extension files please visit the SAP HANA Developer Guide.",
+            "type": "string"
+        },
+        "mtaExtensionCredentials": {
+            "description": "(Only for MTA-projects) Map of credentials that need to be replaced in the mtaExtensionDescriptor. This map needs to be created as value-to-be-replaced:id-of-a-credential-in-jenkins",
+            "type": "string"
+        },
+        "host": {
+            "description": "Host of the region you want to deploy to, see Regions.",
+            "type": "string"
+        },
+        "account": {
+            "description": "Identifier of the subaccount.",
+            "type": "string"
+        },
+        "application": {
+            "description": "Name of the application in your account.",
+            "type": "string"
+        },
+        "environment": {
+            "description": "Map of environment variables in the form of KEY: VALUE.",
+            "type": "object"
+        },
+        "vmArguments": {
+            "description": "String of VM arguments passed to the JVM.",
+            "type": "string"
+        },
+        "size": {
+            "description": "Size of the JVM, e.g. lite, pro, prem, prem-plus.",
+            "type": "string",
+            "default": "lite"
+        },
+        "runtime": {
+            "description": "Name of the runtime: neo-java-web, neо-javaee6-wp, neо-javaee7-wp. See the runtime for more information.",
+            "type": "string"
+        },
+        "runtimeVersion": {
+            "description": "Version of the runtime. See runtime-version for more information.",
+            "type": "string"
+        },
+        "neoTargets": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "host": {
+                        "$ref": "#/definitions/host"
+                    },
+                    "account": {
+                        "$ref": "#/definitions/account"
+                    },
+                    "application": {
+                        "$ref": "#/definitions/application"
+                    },
+                    "credentialsId": {
+                        "$ref": "#/definitions/credentialsId"
+                    },
+                    "environment": {
+                        "$ref": "#/definitions/environment"
+                    },
+                    "vmArguments": {
+                        "$ref": "#/definitions/vmArguments"
+                    },
+                    "size": {
+                        "$ref": "#/definitions/size"
+                    },
+                    "runtime": {
+                        "$ref": "#/definitions/runtime"
+                    },
+                    "runtimeVersion": {
+                        "$ref": "#/definitions/runtimeVersion"
+                    }
+                },
+                "required": [
+                    "host",
+                    "account",
+                    "application",
+                    "runtime",
+                    "runtimeVersion"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "appUrls": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "description": "The URLs under which the app is available after deployment. Each appUrl can be a string with the URL or a map containing a property url and a property credentialId.",
+                        "type": "string"
+                    },
+                    "credentialId": {
+                        "description": "ID to the credentials that will be used to connect to the SAP Cloudplatform account.",
+                        "type": "string"
+                    },
+                    "parameters": {
+                        "description": "Additional parameters can be passed for each end-to-end test deployment by specifying optional parameters for an application URL. These parameters are appended to the npm command during execution.",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "credentialId"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "cfTargets": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "org": {
+                        "$ref": "#/definitions/org"
+                    },
+                    "space": {
+                        "$ref": "#/definitions/space"
+                    },
+                    "appName": {
+                        "$ref": "#/definitions/appName"
+                    },
+                    "manifest": {
+                        "$ref": "#/definitions/manifest"
+                    },
+                    "credentialsId": {
+                        "$ref": "#/definitions/credentialsId"
+                    },
+                    "apiEndpoint": {
+                        "$ref": "#/definitions/apiEndpoint"
+                    },
+                    "mtaExtensionDescriptor": {
+                        "$ref": "#/definitions/mtaExtensionDescriptor"
+                    },
+                    "mtaExtensionCredentials": {
+                        "$ref": "#/definitions/mtaExtensionCredentials"
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        "cloudFoundry": {
+            "description": "A map specifying the Cloud Foundry specific parameters.",
+            "type": "object",
+            "properties": {
+                "org": {
+                    "$ref": "#/definitions/org"
+                },
+                "space": {
+                    "$ref": "#/definitions/space"
+                },
+                "appName": {
+                    "$ref": "#/definitions/appName"
+                },
+                "manifest": {
+                    "$ref": "#/definitions/manifest"
+                },
+                "credentialsId": {
+                    "$ref": "#/definitions/credentialsId"
+                },
+                "apiEndpoint": {
+                    "$ref": "#/definitions/apiEndpoint"
+                },
+                "mtaExtensionDescriptor": {
+                    "$ref": "#/definitions/mtaExtensionDescriptor"
+                },
+                "mtaExtensionCredentials": {
+                    "$ref": "#/definitions/mtaExtensionCredentials"
+                }
+            },
+            "additionalProperties": false
+        }
+    }
+}
