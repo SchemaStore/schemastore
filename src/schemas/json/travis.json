@@ -642,14 +642,14 @@
           "description": "The CPU Architecture to run the job on",
           "oneOf": [
             {
-              "enum": [ "amd64", "arm64" ]
+              "enum": [ "amd64", "arm64", "ppc64le", "s390x" ]
             },
             {
               "type": "array",
               "uniqueItems": true,
               "minItems": 1,
               "items": {
-                "enum": [ "amd64", "arm64" ]
+                "enum": [ "amd64", "arm64", "ppc64le", "s390x" ]
               }
             }
           ]
@@ -691,7 +691,8 @@
           "enum": [ "precise", "trusty", "xenial", "bionic" ]
         },
         "sudo": {
-          "enum": [ true, false, "", "required", "enabled" ]
+          "enum": [ true, false, "", "required", "enabled" ],
+          "description": "sudo is deprecated"
         },
         "addons": {
           "type": "object",
@@ -1135,6 +1136,18 @@
             "sparse_checkout": {
               "$ref": "#/definitions/nonEmptyString",
               "description": "Is a path to the existing file in the current repository with data you’d like to put into $GIT_DIR/info/sparse-checkout file of format described in Git documentation."
+            },
+            "autocrlf": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": ["input"]
+                }
+              ],
+              "summary": "Specify handling of line endings when cloning repository"
             }
           },
           "additionalProperties": false
@@ -1840,7 +1853,39 @@
           }
         }
       }
-    }
+    },
+    "import": {
+       "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "source" ],
+            "properties": {
+              "source": {
+                "$ref": "#/definitions/nonEmptyString",
+                "description": "The source to import build config from"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "merge",
+                  "deep_merge",
+                  "deep_merge_append",
+                  "deep_merge_prepend"
+                ],
+                "description": "How to merge the imported config into the target config (defaults to deep_merge_append)"
+              },
+              "if": {
+                "$ref": "#/definitions/nonEmptyString",
+                "description": "Specifies a condition for the import"
+              }
+            }
+          },
+          {
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        ]
+      }
   },
 
   "allOf": [
@@ -2107,7 +2152,27 @@
               }
             ]
           }
-        }
+        },
+        "version": {
+          "type": "string",
+          "summary": "Build config specification version",
+          "pattern": "^(~>|>|>=|=|<=|<) (\\d+(?:\\.\\d+)?(?:\\.\\d+)?)$"
+        },
+        "import": {
+          "description": "Import YAML config snippets that can be shared across repositories.",
+          "oneOf": [
+          {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/definitions/import"
+            }
+          },
+          {
+            "$ref": "#/definitions/import"
+          }
+        ]
+      }
       }
     }
   ]
