@@ -18,7 +18,7 @@ module.exports = function (grunt) {
           banUnknown: false,
           root: grunt.file.readJSON("schemas/json/schema-draft-v4.json")
         },
-        src: ["schemas/json/*.json", "!schemas/json/ninjs.json"] // ninjs is draft v3
+        src: ["schemas/json/*.json", "!schemas/json/ninjs-1.0.json"] // ninjs 1.0 is draft v3
       },
       options: {
         schemas: {
@@ -53,9 +53,17 @@ module.exports = function (grunt) {
         options: { url: "https://raw.githubusercontent.com/json-ld/json-ld.org/master/schemas/jsonld-schema.json" },
         dest: "schemas/json/jsonld.json"
       },
-      ninjs: {
+      ninjs_v12: {
+        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.2.json" },
+        dest: "schemas/json/ninjs-1.2.json"
+      },
+      ninjs_v11: {
         options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
-        dest: "schemas/json/ninjs.json"
+        dest: "schemas/json/ninjs-1.1.json"
+      },
+      ninjs_v10: {
+        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.0.json" },
+        dest: "schemas/json/ninjs-1.0.json"
       },
       xunit_v23: {
         options: { url: "http://xunit.github.io/schema/v2.3/xunit.runner.schema.json" },
