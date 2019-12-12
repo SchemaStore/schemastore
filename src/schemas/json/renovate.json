@@ -36,7 +36,7 @@
     "forceCli": {
       "description": "Whether CLI configuration options should be moved to the `force` config section",
       "type": "boolean",
-      "default": false
+      "default": true
     },
     "dryRun": {
       "description": "If enabled, perform a dry run by logging messages instead of creating/updating/deleting branches and PRs",
@@ -53,9 +53,34 @@
       "type": "string",
       "default": "bundled"
     },
+    "baseDir": {
+      "description": "The base directory for Renovate to store local files, including repository files and cache. If left empty, Renovate will create its own temporary directory to use.",
+      "type": "string"
+    },
+    "cacheDir": {
+      "description": "The directory for Renovate for storing caches. If left empty, Renovate will create a subdirectory within `baseDir` to use.",
+      "type": "string"
+    },
+    "dockerMapDotfiles": {
+      "description": "Map relevant home directory dotfiles into containers when binarySource=docker.",
+      "type": "boolean",
+      "default": false
+    },
+    "dockerUser": {
+      "description": "Specify UID and GID for docker-based binaries when binarySource=docker is used.",
+      "type": "string"
+    },
     "logLevel": {
       "description": "Logging level",
       "type": "string",
+      "enum": [
+        "fatal",
+        "error",
+        "warn",
+        "info",
+        "debug",
+        "trace"
+      ],
       "default": "info"
     },
     "logFile": {
@@ -90,7 +115,37 @@
     "requireConfig": {
       "description": "Set to true if repositories must have a config to activate.",
       "type": "boolean",
+      "default": true
+    },
+    "optimizeForDisabled": {
+      "description": "Set to true to first check for disabling in config before cloning",
+      "type": "boolean",
       "default": false
+    },
+    "masterIssue": {
+      "description": "Whether to create a \"Master Issue\" within the repository.",
+      "type": "boolean",
+      "default": false
+    },
+    "masterIssueApproval": {
+      "description": "Whether updates should require manual approval from within the Master Issue before creation.",
+      "type": "boolean",
+      "default": false
+    },
+    "masterIssueAutoclose": {
+      "description": "Set to `true` and Renovate will autoclose the Master Issue if there are no updates.",
+      "type": "boolean",
+      "default": false
+    },
+    "masterIssueTitle": {
+      "description": "Title to use for the Master Issue",
+      "type": "string",
+      "default": "Update Dependencies (Renovate Bot)"
+    },
+    "configWarningReuseIssue": {
+      "description": "Set this to false and Renovate will open each config warning in a new issue instead of reopening/reusing an existing issue.",
+      "type": "boolean",
+      "default": true
     },
     "privateKey": {
       "description": "Server-side private key",
@@ -118,11 +173,10 @@
       "description": "Whether to update (but not create) branches when not scheduled",
       "type": "boolean"
     },
-    "gitFs": {
-      "description": "Use git for FS operations instead of API. GitHub only.",
-      "type": "string",
-      "enum": ["https", "http", "ssh"],
-      "default": null
+    "persistRepoData": {
+      "description": "If set to true, repository data will preserved between runs instead of deleted.",
+      "type": "boolean",
+      "default": false
     },
     "trustLevel": {
       "description": "Set this to \"high\" if the bot should trust the repository owners/contents",
@@ -132,6 +186,13 @@
     "platform": {
       "description": "Platform type of repository",
       "type": "string",
+      "enum": [
+        "azure",
+        "bitbucket",
+        "bitbucket-server",
+        "github",
+        "gitlab"
+      ],
       "default": "github"
     },
     "endpoint": {
@@ -187,6 +248,11 @@
       "type": "string",
       "default": null
     },
+    "prCommitsPerRunLimit": {
+      "description": "Set a maximum number of commits per Renovate run. Default is no limit.",
+      "type": "integer",
+      "default": 0
+    },
     "repositories": {
       "description": "List of Repositories",
       "type": "array"
@@ -216,17 +282,38 @@
       "default": []
     },
     "ignorePaths": {
-      "description": "Skip any package.json whose path matches one of these. Can be string or glob pattern",
+      "description": "Skip any package file whose path matches one of these. Can be string or glob pattern",
       "type": "array",
       "items": {
         "type": "string"
       },
-      "default": ["**/node_modules/**", "**/bower_components/**"]
+      "default": [
+        "**/node_modules/**",
+        "**/bower_components/**"
+      ]
+    },
+    "excludeCommitPaths": {
+      "description": "A file that matches any of these glob patterns will not be committed, even if it has been updated.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
     },
     "engines": {
       "description": "Configuration specifically for `package.json`>`engines`",
       "type": "object",
       "default": {},
+      "$ref": "#"
+    },
+    "aliases": {
+      "description": "Aliases for registries, package manager specific",
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "type": "string",
+        "format": "uri"
+      },
       "$ref": "#"
     },
     "registryUrls": {
@@ -244,17 +331,33 @@
         "cargo",
         "composer",
         "docker",
+        "git",
         "hashicorp",
         "hex",
+        "ivy",
         "loose",
         "maven",
         "node",
         "npm",
+        "nuget",
         "pep440",
+        "poetry",
+        "regex",
         "ruby",
-        "semver"
+        "semver",
+        "swift"
       ],
       "default": "semver"
+    },
+    "azureAutoComplete": {
+      "description": "If set to true, Azure DevOps PRs will be set to auto-complete after all (if any) branch policies have been met",
+      "type": "boolean",
+      "default": false
+    },
+    "azureWorkItemId": {
+      "description": "The id of an existing work item on Azure Boards to link to each PR",
+      "type": "integer",
+      "default": 0
     },
     "ignoreDeps": {
       "description": "Dependencies to ignore",
@@ -408,11 +511,6 @@
       "type": "boolean",
       "default": true
     },
-    "unstablePattern": {
-      "description": "Regex for identifying unstable versions (docker only)",
-      "type": "string",
-      "format": "regex"
-    },
     "followTag": {
       "description": "If defined, packages will follow this release tag exactly.",
       "type": "string"
@@ -424,7 +522,14 @@
     "rangeStrategy": {
       "description": "Policy for how to modify/update existing ranges.",
       "type": "string",
-      "enum": ["auto", "pin", "bump", "replace", "widen", "update-lockfile"],
+      "enum": [
+        "auto",
+        "pin",
+        "bump",
+        "replace",
+        "widen",
+        "update-lockfile"
+      ],
       "default": "replace"
     },
     "branchPrefix": {
@@ -435,7 +540,11 @@
     "bumpVersion": {
       "description": "Bump the version in the package.json being updated",
       "type": "string",
-      "enum": ["major", "minor", "patch"]
+      "enum": [
+        "major",
+        "minor",
+        "patch"
+      ]
     },
     "major": {
       "description": "Configuration to apply when an update type is major",
@@ -463,6 +572,7 @@
         "recreateClosed": true,
         "rebaseStalePrs": true,
         "groupName": "Pin Dependencies",
+        "groupSlug": "pin-dependencies",
         "commitMessageAction": "Pin",
         "group": {
           "commitMessageTopic": "dependencies",
@@ -477,10 +587,7 @@
       "default": {
         "branchTopic": "{{{depNameSanitized}}}-digest",
         "commitMessageExtra": "to {{newDigestShort}}",
-        "commitMessageTopic": "{{{depName}}} commit hash",
-        "prBodyDefinitions": {
-          "Change": "`{{{currentValue}}}` -> `{{{newDigestShort}}}`"
-        }
+        "commitMessageTopic": "{{{depName}}} commit hash"
       },
       "$ref": "#"
     },
@@ -509,13 +616,18 @@
       "type": "boolean",
       "default": false
     },
+    "rebaseConflictedPrs": {
+      "description": "Auto-rebase when there is conflict in PRs",
+      "type": "boolean",
+      "default": true
+    },
     "rebaseStalePrs": {
-      "description": "Rebase stale PRs (GitHub only)",
+      "description": "Rebase any PRs that are not up-to-date with the base branch",
       "type": "boolean",
       "default": null
     },
     "rebaseLabel": {
-      "description": "Label to use to request the bot to rebase a PR manually (GitHub only)",
+      "description": "Label to use to request the bot to rebase a PR manually",
       "type": "string",
       "default": "rebase"
     },
@@ -529,10 +641,20 @@
       "type": "boolean",
       "default": false
     },
+    "stabilityDays": {
+      "description": "Number of days required before a new release is considered to be stabilized.",
+      "type": "integer",
+      "default": 0
+    },
     "prCreation": {
       "description": "When to create the PR for a branch.",
       "type": "string",
-      "enum": ["immediate", "not-pending", "status-success"],
+      "enum": [
+        "immediate",
+        "not-pending",
+        "status-success",
+        "approval"
+      ],
       "default": "immediate"
     },
     "prNotPendingHours": {
@@ -550,6 +672,16 @@
       "type": "integer",
       "default": 0
     },
+    "prPriority": {
+      "description": "Set sorting priority for PR creation. PRs with higher priority are created first, negative priority last.",
+      "type": "integer",
+      "default": 0
+    },
+    "bbUseDefaultReviewers": {
+      "description": "Use the default reviewers (Bitbucket only).",
+      "type": "boolean",
+      "default": true
+    },
     "automerge": {
       "description": "Whether to automerge branches/PRs automatically, without human intervention",
       "type": "boolean",
@@ -558,7 +690,11 @@
     "automergeType": {
       "description": "How to automerge, if enabled.",
       "type": "string",
-      "enum": ["branch", "pr", "pr-comment"],
+      "enum": [
+        "branch",
+        "pr",
+        "pr-comment"
+      ],
       "default": "pr"
     },
     "automergeComment": {
@@ -577,7 +713,6 @@
       "description": "Config to apply when a PR is necessary due to vulnerability of existing package version.",
       "type": "object",
       "default": {
-        "enabled": true,
         "groupName": null,
         "schedule": [],
         "masterIssueApproval": false,
@@ -609,6 +744,11 @@
     "commitBody": {
       "description": "Commit message body template. Will be appended to commit message, separated by two line returns.",
       "type": "string"
+    },
+    "commitBodyTable": {
+      "description": "If enabled, append a table in the commit message body describing all updates in the commit",
+      "type": "boolean",
+      "default": false
     },
     "commitMessagePrefix": {
       "description": "Prefix to add to start of commit messages and PR titles. Uses a semantic prefix if semanticCommits enabled",
@@ -654,8 +794,13 @@
         "commitMessageAction": "Lock file maintenance",
         "commitMessageTopic": null,
         "commitMessageExtra": null,
-        "schedule": ["before 5am on monday"],
-        "groupName": null
+        "schedule": [
+          "before 5am on monday"
+        ],
+        "groupName": null,
+        "prBodyDefinitions": {
+          "Change": "All locks refreshed"
+        }
       },
       "$ref": "#"
     },
@@ -691,18 +836,33 @@
       }
     },
     "assignees": {
-      "description": "Assignees for Pull Request (username in GitHub/GitLab, email address in Azure DevOps)",
+      "description": "Assignees for Pull Request (either username or email address depending on the platform)",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
+    "assigneesSampleSize": {
+      "description": "Take a random sample of given size from assignees.",
+      "type": "integer",
+      "default": null
+    },
+    "assignAutomerge": {
+      "description": "Assign reviewers and assignees even if the PR is to be automerged",
+      "type": "boolean",
+      "default": false
+    },
     "reviewers": {
-      "description": "Requested reviewers for Pull Requests (username in GitHub/GitLab, email or username in Azure DevOps)",
+      "description": "Requested reviewers for Pull Requests (either username or email address depending on the platform)",
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "reviewersSampleSize": {
+      "description": "Take a random sample of given size from reviewers.",
+      "type": "integer",
+      "default": null
     },
     "fileMatch": {
       "description": "JS RegExp pattern for matching manager files",
@@ -722,11 +882,13 @@
       "description": "Configuration object for npm package.json renovation",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)package.json$"],
+        "fileMatch": [
+          "(^|/)package.json$"
+        ],
         "rollbackPrs": true,
         "versionScheme": "npm",
         "prBodyDefinitions": {
-          "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` -> {{else}}{{#if currentValue}}`{{{currentValue}}}` -> {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}](https://diff.intrinsic.com/{{{depName}}}/{{{fromVersion}}}/{{{toVersion}}})"
+          "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` -> {{else}}{{#if currentValue}}`{{{currentValue}}}` -> {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}](https://renovatebot.com/diffs/npm/{{{depNameEscaped}}}/{{{fromVersion}}}/{{{toVersion}}})"
         }
       },
       "$ref": "#"
@@ -735,7 +897,9 @@
       "description": "Configuration object for meteor package.js renovation",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)package.js$"]
+        "fileMatch": [
+          "(^|/)package.js$"
+        ]
       },
       "$ref": "#"
     },
@@ -743,10 +907,10 @@
       "description": "Configuration object for bazel WORKSPACE renovation",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)WORKSPACE$"],
-        "prBodyDefinitions": {
-          "Change": "{{#if currentDigestShort}}`{{{currentDigestShort}}}` -> {{#if isDigest}}`{{{newDigestShort}}}`{{else}}`{{{newVersion}}}`{{/if}}{{else}}`{{{currentValue}}}` -> `{{{newValue}}}`{{/if}}"
-        }
+        "fileMatch": [
+          "(^|/)WORKSPACE$",
+          "\\.bzl$"
+        ]
       },
       "$ref": "#"
     },
@@ -754,7 +918,10 @@
       "description": "Configuration object for buildkite pipeline renovation",
       "type": "object",
       "default": {
-        "fileMatch": ["buildkite\\.ya?ml", "\\.buildkite/.+\\.ya?ml$"],
+        "fileMatch": [
+          "buildkite\\.ya?ml",
+          "\\.buildkite/.+\\.ya?ml$"
+        ],
         "commitMessageTopic": "buildkite plugin {{depName}}",
         "commitMessageExtra": "to {{#if isMajor}}v{{{newMajor}}}{{else}}{{{newValue}}}{{/if}}",
         "managerBranchPrefix": "buildkite-"
@@ -773,7 +940,9 @@
       "description": "Configuration object for Go modules renovation",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)go.mod$"]
+        "fileMatch": [
+          "(^|/)go.mod$"
+        ]
       },
       "$ref": "#"
     },
@@ -792,8 +961,20 @@
       "description": "Configuration object for bundler Gemfiles",
       "type": "object",
       "default": {
-        "enabled": false,
-        "fileMatch": ["(^|/)Gemfile$"],
+        "fileMatch": [
+          "(^|/)Gemfile$"
+        ],
+        "versionScheme": "ruby"
+      },
+      "$ref": "#"
+    },
+    "ruby-version": {
+      "description": "Configuration object for .ruby-version updating",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/)\\.ruby-version$"
+        ],
         "versionScheme": "ruby"
       },
       "$ref": "#"
@@ -803,8 +984,21 @@
       "type": "object",
       "default": {
         "commitMessageTopic": "Terraform module {{depNameShort}}",
-        "fileMatch": ["\\.tf$"],
+        "fileMatch": [
+          "\\.tf$"
+        ],
         "versionScheme": "hashicorp"
+      },
+      "$ref": "#"
+    },
+    "mix": {
+      "description": "Configuration object for Mix module renovation",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/)mix\\.exs$"
+        ],
+        "versionScheme": "hex"
       },
       "$ref": "#"
     },
@@ -818,10 +1012,13 @@
       "description": "Configuration object for Cargo crate renovation.",
       "type": "object",
       "default": {
-        "enabled": false,
         "commitMessageTopic": "Rust crate {{depName}}",
         "managerBranchPrefix": "rust-",
-        "fileMatch": ["(^|/)Cargo.toml$"]
+        "fileMatch": [
+          "(^|/)Cargo.toml$"
+        ],
+        "versionScheme": "cargo",
+        "rangeStrategy": "bump"
       },
       "$ref": "#"
     },
@@ -847,8 +1044,9 @@
       "description": "Configuration object for .travis.yml node version renovation",
       "type": "object",
       "default": {
-        "enabled": false,
-        "fileMatch": ["^.travis.yml$"],
+        "fileMatch": [
+          "^.travis.yml$"
+        ],
         "versionScheme": "node"
       },
       "$ref": "#"
@@ -857,8 +1055,21 @@
       "description": "Configuration object for .nvmrc files",
       "type": "object",
       "default": {
-        "fileMatch": ["^.nvmrc$"],
+        "fileMatch": [
+          "^.nvmrc$"
+        ],
         "versionScheme": "node"
+      },
+      "$ref": "#"
+    },
+    "pub": {
+      "description": "Configuration object for when renovating Dart pubspec files",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/)pubspec\\.ya?ml$"
+        ],
+        "versionScheme": "npm"
       },
       "$ref": "#"
     },
@@ -900,7 +1111,9 @@
       "description": "Configuration object for Docker Compose renovation. Also inherits settings from `docker` object.",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)docker-compose[^/]*\\.ya?ml$"]
+        "fileMatch": [
+          "(^|/)docker-compose[^/]*\\.ya?ml$"
+        ]
       },
       "$ref": "#"
     },
@@ -908,7 +1121,10 @@
       "description": "Configuration object for Dockerfile renovation",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)Dockerfile$"]
+        "fileMatch": [
+          "(^|/)Dockerfile$",
+          "(^|/)Dockerfile\\.[^/]*$"
+        ]
       },
       "$ref": "#"
     },
@@ -920,11 +1136,37 @@
       },
       "$ref": "#"
     },
+    "helm-requirements": {
+      "description": "Configuration object for helm requirements.yaml files.",
+      "type": "object",
+      "default": {
+        "aliases": {
+          "stable": "https://kubernetes-charts.storage.googleapis.com/"
+        },
+        "commitMessageTopic": "helm chart {{depName}}",
+        "fileMatch": [
+          "(^|/)requirements.yaml$"
+        ]
+      },
+      "$ref": "#"
+    },
     "circleci": {
       "description": "Configuration object for CircleCI yml renovation. Also inherits settings from `docker` object.",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/).circleci/config.yml$"]
+        "fileMatch": [
+          "(^|/).circleci/config.yml$"
+        ]
+      },
+      "$ref": "#"
+    },
+    "droneci": {
+      "description": "Configuration object for DroneCI yml renovation. Also inherits settings from `docker` object.",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/).drone.yml$"
+        ]
       },
       "$ref": "#"
     },
@@ -932,7 +1174,9 @@
       "description": "Configuration object for Ansible yaml renovation. Also inherits settings from `docker` object.",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)tasks/[^/]+\\.ya?ml$"]
+        "fileMatch": [
+          "(^|/)tasks/[^/]+\\.ya?ml$"
+        ]
       },
       "$ref": "#"
     },
@@ -940,7 +1184,10 @@
       "description": "Configuration object for GitHub Actions workflow renovation. Also inherits settings from `docker` object.",
       "type": "object",
       "default": {
-        "fileMatch": ["^\\.github/main.workflow$"],
+        "fileMatch": [
+          "^\\.github/main.workflow$",
+          "^\\.github/workflows/[^/]+\\.ya?ml$"
+        ],
         "pinDigests": true
       },
       "$ref": "#"
@@ -949,8 +1196,22 @@
       "description": "Configuration object for composer.json files",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)([\\w-]*)composer.json$"],
+        "fileMatch": [
+          "(^|/)([\\w-]*)composer.json$"
+        ],
         "versionScheme": "composer"
+      },
+      "$ref": "#"
+    },
+    "git-submodules": {
+      "description": "Configuration object for git submodule files",
+      "type": "object",
+      "default": {
+        "enabled": false,
+        "versionScheme": "git",
+        "fileMatch": [
+          "(^|/).gitmodules$"
+        ]
       },
       "$ref": "#"
     },
@@ -964,7 +1225,9 @@
       "description": "Configuration object for requirements.txt files",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)([\\w-]*)requirements.(txt|pip)$"]
+        "fileMatch": [
+          "(^|/)([\\w-]*)requirements.(txt|pip)$"
+        ]
       },
       "$ref": "#"
     },
@@ -972,7 +1235,9 @@
       "description": "Configuration object for setup.py files",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)setup.py$"]
+        "fileMatch": [
+          "(^|/)setup.py$"
+        ]
       },
       "$ref": "#"
     },
@@ -980,8 +1245,20 @@
       "description": "Configuration object for Pipfile files",
       "type": "object",
       "default": {
-        "enabled": false,
-        "fileMatch": ["(^|/)Pipfile$"]
+        "fileMatch": [
+          "(^|/)Pipfile$"
+        ]
+      },
+      "$ref": "#"
+    },
+    "poetry": {
+      "description": "Configuration object for pyproject.toml files",
+      "type": "object",
+      "default": {
+        "versionScheme": "poetry",
+        "fileMatch": [
+          "(^|/)pyproject\\.toml$"
+        ]
       },
       "$ref": "#"
     },
@@ -990,6 +1267,40 @@
       "type": "object",
       "default": {
         "versionScheme": "pep440"
+      },
+      "$ref": "#"
+    },
+    "sbt": {
+      "description": "Configuration object for *.sbt files",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "\\.sbt$"
+        ],
+        "timeout": 300,
+        "versionScheme": "ivy"
+      },
+      "$ref": "#"
+    },
+    "leiningen": {
+      "description": "Configuration object for renovating Clojure leiningen projects",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/)project\\.clj$"
+        ],
+        "versionScheme": "maven"
+      },
+      "$ref": "#"
+    },
+    "deps-edn": {
+      "description": "Configuration object for renovating Clojure CLI-based projects (deps.edn)",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/)deps\\.edn$"
+        ],
+        "versionScheme": "maven"
       },
       "$ref": "#"
     },
@@ -1009,9 +1320,11 @@
       "description": "Configuration object for build.gradle files",
       "type": "object",
       "default": {
-        "enabled": false,
-        "fileMatch": ["\\.gradle$", "(^|/)gradle.properties$"],
-        "timeout": 300,
+        "fileMatch": [
+          "\\.gradle(\\.kts)?$",
+          "(^|/)gradle.properties$"
+        ],
+        "timeout": 600,
         "versionScheme": "maven"
       },
       "$ref": "#"
@@ -1020,7 +1333,9 @@
       "description": "Configuration object for gradle-wrapper.properties files",
       "type": "object",
       "default": {
-        "fileMatch": ["(^|/)gradle/wrapper/gradle-wrapper.properties$"]
+        "fileMatch": [
+          "(^|/)gradle/wrapper/gradle-wrapper.properties$"
+        ]
       },
       "$ref": "#"
     },
@@ -1028,8 +1343,10 @@
       "description": "Configuration object for when renovating Maven pom.xml files",
       "type": "object",
       "default": {
-        "enabled": false,
-        "fileMatch": ["\\.pom.xml$", "(^|/)pom.xml$"],
+        "fileMatch": [
+          "\\.pom\\.xml$",
+          "(^|/)pom\\.xml$"
+        ],
         "versionScheme": "maven"
       },
       "$ref": "#"
@@ -1038,7 +1355,19 @@
       "description": "Configuration object for GitLab CI yml renovation. Also inherits settings from `docker` object.",
       "type": "object",
       "default": {
-        "fileMatch": ["^\\.gitlab-ci\\.yml$"]
+        "fileMatch": [
+          "^\\.gitlab-ci\\.yml$"
+        ]
+      },
+      "$ref": "#"
+    },
+    "gitlabci-include": {
+      "description": "Configuration object for GitLab CI yml renovation for include.",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "^\\.gitlab-ci\\.yml$"
+        ]
       },
       "$ref": "#"
     },
@@ -1052,33 +1381,89 @@
       "description": "Configuration object for C#/Nuget",
       "type": "object",
       "default": {
-        "fileMatch": ["\\.csproj$"]
+        "fileMatch": [
+          "\\.csproj$"
+        ]
+      },
+      "$ref": "#"
+    },
+    "homebrew": {
+      "description": "Configuration object for homebrew",
+      "type": "object",
+      "default": {
+        "commitMessageTopic": "Homebrew Formula {{depName}}",
+        "managerBranchPrefix": "homebrew-",
+        "fileMatch": [
+          "^Formula/[^/]+[.]rb$"
+        ]
       },
       "$ref": "#"
     },
     "hostRules": {
       "description": "Host rules/configuration including credentials",
-      "type": "array"
+      "type": "array",
+      "default": [
+        {
+          "timeout": 60000
+        }
+      ],
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "hostType": {
+                "description": "hostType for a package rule. Can be a platform name or a datasource name",
+                "type": "string"
+              },
+              "domainName": {
+                "description": "Domain name for a host rule. e.g. \"docker.io\"",
+                "type": "string"
+              },
+              "hostName": {
+                "description": "Hostname for a host rule. e.g. \"index.docker.io\"",
+                "type": "string"
+              },
+              "baseUrl": {
+                "description": "baseUrl for a host rule. e.g. \"https://api.github.com/\"",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "timeout (in milliseconds) for queries to external endpoints",
+                "type": "integer"
+              },
+              "insecureRegistry": {
+                "description": "explicity turn on insecure docker registry access (http)",
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      }
     },
     "prBodyDefinitions": {
       "description": "Table column definitions for use in PR tables",
       "type": "object",
       "default": {
-        "Package": "{{{depName}}}",
+        "Package": "{{{depNameLinked}}}",
         "Type": "{{{depType}}}",
         "Update": "{{{updateType}}}",
         "Current value": "{{{currentValue}}}",
         "New value": "{{{newValue}}}",
-        "Change": "{{#if displayFrom}}`{{{displayFrom}}}` -> {{else}}{{#if currentValue}}`{{{currentValue}}}` -> {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}",
+        "Change": "`{{{displayFrom}}}` -> `{{{displayTo}}}`",
         "References": "{{{references}}}",
         "Package file": "{{{packageFile}}}"
-      },
-      "$ref": "#"
+      }
     },
     "prBodyColumns": {
       "description": "List of columns to use in PR bodies",
       "type": "array",
-      "default": ["Package", "Type", "Update", "Change", "References"]
+      "default": [
+        "Package",
+        "Type",
+        "Update",
+        "Change"
+      ]
     },
     "prBodyNotes": {
       "description": "List of additional notes/templates to be included in the Pull Request bodies.",
@@ -1091,7 +1476,36 @@
     "suppressNotifications": {
       "description": "Options to suppress various types of warnings and other notifications",
       "type": "array",
-      "default": []
+      "default": [
+        "deprecationWarningIssues"
+      ]
+    },
+    "swift": {
+      "description": "Configuration for Package.swift files",
+      "type": "object",
+      "default": {
+        "fileMatch": [
+          "(^|/)Package\\.swift"
+        ],
+        "versionScheme": "swift",
+        "rangeStrategy": "bump"
+      },
+      "$ref": "#"
+    },
+    "pruneStaleBranches": {
+      "description": "Enable or disable pruning of stale branches",
+      "type": "boolean",
+      "default": true
+    },
+    "unicodeEmoji": {
+      "description": "Enable or disable Unicode emoji",
+      "type": "boolean",
+      "default": false
+    },
+    "gitLabAutomerge": {
+      "description": "Enable or disable usage of GitLab's \"merge when pipeline succeeds\" feature when automerging PRs",
+      "type": "boolean",
+      "default": false
     }
   }
 }
