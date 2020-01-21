@@ -68,10 +68,6 @@ module.exports = function (grunt) {
       xunit_v23: {
         options: { url: "http://xunit.github.io/schema/v2.3/xunit.runner.schema.json" },
         dest: "schemas/json/xunit.runner.schema.json"
-      },
-      bucklescript: {
-        options: { url: "https://bucklescript.github.io/bucklescript/docson/build-schema.json" },
-        dest: "schemas/json/bsconfig.json"
       }
     },
 
