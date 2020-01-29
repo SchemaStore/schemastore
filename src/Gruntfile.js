@@ -46,7 +46,7 @@ module.exports = function (grunt) {
         dest: "schemas/json/swagger-2.0.json"
       },
       resume: {
-        options: { url: "https://raw.githubusercontent.com/jsonresume/resume-schema/master/schema.json" },
+        options: { url: "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json" },
         dest: "schemas/json/resume.json"
       },
       jsonld: {
