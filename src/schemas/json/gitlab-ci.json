@@ -228,14 +228,34 @@
       "type": "array",
       "description": "Defines scripts that should run *before* the job. Can be set globally or per job.",
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "after_script": {
       "type": "array",
       "description": "Defines scripts that should run *after* the job. Can be set globally or per job.",
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "rules": {
@@ -308,6 +328,10 @@
         {
           "enum": ["delayed"],
           "description": "Execute a job after the time limit in 'start_in' expires. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-delayed"
+        },
+        {
+          "enum": ["never"],
+          "description": "Never execute the job."
         }
       ]
     },
@@ -324,8 +348,26 @@
           }
         },
         "key": {
-          "type": "string",
-          "description": "Unique cache ID, to allow e.g. specific branch or job cache. Environment variables can be used to set up unique keys (e.g. \"$CI_COMMIT_REF_SLUG\" for per branch cache)."
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Unique cache ID, to allow e.g. specific branch or job cache. Environment variables can be used to set up unique keys (e.g. \"$CI_COMMIT_REF_SLUG\" for per branch cache)."
+            },
+            {
+              "type": "object",
+              "description": "When you include cache:key:files, you must also list the project files that will be used to generate the key, up to a maximum of two files. The cache key will be a SHA checksum computed from the most recent commits (up to two, if two files are listed) that changed the given files.",
+              "properties": {
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 2
+                }
+              }
+            }
+          ]
         },
         "untracked": {
           "type": "boolean",
@@ -514,7 +556,17 @@
             {
               "type": "array",
               "items": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
               },
               "minItems": 1
             }
@@ -566,8 +618,7 @@
                 "required": ["job"]
               }
             ]
-          },
-          "minItems": 1
+          }
         },
         "except": {
           "$ref": "#/definitions/filter",
@@ -613,6 +664,10 @@
                 "type": "string"
               },
               "minLength": 1
+            },
+            "expose_as": {
+              "type": "string",
+              "description": "Can be used to expose job artifacts in the merge request UI. GitLab will add a link <expose_as> to the relevant merge request that points to the artifact."
             },
             "name": {
               "type": "string",
@@ -661,6 +716,23 @@
                     {
                       "type": "array",
                       "description": "A list of paths to XML files that will automatically be concatenated into a single file",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minLength": 1
+                    }
+                  ]
+                },
+                "cobertura": {
+                  "description": "Path for file(s) that should be parsed as Cobertura XML coverage report",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Path to a single XML file"
+                    },
+                    {
+                      "type": "array",
+                      "description": "A list of paths to XML files that will automatically be merged into one report",
                       "items": {
                         "type": "string"
                       },
@@ -727,6 +799,21 @@
             "action": {
               "enum": ["stop"],
               "description": "Stops this environment so that it is inactive."
+            },
+            "auto_stop_in": {
+              "type": "string",
+              "description": "The amount of time it should take before Gitlab will automatically stop the environment. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'."
+            },
+            "kubernetes": {
+              "type" : "object",
+              "description": "Used to configure the kubernetes deployment for this environment. This is currently not supported for kubernetes clusters that are managed by Gitlab.",
+              "properties": {
+                "namespace": {
+                  "type": "string",
+                  "description": "The kubernetes namespace where this environment should be deployed to.",
+                  "minLength": 1
+                }
+              }
             }
           },
           "required": ["name"]
@@ -773,6 +860,10 @@
           "type": "boolean",
           "description": "Interruptible is used to indicate that a job should be canceled if made redundant by a newer pipeline run.",
           "default": false
+        },
+        "resource_group": {
+          "type": "string",
+          "description": "Limit job concurrency. Can be used to ensure that the Runner will not run certain jobs simultaneously."
         }
       },
       "oneOf": [

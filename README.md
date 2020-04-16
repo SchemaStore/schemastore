@@ -28,9 +28,7 @@ used or has potential for broad uptake.
 
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```Shell
-cd src
-npm install
-./node_modules/.bin/grunt
+make
 ```
 
 ### CSS spec
