@@ -9,6 +9,8 @@ where schemas for popular JSON documents can be found.
 
 Website: [schemastore.org](http://schemastore.org)
 
+For HTTP/TLS use: [schemastore.azurewebsites.net](https://schemastore.azurewebsites.net)
+
 ## Contribute
 Contributions are more than welcome. Both to the website
 itself or to the various schema files.
