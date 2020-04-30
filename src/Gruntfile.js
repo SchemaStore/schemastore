@@ -54,19 +54,19 @@ module.exports = function (grunt) {
         dest: "schemas/json/jsonld.json"
       },
       ninjs_v12: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.2.json" },
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.2.json" },
         dest: "schemas/json/ninjs-1.2.json"
       },
       ninjs_v11: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
         dest: "schemas/json/ninjs-1.1.json"
       },
       ninjs_v10: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.0.json" },
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.0.json" },
         dest: "schemas/json/ninjs-1.0.json"
       },
       xunit_v23: {
-        options: { url: "http://xunit.github.io/schema/v2.3/xunit.runner.schema.json" },
+        options: { url: "https://xunit.github.io/schema/v2.3/xunit.runner.schema.json" },
         dest: "schemas/json/xunit.runner.schema.json"
       }
     },
@@ -88,10 +88,12 @@ module.exports = function (grunt) {
 
   grunt.registerTask("setup", "Dynamically load schema validation based on the files and folders in /test/", function () {
     var fs = require('fs');
-    var dir = "test";
+    var pt = require("path");
+
+    var testDir = "test";
     var schemas = fs.readdirSync("schemas/json");
 
-    var folders = fs.readdirSync(dir);
+    var folders = fs.readdirSync(testDir);
     var tv4 = {};
 
     schemas.forEach(function (schema) {
@@ -103,14 +105,19 @@ module.exports = function (grunt) {
     folders.forEach(function (folder) {
 
       // If it's a file, ignore and continue. We only care about folders.
-      if (folder.indexOf('.') > -1)
+      if (/.+(?=\.[a-zA-Z]+$)/.test(folder)) {
         return;
+      }
+
+      const toPath = (file) => pt.join(testDir, folder, file);
 
       var name = folder.replace("_", ".");
-      var schema = grunt.file.readJSON("schemas/json/" + name + ".json");
-      var files = fs.readdirSync(dir + "/" + folder).map(function (file) { return dir + "/" + folder + "/" + file; });
+      var schema = grunt.file.readJSON(`schemas/json/${name}.json`);
+      var files = fs.readdirSync(pt.join(testDir, folder)).map(toPath);
 
-      grunt.config.set("tv4." + folder, {
+      const valid = folder.replace(/\./g, "\\.");
+
+      grunt.config.set("tv4." + valid, {
         options: {
           root: schema,
           banUnknown: false
