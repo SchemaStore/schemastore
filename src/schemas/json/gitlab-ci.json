@@ -716,7 +716,8 @@
         {
           "anyOf": [
             { "required": ["script"] },
-            { "required": ["extends"] }
+            { "required": ["extends"] },
+            { "required": ["trigger"] }
           ]
         }
       ]
@@ -901,6 +902,10 @@
         "resource_group": {
           "type": "string",
           "description": "Limit job concurrency. Can be used to ensure that the Runner will not run certain jobs simultaneously."
+        },
+        "trigger": {
+          "description": "Trigger allows you to define downstream pipeline trigger. When a job created from trigger definition is started by GitLab, a downstream pipeline gets created.",
+          "$ref": "#/definitions/trigger"
         }
       },
       "oneOf": [
@@ -927,6 +932,112 @@
       "items": {
         "type": "string"
       }
+    },
+    "trigger": {
+      "oneOf": [
+        { 
+          "type": "object",
+          "description": "Trigger a multi-project pipeline",
+          "additionalProperties": false,
+          "properties": {
+            "project": {
+              "description": "Path to the project, e.g. `group/project`, or `group/sub-group/project`.",
+              "type": "string",
+              "pattern": "\\S/\\S"
+            },
+            "branch": { 
+              "description": "The branch name that a downstream pipeline will use",
+              "type": "string" 
+            },
+            "strategy": {
+              "description": "You can mirror the pipeline status from the triggered pipeline to the source bridge job by using strategy: depend",
+              "type": "string",
+              "pattern" : "^depend$"
+            }
+          },
+          "required": ["project"],
+          "dependencies": {
+            "branch": ["project"]
+          }
+        },
+        {
+          "type": "object",
+          "description": "Trigger a child pipeline",
+          "additionalProperties": false,
+          "properties": {
+            "include": {
+              "oneOf": [
+                {
+                  "description": "Relative path from local repository root (`/`) to the local YAML file to define the pipeline configuration.",
+                  "type": "string",
+                  "format": "uri-reference",
+                  "pattern": "\\.ya?ml$" 
+                },
+                { 
+                  "type": "array",
+                  "description": "References a local file or an artifact from another job to define the pipeline configuration.",
+                  "maxItems": 3,
+                  "items": {
+                      "oneOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "local": {
+                            "description": "Relative path from local repository root (`/`) to the local YAML file to define the pipeline configuration.",
+                            "type": "string",
+                            "format": "uri-reference",
+                            "pattern": "\\.ya?ml$" 
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "template": {
+                            "description": "Name of the template YAML file to use in the pipeline configuration.",
+                            "type": "string",
+                            "format": "uri-reference",
+                            "pattern": "\\.ya?ml$" 
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "artifact": {
+                            "description": "Relative path to the generated YAML file which is extracted from the artifacts and used as the configuration for triggering the child pipeline.",
+                            "type": "string",
+                            "format": "uri-reference",
+                            "pattern": "\\.ya?ml$" 
+                          },
+                          "job": {
+                            "description": "Job name which generates the artifact",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["artifact", "job"]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "strategy": {
+              "description": "You can mirror the pipeline status from the triggered pipeline to the source bridge job by using strategy: depend",
+              "type": "string",
+              "pattern" : "^depend$"
+            }
+          }
+        },
+        { 
+          "description": "Path to the project, e.g. `group/project`, or `group/sub-group/project`.",
+          "type": "string",
+          "pattern": "\\S/\\S"
+        }
+      ]      
     }
   }
 }
