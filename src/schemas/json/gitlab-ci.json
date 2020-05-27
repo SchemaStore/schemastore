@@ -22,7 +22,12 @@
         "services": { "$ref": "#/definitions/services" },
         "before_script": { "$ref": "#/definitions/before_script" },
         "after_script": { "$ref": "#/definitions/after_script" },
-        "cache": { "$ref": "#/definitions/cache" }
+        "tags": { "$ref": "#/definitions/tags" },
+        "cache": { "$ref": "#/definitions/cache" },
+        "artifacts": { "$ref": "#/definitions/artifacts" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "timeout": { "$ref": "#/definitions/timeout" },
+        "interruptible": { "$ref": "#/definitions/interruptible" }
       }
     },
     "stages": {
@@ -84,6 +89,134 @@
     "$ref": "#/definitions/job"
   },
   "definitions": {
+    "artifacts": {
+      "type": "object",
+      "description": "Used to specify a list of files and directories that should be attached to the job if it succeeds. Artifacts are sent to Gitlab where they can be downloaded.",
+      "additionalProperties": false,
+      "properties": {
+        "paths": {
+          "type": "array",
+          "description": "A list of paths to files/folders that should be included in the artifact.",
+          "items": {
+            "type": "string"
+          },
+          "minLength": 1
+        },
+        "expose_as": {
+          "type": "string",
+          "description": "Can be used to expose job artifacts in the merge request UI. GitLab will add a link <expose_as> to the relevant merge request that points to the artifact."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name for the archive created on job success. Can use variables in the name, e.g. '$CI_JOB_NAME'"
+        },
+        "untracked": {
+          "type": "boolean",
+          "description": "Whether to add all untracked files (along with 'artifacts.paths') to the artifact.",
+          "default": false
+        },
+        "when": {
+          "description": "Configure when artifacts are uploaded depended on job status.",
+          "default": "on_success",
+          "oneOf": [
+            {
+              "enum": ["on_success"],
+              "description": "Upload artifacts only when the job succeeds (this is the default)."
+            },
+            {
+              "enum": ["on_failure"],
+              "description": "Upload artifacts only when the job fails."
+            },
+            {
+              "enum": ["always"],
+              "description": "Upload artifacts regardless of job status."
+            }
+          ]
+        },
+        "expire_in": {
+          "type": "string",
+          "description": "How long artifacts should be kept. They are saved 30 days by default. Artifacts that have expired are removed periodically via cron job. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'.",
+          "default": "30 days"
+        },
+        "reports":{
+          "type": "object",
+          "description": "Reports will be uploaded as artifacts, and often displayed in the Gitlab UI, such as in Merge Requests.",
+          "additionalProperties": false,
+          "properties": {
+            "junit": {
+              "description": "Path for file(s) that should be parsed as JUnit XML result",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Path to a single XML file"
+                },
+                {
+                  "type": "array",
+                  "description": "A list of paths to XML files that will automatically be concatenated into a single file",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minLength": 1
+                }
+              ]
+            },
+            "cobertura": {
+              "description": "Path for file(s) that should be parsed as Cobertura XML coverage report",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Path to a single XML file"
+                },
+                {
+                  "type": "array",
+                  "description": "A list of paths to XML files that will automatically be merged into one report",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minLength": 1
+                }
+              ]
+            },
+            "codequality": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with code quality report(s) (such as Code Climate)."
+            },
+            "sast": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with SAST vulnerabilities report(s)."
+            },
+            "dependency_scanning": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with Dependency scanning vulnerabilities report(s)."
+            },
+            "container_scanning": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with Container scanning vulnerabilities report(s)."
+            },
+            "dast": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with DAST vulnerabilities report(s)."
+            },
+            "license_management": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with license report(s)."
+            },
+            "performance": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with performance metrics report(s)."
+            },
+            "metrics": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with custom metrics report(s)."
+            },
+            "terraform": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with terraform plan(s)."
+            }
+          }
+        }
+      }
+    },
     "string_file_list": {
       "oneOf": [
         {
@@ -499,6 +632,31 @@
         }
       ]
     },
+    "retry": {
+      "description": "Retry a job if it fails. Can be a simple integer or object definition.",
+      "oneOf": [
+        { "$ref": "#/definitions/retry_max" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max": { "$ref": "#/definitions/retry_max" },
+            "when": {
+              "description": "Either a single or array of error types to trigger job retry.",
+              "oneOf": [
+                { "$ref": "#/definitions/retry_errors" },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/retry_errors"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "retry_max": {
       "type": "integer",
       "description": "The number of times the job will be retried if it fails. Defaults to 0 and can max be retried 2 times (3 times total).",
@@ -541,6 +699,11 @@
           "description": "Retry if the runner was unsupported."
         }
       ]
+    },
+    "interruptible": {
+      "type": "boolean",
+      "description": "Interruptible is used to indicate that a job should be canceled if made redundant by a newer pipeline run.",
+      "default": false
     },
     "job": {
       "allOf": [
@@ -643,11 +806,7 @@
           "description": "Job will run *except* for when these filtering options match."
         },
         "tags": {
-          "type": "array",
-          "description": "Used to select runners from the list of available runners. A runner must have all tags listed here to run the job.",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/definitions/tags"
         },
         "allow_failure": {
           "type": "boolean",
@@ -671,132 +830,7 @@
           }
         },
         "artifacts": {
-          "type": "object",
-          "description": "Used to specify a list of files and directories that should be attached to the job if it succeeds. Artifacts are sent to Gitlab where they can be downloaded.",
-          "additionalProperties": false,
-          "properties": {
-            "paths": {
-              "type": "array",
-              "description": "A list of paths to files/folders that should be included in the artifact.",
-              "items": {
-                "type": "string"
-              },
-              "minLength": 1
-            },
-            "expose_as": {
-              "type": "string",
-              "description": "Can be used to expose job artifacts in the merge request UI. GitLab will add a link <expose_as> to the relevant merge request that points to the artifact."
-            },
-            "name": {
-              "type": "string",
-              "description": "Name for the archive created on job success. Can use variables in the name, e.g. '$CI_JOB_NAME'"
-            },
-            "untracked": {
-              "type": "boolean",
-              "description": "Whether to add all untracked files (along with 'artifacts.paths') to the artifact.",
-              "default": false
-            },
-            "when": {
-              "description": "Configure when artifacts are uploaded depended on job status.",
-              "default": "on_success",
-              "oneOf": [
-                {
-                  "enum": ["on_success"],
-                  "description": "Upload artifacts only when the job succeeds (this is the default)."
-                },
-                {
-                  "enum": ["on_failure"],
-                  "description": "Upload artifacts only when the job fails."
-                },
-                {
-                  "enum": ["always"],
-                  "description": "Upload artifacts regardless of job status."
-                }
-              ]
-            },
-            "expire_in": {
-              "type": "string",
-              "description": "How long artifacts should be kept. They are saved 30 days by default. Artifacts that have expired are removed periodically via cron job. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'.",
-              "default": "30 days"
-            },
-            "reports":{
-              "type": "object",
-              "description": "Reports will be uploaded as artifacts, and often displayed in the Gitlab UI, such as in Merge Requests.",
-              "additionalProperties": false,
-              "properties": {
-                "junit": {
-                  "description": "Path for file(s) that should be parsed as JUnit XML result",
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Path to a single XML file"
-                    },
-                    {
-                      "type": "array",
-                      "description": "A list of paths to XML files that will automatically be concatenated into a single file",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minLength": 1
-                    }
-                  ]
-                },
-                "cobertura": {
-                  "description": "Path for file(s) that should be parsed as Cobertura XML coverage report",
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Path to a single XML file"
-                    },
-                    {
-                      "type": "array",
-                      "description": "A list of paths to XML files that will automatically be merged into one report",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minLength": 1
-                    }
-                  ]
-                },
-                "codequality": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with code quality report(s) (such as Code Climate)."
-                },
-                "sast": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with SAST vulnerabilities report(s)."
-                },
-                "dependency_scanning": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with Dependency scanning vulnerabilities report(s)."
-                },
-                "container_scanning": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with Container scanning vulnerabilities report(s)."
-                },
-                "dast": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with DAST vulnerabilities report(s)."
-                },
-                "license_management": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with license report(s)."
-                },
-                "performance": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with performance metrics report(s)."
-                },
-                "metrics": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with custom metrics report(s)."
-                },
-                "terraform": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with terraform plan(s)."
-                }
-              }
-            }
-          }
+          "$ref": "#/definitions/artifacts"
         },
         "environment": {
           "type": "object",
@@ -847,29 +881,7 @@
           "pattern": "^\/.+\/$"
         },
         "retry": {
-          "description": "Retry a job if it fails. Can be a simple integer or object definition.",
-          "oneOf": [
-            { "$ref": "#/definitions/retry_max" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "max": { "$ref": "#/definitions/retry_max" },
-                "when": {
-                  "description": "Either a single or array of error types to trigger job retry.",
-                  "oneOf": [
-                    { "$ref": "#/definitions/retry_errors" },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/definitions/retry_errors"
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
+          "$ref": "#/definitions/retry"
         },
         "parallel": {
           "type": "integer",
@@ -879,9 +891,7 @@
           "maximum": 50
         },
         "interruptible": {
-          "type": "boolean",
-          "description": "Interruptible is used to indicate that a job should be canceled if made redundant by a newer pipeline run.",
-          "default": false
+          "$ref": "#/definitions/interruptible"
         },
         "resource_group": {
           "type": "string",
@@ -905,6 +915,13 @@
           }
         }
       ]
+    },
+    "tags": {
+      "type": "array",
+      "description": "Used to select runners from the list of available runners. A runner must have all tags listed here to run the job.",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }
