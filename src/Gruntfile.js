@@ -1,4 +1,28 @@
 ﻿/// <binding AfterBuild='build' />
+
+const pt = require("path");
+
+/**
+ * @summary tests if an entry is a folder
+ * @param {(string|import("fs").Dirent)} entry 
+ * @returns {boolean}
+ */
+const isFile = (entry) => /.+(?=\.[a-zA-Z]+$)/.test(entry);
+
+/**
+ * @summary joins file path parts
+ * @param {string} base
+ * @param {string} path
+ */
+const toPath = (base, path) =>
+
+  /**
+   * @param {string} fileName
+   * @returns {string}
+   */
+  (fileName) => pt.join(base, path, fileName);
+
+
 module.exports = function (grunt) {
   "use strict";
 
@@ -46,31 +70,27 @@ module.exports = function (grunt) {
         dest: "schemas/json/swagger-2.0.json"
       },
       resume: {
-        options: { url: "https://raw.githubusercontent.com/jsonresume/resume-schema/master/schema.json" },
+        options: { url: "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json" },
         dest: "schemas/json/resume.json"
       },
       jsonld: {
         options: { url: "https://raw.githubusercontent.com/json-ld/json-ld.org/master/schemas/jsonld-schema.json" },
         dest: "schemas/json/jsonld.json"
       },
-      ninjs_v13: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.3.json" },
-        dest: "schemas/json/ninjs-1.3.json"
-      },
       ninjs_v12: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.2.json" },
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.2.json" },
         dest: "schemas/json/ninjs-1.2.json"
       },
       ninjs_v11: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.1.json" },
         dest: "schemas/json/ninjs-1.1.json"
       },
       ninjs_v10: {
-        options: { url: "http://www.iptc.org/std/ninjs/ninjs-schema_1.0.json" },
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.0.json" },
         dest: "schemas/json/ninjs-1.0.json"
       },
       xunit_v23: {
-        options: { url: "http://xunit.github.io/schema/v2.3/xunit.runner.schema.json" },
+        options: { url: "https://xunit.github.io/schema/v2.3/xunit.runner.schema.json" },
         dest: "schemas/json/xunit.runner.schema.json"
       }
     },
@@ -92,11 +112,22 @@ module.exports = function (grunt) {
 
   grunt.registerTask("setup", "Dynamically load schema validation based on the files and folders in /test/", function () {
     var fs = require('fs');
-    var dir = "test";
+
+    var testDir = "test";
     var schemas = fs.readdirSync("schemas/json");
 
-    var folders = fs.readdirSync(dir);
+    var folders = fs.readdirSync(testDir);
     var tv4 = {};
+
+    const notCovered = schemas.filter(schemaName => {
+      const folderName = schemaName.replace("\.json","");
+      return !folders.includes(folderName.replace("_", "."));
+    });
+
+    if(notCovered.length) {
+      const percent = (notCovered.length / schemas.length) * 100;
+      console.log(`${parseInt(percent)}% of schemas do not have tests or have malformed test folders`);
+    }
 
     schemas.forEach(function (schema) {
       var name = schema.replace(".json", "");
@@ -107,14 +138,25 @@ module.exports = function (grunt) {
     folders.forEach(function (folder) {
 
       // If it's a file, ignore and continue. We only care about folders.
-      if (folder.indexOf('.') > -1)
+      if (isFile(folder)) {
         return;
+      }
 
-      var name = folder.replace("_", ".");
-      var schema = grunt.file.readJSON("schemas/json/" + name + ".json");
-      var files = fs.readdirSync(dir + "/" + folder).map(function (file) { return dir + "/" + folder + "/" + file; });
+      const toTestFilePath = toPath(testDir, folder);
 
-      grunt.config.set("tv4." + folder, {
+      const name = folder.replace("_", ".");
+
+      const schema = grunt.file.readJSON(`schemas/json/${name}.json`);
+
+      const files = fs.readdirSync(pt.join(testDir, folder)).map(toTestFilePath);
+
+      if(!files.length) {
+        throw new Error(`Found folder with no test files: ${folder}`);
+      }
+
+      const valid = folder.replace(/\./g, "\\.");
+
+      grunt.config.set("tv4." + valid, {
         options: {
           root: schema,
           banUnknown: false

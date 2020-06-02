@@ -22,7 +22,12 @@
         "services": { "$ref": "#/definitions/services" },
         "before_script": { "$ref": "#/definitions/before_script" },
         "after_script": { "$ref": "#/definitions/after_script" },
-        "cache": { "$ref": "#/definitions/cache" }
+        "tags": { "$ref": "#/definitions/tags" },
+        "cache": { "$ref": "#/definitions/cache" },
+        "artifacts": { "$ref": "#/definitions/artifacts" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "timeout": { "$ref": "#/definitions/timeout" },
+        "interruptible": { "$ref": "#/definitions/interruptible" }
       }
     },
     "stages": {
@@ -52,13 +57,31 @@
     "pages": {
       "$ref": "#/definitions/job",
       "description": "A special job used to upload static sites to Gitlab pages. Requires a `public/` directory with `artifacts.path` pointing to it."
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "if": {
+              "type": "string"
+            },
+            "when": {
+              "type": "string",
+              "enum": ["always", "never"]
+            }
+          }
+        }
+      }
     }
   },
   "patternProperties": {
     "^[.]": {
-      "oneOf": [
+      "description": "Hidden keys.",
+      "anyOf": [
         { "$ref": "#/definitions/job_template" },
-        { "type": "string" }
+        { "description": "Arbitrary YAML anchor." }
       ]
     }
   },
@@ -66,6 +89,134 @@
     "$ref": "#/definitions/job"
   },
   "definitions": {
+    "artifacts": {
+      "type": "object",
+      "description": "Used to specify a list of files and directories that should be attached to the job if it succeeds. Artifacts are sent to Gitlab where they can be downloaded.",
+      "additionalProperties": false,
+      "properties": {
+        "paths": {
+          "type": "array",
+          "description": "A list of paths to files/folders that should be included in the artifact.",
+          "items": {
+            "type": "string"
+          },
+          "minLength": 1
+        },
+        "expose_as": {
+          "type": "string",
+          "description": "Can be used to expose job artifacts in the merge request UI. GitLab will add a link <expose_as> to the relevant merge request that points to the artifact."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name for the archive created on job success. Can use variables in the name, e.g. '$CI_JOB_NAME'"
+        },
+        "untracked": {
+          "type": "boolean",
+          "description": "Whether to add all untracked files (along with 'artifacts.paths') to the artifact.",
+          "default": false
+        },
+        "when": {
+          "description": "Configure when artifacts are uploaded depended on job status.",
+          "default": "on_success",
+          "oneOf": [
+            {
+              "enum": ["on_success"],
+              "description": "Upload artifacts only when the job succeeds (this is the default)."
+            },
+            {
+              "enum": ["on_failure"],
+              "description": "Upload artifacts only when the job fails."
+            },
+            {
+              "enum": ["always"],
+              "description": "Upload artifacts regardless of job status."
+            }
+          ]
+        },
+        "expire_in": {
+          "type": "string",
+          "description": "How long artifacts should be kept. They are saved 30 days by default. Artifacts that have expired are removed periodically via cron job. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'.",
+          "default": "30 days"
+        },
+        "reports":{
+          "type": "object",
+          "description": "Reports will be uploaded as artifacts, and often displayed in the Gitlab UI, such as in Merge Requests.",
+          "additionalProperties": false,
+          "properties": {
+            "junit": {
+              "description": "Path for file(s) that should be parsed as JUnit XML result",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Path to a single XML file"
+                },
+                {
+                  "type": "array",
+                  "description": "A list of paths to XML files that will automatically be concatenated into a single file",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minLength": 1
+                }
+              ]
+            },
+            "cobertura": {
+              "description": "Path for file(s) that should be parsed as Cobertura XML coverage report",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Path to a single XML file"
+                },
+                {
+                  "type": "array",
+                  "description": "A list of paths to XML files that will automatically be merged into one report",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minLength": 1
+                }
+              ]
+            },
+            "codequality": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with code quality report(s) (such as Code Climate)."
+            },
+            "sast": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with SAST vulnerabilities report(s)."
+            },
+            "dependency_scanning": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with Dependency scanning vulnerabilities report(s)."
+            },
+            "container_scanning": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with Container scanning vulnerabilities report(s)."
+            },
+            "dast": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with DAST vulnerabilities report(s)."
+            },
+            "license_management": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with license report(s)."
+            },
+            "performance": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with performance metrics report(s)."
+            },
+            "metrics": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with custom metrics report(s)."
+            },
+            "terraform": {
+              "$ref": "#/definitions/string_file_list",
+              "description": "Path to file or list of files with terraform plan(s)."
+            }
+          }
+        }
+      }
+    },
     "string_file_list": {
       "oneOf": [
         {
@@ -228,14 +379,34 @@
       "type": "array",
       "description": "Defines scripts that should run *before* the job. Can be set globally or per job.",
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "after_script": {
       "type": "array",
       "description": "Defines scripts that should run *after* the job. Can be set globally or per job.",
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "rules": {
@@ -264,7 +435,12 @@
             }
           },
           "when": { "$ref": "#/definitions/when" },
-          "start_in": { "$ref": "#/definitions/start_in" }
+          "start_in": { "$ref": "#/definitions/start_in" },
+          "allow_failure": {
+            "description": "Setting this option to true will allow the job to fail while still letting the pipeline pass.",
+            "type": "boolean",
+            "default": false
+          }
         }
       }
     },
@@ -308,6 +484,10 @@
         {
           "enum": ["delayed"],
           "description": "Execute a job after the time limit in 'start_in' expires. Read more: https://docs.gitlab.com/ee/ci/yaml/#when-delayed"
+        },
+        {
+          "enum": ["never"],
+          "description": "Never execute the job."
         }
       ]
     },
@@ -324,8 +504,26 @@
           }
         },
         "key": {
-          "type": "string",
-          "description": "Unique cache ID, to allow e.g. specific branch or job cache. Environment variables can be used to set up unique keys (e.g. \"$CI_COMMIT_REF_SLUG\" for per branch cache)."
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Unique cache ID, to allow e.g. specific branch or job cache. Environment variables can be used to set up unique keys (e.g. \"$CI_COMMIT_REF_SLUG\" for per branch cache)."
+            },
+            {
+              "type": "object",
+              "description": "When you include cache:key:files, you must also list the project files that will be used to generate the key, up to a maximum of two files. The cache key will be a SHA checksum computed from the most recent commits (up to two, if two files are listed) that changed the given files.",
+              "properties": {
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 2
+                }
+              }
+            }
+          ]
         },
         "untracked": {
           "type": "boolean",
@@ -439,6 +637,31 @@
         }
       ]
     },
+    "retry": {
+      "description": "Retry a job if it fails. Can be a simple integer or object definition.",
+      "oneOf": [
+        { "$ref": "#/definitions/retry_max" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max": { "$ref": "#/definitions/retry_max" },
+            "when": {
+              "description": "Either a single or array of error types to trigger job retry.",
+              "oneOf": [
+                { "$ref": "#/definitions/retry_errors" },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/retry_errors"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "retry_max": {
       "type": "integer",
       "description": "The number of times the job will be retried if it fails. Defaults to 0 and can max be retried 2 times (3 times total).",
@@ -482,6 +705,11 @@
         }
       ]
     },
+    "interruptible": {
+      "type": "boolean",
+      "description": "Interruptible is used to indicate that a job should be canceled if made redundant by a newer pipeline run.",
+      "default": false
+    },
     "job": {
       "allOf": [
         { "$ref": "#/definitions/job_template" },
@@ -514,7 +742,17 @@
             {
               "type": "array",
               "items": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
               },
               "minItems": 1
             }
@@ -548,20 +786,32 @@
           "description": "The list of jobs in previous stages whose sole completion is needed to start the current job.",
           "type": "array",
           "items": {
-            "type": "string"
-          },
-          "minItems": 1
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "job": {
+                    "type": "string"
+                  },
+                  "artifacts": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["job"]
+              }
+            ]
+          }
         },
         "except": {
           "$ref": "#/definitions/filter",
           "description": "Job will run *except* for when these filtering options match."
         },
         "tags": {
-          "type": "array",
-          "description": "Used to select runners from the list of available runners. A runner must have all tags listed here to run the job.",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/definitions/tags"
         },
         "allow_failure": {
           "type": "boolean",
@@ -585,107 +835,7 @@
           }
         },
         "artifacts": {
-          "type": "object",
-          "description": "Used to specify a list of files and directories that should be attached to the job if it succeeds. Artifacts are sent to Gitlab where they can be downloaded.",
-          "additionalProperties": false,
-          "properties": {
-            "paths": {
-              "type": "array",
-              "description": "A list of paths to files/folders that should be included in the artifact.",
-              "items": {
-                "type": "string"
-              },
-              "minLength": 1
-            },
-            "name": {
-              "type": "string",
-              "description": "Name for the archive created on job success. Can use variables in the name, e.g. '$CI_JOB_NAME'"
-            },
-            "untracked": {
-              "type": "boolean",
-              "description": "Whether to add all untracked files (along with 'artifacts.paths') to the artifact.",
-              "default": false
-            },
-            "when": {
-              "description": "Configure when artifacts are uploaded depended on job status.",
-              "default": "on_success",
-              "oneOf": [
-                {
-                  "enum": ["on_success"],
-                  "description": "Upload artifacts only when the job succeeds (this is the default)."
-                },
-                {
-                  "enum": ["on_failure"],
-                  "description": "Upload artifacts only when the job fails."
-                },
-                {
-                  "enum": ["always"],
-                  "description": "Upload artifacts regardless of job status."
-                }
-              ]
-            },
-            "expire_in": {
-              "type": "string",
-              "description": "How long artifacts should be kept. They are saved 30 days by default. Artifacts that have expired are removed periodically via cron job. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'.",
-              "default": "30 days"
-            },
-            "reports":{
-              "type": "object",
-              "description": "Reports will be uploaded as artifacts, and often displayed in the Gitlab UI, such as in Merge Requests.",
-              "additionalProperties": false,
-              "properties": {
-                "junit": {
-                  "description": "Path for file(s) that should be parsed as JUnit XML result",
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Path to a single XML file"
-                    },
-                    {
-                      "type": "array",
-                      "description": "A list of paths to XML files that will automatically be concatenated into a single file",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minLength": 1
-                    }
-                  ]
-                },
-                "codequality": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with code quality report(s) (such as Code Climate)."
-                },
-                "sast": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with SAST vulnerabilities report(s)."
-                },
-                "dependency_scanning": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with Dependency scanning vulnerabilities report(s)."
-                },
-                "container_scanning": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with Container scanning vulnerabilities report(s)."
-                },
-                "dast": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with DAST vulnerabilities report(s)."
-                },
-                "license_management": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with license report(s)."
-                },
-                "performance": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with performance metrics report(s)."
-                },
-                "metrics": {
-                  "$ref": "#/definitions/string_file_list",
-                  "description": "Path to file or list of files with custom metrics report(s)."
-                }
-              }
-            }
-          }
+          "$ref": "#/definitions/artifacts"
         },
         "environment": {
           "type": "object",
@@ -710,6 +860,21 @@
             "action": {
               "enum": ["stop"],
               "description": "Stops this environment so that it is inactive."
+            },
+            "auto_stop_in": {
+              "type": "string",
+              "description": "The amount of time it should take before Gitlab will automatically stop the environment. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'."
+            },
+            "kubernetes": {
+              "type" : "object",
+              "description": "Used to configure the kubernetes deployment for this environment. This is currently not supported for kubernetes clusters that are managed by Gitlab.",
+              "properties": {
+                "namespace": {
+                  "type": "string",
+                  "description": "The kubernetes namespace where this environment should be deployed to.",
+                  "minLength": 1
+                }
+              }
             }
           },
           "required": ["name"]
@@ -721,29 +886,7 @@
           "pattern": "^\/.+\/$"
         },
         "retry": {
-          "description": "Retry a job if it fails. Can be a simple integer or object definition.",
-          "oneOf": [
-            { "$ref": "#/definitions/retry_max" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "max": { "$ref": "#/definitions/retry_max" },
-                "when": {
-                  "description": "Either a single or array of error types to trigger job retry.",
-                  "oneOf": [
-                    { "$ref": "#/definitions/retry_errors" },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/definitions/retry_errors"
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
+          "$ref": "#/definitions/retry"
         },
         "parallel": {
           "type": "integer",
@@ -753,9 +896,11 @@
           "maximum": 50
         },
         "interruptible": {
-          "type": "boolean",
-          "description": "Interruptible is used to indicate that a job should be canceled if made redundant by a newer pipeline run.",
-          "default": false
+          "$ref": "#/definitions/interruptible"
+        },
+        "resource_group": {
+          "type": "string",
+          "description": "Limit job concurrency. Can be used to ensure that the Runner will not run certain jobs simultaneously."
         }
       },
       "oneOf": [
@@ -775,6 +920,13 @@
           }
         }
       ]
+    },
+    "tags": {
+      "type": "array",
+      "description": "Used to select runners from the list of available runners. A runner must have all tags listed here to run the job.",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

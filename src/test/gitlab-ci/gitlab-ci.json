@@ -3,6 +3,17 @@
     "before_script": ["echo test"]
   },
   ".build_script": "echo build script",
+  ".example_variables": {
+    "foo": "hello",
+    "bar": 42
+  },
+  ".example_services": [
+    "docker:dind",
+    {
+      "name": "sql:latest",
+      "command": ["/usr/bin/super-sql", "run"]
+    }
+  ],
   "default": {
     "image": "ruby:2.5",
     "services": [
@@ -16,7 +27,23 @@
     ],
     "after_script": [
       "rm -rf tmp/"
-    ]
+    ],
+    "tags": [
+      "ruby",
+      "postgres"
+    ],
+    "artifacts": {
+      "name": "%CI_COMMIT_REF_NAME%",
+      "expose_as": "artifact 1",
+      "paths": [
+        "path/to/file.txt",
+        "target/*.war"
+      ],
+      "when": "on_failure"
+    },
+    "retry": 2,
+    "timeout": "3 hours 30 minutes",
+    "interruptible": true
   },
   "stages": [
     "build",
@@ -79,11 +106,13 @@
       "paths": [
         "dist/"
       ],
+      "expose_as": "link_name_in_merge_request",
       "name": "bundles",
       "when": "on_success",
       "expire_in": "1 week",
       "reports": {
         "junit": "result.xml",
+        "cobertura": "cobertura-coverage.xml",
         "codequality": "codequality.json",
         "sast": "sast.json",
         "dependency_scanning": "scan.json",
@@ -145,6 +174,7 @@
     "artifacts": {
       "reports": {
         "junit": ["result.xml"],
+        "cobertura": ["cobertura-coverage.xml"],
         "codequality": ["codequality.json"],
         "sast": ["sast.json"],
         "dependency_scanning": ["scan.json"],
@@ -206,5 +236,30 @@
   },
   "performance-b": {
     "extends": ".performance-tmpl"
+  },
+  "workflow": {
+    "rules": [
+      {
+        "if": "$CI_COMMIT_REF_NAME =~ /-wip$/",
+        "when": "never"
+      },
+      {
+        "if": "$CI_COMMIT_TAG",
+        "when": "never"
+      },
+      {
+        "when": "always"
+      }
+    ]
+  },
+  "job": {
+    "script": "echo Hello, Rules!",
+    "rules": [
+      { 
+        "if": "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == \"master\"",
+        "when": "manual",
+        "allow_failure": true
+      }
+    ]
   }
 }
