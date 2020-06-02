@@ -77,6 +77,10 @@ module.exports = function (grunt) {
         options: { url: "https://raw.githubusercontent.com/json-ld/json-ld.org/master/schemas/jsonld-schema.json" },
         dest: "schemas/json/jsonld.json"
       },
+      ninjs_v13: {
+        options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.3.json" },
+        dest: "schemas/json/ninjs-1.3.json"
+      },
       ninjs_v12: {
         options: { url: "https://www.iptc.org/std/ninjs/ninjs-schema_1.2.json" },
         dest: "schemas/json/ninjs-1.2.json"
