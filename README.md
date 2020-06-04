@@ -6,7 +6,7 @@ The largest collection of independant JSON schemas in the world
 
 The repository is meant as a universal JSON schema store, where schemas for popular JSON documents can be found.
 
-Website: [schemastore.org](https://schemastore.azurewebsites.net)
+Website: [schemastore.org](https://www.schemastore.org/json/)
 
 ## Contribute
 
