@@ -1,0 +1,531 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "Bamboo CI Specification",
+  "description": "Full spec reference: https://docs.atlassian.com/bamboo-specs-docs/6.9.0/specs.html",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "default": 2
+        },
+        "triggers": {
+          "$ref": "#/definitions/triggers"
+        },
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "description": "Variables specific to a deployment environment",
+          "$ref": "#/definitions/key-value"
+        },
+        "docker": {
+          "$ref": "#/definitions/docker"
+        },
+        "deployment": {
+          "$ref": "#/definitions/deployment"
+        },
+        "plan": {
+          "$ref": "#/definitions/plan"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "patternProperties": {
+                  "[a-zA-Z0-9\\s+_-]": {
+                    "$ref": "#/definitions/stage"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "$ref": "#/definitions/job"
+    }
+  ],
+  "definitions": {
+    "release-naming": {
+      "type": "object",
+      "properties": {
+        "next-version-name": {
+          "type": "string"
+        },
+        "applies-to-branches": {
+          "type": "boolean"
+        },
+        "auto-increment": {
+          "type": "boolean"
+        },
+        "auto-increment-variables": {
+          "type": "string"
+        }
+      }
+    },
+    "notification": {
+      "type": "object",
+      "properties": {
+        "recipients": {
+          "type": "array",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "minLength": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "script": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "script": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "description": "Artifacts are files created by a job build (e.g. JAR files)",
+      "properties": {
+        "name": {
+          "description": "Name of the artifact; in case artifact is shared, name must be unique within the plan.",
+          "type": "string"
+        },
+        "location": {
+          "description": "The relative path to find your artifact; it’s a path relative to the workspace directory; do not use absolute paths.",
+          "type": "string"
+        },
+        "pattern": {
+          "description": "Name or Ant pattern of file(s) to keep.",
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "task": {
+      "description": "A task is a small unit of work, such as source code checkout, or running a script.",
+      "type": "object",
+      "definitions": {
+        "trigger": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string"
+                },
+                "branch": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "[a-zA-Z0-9\\s+_-]": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "properties": {
+        "source-plan": {
+          "type": "string"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "destination": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "destination"
+            ]
+          }
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "patternProperties": {
+              "(build|stage|environment)-success": {
+                "$ref": "#/definitions/task/definitions/trigger"
+              }
+            }
+          }
+        },
+        "notifications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/notification"
+          }
+        }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "properties": {
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "docker": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "string"
+            },
+            "volumes": {
+              "type": "object",
+              "default": {}
+            },
+            "use-default-volumes": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "image"
+          ]
+        }
+      ]
+    },
+    "key-value": {
+      "type": "object",
+      "patternProperties": {
+        "[a-zA-Z0-9_]": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        }
+      }
+    },
+    "polling": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "integer"
+            }
+          }
+        }
+      ]
+    },
+    "remote": {
+      "anyOf": [
+        {
+          "const": "remote"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "remote": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "remote": {
+              "type": "object",
+              "properties": {
+                "ip": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "cron": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "expression": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/polling"
+          },
+          {
+            "$ref": "#/definitions/cron"
+          },
+          {
+            "$ref": "#/definitions/remote"
+          }
+        ]
+      }
+    },
+    "job": {
+      "description": "A job is a single build unit within a plan and is made up of one or more tasks.",
+      "type": "object",
+      "definitions": {
+        "task": {
+          "type": "object",
+          "properties": {
+            "interpreter": {
+              "type": "string"
+            },
+            "inject-variables": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                }
+              }
+            },
+            "scripts": {
+              "type": "array",
+              "minLength": 1,
+              "items": {
+                "$ref": "#/definitions/script"
+              }
+            }
+          }
+        }
+      },
+      "patternProperties": {
+        "[a-zA-Z0-9\\s+_-]": {
+          "type": "object",
+          "properties": {
+            "docker": {
+              "$ref": "#/definitions/docker"
+            },
+            "key": {
+              "type": "string"
+            },
+            "final-tasks": {
+              "type": "array"
+            },
+            "other": {
+              "type": "object",
+              "properties": {
+                "clean-working-dir": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "clean",
+                      "artifact-download"
+                    ]
+                  },
+                  {
+                    "$ref": "#/definitions/task/definitions/script"
+                  },
+                  {
+                    "$ref": "#/definitions/job/definitions/task"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "stage": {
+      "description": "Stages group jobs to individual steps within a plan’s build process.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "manual": {
+              "type": "boolean"
+            },
+            "final": {
+              "type": "boolean"
+            },
+            "jobs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "patternProperties": {
+            "[a-zA-Z0-9\\s+_-]": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "plan": {
+      "description": "A plan defines everything about your continuous integration build process in Bamboo",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project-key": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source-plan": {
+          "type": "string"
+        }
+      }
+    },
+    "plan-permissions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/permission"
+      }
+    },
+    "deployment-permissions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/permission"
+      }
+    },
+    "default-environment-permissions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/permission"
+      }
+    },
+    "environment-permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "patternProperties": {
+          "[a-zA-Z0-9\\s+_-]": {
+            "$ref": "#/definitions/permission"
+          }
+        }
+      }
+    }
+  }
+}
