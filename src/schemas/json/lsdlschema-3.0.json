@@ -6,17 +6,22 @@
     "properties": {
       "Version": {
         "description": "Version of LSDL",
-        "enum": [ "0.7.0" ]
+        "enum": [ "3.0.0" ]
       },
       "Language": {
         "description": "Target language for the linguistic schema",
         "type": "string",
-        "pattern": "^[A-Za-z][A-Za-z]+-[A-Za-z][A-Za-z]+$",
+        "pattern": "^[A-Za-z][A-Za-z]+(-[A-Za-z0-9][A-Za-z0-9]+)*$",
         "format": "language"
       },
       "DynamicImprovement": {
         "description": "Indicates which heuristics should be run to automatically improve the linguistic schema.",
         "enum": [ "Default", "Full", "HighConfidence", "None" ],
+        "default": "Default"
+      },
+      "MinResultConfidence": {
+        "description": "Indicates the confidence score required for an interpretation of an utterance to be returned.",
+        "enum": [ "Default", "VeryHigh", "High", "Medium", "Low" ],
         "default": "Default"
       },
       "Namespaces": {
@@ -34,6 +39,10 @@
       "GlobalSubstitutions": {
         "description": "The global text substitutions in the linguistic schema.",
         "$ref": "#/definitions/globalSubstitutions"
+      },
+      "Examples": {
+        "description": "Examples associated with the linguistic schema.",
+        "$ref": "#/definitions/examples"
       }
     },
     "required": [ "Version", "Language" ],
@@ -58,8 +67,71 @@
   
       "state": {
         "description": "Indicates the state of an object in the linguistic schema.",
-        "enum": [ "UserAuthored", "Generated", "Deleted" ],
-        "default": "UserAuthored"
+        "enum": [ "Authored", "Generated", "Suggested", "Deleted" ],
+        "default": "Authored"
+      },
+  
+      "propertyState": {
+        "description": "Indicates the state of a property on a linguistic schema item.",
+        "enum": [ "Default", "Authored", "Generated", "Suggested" ],
+        "default": "Default"
+      },
+  
+      "visibility": {
+        "description": "Indicates whether the entity is hidden.",
+        "enum": [ "Visible", "Hidden", "Children" ],
+        "default": "Visible"
+      },
+  
+      "visibilityProperty": {
+        "description": "Indicates whether the entity is hidden.",
+        "oneOf": [
+          { "$ref": "#/definitions/visibility" },
+          { "$ref": "#/definitions/fullVisibilityProperty" }
+        ]
+      },
+  
+      "fullVisibilityProperty": {
+        "description": "Indicates whether the entity is hidden.",
+        "type": "object",
+        "properties": {
+          "Value": {
+            "$ref": "#/definitions/visibility"
+          },
+          "State": {
+            "description": "The state of the visibility property",
+            "$ref": "#/definitions/propertyState"
+          }
+        },
+        "required": [ "Value" ]
+      },
+  
+      "source": {
+        "description": "Indicates who/what created the object in the linguistic schema.",
+        "oneOf": [
+          { "$ref": "#/definitions/sourceType" },
+          { "$ref": "#/definitions/fullSource" }
+        ]
+      },
+  
+      "fullSource": {
+        "description": "Indicates who/what created the object in the linguistic schema.",
+        "type": "object",
+        "properties": {
+          "Type": {
+            "$ref": "#/definitions/sourceType"
+          },
+          "Agent": {
+            "description": "Specific name of the agent that created the object.",
+            "type": "string"
+          }
+        }
+      },
+  
+      "sourceType": {
+        "description": "Indicates the type of the creator of the object",
+        "enum": [ "Default", "User", "Internal", "External" ],
+        "default": "Default"
       },
   
       "weight": {
@@ -68,6 +140,17 @@
         "minimum": 0,
         "maximum": 1,
         "default": 1
+      },
+  
+      "templateSchema": {
+        "description": "Identifies the shared template schema from which an object in the linguistic schema is derived",
+        "type": "string"
+      },
+  
+      "dateTime": {
+        "description": "Date and time in UTC",
+        "type": "string",
+        "format": "date-time"
       },
   
       "namespaces": {
@@ -92,35 +175,37 @@
         "patternProperties": {
           "^.+$": { "$ref": "#/definitions/entity" }
         },
-        "minProperties": 1,
         "additionalProperties": false,
-        "format": "identifier-properties"
+        "format": "identifier-properties",
+        "minProperties": 1
       },
   
       "entity": {
         "description": "An entity in the linguistic schema",
         "type": "object",
         "properties": {
-          "Binding": {
-            "description": "The conceptual model object which represents the entity",
-            "oneOf": [
-              { "$ref": "#/definitions/conceptualEntityBinding" },
-              { "$ref": "#/definitions/conceptualPropertyBinding" },
-              { "$ref": "#/definitions/hierarchyBinding" },
-              { "$ref": "#/definitions/hierarchyLevelBinding" }
-            ]
+          "Definition": {
+            "$ref": "#/definitions/entityDefinition"
           },
           "State": {
             "description": "The state of the entity",
             "$ref": "#/definitions/state"
           },
+          "Visibility": {
+            "description": "Indicates whether the entity is hidden. Hidden entities are ignored for all purposes other than being available nodes along paths between other related entities.",
+            "$ref": "#/definitions/visibilityProperty"
+          },
           "Weight": {
             "description": "The weight to apply to this entity",
             "$ref": "#/definitions/weight"
           },
-          "Words": {
-            "description": "Words which can be used to refer to this entity",
-            "$ref": "#/definitions/words"
+          "TemplateSchema": {
+            "description": "Identifies the shared template schema from which this entity is derived",
+            "$ref": "#/definitions/templateSchema"
+          },
+          "Terms": {
+            "description": "Terms which can be used to refer to this entity",
+            "$ref": "#/definitions/terms"
           },
           "SemanticType": {
             "description": "The overall semantic category of the entity",
@@ -129,15 +214,62 @@
               "Animate",
               "Inanimate",
               "Location",
-              "Time"
+              "Time",
+              "Duration"
             ]
+          },
+          "Units": {
+            "description": "Nouns which indicate the units represented in this numeric property entity.",
+            "$ref": "#/definitions/terms"
           },
           "Instances": {
             "description": "Defines how instance values from the model are recognized",
             "$ref": "#/definitions/instances"
           }
         },
+        "required": [ "Definition" ],
+        "additionalProperties": false
+      },
+  
+      "entityDefinition": {
+        "description": "The definition for an entity",
+        "oneOf": [
+          { "$ref": "#/definitions/bindingEntityDefinition" },
+          { "$ref": "#/definitions/textEntityDefinition" }
+        ]
+      },
+  
+      "bindingEntityDefinition": {
+        "type": "object",
+        "properties": {
+          "Binding": {
+            "description": "The conceptual model object binding",
+            "$ref": "#/definitions/entityBinding"
+          }
+        },
         "required": [ "Binding" ],
+        "additionalProperties": false
+      },
+  
+      "entityBinding": {
+        "description": "The conceptual model object binding for an entity",
+        "oneOf": [
+          { "$ref": "#/definitions/conceptualEntityBinding" },
+          { "$ref": "#/definitions/conceptualPropertyBinding" },
+          { "$ref": "#/definitions/hierarchyBinding" },
+          { "$ref": "#/definitions/hierarchyLevelBinding" }
+        ]
+      },
+  
+      "textEntityDefinition": {
+        "type": "object",
+        "properties": {
+          "Text": {
+            "description": "The textual definition",
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        },
+        "required": [ "Text" ],
         "additionalProperties": false
       },
   
@@ -356,50 +488,62 @@
         ]
       },
   
-      "words": {
+      "terms": {
         "description": "A list of terms in the linguistic schema",
         "type": "array",
-        "items": { "$ref": "#/definitions/word" },
+        "items": { "$ref": "#/definitions/term" },
         "minItems": 1
       },
   
-      "word": {
+      "term": {
         "description": "A term in the linguistic schema",
         "oneOf": [
           { "$ref": "#/definitions/nonEmptyString" },
-          { "$ref": "#/definitions/fullWord" }
+          { "$ref": "#/definitions/fullTerm" }
         ]
       },
   
-      "fullWord": {
+      "fullTerm": {
         "description": "A term in the linguistic schema",
         "type": "object",
         "patternProperties": {
           "^.+$": {
             "description": "Properties of the term",
-            "$ref": "#/definitions/wordProperties"
+            "$ref": "#/definitions/termProperties"
           }
         },
+        "additionalProperties": false,
         "minProperties": 1,
-        "maxProperties": 1,
-        "additionalProperties": false
+        "maxProperties": 1
       },
   
-      "wordProperties": {
+      "termProperties": {
         "description": "Properties of a term in the linguistic schema",
         "type": "object",
         "properties": {
           "Type": {
             "description": "The part of speech of the term",
-            "enum": [ "Noun" ]
+            "enum": [ "Noun", "Verb", "Adjective", "Preposition" ]
           },
           "State": {
             "description": "The state of the term",
             "$ref": "#/definitions/state"
           },
+          "Source": {
+            "description": "The source of the term",
+            "$ref": "#/definitions/source"
+          },
           "Weight": {
             "description": "The weight to apply to the term",
             "$ref": "#/definitions/weight"
+          },
+          "TemplateSchema": {
+            "description": "Identifies the shared template schema from which the term is derived",
+            "$ref": "#/definitions/templateSchema"
+          },
+          "LastModified": {
+            "description": "Indicates the last date and time (in UTC) that this term was modified.",
+            "$ref": "#/definitions/dateTime"
           }
         },
         "additionalProperties": false
@@ -409,6 +553,16 @@
         "description": "Defines how instance values from the model are recognized",
         "type": "object",
         "properties": {
+          "Index": {
+            "description": "Indicates whether the values of this entity should be available in the term index, enabling recognition, completion, and suggestions.",
+            "enum": [ "Default", "All", "None" ],
+            "default": "Default"
+          },
+          "PluralNormalization": {
+            "description": "Indicates whether values that appear to be plural should match singular words in the utterance.",
+            "enum": [ "Default", "Normalized", "None" ],
+            "default": "Default"
+          },
           "Synonyms": {
             "description": "Defines a set of values which are synonyms of instances of this entity.",
             "$ref": "#/definitions/instanceSynonyms"
@@ -426,7 +580,7 @@
         "type": "object",
         "properties": {
           "SynonymBinding": {
-            "description": "The conceptual model object which contains words that can be used to refer to values of the entity",
+            "description": "The conceptual model object which contains terms that can be used to refer to values of the entity",
             "$ref": "#/definitions/conceptualPropertyBinding"
           },
           "ValueBinding": {
@@ -461,9 +615,9 @@
         "patternProperties": {
           "^.+$": { "$ref": "#/definitions/relationship" }
         },
-        "minProperties": 1,
         "additionalProperties": false,
-        "format": "identifier-properties"
+        "format": "identifier-properties",
+        "minProperties": 1
       },
   
       "relationship": {
@@ -483,6 +637,10 @@
           "Weight": {
             "description": "The weight to apply to this relationship",
             "$ref": "#/definitions/weight"
+          },
+          "TemplateSchema": {
+            "description": "Identifies the shared template schema from which this relationship is derived",
+            "$ref": "#/definitions/templateSchema"
           },
           "Roles": {
             "description": "References to linguistic entities which participate in the relationship",
@@ -510,9 +668,9 @@
         "patternProperties": {
           "^.+$": { "$ref": "#/definitions/role" }
         },
-        "minProperties": 1,
         "additionalProperties": false,
-        "format": "identifier-properties"
+        "format": "identifier-properties",
+        "minProperties": 1
       },
   
       "role": {
@@ -533,7 +691,7 @@
           },
           "Nouns": {
             "description": "Nouns which can be used to refer to the entity which is the target of the role, when used in the context of the relationship",
-            "$ref": "#/definitions/words"
+            "$ref": "#/definitions/terms"
           },
           "Quantity": {
             "description": "A role which indicates the quantity of this role's entity which participates in the relationship",
@@ -585,6 +743,10 @@
             "description": "A role which indicates when the relationship takes place",
             "$ref": "#/definitions/roleReference"
           },
+          "Duration": {
+            "description": "A role which indicates how long the relationship occurred",
+            "$ref": "#/definitions/roleReference"
+          },
           "Occurrences": {
             "description": "A role which indicates the number of times the relationship occurred",
             "$ref": "#/definitions/roleReference"
@@ -609,14 +771,33 @@
             "description": "A role in the relationship to compare to the value",
             "$ref": "#/definitions/roleReference"
           },
+          "Aggregation": {
+            "description": "An aggregate function applied to the role",
+            "enum": [
+              "None",
+              "Sum",
+              "Average",
+              "Count",
+              "Min",
+              "Max",
+              "Median",
+              "Variance",
+              "StandardDeviation"
+            ]
+          },
           "Operator": {
             "description": "The operator with which to compare the value and the role",
             "enum": [
               "Equals",
+              "NotEquals",
               "GreaterThan",
               "LessThan",
               "GreaterThanOrEquals",
-              "LessThanOrEquals"
+              "LessThanOrEquals",
+              "Contains",
+              "NotContains",
+              "StartsWith",
+              "NotStartsWith"
             ]
           },
           "Value": {
@@ -741,24 +922,19 @@
   
       "phrasing": {
         "description": "The phrasings on a linguistic relationship",
-        "allOf": [
-          {
-            "oneOf": [
-              { "$ref": "#/definitions/attributePhrasing" },
-              { "$ref": "#/definitions/namePhrasing" },
-              { "$ref": "#/definitions/adjectivePhrasing" },
-              { "$ref": "#/definitions/dynamicAdjectivePhrasing" },
-              { "$ref": "#/definitions/nounPhrasing" },
-              { "$ref": "#/definitions/dynamicNounPhrasing" },
-              { "$ref": "#/definitions/prepositionPhrasing" },
-              { "$ref": "#/definitions/verbPhrasing" }
-            ]
-          },
-          { "$ref": "#/definitions/sharedPhrasingProperties" }
+        "oneOf": [
+          { "$ref": "#/definitions/attributePhrasing" },
+          { "$ref": "#/definitions/namePhrasing" },
+          { "$ref": "#/definitions/adjectivePhrasing" },
+          { "$ref": "#/definitions/dynamicAdjectivePhrasing" },
+          { "$ref": "#/definitions/nounPhrasing" },
+          { "$ref": "#/definitions/dynamicNounPhrasing" },
+          { "$ref": "#/definitions/prepositionPhrasing" },
+          { "$ref": "#/definitions/verbPhrasing" }
         ]
       },
   
-      "sharedPhrasingProperties": {
+      "phrasingProperties": {
         "type": "object",
         "properties": {
           "State": {
@@ -768,6 +944,10 @@
           "Weight": {
             "description": "The weight to apply to the phrasing",
             "$ref": "#/definitions/weight"
+          },
+          "TemplateSchema": {
+            "description": "Identifies the shared template schema from which the phrasing is derived",
+            "$ref": "#/definitions/templateSchema"
           }
         }
       },
@@ -775,13 +955,19 @@
       "attributePhrasing": {
         "description": "An attribute phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "Attribute": { "$ref": "#/definitions/attributePhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["Attribute"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "Attribute": { "$ref": "#/definitions/attributePhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "Attribute" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "attributePhrasingProperties": {
@@ -808,13 +994,19 @@
       "namePhrasing": {
         "description": "A name phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "Name": { "$ref": "#/definitions/namePhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["Name"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "Name": { "$ref": "#/definitions/namePhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "Name" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "namePhrasingProperties": {
@@ -837,81 +1029,97 @@
       "adjectivePhrasing": {
         "description": "An adjective phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "Adjective": { "$ref": "#/definitions/adjectivePhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["Adjective"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "Adjective": { "$ref": "#/definitions/adjectivePhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "Adjective" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "adjectivePhrasingProperties": {
         "description": "Properties of an adjective phrasing",
         "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "Subject": {
-                "description": "The entity which is described via an adjective",
-                "$ref": "#/definitions/roleReference"
-              },
-              "Adjectives": {
-                "description": "Adjectives used to describe the Subject (with a high measurement)",
-                "$ref": "#/definitions/words"
-              },
-              "Antonyms": {
-                "description": "Adjectives used to describe the Subject (with a low measurement)",
-                "$ref": "#/definitions/words"
-              },
-              "Measurement": {
-                "description": "The entity which measures the extent to which the Adjectives apply",
-                "$ref": "#/definitions/roleReference"
-              },
-              "PrepositionalPhrases": {
-                "description": "Additional prepositional phrases which apply to the phrasing",
-                "$ref": "#/definitions/prepPhrases"
-              }
-            },
-            "required": [ "Subject", "Adjectives" ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "Subject": {
-                "description": "The entity which is described via an adjective",
-                "$ref": "#/definitions/roleReference"
-              },
-              "Antonyms": {
-                "description": "Adjectives used to describe the Subject (with a low measurement)",
-                "$ref": "#/definitions/words"
-              },
-              "Measurement": {
-                "description": "The entity which measures the extent to which the Adjectives apply",
-                "$ref": "#/definitions/roleReference"
-              },
-              "PrepositionalPhrases": {
-                "description": "Additional prepositional phrases which apply to the phrasing",
-                "$ref": "#/definitions/prepPhrases"
-              }
-            },
-            "required": [ "Subject", "Antonyms" ],
-            "additionalProperties": false
-          }
+          { "$ref": "#/definitions/adjectivePhrasingProperty" },
+          { "$ref": "#/definitions/antonymPhrasingProperty" }
         ]
+      },
+  
+      "adjectivePhrasingProperty": {
+        "type": "object",
+        "properties": {
+          "Subject": {
+            "description": "The entity which is described via an adjective",
+            "$ref": "#/definitions/roleReference"
+          },
+          "Adjectives": {
+            "description": "Adjectives used to describe the Subject (with a high measurement)",
+            "$ref": "#/definitions/terms"
+          },
+          "Antonyms": {
+            "description": "Adjectives used to describe the Subject (with a low measurement)",
+            "$ref": "#/definitions/terms"
+          },
+          "Measurement": {
+            "description": "The entity which measures the extent to which the Adjectives apply",
+            "$ref": "#/definitions/roleReference"
+          },
+          "PrepositionalPhrases": {
+            "description": "Additional prepositional phrases which apply to the phrasing",
+            "$ref": "#/definitions/prepPhrases"
+          }
+        },
+        "required": [ "Subject", "Adjectives" ],
+        "additionalProperties": false
+      },
+  
+      "antonymPhrasingProperty": {
+        "type": "object",
+        "properties": {
+          "Subject": {
+            "description": "The entity which is described via an adjective",
+            "$ref": "#/definitions/roleReference"
+          },
+          "Antonyms": {
+            "description": "Adjectives used to describe the Subject (with a low measurement)",
+            "$ref": "#/definitions/terms"
+          },
+          "Measurement": {
+            "description": "The entity which measures the extent to which the Adjectives apply",
+            "$ref": "#/definitions/roleReference"
+          },
+          "PrepositionalPhrases": {
+            "description": "Additional prepositional phrases which apply to the phrasing",
+            "$ref": "#/definitions/prepPhrases"
+          }
+        },
+        "required": [ "Subject", "Antonyms" ],
+        "additionalProperties": false
       },
   
       "dynamicAdjectivePhrasing": {
         "description": "A dynamic adjective phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "DynamicAdjective": { "$ref": "#/definitions/dynamicAdjectivePhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["DynamicAdjective"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "DynamicAdjective": { "$ref": "#/definitions/dynamicAdjectivePhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "DynamicAdjective" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "dynamicAdjectivePhrasingProperties": {
@@ -938,13 +1146,19 @@
       "nounPhrasing": {
         "description": "A noun phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "Noun": { "$ref": "#/definitions/nounPhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["Noun"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "Noun": { "$ref": "#/definitions/nounPhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "Noun" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "nounPhrasingProperties": {
@@ -957,7 +1171,7 @@
           },
           "Nouns": {
             "description": "Nouns used to describe the Subject",
-            "$ref": "#/definitions/words"
+            "$ref": "#/definitions/terms"
           },
           "PrepositionalPhrases": {
             "description": "Additional prepositional phrases which apply to the phrasing",
@@ -971,13 +1185,19 @@
       "dynamicNounPhrasing": {
         "description": "A dynamic noun phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "DynamicNoun": { "$ref": "#/definitions/dynamicNounPhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["DynamicNoun"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "DynamicNoun": { "$ref": "#/definitions/dynamicNounPhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "DynamicNoun" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "dynamicNounPhrasingProperties": {
@@ -1004,13 +1224,19 @@
       "prepositionPhrasing": {
         "description": "A preposition phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "Preposition": { "$ref": "#/definitions/prepositionPhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["Preposition"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "Preposition": { "$ref": "#/definitions/prepositionPhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "Preposition" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "prepositionPhrasingProperties": {
@@ -1023,7 +1249,7 @@
           },
           "Prepositions": {
             "description": "Prepositions used in the prepositional phrase",
-            "$ref": "#/definitions/words"
+            "$ref": "#/definitions/terms"
           },
           "Object": {
             "description": "The entity which is the object of the prepositional phrase",
@@ -1041,13 +1267,19 @@
       "verbPhrasing": {
         "description": "A verb phrasing on a linguistic relationship",
         "type": "object",
-        "properties": {
-          "Verb": { "$ref": "#/definitions/verbPhrasingProperties" },
-          "State": {},
-          "Weight": {}
-        },
-        "required": ["Verb"],
-        "additionalProperties": false
+        "allOf": [
+          {
+            "properties": {
+              "Verb": { "$ref": "#/definitions/verbPhrasingProperties" },
+              "State": {},
+              "Weight": {},
+              "TemplateSchema": {}
+            },
+            "additionalProperties": false,
+            "required": [ "Verb" ]
+          },
+          { "$ref": "#/definitions/phrasingProperties" }
+        ]
       },
   
       "verbPhrasingProperties": {
@@ -1060,7 +1292,7 @@
           },
           "Verbs": {
             "description": "Verbs used to describe the relationship",
-            "$ref": "#/definitions/words"
+            "$ref": "#/definitions/terms"
           },
           "IndirectObject": {
             "description": "The entity which is the indirect object of the verb",
@@ -1092,7 +1324,7 @@
         "properties": {
           "Prepositions": {
             "description": "Prepositions used in the prepositional phrase",
-            "$ref": "#/definitions/words"
+            "$ref": "#/definitions/terms"
           },
           "Object": {
             "description": "The entity which is the object of the prepositional phrase",
@@ -1134,9 +1366,9 @@
         "patternProperties": {
           "^.+$": { "$ref": "#/definitions/globalSubstitutionProperties" }
         },
+        "additionalProperties": false,
         "minProperties": 1,
-        "maxProperties": 1,
-        "additionalProperties": false
+        "maxProperties": 1
       },
   
       "globalSubstitutionProperties": {
@@ -1156,10 +1388,53 @@
           "State": {
             "description": "The state of the global substitution",
             "$ref": "#/definitions/state"
+          },
+          "TemplateSchema": {
+            "description": "Identifies the shared template schema from which this global substitution is derived",
+            "$ref": "#/definitions/templateSchema"
           }
         },
         "required": [ "Substitute" ],
         "additionalProperties": false
+      },
+  
+      "examples": {
+        "description": "Examples associated with the linguistic schema",
+        "type": "array",
+        "items": { "$ref": "#/definitions/example" },
+        "minItems": 1
+      },
+  
+      "example": {
+        "description": "An example utterance associated with the linguistic schema",
+        "oneOf": [
+          { "$ref": "#/definitions/nonEmptyString" },
+          { "$ref": "#/definitions/fullExample" }
+        ]
+      },
+  
+      "fullExample": {
+        "description": "An example utterance associated with the linguistic schema",
+        "type": "object",
+        "patternProperties": {
+          "^.+$": { "$ref": "#/definitions/exampleProperties" }
+        },
+        "additionalProperties": false,
+        "minProperties": 1,
+        "maxProperties": 1
+      },
+  
+      "exampleProperties": {
+        "description": "Metadata properties about an example utterance",
+        "type": "object",
+        "properties": {
+          "TemplateSchema": {
+            "description": "Identifies the shared template schema from which the example is derived",
+            "$ref": "#/definitions/templateSchema"
+          }
+        },
+        "additionalProperties": false
       }
     }
-  }
+   }
+  
