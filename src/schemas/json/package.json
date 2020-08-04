@@ -75,6 +75,67 @@
       "description": "Run BEFORE bump the package version",
       "type": "string"
     },
+    "packageExportsEntryPath": {
+      "type": "string",
+      "description": "The module path that is resolved when this specifier is imported.",
+      "pattern": "^\\./"
+    },
+    "packageExportsEntryObject": {
+      "type": "object",
+      "description": "Used to specify conditional exports, note that Conditional exports are unsupported in older environments, so it's recommended to use the fallback array option if support for those environments is a concern.",
+      "properties": {
+        "require": {
+          "$ref": "#/definitions/packageExportsEntryPath",
+          "description": "The module path that is resolved when this specifier is imported as a CommonJS module using the `require(...)` function."
+        },
+        "import": {
+          "$ref": "#/definitions/packageExportsEntryPath",
+          "description": "The module path that is resolved when this specifier is imported as an ECMAScript module using an `import` declaration or the dynamic `import(...)` function."
+        },
+        "node": {
+          "$ref": "#/definitions/packageExportsEntryPath",
+          "description": "The module path that is resolved when this environment is Node.js."
+        },
+        "default": {
+          "$ref": "#/definitions/packageExportsEntryPath",
+          "description": "The module path that is resolved when no other export type matches."
+        }
+      },
+      "patternProperties": {
+        "^(?!\\.).": {
+          "$ref": "#/definitions/packageExportsEntryPath",
+          "description": "The module path that is resolved when this environment matches the property name."
+        }
+      },
+      "additionalProperties": false
+    },
+    "packageExportsEntry": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/packageExportsEntryPath"
+        },
+        {
+          "$ref": "#/definitions/packageExportsEntryObject"
+        }
+      ]
+    },
+    "packageExportsFallback": {
+      "type": "array",
+      "description": "Used to allow fallbacks in case this environment doesn't support the preceding entries.",
+      "items": {
+        "$ref": "#/definitions/packageExportsEntry"
+      }
+    },
+    "packageExportsEntryOrFallback": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/packageExportsEntry"
+        },
+        {
+          "$ref": "#/definitions/packageExportsFallback"
+        }
+      ]
+    },
     "coreProperties": {
       "type": "object",
 
@@ -178,6 +239,43 @@
           "description": "The main field is a module ID that is the primary entry point to your program.",
           "type": "string"
         },
+        "exports": {
+          "description": "The \"exports\" field is used to restrict external access to non-exported module files, also enables a module to import itself using \"name\".",
+          "oneOf": [
+            {
+              "$ref": "#/definitions/packageExportsEntryPath",
+              "description": "The module path that is resolved when the module specifier matches \"name\", shadows the \"main\" field."
+            },
+            {
+              "type": "object",
+              "properties": {
+                ".": {
+                  "$ref": "#/definitions/packageExportsEntryOrFallback",
+                  "description": "The module path that is resolved when the module specifier matches \"name\", shadows the \"main\" field."
+                },
+                "./": {
+                  "$ref": "#/definitions/packageExportsEntryOrFallback",
+                  "description": "The module path prefix that is resolved when the module specifier starts with \"name/\", set to \"./\" to allow external modules to import any subpath."
+                }
+              },
+              "patternProperties": {
+                "^\\./": {
+                  "$ref": "#/definitions/packageExportsEntryOrFallback",
+                  "description": "The module path that is resolved when the path component of the module specifier matches the property name."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/packageExportsEntryObject",
+              "description": "The module path that is resolved when the module specifier matches \"name\", shadows the \"main\" field."
+            },
+            {
+              "$ref": "#/definitions/packageExportsFallback",
+              "description": "The module path that is resolved when the module specifier matches \"name\", shadows the \"main\" field."
+            }
+          ]
+        },
         "bin": {
           "type": ["string", "object"],
           "additionalProperties": {
@@ -195,6 +293,42 @@
         "typings": {
           "description": "Note that the \"typings\" field is synonymous with \"types\", and could be used as well.",
           "type": "string"
+        },
+        "typesVersions": {
+          "description": "The \"typesVersions\" field is used since TypeScript 3.1 to support features that were only made available in newer TypeScript versions.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Contains overrides for the TypeScript version that matches the version range matching the property key.",
+            "type": "object",
+            "properties": {
+              "*": {
+                "description": "Maps all file paths to the file paths specified in the array.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^*]*(?:\\*[^*]*)?$"
+                }
+              }
+            },
+            "patternProperties": {
+              "^[^*]+$": {
+                "description": "Maps the file path matching the property key to the file paths specified in the array.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "^[^*]*\\*[^*]*$": {
+                "description": "Maps file paths matching the pattern specified in property key to file paths specified in the array.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^*]*(?:\\*[^*]*)?$"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
         },
         "man": {
           "type": ["array", "string"],
