@@ -146,6 +146,11 @@ module.exports = function (grunt) {
         return;
       }
 
+      // If it's the .DS_Store folder from macOS, ignore and continue.
+      if (folder == ".DS_Store") {
+        return;
+      }
+
       const toTestFilePath = toPath(testDir, folder);
 
       const name = folder.replace("_", ".");
