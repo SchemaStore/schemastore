@@ -1,0 +1,276 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "ssh-key-blueprint.yaml"
+  ],
+  "inputs": {
+    "subscription_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_secret": {
+      "type": "string"
+    },
+    "location": {
+      "default": "eastus"
+    },
+    "retry_after": {
+      "default": 30
+    },
+    "resource_prefix": {
+      "default": "ex"
+    },
+    "resource_suffix": {
+      "default": 0
+    },
+    "azure_configuration": {
+      "default": {
+        "subscription_id": {
+          "get_input": "subscription_id"
+        },
+        "tenant_id": {
+          "get_input": "tenant_id"
+        },
+        "client_id": {
+          "get_input": "client_id"
+        },
+        "client_secret": {
+          "get_input": "client_secret"
+        }
+      }
+    },
+    "use_existing_example_azure_virtual_machine": {
+      "default": false
+    },
+    "example_azure_virtual_machine_name": {
+      "default": {
+        "concat": [
+          {
+            "get_input": "resource_prefix"
+          },
+          "eavm",
+          {
+            "get_input": "resource_suffix"
+          }
+        ]
+      }
+    },
+    "example_azure_virtual_machine_os_family": {
+      "type": "string",
+      "default": "linux"
+    },
+    "example_azure_virtual_machine_size": {
+      "type": "string",
+      "default": "Standard_A3"
+    },
+    "example_azure_virtual_machine_image_publisher": {
+      "type": "string",
+      "default": "OpenLogic"
+    },
+    "example_azure_virtual_machine_image_offer": {
+      "type": "string",
+      "default": "CentOS"
+    },
+    "example_azure_virtual_machine_image_sku": {
+      "type": "string",
+      "default": "7.0"
+    },
+    "example_azure_virtual_machine_image_version": {
+      "type": "string",
+      "default": "latest"
+    },
+    "example_azure_virtual_machine_username": {
+      "type": "string",
+      "default": "centos"
+    },
+    "example_azure_virtual_machine_password": {
+      "type": "string",
+      "default": ""
+    },
+    "example_azure_virtual_machine_public_key_path": {
+      "default": "/home/centos/.ssh/authorized_keys"
+    },
+    "example_azure_virtual_machine_public_keys": {
+      "default": [
+        {
+          "keydata": {
+            "get_attribute": [
+              "rsa_key",
+              "public_key_export"
+            ]
+          },
+          "path": {
+            "get_input": "example_azure_virtual_machine_public_key_path"
+          }
+        }
+      ]
+    },
+    "example_azure_virtual_machine_public_key_auth_only": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "node_templates": {
+    "example_azure_virtual_machine": {
+      "type": "cloudify.azure.nodes.compute.VirtualMachine",
+      "properties": {
+        "azure_config": {
+          "get_input": "azure_configuration"
+        },
+        "use_external_resource": {
+          "get_input": "use_existing_example_azure_virtual_machine"
+        },
+        "name": {
+          "get_input": "example_azure_virtual_machine_name"
+        },
+        "location": {
+          "get_input": "location"
+        },
+        "os_family": {
+          "get_input": "example_azure_virtual_machine_os_family"
+        },
+        "resource_config": {
+          "hardwareProfile": {
+            "vmSize": {
+              "get_input": "example_azure_virtual_machine_size"
+            }
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": {
+                "get_input": "example_azure_virtual_machine_image_publisher"
+              },
+              "offer": {
+                "get_input": "example_azure_virtual_machine_image_offer"
+              },
+              "sku": {
+                "get_input": "example_azure_virtual_machine_image_sku"
+              },
+              "version": {
+                "get_input": "example_azure_virtual_machine_image_version"
+              }
+            }
+          },
+          "osProfile": {
+            "computerName": {
+              "get_property": [
+                "SELF",
+                "name"
+              ]
+            },
+            "adminUsername": {
+              "get_input": "example_azure_virtual_machine_username"
+            },
+            "adminPassword": {
+              "get_input": "example_azure_virtual_machine_password"
+            },
+            "linuxConfiguration": {
+              "ssh": {
+                "publicKeys": {}
+              },
+              "disablePasswordAuthentication": {
+                "get_input": "example_azure_virtual_machine_public_key_auth_only"
+              }
+            }
+          }
+        },
+        "agent_config": {
+          "install_method": "none"
+        }
+      },
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "pkg.cloudify_azure.resources.compute.virtualmachine.create",
+            "inputs": {
+              "args": {
+                "hardwareProfile": {
+                  "vmSize": {
+                    "get_input": "example_azure_virtual_machine_size"
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": {
+                      "get_input": "example_azure_virtual_machine_image_publisher"
+                    },
+                    "offer": {
+                      "get_input": "example_azure_virtual_machine_image_offer"
+                    },
+                    "sku": {
+                      "get_input": "example_azure_virtual_machine_image_sku"
+                    },
+                    "version": {
+                      "get_input": "example_azure_virtual_machine_image_version"
+                    }
+                  }
+                },
+                "osProfile": {
+                  "computerName": {
+                    "get_property": [
+                      "SELF",
+                      "name"
+                    ]
+                  },
+                  "adminUsername": {
+                    "get_input": "example_azure_virtual_machine_username"
+                  },
+                  "adminPassword": {
+                    "get_input": "example_azure_virtual_machine_password"
+                  },
+                  "linuxConfiguration": {
+                    "ssh": {
+                      "publicKeys": [
+                        {
+                          "keydata": {
+                            "get_attribute": [
+                              "rsa_key",
+                              "public_key_export"
+                            ]
+                          },
+                          "path": {
+                            "get_input": "example_azure_virtual_machine_public_key_path"
+                          }
+                        }
+                      ]
+                    },
+                    "disablePasswordAuthentication": {
+                      "get_input": "example_azure_virtual_machine_public_key_auth_only"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "rsa_key"
+        },
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "example_azure_resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_storage_account",
+          "target": "example_azure_storage_account"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_nic",
+          "target": "example_azure_nic"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_nic",
+          "target": "example_azure_private_nic"
+        }
+      ]
+    }
+  }
+}
