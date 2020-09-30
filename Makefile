@@ -1,4 +1,4 @@
-.PHONY: build
+.PHONY: build schemasafe
 
 build:
 	cd src && \
@@ -8,3 +8,8 @@ build:
 		echo "ERROR: Dirty repository found"; \
 		git status --porcelain; \
 		exit 1; }
+
+schemasafe:
+	cd src && \
+	npm install && \
+	npm run schemasafe

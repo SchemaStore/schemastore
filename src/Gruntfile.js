@@ -181,8 +181,144 @@ module.exports = function (grunt) {
     });
   });
 
+  grunt.registerTask("schemasafe_test", "Dynamically load schema validation based on the files and folders in /test/", function () {
+
+    const validationModeDefault = { includeErrors: true, allErrors: true};
+
+    const validationModeStrong = { includeErrors: true, allErrors: true , mode: 'strong'};
+
+    const { validator } = require('@exodus/schemasafe')
+
+    const fs = require('fs');
+
+    const schemaValidation = grunt.file.readJSON('schema-validation.json');
+
+    const testDir = "test";
+    const schemas = fs.readdirSync("schemas/json");
+
+    const folders = fs.readdirSync(testDir);
+
+    const notCovered = schemas.filter(schemaName => {
+      const folderName = schemaName.replace("\.json","");
+      return !folders.includes(folderName.replace("_", "."));
+    });
+
+    if(notCovered.length) {
+      const percent = (notCovered.length / schemas.length) * 100;
+      console.log(`${parseInt(percent)}% of schemas do not have tests or have malformed test folders`);
+    }
+
+    // Verify each schema file
+    schemas.forEach(function (schema_file_name) {
+
+      const schema_full_path_name = `schemas/json/${schema_file_name}`
+
+      // If not a file, ignore and continue. We only care about files.
+      if (!isFile(schema_full_path_name)) {
+        return;
+      }
+
+      // If it's the .DS_Store folder from macOS, ignore and continue.
+      if (schema_file_name === ".DS_Store") {
+        return;
+      }
+
+      // skip test if present in the list 'skiptest'
+      const skipTest = schemaValidation.skiptest.find(
+          function(value, index) {
+            return value === schema_file_name;}
+            );
+      if(skipTest){
+        console.log(`========> ${skipTest} Skip this schema for validation. This schema does not pass with the latest validator.`);
+        return;
+      }
+
+      // Must this schema be parse in strong mode?
+      const strongMode = schemaValidation.strongmode.find(
+          function(value, index) {
+            return value === schema_file_name;}
+      );
+      let selectedParserMode =  strongMode ? validationModeStrong : validationModeDefault;
+      let selectedParserModeString =  strongMode ? "(strong mode)  " : "(default mode) ";
+      // Start validate the JSON schema
+      console.log(`${selectedParserModeString}validate   | ${schema_full_path_name}`);
+      const x = grunt.file.readJSON(schema_full_path_name);
+      validator(x, selectedParserMode);
+      console.log(`${selectedParserModeString}pass       | ${schema_full_path_name}`);
+    });
+
+    // Mow run all test in each test folder
+    folders.forEach(function (folder) {
+
+      // If it's a file, ignore and continue. We only care about folders.
+      if (isFile(folder)) {
+        return;
+      }
+
+      // If it's the .DS_Store folder from macOS, ignore and continue.
+      if (folder === ".DS_Store") {
+        return;
+      }
+
+      console.log(``);
+      console.log(`test folder   : ${folder}`);
+
+      // skip test if present in the list 'skiptest'
+      const skipTest = schemaValidation.skiptest.find(
+          function(value, index) {
+            return value === `${folder}.json`;}
+      );
+      if(skipTest){
+        console.log(`========> Skip this test folder for validation: ${folder}`);
+        console.log(`This schema or test does not pass with the latest validator.`);
+        console.log(`see file: schema-validation.json`);
+        return;
+      }
+
+      // Must this schema be parse in strong mode?
+      const strongMode2 = schemaValidation.strongmode.find(
+          function(value, index) {
+            return value === `${folder}.json`;}
+      );
+
+      let selectedParserMode2 =  strongMode2 ? validationModeStrong : validationModeDefault;
+      let selectedParserModeString2 =  strongMode2 ? "(strong mode)  " : "(default mode) ";
+
+      const toTestFilePath = toPath(testDir, folder);
+
+      const name = folder.replace("_", ".");
+
+      const schema = grunt.file.readJSON(`schemas/json/${name}.json`);
+
+      const files = fs.readdirSync(pt.join(testDir, folder)).map(toTestFilePath);
+
+      if(!files.length) {
+        throw new Error(`Found folder with no test files: ${folder}`);
+      }
+
+      const validate = validator(schema, selectedParserMode2);
+      if(!validate){
+        throw new Error(`Error in schema: ${name}`);
+      }
+
+      files.forEach(function (file) {
+        const x = grunt.file.readJSON(file);
+        if(validate(x)){
+          console.log(`${selectedParserModeString2}test pass: ${file}`);
+        }else{
+          console.log(`${selectedParserModeString2}test failed: ${file}`);
+          throw new Error(`Error in test: ${validate.errors}`);
+        }
+      })
+    });
+  });
+
+
   grunt.registerTask("build", ["setup", "tv4"]);
   grunt.registerTask("default", ["http", "build"]);
+  grunt.registerTask("schemasafe", ["schemasafe_test"]);
+
+
 
   grunt.loadNpmTasks("grunt-tv4");
   grunt.loadNpmTasks("grunt-contrib-watch");
