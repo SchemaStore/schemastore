@@ -314,7 +314,7 @@ module.exports = function (grunt) {
   });
 
 
-  grunt.registerTask("build", ["setup", "tv4"]);
+  grunt.registerTask("build", ["setup", "tv4", "schemasafe"]);
   grunt.registerTask("default", ["http", "build"]);
   grunt.registerTask("schemasafe", ["schemasafe_test"]);
 
