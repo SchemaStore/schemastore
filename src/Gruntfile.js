@@ -242,6 +242,13 @@ module.exports = function (grunt) {
       let selectedParserModeString =  strongMode ? "(strong mode)  " : "(default mode) ";
       // Start validate the JSON schema
       console.log(`${selectedParserModeString}validate   | ${schema_full_path_name}`);
+
+      // Check for BOM in JSON
+      const buffer = fs.readFileSync(schema_full_path_name);
+      if (buffer[0] > 127){
+        throw new Error(`Schema file must not have BOM: ${schema_full_path_name}`);
+      }
+
       const x = grunt.file.readJSON(schema_full_path_name);
       validator(x, selectedParserMode);
       console.log(`${selectedParserModeString}pass       | ${schema_full_path_name}`);
