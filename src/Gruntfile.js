@@ -62,10 +62,6 @@ module.exports = function (grunt) {
       //    options: { url: "https://raw.githubusercontent.com/composer/composer/master/res/composer-schema.json" },
       //    dest: "schemas/json/composer.json"
       //},
-      contribute: {
-        options: { url: "https://raw.githubusercontent.com/mozilla/contribute.json/master/schema.json" },
-        dest: "schemas/json/contribute.json"
-      },
       swagger20: {
         options: { url: "https://raw.githubusercontent.com/swagger-api/swagger-spec/master/schemas/v2.0/schema.json" },
         dest: "schemas/json/swagger-2.0.json"
