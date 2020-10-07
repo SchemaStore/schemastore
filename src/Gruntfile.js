@@ -4,7 +4,7 @@ const pt = require("path");
 
 /**
  * @summary tests if an entry is a folder
- * @param {(string|import("fs").Dirent)} entry 
+ * @param {(string|import("fs").Dirent)} entry
  * @returns {boolean}
  */
 const isFile = (entry) => /.+(?=\.[a-zA-Z]+$)/.test(entry);
@@ -307,6 +307,55 @@ module.exports = function (grunt) {
         }
       })
     });
+  });
+
+  function hasBOM(buf) {
+    return buf.length > 2 && buf[0] == 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
+  }
+
+  function parseJSON(text) {
+    try {
+      return {
+        json: JSON.parse(text),
+      };
+    } catch(err) {
+      return {
+        error: err.message,
+      };
+    }
+  }
+
+  // Async task structure: https://gruntjs.com/creating-tasks
+  grunt.registerTask("validate_links", "Check if links return 200 and valid json", async function () {
+    // Force task into async mode and grab a handle to the "done" function.
+    const done = this.async();
+
+    const tv4 = grunt.config.get("tv4");
+    const catalogFileName = tv4.catalog.src[0];
+    const catalog = grunt.file.readJSON(catalogFileName);
+    const got = require("got");
+
+    for (const {url} of catalog.schemas) {
+      grunt.log.writeln("validating", url);
+      try {
+        const body = await got(url);
+        if (body.statusCode != 200) {
+          grunt.log.error(url, body.statusCode);
+          continue;
+        }
+        if (hasBOM(body.rawBody)) {
+          grunt.log.error(url, "contains UTF-8 BOM");
+        }
+        const result = parseJSON(body.rawBody.toString('utf8'))
+        if (result.error) {
+          grunt.log.error(url, result.error);
+        }
+      } catch(err) {
+        grunt.log.error(url, err.message);
+      }
+    }
+
+    done();
   });
 
 
