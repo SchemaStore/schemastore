@@ -227,7 +227,7 @@ module.exports = function (grunt) {
       const skipTest = schemaValidation.skiptest.find(
           function(value, index) {
             return value === schema_file_name;}
-            );
+      );
       if(skipTest){
         console.log(`========> ${skipTest} Skip this schema for validation. This schema does not pass with the latest validator.`);
         return;
@@ -242,6 +242,26 @@ module.exports = function (grunt) {
       let selectedParserModeString =  strongMode ? "(strong mode)  " : "(default mode) ";
       // Start validate the JSON schema
       console.log(`${selectedParserModeString}validate   | ${schema_full_path_name}`);
+
+      // Check for BOM in JSON
+      const buffer = fs.readFileSync(schema_full_path_name);
+
+      if(buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF){
+        throw new Error(`Schema file must not have UTF-8 BOM: ${schema_full_path_name}`);
+      }
+      if(buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF){
+        throw new Error(`Schema file must not have UTF-16 (BE) BOM: ${schema_full_path_name}`);
+      }
+      if(buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE){
+        throw new Error(`Schema file must not have UTF-16 (LE) BOM: ${schema_full_path_name}`);
+      }
+      if(buffer.length >= 4 && buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xFF && buffer[3] === 0xFE){
+        throw new Error(`Schema file must not have UTF-32 (BE) BOM: ${schema_full_path_name}`);
+      }
+      if(buffer.length >= 4 && buffer[0] === 0xFF && buffer[1] === 0xFE && buffer[2] === 0x00 && buffer[3] === 0x00){
+        throw new Error(`Schema file must not have UTF-32 (LE) BOM: ${schema_full_path_name}`);
+      }
+
       const x = grunt.file.readJSON(schema_full_path_name);
       validator(x, selectedParserMode);
       console.log(`${selectedParserModeString}pass       | ${schema_full_path_name}`);
