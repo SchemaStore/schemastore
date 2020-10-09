@@ -1,4 +1,4 @@
-﻿/// <binding AfterBuild='build' />
+/// <binding AfterBuild='build' />
 
 const pt = require("path");
 
@@ -325,6 +325,112 @@ module.exports = function (grunt) {
     }
   }
 
+  const rawGithubPrefix = "https://raw.githubusercontent.com/";
+
+  function isRawGithubURL(url) {
+    return url.startsWith(rawGithubPrefix);
+  }
+
+  // extract repo, branch and path from a raw github url
+  // returns false if not a raw github url
+  function parseRawGithubURL(url) {
+    if (isRawGithubURL(url)) {
+      const [project, repo, branch, ...path] =
+        url
+          .substr(rawGithubPrefix.length)
+          .split("/");
+      return {
+        repo: `https://github.com/${project}/${repo}`,
+        base: `${project}/${repo}`,
+        branch,
+        path: path.join("/"),
+      }
+    }
+    return false;
+  }
+
+  const util = require('util');
+  const exec = util.promisify(require('child_process').exec);
+
+  // heuristic to find valid version tag
+  // disregard versions that are marked as special
+  // require at least a number
+  function validVersion(version) {
+    const invalid =
+      /alpha|beta|next|rc|tag|pre|\^/i.test(version)
+      || !/\d+/.test(version);
+    return !invalid;
+  }
+
+  // extract tags that might represent versions and return most recent
+  // returns false none found
+  async function githubNewestRelease(githubRepo) {
+    const cmd = `git ls-remote --tags ${githubRepo}`;
+
+    const result = await exec(cmd);
+    const stdout = result.stdout.trim();
+    if (stdout === "") {
+      return false;
+    }
+    const refs =
+      stdout
+        .split("\n")
+        .map(line =>
+          line
+            .split("\t")[1]
+            .split("/")[2]
+        );
+
+    // sort refs using "natural" ordering (so that it works with versions)
+    var collator = new Intl.Collator(undefined, {
+      numeric: true,
+      sensitivity: "base"
+    });
+    refs.sort(collator.compare);
+    const refsDescending =
+      refs
+        .reverse()
+        .filter(version => validVersion(version));
+    if (refsDescending.length > 0) {
+      return refsDescending[0];
+    }
+    return false;
+  }
+
+  // git default branch (master/main)
+  async function githubDefaultBranch(githubRepo) {
+    const cmd = `git ls-remote --symref ${githubRepo} HEAD`;
+    const prefix = "ref: refs/heads/";
+
+    const result = await exec(cmd);
+    const stdout = result.stdout.trim();
+    const rows =
+      stdout
+        .split("\n")
+        .map(line => line.split("\t"));
+    for(const row of rows) {
+      if (row[0].startsWith(prefix)) {
+        return row[0].substr(prefix.length);
+      }
+    }
+    throw new exception("unable to determine default branch");
+  }
+
+  // construct raw github url to newest version
+  async function rawGithubVersionedURL(url) {
+    const urlParts = parseRawGithubURL(url);
+    const newestVersion = await githubNewestRelease(urlParts.repo);
+    let branch = newestVersion;
+    if (branch === false) {
+      branch = await githubDefaultBranch(urlParts.repo);
+    }
+    return {
+      repo: urlParts.repo,
+      branch,
+      rawURL: `${rawGithubPrefix}${urlParts.base}/${branch}/${urlParts.path}`,
+    }
+  }
+
   // Async task structure: https://gruntjs.com/creating-tasks
   grunt.registerTask("validate_links", "Check if links return 200 and valid json", async function () {
     // Force task into async mode and grab a handle to the "done" function.
@@ -335,8 +441,16 @@ module.exports = function (grunt) {
     const catalog = grunt.file.readJSON(catalogFileName);
     const got = require("got");
 
-    for (const {url} of catalog.schemas) {
-      grunt.log.writeln("validating", url);
+    for (let {url} of catalog.schemas) {
+      if (isRawGithubURL(url)) {
+        const {repo, branch, rawURL} = await rawGithubVersionedURL(url);
+        if (url != rawURL) {
+          grunt.log.error("repo", repo, "branch", branch, "url should be", rawURL);
+          // test if the advised url works
+          url = rawURL;
+        }
+      }
+
       try {
         const body = await got(url);
         if (body.statusCode != 200) {
