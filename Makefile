@@ -1,4 +1,4 @@
-.PHONY: build schemasafe
+.PHONY: build schemasafe remote
 
 build:
 	cd src && \
@@ -13,3 +13,8 @@ schemasafe:
 	cd src && \
 	npm install && \
 	npm run schemasafe
+
+remote:
+	cd src && \
+	npm install && \
+	npm run remote
