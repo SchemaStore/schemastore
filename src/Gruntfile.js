@@ -634,7 +634,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_test", ["local_bom", "local_find-duplicated-property-keys", "local_schemasafe_test"]);
   grunt.registerTask("remote_test", ["remote_bom", "remote_schemasafe_test"]);
-  grunt.registerTask("build", ["setup", "tv4"]);
+  grunt.registerTask("build", ["setup", "tv4", "local_test"]);
   grunt.registerTask("default", ["http", "build"]);
   grunt.registerTask("schemasafe", ["local_test"]);
 
