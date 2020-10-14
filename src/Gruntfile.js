@@ -400,7 +400,7 @@ module.exports = function (grunt) {
         validate = validator(JSON.parse(callbackParameter.rawFile) , selectedParserMode);
       }catch (e) {
         grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
-        grunt.log.error(e);
+        throw new Error(e);
       }
 
       grunt.log.ok(selectedParserModeString + textPassSchema + callbackParameter.urlOrFilePath);
