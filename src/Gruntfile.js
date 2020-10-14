@@ -431,7 +431,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_schemasafe_test", "Dynamically load local schema file for validation with /test/", function () {
     const x = schemasafe();
-    localSchemaFileAndTestFile(x.testSchemaFile, x.testTestFile, {fullScanAllFiles: false, skipTestFolder: true});
+    localSchemaFileAndTestFile(x.testSchemaFile, x.testTestFile);
     grunt.log.ok("local schema passed");
   })
 
@@ -465,7 +465,7 @@ module.exports = function (grunt) {
         throw new Error(`Error in test: find-duplicated-property-keys`);
       }
     }
-    localSchemaFileAndTestFile(function(){}, findDuplicatedProperty, {fullScanAllFiles: false, skipTestFolder: false});
+    localSchemaFileAndTestFile(function(){}, findDuplicatedProperty);
     grunt.log.ok('No duplicated property key found');
   })
 
