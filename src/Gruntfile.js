@@ -177,7 +177,7 @@ module.exports = function (grunt) {
     });
   });
 
-  async function remoteSchemaFile(schemaFileCallback){
+  async function remoteSchemaFile(schema_1_PassScan){
     const got = require("got");
     const catalog = require('./api/json/catalog.json');
     const schemas = catalog["schemas"];
@@ -199,7 +199,7 @@ module.exports = function (grunt) {
             rawFile: response["rawBody"],
             urlOrFilePath: url
           }
-          schemaFileCallback(callbackParameter);
+          schema_1_PassScan(callbackParameter);
           grunt.log.ok(url);
         }else{
           grunt.log.error(url, response["statusCode"]);
@@ -212,7 +212,16 @@ module.exports = function (grunt) {
     }
   }
 
-  function localSchemaFileAndTestFile(schemaFileCallback, testFileCallback, { fullScanAllFiles = false, skipTestFolder = false, verboseOutput = false} = {}) {
+  function localSchemaFileAndTestFile(
+      {
+        schema_1_PassScan = undefined,
+        schema_2_PassScan = undefined,
+        test_1_PassScan = undefined,
+      } = {},
+      {
+        fullScanAllFiles = false,
+        verboseOutput = false
+      } = {}) {
     // The structure is copy and paste from the tv4 function
     const path = require("path");
     const fs = require('fs');
@@ -226,13 +235,16 @@ module.exports = function (grunt) {
       urlOrFilePath: undefined
     }
 
-    if(skipTestFolder === false){
+    // Do not scan the test folder if there are no one process the data
+    const skipTestFolder = (test_1_PassScan === undefined) || (schema_2_PassScan === undefined);
+
+    if (skipTestFolder === false) {
       const notCovered = schemas.filter(schemaName => {
-        const folderName = schemaName.replace("\.json","");
+        const folderName = schemaName.replace("\.json", "");
         return !folders.includes(folderName.replace("_", "."));
       });
 
-      if(notCovered.length) {
+      if (notCovered.length) {
         const percent = (notCovered.length / schemas.length) * 100;
         grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests or have malformed test folders`);
       }
@@ -254,7 +266,7 @@ module.exports = function (grunt) {
       }
 
       // There are issue with the present schema.
-      if(fullScanAllFiles === false) {
+      if (fullScanAllFiles === false) {
         // skip test if present in the list 'skiptest'
         const skipTest = schemaValidation["skiptest"].find(
             function (value) {
@@ -262,7 +274,7 @@ module.exports = function (grunt) {
             }
         );
         if (skipTest) {
-          if(verboseOutput === true){
+          if (verboseOutput === true) {
             grunt.log.error(`========> ${skipTest} Skip this schema for validation. This schema does not pass with the latest validator.`);
           }
           return;
@@ -272,13 +284,18 @@ module.exports = function (grunt) {
       callbackParameter = {
         // Return the real Raw file for BOM file test rejection
         rawFile: fs.readFileSync(schema_full_path_name),
-        jsonName : path.basename(schema_full_path_name),
-        urlOrFilePath : schema_full_path_name
+        jsonName: path.basename(schema_full_path_name),
+        urlOrFilePath: schema_full_path_name
       }
-      schemaFileCallback(callbackParameter);
+      if (schema_1_PassScan) {
+        schema_1_PassScan(callbackParameter);
+      }
+      if (schema_2_PassScan) {
+        schema_2_PassScan(callbackParameter);
+      }
     });
 
-    if(skipTestFolder === true){
+    if (skipTestFolder === true) {
       return
     }
 
@@ -295,13 +312,13 @@ module.exports = function (grunt) {
         return;
       }
 
-      if(verboseOutput === true) {
+      if (verboseOutput === true) {
         grunt.log.writeln(``);
         grunt.log.writeln(`test folder   : ${folder}`);
       }
 
       // There are issue with the present schema.
-      if(fullScanAllFiles === false) {
+      if (fullScanAllFiles === false) {
         // skip test if present in the list 'skiptest'
         const skipTest = schemaValidation["skiptest"].find(
             function (value) { //index
@@ -309,7 +326,7 @@ module.exports = function (grunt) {
             }
         );
         if (skipTest) {
-          if(verboseOutput === true) {
+          if (verboseOutput === true) {
             grunt.log.error(`========> Skip this test folder for validation: ${folder}`);
             grunt.log.error(`This schema or test does not pass with the latest validator.`);
             grunt.log.error(`see file: schema-validation.json`);
@@ -324,31 +341,34 @@ module.exports = function (grunt) {
 
       const files = fs.readdirSync(pt.join(testDir, folder)).map(toTestFilePath);
 
-      if(!files.length) {
+      if (!files.length) {
         throw new Error(`Found folder with no test files: ${folder}`);
       }
 
-      const  schemaFileWithPath = `schemas/json/${name}.json`;
-      callbackParameter = {
-        // Return the real Raw file for BOM file test rejection
-        rawFile: fs.readFileSync(schemaFileWithPath),
-        jsonName : path.basename(schemaFileWithPath),
-        urlOrFilePath : schemaFileWithPath
-      }
-      schemaFileCallback(callbackParameter);
-
-      // Test file may have BOM. But this must be strip for the next process
-      grunt.file.preserveBOM = false; // Strip file from BOM
-      files.forEach(function (file) {
-        // must ignore BOM in test
+      const schemaFileWithPath = `schemas/json/${name}.json`;
+      if (schema_2_PassScan) {
         callbackParameter = {
-          rawFile: grunt.file.read(file),
-          jsonName : path.basename(file.toString()),
-          urlOrFilePath : file
+          // Return the real Raw file for BOM file test rejection
+          rawFile: fs.readFileSync(schemaFileWithPath),
+          jsonName: path.basename(schemaFileWithPath),
+          urlOrFilePath: schemaFileWithPath
         }
+        schema_2_PassScan(callbackParameter);
+      }
 
-        testFileCallback(callbackParameter);
-      })
+      if (test_1_PassScan) {
+        // Test file may have BOM. But this must be strip for the next process
+        grunt.file.preserveBOM = false; // Strip file from BOM
+        files.forEach(function (file) {
+          // must ignore BOM in test
+          callbackParameter = {
+            rawFile: grunt.file.read(file),
+            jsonName: path.basename(file.toString()),
+            urlOrFilePath: file
+          }
+          test_1_PassScan(callbackParameter);
+        })
+      }
     });
   }
 
@@ -431,7 +451,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_schemasafe_test", "Dynamically load local schema file for validation with /test/", function () {
     const x = schemasafe();
-    localSchemaFileAndTestFile(x.testSchemaFile, x.testTestFile);
+    localSchemaFileAndTestFile({schema_2_PassScan: x.testSchemaFile, test_1_PassScan: x.testTestFile});
     grunt.log.ok("local schema passed");
   })
 
@@ -443,7 +463,7 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_bom", "Dynamically load local schema file for BOM validation", function () {
-    localSchemaFileAndTestFile(testSchemaFileForBOM, function(){}, {fullScanAllFiles: false, skipTestFolder: true});
+    localSchemaFileAndTestFile({schema_1_PassScan: testSchemaFileForBOM}, {fullScanAllFiles: true});
     grunt.log.ok("no BOM file found");
   })
 
@@ -465,7 +485,7 @@ module.exports = function (grunt) {
         throw new Error(`Error in test: find-duplicated-property-keys`);
       }
     }
-    localSchemaFileAndTestFile(function(){}, findDuplicatedProperty);
+    localSchemaFileAndTestFile( {test_1_PassScan : findDuplicatedProperty});
     grunt.log.ok('No duplicated property key found');
   })
 
