@@ -30,20 +30,23 @@ module.exports = function (grunt) {
   grunt.initConfig({
 
     tv4: {
-      catalog: {
-        options: {
-          root: grunt.file.readJSON("schemas/json/schema-catalog.json")
-        },
-        src: ["api/json/catalog.json"]
-      },
 
-      schemas: {
-        options: {
-          banUnknown: false,
-          root: grunt.file.readJSON("schemas/json/schema-draft-v4.json")
-        },
-        src: ["schemas/json/*.json", "!schemas/json/ninjs-1.0.json"] // ninjs 1.0 is draft v3
-      },
+      // Deprecated -> now use "local_catalog"
+      // catalog: {
+      //   options: {
+      //     root: grunt.file.readJSON("schemas/json/schema-catalog.json")
+      //   },
+      //   src: ["api/json/catalog.json"]
+      // },
+
+      // Deprecated -> now use "local_tv4_only_for_non_compliance_schema"
+      // schemas: {
+      //   options: {
+      //     banUnknown: false,
+      //     root: grunt.file.readJSON("schemas/json/schema-draft-v4.json")
+      //   },
+      //   src: ["schemas/json/*.json", "!schemas/json/ninjs-1.0.json"] // ninjs 1.0 is draft v3
+      // },
       options: {
         schemas: {
           "http://json-schema.org/draft-04/schema#": grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
@@ -111,6 +114,7 @@ module.exports = function (grunt) {
     }
   });
 
+  // "setup" is deprecated -> now use "local_tv4_only_for_non_compliance_schema"
   grunt.registerTask("setup", "Dynamically load schema validation based on the files and folders in /test/", function () {
     var fs = require('fs');
 
@@ -118,7 +122,7 @@ module.exports = function (grunt) {
     var schemas = fs.readdirSync("schemas/json");
 
     var folders = fs.readdirSync(testDir);
-    var tv4 = {};
+//    var tv4 = {};
 
     const notCovered = schemas.filter(schemaName => {
       const folderName = schemaName.replace("\.json","");
@@ -130,11 +134,11 @@ module.exports = function (grunt) {
       console.log(`${parseInt(percent)}% of schemas do not have tests or have malformed test folders`);
     }
 
-    schemas.forEach(function (schema) {
-      var name = schema.replace(".json", "");
-      tv4[name] = {};
-      tv4[name].files = [];
-    });
+    // schemas.forEach(function (schema) {
+    //   var name = schema.replace(".json", "");
+    //   tv4[name] = {};
+    //   tv4[name].files = [];
+    // });
 
     folders.forEach(function (folder) {
 
@@ -197,7 +201,8 @@ module.exports = function (grunt) {
           const callbackParameter = {
             jsonName: path.basename(parsed.pathname),
             rawFile: response["rawBody"],
-            urlOrFilePath: url
+            urlOrFilePath: url,
+            schemaScan: true
           }
           schema_1_PassScan(callbackParameter);
           grunt.log.ok(url);
@@ -215,12 +220,14 @@ module.exports = function (grunt) {
   function localSchemaFileAndTestFile(
       {
         schema_1_PassScan = undefined,
+        schema_1_PassScanDone = undefined,
         schema_2_PassScan = undefined,
         test_1_PassScan = undefined,
+        test_1_PassScanDone = undefined,
       } = {},
       {
         fullScanAllFiles = false,
-        verboseOutput = false
+        tv4OnlyMode = false
       } = {}) {
     // The structure is copy and paste from the tv4 function
     const path = require("path");
@@ -232,13 +239,20 @@ module.exports = function (grunt) {
     let callbackParameter = {
       jsonName: undefined,
       rawFile: undefined,
-      urlOrFilePath: undefined
+      urlOrFilePath: undefined,
+      schemaScan: true
     }
 
-    // Do not scan the test folder if there are no one process the data
+    // Do not scan the test folder if there are no one to process the data
     const skipTestFolder = (test_1_PassScan === undefined) || (schema_2_PassScan === undefined);
 
+    if (tv4OnlyMode === true) {
+      // tv4 need to scan the schemaValidation list only
+      fullScanAllFiles = false;
+    }
+
     if (skipTestFolder === false) {
+      // Show only test folder percentage if in test folder scan mode.
       const notCovered = schemas.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
         return !folders.includes(folderName.replace("_", "."));
@@ -265,19 +279,34 @@ module.exports = function (grunt) {
         return;
       }
 
+      if (schemaValidation["skiptest"].find(
+          function (value) {
+            return value === schema_file_name;
+          }
+      )) {
+        // This test is can never be process
+        return;
+      }
+
       // There are issue with the present schema.
       if (fullScanAllFiles === false) {
-        // skip test if present in the list 'skiptest'
-        const skipTest = schemaValidation["skiptest"].find(
+        // skip test if present in the list 'tv4test'
+        let tv4test = schemaValidation["tv4test"].find(
             function (value) {
               return value === schema_file_name;
             }
         );
-        if (skipTest) {
-          if (verboseOutput === true) {
-            grunt.log.error(`========> ${skipTest} Skip this schema for validation. This schema does not pass with the latest validator.`);
+        if (tv4test) {
+          // This file is NOT full compliance. Should be run by tv4 only
+          if (tv4OnlyMode === false) {
+            return;
           }
-          return;
+        } else {
+          // This file is full compliance. Can NOT be process by tv4
+          if (tv4OnlyMode === true) {
+            // this file can not be process by tv4.
+            return
+          }
         }
       }
 
@@ -285,7 +314,8 @@ module.exports = function (grunt) {
         // Return the real Raw file for BOM file test rejection
         rawFile: fs.readFileSync(schema_full_path_name),
         jsonName: path.basename(schema_full_path_name),
-        urlOrFilePath: schema_full_path_name
+        urlOrFilePath: schema_full_path_name,
+        schemaScan: true
       }
       if (schema_1_PassScan) {
         schema_1_PassScan(callbackParameter);
@@ -295,11 +325,15 @@ module.exports = function (grunt) {
       }
     });
 
+    if (schema_1_PassScanDone) {
+      schema_1_PassScanDone();
+    }
+
     if (skipTestFolder === true) {
       return
     }
 
-    // Mow run all test in each test folder
+    // Now run all test in each test folder
     folders.forEach(function (folder) {
 
       // If it's a file, ignore and continue. We only care about folders.
@@ -312,27 +346,34 @@ module.exports = function (grunt) {
         return;
       }
 
-      if (verboseOutput === true) {
-        grunt.log.writeln(``);
-        grunt.log.writeln(`test folder   : ${folder}`);
-      }
-
       // There are issue with the present schema.
       if (fullScanAllFiles === false) {
-        // skip test if present in the list 'skiptest'
-        const skipTest = schemaValidation["skiptest"].find(
-            function (value) { //index
+        // skip test if present in the list 'tv4test'
+        const tv4test = schemaValidation["tv4test"].find(
+            function (value) {
               return value === `${folder}.json`;
             }
         );
-        if (skipTest) {
-          if (verboseOutput === true) {
-            grunt.log.error(`========> Skip this test folder for validation: ${folder}`);
-            grunt.log.error(`This schema or test does not pass with the latest validator.`);
-            grunt.log.error(`see file: schema-validation.json`);
+
+
+        if (tv4test) {
+          // This file is NOT full compliance. Should be run by tv4 only
+          if (tv4OnlyMode === false) {
+            return;
           }
-          return;
+        } else {
+          // This file is full compliance. Can NOT be process by tv4
+          if (tv4OnlyMode === true) {
+            // this file can not be process by tv4.
+            return;
+          }
         }
+      }
+
+
+      if (tv4OnlyMode === false) {
+        grunt.log.writeln(``);
+        grunt.log.writeln(`test folder   : ${folder}`);
       }
 
       const toTestFilePath = toPath(testDir, folder);
@@ -351,7 +392,8 @@ module.exports = function (grunt) {
           // Return the real Raw file for BOM file test rejection
           rawFile: fs.readFileSync(schemaFileWithPath),
           jsonName: path.basename(schemaFileWithPath),
-          urlOrFilePath: schemaFileWithPath
+          urlOrFilePath: schemaFileWithPath,
+          schemaScan: false
         }
         schema_2_PassScan(callbackParameter);
       }
@@ -364,10 +406,14 @@ module.exports = function (grunt) {
           callbackParameter = {
             rawFile: grunt.file.read(file),
             jsonName: path.basename(file.toString()),
-            urlOrFilePath: file
+            urlOrFilePath: file,
+            schemaScan: false
           }
           test_1_PassScan(callbackParameter);
-        })
+        });
+        if (test_1_PassScanDone) {
+          test_1_PassScanDone();
+        }
       }
     });
   }
@@ -393,10 +439,67 @@ module.exports = function (grunt) {
     }
   }
 
+  function tv4() {
+    const schemaV4JSON = require('./schemas/json/schema-draft-v4.json');
+    let schemaPath = undefined;
+    let schemaName = undefined;
+    let testSchemaPath = [];
+    let testListPath = [];
+
+    const processSchemaFile = function (callbackParameter) {
+      if (callbackParameter.schemaScan === true) {
+        // Must later be process it, all at once in processSchemaFileDone()
+        testSchemaPath.push(callbackParameter.urlOrFilePath);
+      } else {
+        // This is a test scan. Copy schema path for the next test file process.
+        schemaName = callbackParameter.jsonName;
+        schemaPath = callbackParameter.urlOrFilePath;
+        testListPath = [];
+      }
+    }
+
+    const processSchemaFileDone = function () {
+      // Process the scan of all the schema files at once
+      const valid = "Schemas";
+      grunt.config.set("tv4." + valid, {
+        options: {
+          root: schemaV4JSON,
+          banUnknown: false
+        },
+        src: [testSchemaPath]
+      });
+    }
+
+    const processTestFile = function (callbackParameter) {
+      // Add all the test list path of one test group together.
+      //  this will be process later at processTestFileDone()
+      testListPath.push(callbackParameter.urlOrFilePath);
+    }
+
+    const processTestFileDone = function () {
+      // Process one test group 'in a folder' at once
+      const valid = schemaName.replace(/\./g, "\\.");
+      grunt.config.set("tv4." + valid, {
+        options: {
+          root: grunt.file.readJSON(schemaPath),
+          banUnknown: false
+        },
+        src: [testListPath]
+      });
+    }
+
+    return {
+      testSchemaFile: processSchemaFile,
+      testSchemaFileDone: processSchemaFileDone,
+      testTestFile: processTestFile,
+      testTestFileDone: processTestFileDone
+    }
+  }
+
   function schemasafe(){
     const schemaValidation = require('./schema-validation.json');
-    const validationModeDefault = { includeErrors: true, allErrors: true};
-    const validationModeStrong = { includeErrors: true, allErrors: true , mode: 'strong'};
+    const validationModeDefault = { includeErrors: true};
+    const validationModeStrong = { includeErrors: true, mode: 'strong'};
     const { validator } = require('@exodus/schemasafe')
     const textValidate = "validate    | ";
     const textPassSchema = "pass schema | ";
@@ -439,7 +542,9 @@ module.exports = function (grunt) {
         grunt.log.ok(selectedParserModeString+textPassTest + callbackParameter.urlOrFilePath);
       }else{
         grunt.log.error(selectedParserModeString+textFailedTest + callbackParameter.urlOrFilePath);
-        throw new Error(`Error in test: ${validate.errors}`);
+        grunt.log.error("keywordLocation: " + validate.errors[0].keywordLocation);
+        grunt.log.error("instanceLocation: " + validate.errors[0].instanceLocation);
+        throw new Error(`Error in test`);
       }
     }
 
@@ -449,9 +554,21 @@ module.exports = function (grunt) {
     }
   }
 
+  grunt.registerTask("local_tv4_only_for_non_compliance_schema", "Dynamically load local schema file for validation with /test/", function () {
+    const x = tv4();
+    localSchemaFileAndTestFile({
+      schema_2_PassScan: x.testSchemaFile,
+      schema_1_PassScanDone: x.testSchemaFileDone,
+      test_1_PassScan: x.testTestFile,
+      test_1_PassScanDone: x.testTestFileDone
+    }, {tv4OnlyMode: true});
+    // The tv4 task is actually run after this registerTask()
+  })
+
   grunt.registerTask("local_schemasafe_test", "Dynamically load local schema file for validation with /test/", function () {
     const x = schemasafe();
     localSchemaFileAndTestFile({schema_2_PassScan: x.testSchemaFile, test_1_PassScan: x.testTestFile});
+    grunt.log.writeln()
     grunt.log.ok("local schema passed");
   })
 
@@ -471,6 +588,21 @@ module.exports = function (grunt) {
     const done = this.async();
     await remoteSchemaFile(testSchemaFileForBOM);
     done();
+  })
+
+  grunt.registerTask("local_catalog", "Catalog validation", function () {
+    const {validator} = require('@exodus/schemasafe');
+    const catalogFile = require("./api/json/catalog.json");
+    const catalogSchema = require("./schemas/json/schema-catalog.json");
+
+    const validate = validator(catalogSchema, {includeErrors: true});
+    if (validate(catalogFile)) {
+      grunt.log.ok("Catalog OK");
+    } else {
+      grunt.log.error("keywordLocation: " + validate.errors[0].keywordLocation);
+      grunt.log.error("instanceLocation: " + validate.errors[0].instanceLocation);
+      throw new Error(`"Catalog ERROR"`);
+    }
   })
 
   grunt.registerTask("local_find-duplicated-property-keys", "Dynamically load local test file for validation", function () {
@@ -652,12 +784,20 @@ module.exports = function (grunt) {
     done();
   });
 
-  grunt.registerTask("local_test", ["local_bom", "local_find-duplicated-property-keys", "local_schemasafe_test"]);
+  grunt.registerTask("local_test",
+      [
+        "local_catalog",
+        "local_bom",
+        "local_find-duplicated-property-keys",
+        "local_tv4_only_for_non_compliance_schema",
+        "tv4",
+        "local_schemasafe_test"
+      ]);
   grunt.registerTask("remote_test", ["remote_bom", "remote_schemasafe_test"]);
-  grunt.registerTask("build", ["setup", "tv4"]);
+  //grunt.registerTask("build", ["setup", "tv4"]); // deprecated, "setup" is no longer used
+  grunt.registerTask("build", ["local_test"]); // "local_test"
   grunt.registerTask("default", ["http", "build"]);
   grunt.registerTask("schemasafe", ["local_test"]);
-
 
 
   grunt.loadNpmTasks("grunt-tv4");
