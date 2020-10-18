@@ -443,15 +443,19 @@ module.exports = function (grunt) {
 
     const processSchemaFileDone = function () {
       // Process the scan of all the schema files at once
-      const valid = "Schemas";
-      grunt.config.set("tv4." + valid, {
-        options: {
-          root: schemaV4JSON,
-          banUnknown: false
-        },
-        src: [testSchemaPath]
-      });
-    }
+      if (testSchemaPath.length === 0) {
+        // tv4 task can never be empty. It will give error. Work around just rescan schema-catalog.json
+        testSchemaPath.push("./schemas/json/schema-catalog.json");
+      }
+        const valid = "Schemas";
+        grunt.config.set("tv4." + valid, {
+          options: {
+            root: schemaV4JSON,
+            banUnknown: false
+          },
+          src: [testSchemaPath]
+        });
+      }
 
     const processTestFile = function (callbackParameter) {
       // Add all the test list path of one test group together.
