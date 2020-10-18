@@ -530,8 +530,8 @@ module.exports = function (grunt) {
         grunt.log.ok(selectedParserModeString+textPassTest + callbackParameter.urlOrFilePath);
       }else{
         grunt.log.error(selectedParserModeString+textFailedTest + callbackParameter.urlOrFilePath);
-        grunt.log.error("keywordLocation: " + validate.errors[0].keywordLocation);
-        grunt.log.error("instanceLocation: " + validate.errors[0].instanceLocation);
+        grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
+        grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
         throw new Error(`Error in test`);
       }
     }
@@ -598,8 +598,8 @@ module.exports = function (grunt) {
     if (validate(catalogFile)) {
       grunt.log.ok("Catalog OK");
     } else {
-      grunt.log.error("keywordLocation: " + validate.errors[0].keywordLocation);
-      grunt.log.error("instanceLocation: " + validate.errors[0].instanceLocation);
+      grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
+      grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
       throw new Error(`"Catalog ERROR"`);
     }
   })
