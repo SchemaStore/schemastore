@@ -243,6 +243,39 @@ module.exports = function (grunt) {
       schemaScan: true
     }
 
+    /**
+     * @summary Check if the present json schema file must be tested or not
+     * @param {string} jsonFilename
+     * @returns {boolean}
+     */
+    const canThisTestBeRun = (jsonFilename) => {
+      let result = true;
+      if (schemaValidation["skiptest"].find((value) => {
+        return value === jsonFilename;
+      })) {
+        return false; // This test can never be process
+      }
+
+      // Schema must be run for tv4 or schemasafe.
+      if (fullScanAllFiles === false) {
+        if (schemaValidation["tv4test"].find((value) => {
+              return value === jsonFilename;
+            })) {
+          // This file is NOT full compliance. Should be run only by tv4 validator
+          if (tv4OnlyMode === false) {
+            result = false;
+          }
+        } else {
+          // This file is full compliance. Can NOT be process by tv4 validator
+          if (tv4OnlyMode === true) {
+            // this file can not be process by tv4.
+            result = false;
+          }
+        }
+      }
+      return result;
+    }
+
     // Do not scan the test folder if there are no one to process the data
     const skipTestFolder = (test_1_PassScan === undefined) || (schema_2_PassScan === undefined);
 
@@ -279,35 +312,8 @@ module.exports = function (grunt) {
         return;
       }
 
-      if (schemaValidation["skiptest"].find(
-          function (value) {
-            return value === schema_file_name;
-          }
-      )) {
-        // This test is can never be process
+      if (canThisTestBeRun(schema_file_name) === false) {
         return;
-      }
-
-      // There are issue with the present schema.
-      if (fullScanAllFiles === false) {
-        // skip test if present in the list 'tv4test'
-        let tv4test = schemaValidation["tv4test"].find(
-            function (value) {
-              return value === schema_file_name;
-            }
-        );
-        if (tv4test) {
-          // This file is NOT full compliance. Should be run by tv4 only
-          if (tv4OnlyMode === false) {
-            return;
-          }
-        } else {
-          // This file is full compliance. Can NOT be process by tv4
-          if (tv4OnlyMode === true) {
-            // this file can not be process by tv4.
-            return
-          }
-        }
       }
 
       callbackParameter = {
@@ -334,8 +340,7 @@ module.exports = function (grunt) {
     }
 
     // Now run all test in each test folder
-    folders.forEach(function (folder) {
-
+    folders.forEach((folder) => {
       // If it's a file, ignore and continue. We only care about folders.
       if (isFile(folder)) {
         return;
@@ -346,40 +351,18 @@ module.exports = function (grunt) {
         return;
       }
 
-      // There are issue with the present schema.
-      if (fullScanAllFiles === false) {
-        // skip test if present in the list 'tv4test'
-        const tv4test = schemaValidation["tv4test"].find(
-            function (value) {
-              return value === `${folder}.json`;
-            }
-        );
-
-
-        if (tv4test) {
-          // This file is NOT full compliance. Should be run by tv4 only
-          if (tv4OnlyMode === false) {
-            return;
-          }
-        } else {
-          // This file is full compliance. Can NOT be process by tv4
-          if (tv4OnlyMode === true) {
-            // this file can not be process by tv4.
-            return;
-          }
-        }
+      if (canThisTestBeRun(`${folder}.json`) === false) {
+        return;
       }
 
-
       if (tv4OnlyMode === false) {
+        // tv4 already have it own console output take care of.
         grunt.log.writeln(``);
         grunt.log.writeln(`test folder   : ${folder}`);
       }
 
       const toTestFilePath = toPath(testDir, folder);
-
       const name = folder.replace("_", ".");
-
       const files = fs.readdirSync(pt.join(testDir, folder)).map(toTestFilePath);
 
       if (!files.length) {
