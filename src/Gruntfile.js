@@ -224,7 +224,7 @@ module.exports = function (grunt) {
         schema_2_PassScan = undefined,
         test_1_PassScan = undefined,
         test_1_PassScanDone = undefined,
-      } = {},
+      },
       {
         fullScanAllFiles = false,
         tv4OnlyMode = false
