@@ -497,6 +497,7 @@ module.exports = function (grunt) {
     let selectedParserModeString = undefined;
     let selectedParserMode = undefined;
     let strongMode = undefined;
+    let countSchema = 0;
 
     const processSchemaFile = function(callbackParameter){
       strongMode = schemaValidation["strongmode"].find(
@@ -512,7 +513,7 @@ module.exports = function (grunt) {
         grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
         throw new Error(e);
       }
-
+      countSchema++;
       grunt.log.ok(selectedParserModeString + textPassSchema + callbackParameter.urlOrFilePath);
     }
 
@@ -535,8 +536,15 @@ module.exports = function (grunt) {
       }
     }
 
+    const processSchemaFileDone = () => {
+      grunt.log.writeln();
+      grunt.log.writeln("Total schemas validated with schemasafe: " + countSchema.toString());
+      countSchema = 0;
+    }
+
     return {
       testSchemaFile: processSchemaFile,
+      testSchemaFileDone: processSchemaFileDone,
       testTestFile: processTestFile
     }
   }
@@ -554,7 +562,11 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_schemasafe_test", "Dynamically load local schema file for validation with /test/", function () {
     const x = schemasafe();
-    localSchemaFileAndTestFile({schema_2_PassScan: x.testSchemaFile, test_1_PassScan: x.testTestFile});
+    localSchemaFileAndTestFile({
+      schema_2_PassScan: x.testSchemaFile,
+      test_1_PassScan: x.testTestFile,
+      schema_1_PassScanDone: x.testSchemaFileDone
+    });
     grunt.log.writeln()
     grunt.log.ok("local schema passed");
   })
