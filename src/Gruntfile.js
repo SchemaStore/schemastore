@@ -298,7 +298,7 @@ module.exports = function (grunt) {
     }
 
     // Verify each schema file
-    schemas.forEach(function (schema_file_name) {
+    schemas.forEach((schema_file_name) => {
 
       const schema_full_path_name = `schemas/json/${schema_file_name}`
 
@@ -429,7 +429,7 @@ module.exports = function (grunt) {
     let testSchemaPath = [];
     let testListPath = [];
 
-    const processSchemaFile = function (callbackParameter) {
+    const processSchemaFile = (callbackParameter) => {
       if (callbackParameter.schemaScan === true) {
         // Must later be process it, all at once in processSchemaFileDone()
         testSchemaPath.push(callbackParameter.urlOrFilePath);
@@ -441,7 +441,7 @@ module.exports = function (grunt) {
       }
     }
 
-    const processSchemaFileDone = function () {
+    const processSchemaFileDone = () => {
       // Process the scan of all the schema files at once
       if (testSchemaPath.length === 0) {
         // tv4 task can never be empty. It will give error. Work around just rescan schema-catalog.json
@@ -457,13 +457,13 @@ module.exports = function (grunt) {
         });
       }
 
-    const processTestFile = function (callbackParameter) {
+    const processTestFile = (callbackParameter) => {
       // Add all the test list path of one test group together.
       //  this will be process later at processTestFileDone()
       testListPath.push(callbackParameter.urlOrFilePath);
     }
 
-    const processTestFileDone = function () {
+    const processTestFileDone = () => {
       // Process one test group 'in a folder' at once
       const valid = schemaName.replace(/\./g, "\\.");
       grunt.config.set("tv4." + valid, {
@@ -499,7 +499,7 @@ module.exports = function (grunt) {
     let strongMode = undefined;
     let countSchema = 0;
 
-    const processSchemaFile = function(callbackParameter){
+    const processSchemaFile = (callbackParameter) => {
       strongMode = schemaValidation["strongmode"].find(
           function (value) { return value === callbackParameter.jsonName;}
       );
@@ -517,7 +517,7 @@ module.exports = function (grunt) {
       grunt.log.ok(selectedParserModeString + textPassSchema + callbackParameter.urlOrFilePath);
     }
 
-    const processTestFile = function(callbackParameter){
+    const processTestFile = (callbackParameter) => {
       let json;
       try {
         json = JSON.parse(callbackParameter.rawFile);
