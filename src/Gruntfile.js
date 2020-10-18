@@ -621,6 +621,47 @@ module.exports = function (grunt) {
     grunt.log.ok('No duplicated property key found');
   })
 
+  grunt.registerTask("local_url-in-catalog", "local url must reference to a file", function () {
+    const catalog = require("./api/json/catalog.json");
+    const fs = require('fs')
+    const httpPath = "http://json.schemastore.org"
+    const httpsPath = "https://json.schemastore.org"
+    const schemaPath = './schemas/json/'
+
+    const getFilename = (schemaUrl) => {
+      const urlSplit = schemaUrl.split('/');
+      return urlSplit[urlSplit.length - 1]; // the last item must be the file name
+    }
+
+    const processOneURL = (schemaUrl) => {
+      if (schemaUrl.startsWith(httpsPath) || schemaUrl.startsWith(httpPath)) {
+        let filename = getFilename(schemaUrl);
+        if (filename) {
+          filename = filename.endsWith(".json") ? filename : filename.concat(".json");
+          if (fs.existsSync(schemaPath.concat(filename)) === false) {
+            throw new Error("Schema file not found: URL: " + schemaUrl);
+          }
+        } else {
+          throw new Error("No filename found in the URL :" + schemaUrl);
+        }
+      }
+    }
+
+    for (const schema of catalog["schemas"]) {
+      processOneURL(schema["url"]);
+      const versions = schema["versions"];
+      if (versions) {
+        for (const prop in versions) {
+          if (versions.hasOwnProperty(prop)){
+            processOneURL(versions[prop]);
+          }
+        }
+      }
+    }
+
+    grunt.log.ok('all local url tested OK');
+  })
+
   function hasBOM(buf) {
     return buf.length > 2 && buf[0] == 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
   }
@@ -787,6 +828,7 @@ module.exports = function (grunt) {
   grunt.registerTask("local_test",
       [
         "local_catalog",
+        "local_url-in-catalog",
         "local_bom",
         "local_find-duplicated-property-keys",
         "local_tv4_only_for_non_compliance_schema",
