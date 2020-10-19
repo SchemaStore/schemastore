@@ -788,8 +788,7 @@ module.exports = function (grunt) {
     // Force task into async mode and grab a handle to the "done" function.
     const done = this.async();
 
-    const tv4 = grunt.config.get("tv4");
-    const catalogFileName = tv4.catalog.src[0];
+    const catalogFileName = "api/json/catalog.json";
     const catalog = grunt.file.readJSON(catalogFileName);
     const got = require("got");
 
