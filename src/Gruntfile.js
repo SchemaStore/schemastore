@@ -227,7 +227,8 @@ module.exports = function (grunt) {
       },
       {
         fullScanAllFiles = false,
-        tv4OnlyMode = false
+        tv4OnlyMode = false,
+        logTestFolder = true
       } = {}) {
     // The structure is copy and paste from the tv4 function
     const path = require("path");
@@ -277,14 +278,14 @@ module.exports = function (grunt) {
     }
 
     // Do not scan the test folder if there are no one to process the data
-    const skipTestFolder = (test_1_PassScan === undefined) || (schema_2_PassScan === undefined);
+    const skipTestFolder = (test_1_PassScan === undefined);
 
     if (tv4OnlyMode === true) {
       // tv4 need to scan the schemaValidation list only
       fullScanAllFiles = false;
     }
 
-    if (skipTestFolder === false) {
+    if (skipTestFolder === false && logTestFolder === true ) {
       // Show only test folder percentage if in test folder scan mode.
       const notCovered = schemas.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
@@ -355,7 +356,7 @@ module.exports = function (grunt) {
         return;
       }
 
-      if (tv4OnlyMode === false) {
+      if (tv4OnlyMode === false && logTestFolder === true) {
         // tv4 already have it own console output take care of.
         grunt.log.writeln(``);
         grunt.log.writeln(`test folder   : ${folder}`);
@@ -579,8 +580,13 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_bom", "Dynamically load local schema file for BOM validation", function () {
-    localSchemaFileAndTestFile({schema_1_PassScan: testSchemaFileForBOM}, {fullScanAllFiles: true});
-    grunt.log.ok("no BOM file found");
+    let countScan = 0;
+    const x = (data) => {
+      countScan++;
+      testSchemaFileForBOM(data);
+    }
+    localSchemaFileAndTestFile({schema_1_PassScan: x}, {fullScanAllFiles: true});
+    grunt.log.ok("no BOM file found in all schema files. Total files scan: " + countScan);
   })
 
   grunt.registerTask("remote_bom", "Dynamically load remote schema file for BOM validation", async function () {
@@ -596,7 +602,7 @@ module.exports = function (grunt) {
 
     const validate = validator(catalogSchema, {includeErrors: true});
     if (validate(catalogFile)) {
-      grunt.log.ok("Catalog OK");
+      grunt.log.ok("catalog.json OK");
     } else {
       grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
       grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
@@ -606,7 +612,9 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_find-duplicated-property-keys", "Dynamically load local test file for validation", function () {
     const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
+    let countScan = 0;
     const findDuplicatedProperty = function(callbackParameter){
+      countScan++;
       const result = findDuplicatedPropertyKeys(callbackParameter.rawFile);
       if(result.length > 0){
         grunt.log.error('Duplicated key found in: ' + callbackParameter.urlOrFilePath);
@@ -616,8 +624,8 @@ module.exports = function (grunt) {
         throw new Error(`Error in test: find-duplicated-property-keys`);
       }
     }
-    localSchemaFileAndTestFile( {test_1_PassScan : findDuplicatedProperty});
-    grunt.log.ok('No duplicated property key found');
+    localSchemaFileAndTestFile( {test_1_PassScan : findDuplicatedProperty}, {logTestFolder : false});
+    grunt.log.ok('No duplicated property key found in test files. Total files scan: ' + countScan);
   })
 
   grunt.registerTask("local_url-in-catalog", "local url must reference to a file", function () {
@@ -626,6 +634,7 @@ module.exports = function (grunt) {
     const httpPath = "http://json.schemastore.org"
     const httpsPath = "https://json.schemastore.org"
     const schemaPath = './schemas/json/'
+    let countScan = 0;
 
     const getFilename = (schemaUrl) => {
       const urlSplit = schemaUrl.split('/');
@@ -634,6 +643,7 @@ module.exports = function (grunt) {
 
     const processOneURL = (schemaUrl) => {
       if (schemaUrl.startsWith(httpsPath) || schemaUrl.startsWith(httpPath)) {
+        countScan++;
         let filename = getFilename(schemaUrl);
         if (filename) {
           filename = filename.endsWith(".json") ? filename : filename.concat(".json");
@@ -658,7 +668,7 @@ module.exports = function (grunt) {
       }
     }
 
-    grunt.log.ok('all local url tested OK');
+    grunt.log.ok('All local url tested OK. Total: ' + countScan);
   })
 
   function hasBOM(buf) {
