@@ -26,10 +26,10 @@
     "functions": {
       "description": "The list of functions the host should load.",
       "type": "array",
-      "items": {
-        "type": "string",
-        "uniqueItems": true
-      }
+			"uniqueItems": true,
+			"items": {
+				"type": "string"
+			}
     },
 
     "functionTimeout": {
@@ -46,10 +46,10 @@
     "watchDirectories": {
       "description": "Set of shared code directories that should be monitored for changes to ensure that when code in these directories is changed, it is picked up by your functions",
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "type": "string",
-        "minLength": 1,
-        "uniqueItems": true
+        "minLength": 1
       }
     },
 
@@ -142,6 +142,41 @@
           "description": "Indicates whether dynamic host counter checks should be enabled.",
           "type": "boolean",
           "default": false
+        },
+        "hsts": {
+          "description": "Configuration settings for Strict-Transport-Security",
+          "type": "object",
+          "properties": {
+            "isEnabled": {
+              "description": "Indicates whether the hsts configuration should be applied",
+              "type": "boolean"
+            },
+            "excludedHosts": {
+              "description": "Defines the list of host names that will not add the HSTS header.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "includeSubDomains": {
+              "description": "Indicates whether the includeSubDomain parameter of the Strict-Transport-Security header should be enabled.",
+              "type": "boolean"
+            },
+            "maxAge": {
+              "description": "Defines the max-age parameter of the Strict-Transport-Security header.",
+              "type": "string"
+            },
+            "preload": {
+              "description": "Indicates whether the preload parameter of the Strict-Transport-Security header should be enabled.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "customHeaders": {
+          "description": "Allows you to set custom headers in the HTTP response, ex. X-Content-Type-Options.",
+          "type": "object"
         }
       },
       "additionalProperties": false
@@ -216,19 +251,153 @@
       },
       "additionalProperties": false
     },
-    
+
     "durableTask-extension": {
       "description": "Configuration settings for 'orchestration'/'activity' triggers.",
       "type": "object",
       "properties": {
         "hubName": {
-          "description": "The logical container for Azure Storage resources that are used for orchestrations.",
+          "description": "Alternate task hub names can be used to isolate multiple Durable Functions applications from each other, even if they're using the same storage backend.",
           "type": "string",
           "default": "DurableFunctionsHub"
         },
-        "azureStorageConnectionStringName": {
-          "description": "An app setting (or environment variable) with the storage connection string to be used by the orchestration/activity trigger.",
-          "type": "string"
+        "storageProvider": {
+          "type": "object",
+          "properties": {
+            "connectionStringName": {
+              "type": "string"
+            },
+            "controlQueueBatchSize": {
+              "description": "The number of messages to pull from the control queue at a time.",
+              "type": "integer",
+              "default": 32
+            },
+            "controlQueueBufferThreshold": {
+              "description": "The number of control queue messages that can be buffered in memory at a time, at which point the dispatcher will wait before dequeuing any additional messages.",
+              "type": "integer",
+              "default": 256
+            },
+            "controlQueueVisibilityTimeout": {
+              "description": "The visibility timeout of dequeued control queue messages.",
+              "type": "string",
+              "default": "00:05:00"
+            },
+            "maxQueuePollingInterval": {
+              "description": "The maximum control and work-item queue polling interval in the hh:mm:ss format. Higher values can result in higher message processing latencies. Lower values can result in higher storage costs because of increased storage transactions.",
+              "type": "string",
+              "default": "00:00:30"
+            },
+            "partitionCount": {
+              "description": "The partition count for the control queue. May be a positive integer between 1 and 16.",
+              "type": "integer",
+              "default": 4
+            },
+            "trackingStoreConnectionStringName": {
+              "description": "The name of a connection string to use for the History and Instances tables. If not specified, the azureStorageConnectionStringName connection is used.",
+              "type": "string"
+            },
+            "trackingStoreNamePrefix": {
+              "description": "The prefix to use for the History and Instances tables when trackingStoreConnectionStringName is specified. If not set, the default prefix value will be DurableTask. If trackingStoreConnectionStringName is not specified, then the History and Instances tables will use the hubName value as their prefix, and any setting for trackingStoreNamePrefix will be ignored.",
+              "type": "string"
+            },
+            "workItemQueueVisibilityTimeout": {
+              "description": "The visibility timeout of dequeued work item queue messages.",
+              "type": "string",
+              "default": "00:05:00"
+            }
+          },
+          "additionalProperties": false
+        },
+        "tracing": {
+          "type": "object",
+          "properties": {
+            "traceInputsAndOutputs": {
+              "description": "A value indicating whether to trace the inputs and outputs of function calls. The default behavior when tracing function execution events is to include the number of bytes in the serialized inputs and outputs for function calls. This behavior provides minimal information about what the inputs and outputs look like without bloating the logs or inadvertently exposing sensitive information. Setting this property to true causes the default function logging to log the entire contents of function inputs and outputs.",
+              "type": "boolean",
+              "default": false
+            },
+            "traceReplayEvents": {
+              "description": "A value indicating whether to write orchestration replay events to Application Insights.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "notifications": {
+          "type": "object",
+          "properties": {
+            "eventGrid": {
+              "type": "object",
+              "properties": {
+                "topicEndpoint": {
+                  "description": "The URL of an Azure Event Grid custom topic endpoint. When this property is set, orchestration life-cycle notification events are published to this endpoint. This property supports App Settings resolution.",
+                  "type": "string"
+                },
+                "keySettingName": {
+                  "description": "The name of the app setting containing the key used for authenticating with the Azure Event Grid custom topic at EventGridTopicEndpoint.",
+                  "type": "string"
+                },
+                "publishRetryCount": {
+                  "description": "The number of times to retry if publishing to the Event Grid Topic fails.",
+                  "type": "integer",
+                  "default": 0
+                },
+                "publishRetryInterval": {
+                  "description": "The Event Grid publishes retry interval in the hh:mm:ss format.",
+                  "type": "string",
+                  "default": "00:05:00"
+                },
+                "publishEventTypes": {
+                  "description": "A list of event types to publish to Event Grid. If not specified, all event types will be published. Allowed values include Started, Completed, Failed, Terminated.",
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": [
+                    {
+                      "type": "string",
+                      "enum": [ "Started", "Completed", "Failed", "Terminated" ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [ "Started", "Completed", "Failed", "Terminated" ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [ "Started", "Completed", "Failed", "Terminated" ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [ "Started", "Completed", "Failed", "Terminated" ]
+                    }
+                  ],
+                  "additionalItems": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "maxConcurrentActivityFunctions": {
+          "description": "The maximum number of activity functions that can be processed concurrently on a single host instance.",
+          "type": "integer",
+          "default": 10
+        },
+        "maxConcurrentOrchestratorFunctions": {
+          "description": "The maximum number of orchestrator functions that can be processed concurrently on a single host instance.",
+          "type": "integer",
+          "default": 10
+        },
+        "extendedSessionsEnabled": {
+          "type": "boolean"
+        },
+        "extendedSessionIdleTimeoutInSeconds": {
+          "type": "integer"
+        },
+        "useGracefulShutdown": {
+          "description": "Enable gracefully shutting down to reduce the chance of host shutdowns failing in-process function executions.",
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false
@@ -458,6 +627,84 @@
               "default": "debugOnly"
             }
           }
+        },
+        "retry": {
+          "description": "Retry policy of function execution failures at the app level. Retry policy applies to all the functions in the function app.",
+          "type": "object",
+              "properties": {
+                "strategy": {
+                  "description": "Retry strategy to use for retrying function executions",
+                  "enum": [ "exponentialBackoff", "fixedDelay" ],
+                  "default": "exponentialBackoff"
+                },
+                "maxRetryCount": {
+                  "description": "The maximum number of retries allowed per function execution. -1 means to retry indefinitely.",
+                  "type": "integer"
+                },
+                "delayInterval":{
+                  "description": "Value indicating the delayInterval for function execution retries when using FixedDelay strategy.",
+                  "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                  },
+                  { "enum": [ null ] }
+                ]
+                },
+                "minimumInterval":{
+                  "description": "Value indicating the minimumInterval for function execution retries when using ExponentialBackoff strategy.",
+                  "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                  },
+                  { "enum": [ null ] }
+                ]
+                },
+                "maximumInterval":{
+                  "description": "Value indicating the maximumInterval for function execution retries when using ExponentialBackoff strategy.",
+                  "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                  },
+                  { "enum": [ null ] }
+                ]
+                }
+              }
+        },
+        "customHandler": {
+          "description": "Configuration settings for Custom Handler.",
+          "type": "object",
+          "properties": {
+            "description": {
+              "description": "Configuration settings for Custom Handler process",
+              "type": "object",
+              "properties": {
+                "defaultExecutablePath": {
+                  "description": "Name or path to the Custom Handler process",
+                  "type": "string"
+                },
+                "workingDirectory": {
+                  "description": "WorkingDirectory to be used by the Custom Handler process. If not set, defaults to function app root folder.",
+                  "type": "string"
+                },
+                "arguments": {
+                  "description": "Arguments to be passed to the Custom Handler process. Can use environment variables following pattern %envVarName%",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "enableForwardingHttpRequest": {
+              "description": "Forward HttpTrigger request to the custom handler",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
         },
         "singleton": { "$ref": "#/definitions/singleton" },
         "watchDirectories": { "$ref": "#/definitions/watchDirectories" },

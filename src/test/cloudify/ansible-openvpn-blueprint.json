@@ -1,0 +1,98 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/5.0.0/types.yaml",
+    "plugin:cloudify-ansible-plugin"
+  ],
+  "inputs": {
+    "site_yaml_relative_path": {
+      "type": "string",
+      "default": "openvpn/openvpn.yml"
+    },
+    "openvpn_server_ip": {
+      "type": "string",
+      "default": "11.0.0.9"
+    },
+    "openvpn_private_key": {
+      "type": "string"
+    },
+    "username": {
+      "type": "string",
+      "default": "vagrant"
+    }
+  },
+  "node_types": {
+    "openvpn": {
+      "derived_from": "cloudify.nodes.Compute",
+      "properties": {
+        "agent_config": {
+          "default": {
+            "install_method": "none",
+            "key": {
+              "get_input": "openvpn_private_key"
+            },
+            "user": {
+              "get_input": "username"
+            }
+          }
+        }
+      },
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "start": {
+            "implementation": "ansible.cloudify_ansible.tasks.run",
+            "inputs": {
+              "site_yaml_path": {
+                "default": {
+                  "get_input": "site_yaml_relative_path"
+                }
+              },
+              "options_config": {
+                "default": {
+                  "extra_vars": {
+                    "openvpn_dh": {
+                      "get_input": "openvpn_private_key"
+                    },
+                    "openvpn_server": "my.example.org",
+                    "openvpn_clients": [
+                      "client1",
+                      "client2"
+                    ],
+                    "private_subnets": [
+                      "192.168.10.0 255.255.255.0"
+                    ]
+                  }
+                }
+              },
+              "run_data": {
+                "default": {
+                  "openvpn_dh": {
+                    "get_input": "openvpn_private_key"
+                  },
+                  "openvpn_server": "my.example.org",
+                  "openvpn_clients": [
+                    "client1",
+                    "client2"
+                  ],
+                  "private_subnets": [
+                    "192.168.10.0 255.255.255.0"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "node_templates": {
+    "openvpn": {
+      "type": "openvpn",
+      "properties": {
+        "ip": {
+          "get_input": "openvpn_server_ip"
+        }
+      }
+    }
+  }
+}

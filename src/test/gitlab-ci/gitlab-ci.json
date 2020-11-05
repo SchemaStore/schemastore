@@ -1,4 +1,50 @@
 {
+  ".build_config": {
+    "before_script": ["echo test"]
+  },
+  ".build_script": "echo build script",
+  ".example_variables": {
+    "foo": "hello",
+    "bar": 42
+  },
+  ".example_services": [
+    "docker:dind",
+    {
+      "name": "sql:latest",
+      "command": ["/usr/bin/super-sql", "run"]
+    }
+  ],
+  "default": {
+    "image": "ruby:2.5",
+    "services": [
+      "docker:dind"
+    ],
+    "cache": {
+      "paths": ["vendor/"]
+    },
+    "before_script": [
+      "bundle install --path vendor/"
+    ],
+    "after_script": [
+      "rm -rf tmp/"
+    ],
+    "tags": [
+      "ruby",
+      "postgres"
+    ],
+    "artifacts": {
+      "name": "%CI_COMMIT_REF_NAME%",
+      "expose_as": "artifact 1",
+      "paths": [
+        "path/to/file.txt",
+        "target/*.war"
+      ],
+      "when": "on_failure"
+    },
+    "retry": 2,
+    "timeout": "3 hours 30 minutes",
+    "interruptible": true
+  },
   "stages": [
     "build",
     "test",
@@ -36,6 +82,15 @@
     "stage": "build",
     "script": "npm run build",
     "before_script": ["npm install"],
+    "rules": [
+      {
+        "if": "moo",
+        "changes": ["Moofile"],
+        "exists": ["main.cow"],
+        "when": "delayed",
+        "start_in": "3 hours"
+      }
+    ],
     "retry": {
       "max": 1,
       "when": "stuck_or_timeout_failure"
@@ -51,18 +106,21 @@
       "paths": [
         "dist/"
       ],
+      "expose_as": "link_name_in_merge_request",
       "name": "bundles",
       "when": "on_success",
       "expire_in": "1 week",
       "reports": {
         "junit": "result.xml",
+        "cobertura": "cobertura-coverage.xml",
         "codequality": "codequality.json",
         "sast": "sast.json",
         "dependency_scanning": "scan.json",
         "container_scanning": "scan2.json",
         "dast": "dast.json",
         "license_management": "license.json",
-        "performance": "performance.json"
+        "performance": "performance.json",
+        "metrics": "metrics.txt"
       }
     },
     "variables": {
@@ -116,13 +174,15 @@
     "artifacts": {
       "reports": {
         "junit": ["result.xml"],
+        "cobertura": ["cobertura-coverage.xml"],
         "codequality": ["codequality.json"],
         "sast": ["sast.json"],
         "dependency_scanning": ["scan.json"],
         "container_scanning": ["scan2.json"],
         "dast": ["dast.json"],
         "license_management": ["license.json"],
-        "performance": ["performance.json"]
+        "performance": ["performance.json"],
+        "metrics": ["metrics.txt"]
       }
     },
     "coverage": "/Cycles: \\d+\\.\\d+$/",
@@ -132,6 +192,7 @@
     "script": "docker build -t foo:latest",
     "when": "delayed",
     "start_in": "10 min",
+    "timeout": "1h",
     "retry": 1,
     "only": {
       "changes": ["Dockerfile", "docker/scripts/*"]
@@ -175,5 +236,68 @@
   },
   "performance-b": {
     "extends": ".performance-tmpl"
+  },
+  "workflow": {
+    "rules": [
+      {
+        "if": "$CI_COMMIT_REF_NAME =~ /-wip$/",
+        "when": "never"
+      },
+      {
+        "if": "$CI_COMMIT_TAG",
+        "when": "never"
+      },
+      {
+        "when": "always"
+      }
+    ]
+  },
+  "job": {
+    "script": "echo Hello, Rules!",
+    "rules": [
+      { 
+        "if": "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == \"master\"",
+        "when": "manual",
+        "allow_failure": true
+      }
+    ]
+  },
+  "microservice_a": {
+    "trigger": {
+      "include": "path/to/microservice_a.yml"
+    } 
+  },
+  "microservice_b" : {
+    "trigger": {
+      "include": [
+        { "local": "path/to/microservice_b.yml" },
+        { "template": "SAST.gitlab-cy.yml" }
+      ],
+      "strategy": "depend"
+    }
+  },
+  "child-pipeline": { 
+    "stage": "test",
+    "trigger": {
+      "include": [
+        { 
+          "artifact": "generated-config.yml",
+          "job": "generate-config"
+        }
+      ]
+    }
+  },
+  "child-pipeline-simple": { 
+    "stage": "test",
+    "trigger": {
+      "include": "other/file.yml"
+    }
+  },
+  "complex": {
+    "stage": "deploy",
+    "trigger": {
+      "project": "my/deployment",
+      "branch": "stable"
+    }
   }
 }
