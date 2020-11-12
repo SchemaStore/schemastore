@@ -1,8 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-
-  "title": "a Google Cloud Workflows config file",
-  "description": "a Orchestrate Workflows consisting of Google Cloud APIs, SaaS APIs or private API endpoints.",
+  "title": "Google Cloud Workflows config file",
+  "description": "Orchestrate Workflows consisting of Google Cloud APIs, SaaS APIs or private API endpoints.",
   "type": "array",
   "minItems": 1,
   "items": {
@@ -11,25 +10,32 @@
   "definitions": {
     "step": {
       "type": "object",
+      "description": "A single workflow step.",
       "additionalProperties": false,
       "properties": {
         "call": {
+          "description": "Required. Use `http.get`, `http.post`, or `http.request` for HTTP requests.",
           "type": "string",
           "enum": [
             "http.get",
             "http.post",
-            "http.request"
+            "http.request",
+            "sys.sleep"
           ]
         },
         "args": {
           "type": "object",
+          "description": "Arguments to a workflow step.",
+          "additionalProperties": false,
           "properties": {
             "url": {
               "type": "string",
+              "description": "Required. URL where the request is sent.",
               "format": "uri"
             },
             "method": {
               "type": "string",
+              "description": "Required if using call type http.request. The type of HTTP request method to use.",
               "enum": [
                 "GET",
                 "HEAD",
@@ -43,89 +49,149 @@
               ]
             },
             "header": {
-              "type": "object"
+              "type": "object",
+              "description": "Request headers."
             },
             "body": {
-              "type": "object"
+              "type": "object",
+              "description": "Request body."
             },
             "query": {
-              "type": "object"
+              "type": "object",
+              "description": "Request query parameters."
             },
             "auth": {
+              "description": "Required if the API being called requires authentication.",
+              "additionalProperties": false,
               "properties": {
                 "type": {
+                  "description": "The type of authentication.",
                   "enum": ["OIDC", "OAuth2"]
                 }
               }
             },
             "timeout": {
-              "type": "number"
+              "type": "number",
+              "description": "Time in seconds. How long a request is allowed to run before throwing an exception."
+            },
+            "seconds": {
+              "type": "number",
+              "description": "The number of seconds to sleep."
             }
-          }
+          },
+          "required": [
+            "url"
+          ]
         },
         "assign": {
-          "type": "object"
+          "type": "object",
+          "description": "Define a dictionary"
         },
         "result": {
-          "type": "string"
-        },
-        "returnValue": {
-          "properties": {
-            "return": {
-              "type": "string"
-            }
-          }
+          "type": "string",
+          "description": "Variable name where the result of an HTTP invocation step is stored."
         },
         "switch": {
-          "properties": {
-            "steps": {
-              "items": {
-                "$ref": "#/definitions/step"
+          "type": "array",
+          "description": "A switch block.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "condition": {
+                "description": "An expression to switch on.",
+                "type": "string"
+              },
+              "next": {
+                "description": "The next step to jump to. \"end\" to terminate.",
+                "type": "string",
+                "default": "end"
+              },
+              "steps": {
+                "description": "A list of steps to run in this switch statement.",
+                "items": {
+                  "$ref": "#/definitions/step"
+                }
               }
-            }
+            },
+            "required": ["condition"]
           }
         },
         "next": {
-          "type": "string"
+          "type": "string",
+          "description": "The next step to jump to. \"end\" to terminate.",
+          "default": "end"
+        },
+        "return": {
+          "type": "string",
+          "description": "Stop a workflow's execution and return a value, variable, or expression."
         },
         "try": {
+          "description": "Try a single step or a list of steps.",
           "properties": {
             "steps": {
+              "description": "A list of steps when trying.",
               "items": {
                 "$ref": "#/definitions/step"
               }
             }
-          }
+          },
+          "$ref": "#/definitions/step"
         },
         "retry": {
+          "description": "Optional. If omitted, all other fields are required. Options include ${http.default_retry} and ${http.default_retry_non_idempotent}. Allows you to specify a default retry policy to use. If you specify a retry policy, omit all other fields in the retry block.",
           "properties": {
             "predicate": {
-              "type": "string"
+              "type": "string",
+              "description": "Required if you don't select a default retry policy. Defines which error codes will be retried. Options include ${http.default_retry_predicate}, ${http.default_retry_predicate_non_idempotent}, or a custom predicate defined as a subworkflow."
             },
             "max_retries": {
-              "type": "integer"
+              "type": "integer",
+              "description": "Maximum number of times a step will be retried."
             },
             "backoff": {
+              "description": "Block that controls how retries occur.",
               "properties": {
                 "initial_delay": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Delay in seconds between the initial failure and the first retry."
                 },
                 "max_delay": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Maximum delay in seconds between retries."
                 },
                 "multiplier": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Multiplier applied to the previous delay to calculate the delay for the subsequent retry."
                 }
               }
             }
           }
         },
         "except": {
+          "description": "Except a try clause.",
           "items": {
             "$ref": "#/definitions/step"
-          }
+          },
+          "properties": {
+            "as": {
+              "type": "string",
+              "description": "Name of a dictionary variable that contains the error message."
+            }
+          },
+          "$ref": "#/definitions/step"
+        },
+        "raise": {
+          "description": "Raise an exception.",
+          "anyOf": [{
+            "description": "String message.",
+            "type": "string"
+          }, {
+            "description": "Dictionary",
+            "type": "object"
+          }]
         }
-      }
+      },
+      "required": ["call"]
     },
     "as": {
       "type": "string",
