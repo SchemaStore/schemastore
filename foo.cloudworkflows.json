@@ -1,41 +1,64 @@
 [
    {
-      "step1": {
-         "assign": [
-            {
-               "a": 1
-            }
-         ]
-      }
-   },
-   {
-      "step2": {
-         "switch": [
-            {
-               "condition": "${a==1}",
-               "steps": [
-                  {
-                     "stepA": {
-                        "assign": [
-                           {
-                              "a": "${a+7}"
-                           }
-                        ]
-                     }
-                  },
-                  {
-                     "stepB": {
-                        "return": "${\"increase a to:\"+string(a)}"
-                     }
+      "readItem": {
+         "try": {
+            "call": "http.get",
+            "args": {
+               "url": "https://example.com/someapi",
+               "auth": {
+                  "type": "OIDC"
+               }
+            },
+            "result": "APIResponse"
+         },
+         "except": {
+            "as": "e",
+            "steps": [
+               {
+                  "knownErrors": {
+                     "switch": [
+                        {
+                           "condition": "${not(\"HttpError\" in e.tags)}",
+                           "next": "connectionProblem"
+                        },
+                        {
+                           "condition": "${e.code == 404}",
+                           "next": "urlNotFound"
+                        },
+                        {
+                           "condition": "${e.code == 403}",
+                           "next": "authProblem"
+                        }
+                     ]
                   }
-               ]
-            }
-         ]
+               },
+               {
+                  "UnhandledException": {
+                     "raise": "${e}"
+                  }
+               }
+            ]
+         }
       }
    },
    {
-      "step3": {
-         "return": "${\"default a=\"+string(a)}"
+      "urlFound": {
+         "return": "${APIResponse.body}"
+      }
+   },
+   {
+      "connectionProblem": {
+         "return": "Connection problem; check URL"
+      }
+   },
+   {
+      "urlNotFound": {
+         "return": "Sorry, URL wasn't found"
+      }
+   },
+   {
+      "authProblem": {
+         "return": "Authentication error"
       }
    }
 ]
