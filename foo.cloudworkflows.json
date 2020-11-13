@@ -1,53 +1,64 @@
 [
    {
-      "firstStep": {
-         "call": "http.get",
-         "args": {
-            "url": "https://www.example.com/callA"
-         },
-         "result": "firstResult"
-      }
-   },
-   {
-      "whereToJump": {
-         "switch": [
-            {
-               "condition": "${firstResult.body.SomeField < 10}",
-               "next": "small"
+      "readItem": {
+         "try": {
+            "call": "http.get",
+            "args": {
+               "url": "https://example.com/someapi",
+               "auth": {
+                  "type": "OIDC"
+               }
             },
-            {
-               "condition": "${firstResult.body.SomeField < 100}",
-               "next": "medium"
-            }
-         ],
-         "next": "large"
+            "result": "APIResponse"
+         },
+         "except": {
+            "as": "e",
+            "steps": [
+               {
+                  "knownErrors": {
+                     "switch": [
+                        {
+                           "condition": "${not(\"HttpError\" in e.tags)}",
+                           "next": "connectionProblem"
+                        },
+                        {
+                           "condition": "${e.code == 404}",
+                           "next": "urlNotFound"
+                        },
+                        {
+                           "condition": "${e.code == 403}",
+                           "next": "authProblem"
+                        }
+                     ]
+                  }
+               },
+               {
+                  "UnhandledException": {
+                     "raise": "${e}"
+                  }
+               }
+            ]
+         }
       }
    },
    {
-      "small": {
-         "call": "http.get",
-         "args": {
-            "url": "https://www.example.com/SmallFunc"
-         },
-         "next": "end"
+      "urlFound": {
+         "return": "${APIResponse.body}"
       }
    },
    {
-      "medium": {
-         "call": "http.get",
-         "args": {
-            "url": "https://www.example.com/MediumFunc"
-         },
-         "next": "end"
+      "connectionProblem": {
+         "return": "Connection problem; check URL"
       }
    },
    {
-      "large": {
-         "call": "http.get",
-         "args": {
-            "url": "https://www.example.com/LargeFunc"
-         },
-         "next": "end"
+      "urlNotFound": {
+         "return": "Sorry, URL wasn't found"
+      }
+   },
+   {
+      "authProblem": {
+         "return": "Authentication error"
       }
    }
 ]
