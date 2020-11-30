@@ -94,7 +94,7 @@ module.exports = function (grunt) {
         dest: "schemas/json/ninjs-1.0.json"
       },
       xunit_v23: {
-        options: { url: "https://github.com/xunit/xunit/blob/gh-pages/schema/v2.3/xunit.runner.schema.json" },
+        options: { url: "https://raw.githubusercontent.com/xunit/xunit/gh-pages/schema/v2.3/xunit.runner.schema.json" },
         dest: "schemas/json/xunit.runner.schema.json"
       }
     },
