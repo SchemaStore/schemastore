@@ -27,7 +27,7 @@ public class JsonApi : IHttpHandler
             {
                 name = file.Replace("css-module-", "").Replace(".xml", ""),
                 description = "",
-                url = "http://css.schemastore.org/" + file
+                url = "https://css.schemastore.org/" + file
             });
         }
 
