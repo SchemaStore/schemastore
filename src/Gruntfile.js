@@ -181,6 +181,21 @@ module.exports = function (grunt) {
     });
   });
 
+  function getUrlFromCatalog(catalogUrl) {
+    const catalog = require('./api/json/catalog.json');
+    for (const schema of catalog["schemas"]) {
+      catalogUrl(schema["url"]);
+      const versions = schema["versions"];
+      if (versions) {
+        for (const prop in versions) {
+          if (versions.hasOwnProperty(prop)) {
+            catalogUrl(versions[prop]);
+          }
+        }
+      }
+    }
+  }
+
   async function remoteSchemaFile(schema_1_PassScan){
     const got = require("got");
     const catalog = require('./api/json/catalog.json');
@@ -227,7 +242,8 @@ module.exports = function (grunt) {
       },
       {
         fullScanAllFiles = false,
-        tv4OnlyMode = false
+        tv4OnlyMode = false,
+        logTestFolder = true
       } = {}) {
     // The structure is copy and paste from the tv4 function
     const path = require("path");
@@ -277,14 +293,14 @@ module.exports = function (grunt) {
     }
 
     // Do not scan the test folder if there are no one to process the data
-    const skipTestFolder = (test_1_PassScan === undefined) || (schema_2_PassScan === undefined);
+    const skipTestFolder = (test_1_PassScan === undefined);
 
     if (tv4OnlyMode === true) {
       // tv4 need to scan the schemaValidation list only
       fullScanAllFiles = false;
     }
 
-    if (skipTestFolder === false) {
+    if (skipTestFolder === false && logTestFolder === true ) {
       // Show only test folder percentage if in test folder scan mode.
       const notCovered = schemas.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
@@ -355,7 +371,7 @@ module.exports = function (grunt) {
         return;
       }
 
-      if (tv4OnlyMode === false) {
+      if (tv4OnlyMode === false && logTestFolder === true) {
         // tv4 already have it own console output take care of.
         grunt.log.writeln(``);
         grunt.log.writeln(`test folder   : ${folder}`);
@@ -579,8 +595,13 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_bom", "Dynamically load local schema file for BOM validation", function () {
-    localSchemaFileAndTestFile({schema_1_PassScan: testSchemaFileForBOM}, {fullScanAllFiles: true});
-    grunt.log.ok("no BOM file found");
+    let countScan = 0;
+    const x = (data) => {
+      countScan++;
+      testSchemaFileForBOM(data);
+    }
+    localSchemaFileAndTestFile({schema_1_PassScan: x}, {fullScanAllFiles: true});
+    grunt.log.ok("no BOM file found in all schema files. Total files scan: " + countScan);
   })
 
   grunt.registerTask("remote_bom", "Dynamically load remote schema file for BOM validation", async function () {
@@ -596,7 +617,7 @@ module.exports = function (grunt) {
 
     const validate = validator(catalogSchema, {includeErrors: true});
     if (validate(catalogFile)) {
-      grunt.log.ok("Catalog OK");
+      grunt.log.ok("catalog.json OK");
     } else {
       grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
       grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
@@ -606,7 +627,9 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_find-duplicated-property-keys", "Dynamically load local test file for validation", function () {
     const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
-    const findDuplicatedProperty = function(callbackParameter){
+    let countScan = 0;
+    const findDuplicatedProperty = (callbackParameter) => {
+      countScan++;
       const result = findDuplicatedPropertyKeys(callbackParameter.rawFile);
       if(result.length > 0){
         grunt.log.error('Duplicated key found in: ' + callbackParameter.urlOrFilePath);
@@ -616,49 +639,86 @@ module.exports = function (grunt) {
         throw new Error(`Error in test: find-duplicated-property-keys`);
       }
     }
-    localSchemaFileAndTestFile( {test_1_PassScan : findDuplicatedProperty});
-    grunt.log.ok('No duplicated property key found');
+    localSchemaFileAndTestFile( {test_1_PassScan : findDuplicatedProperty}, {logTestFolder : false});
+    grunt.log.ok('No duplicated property key found in test files. Total files scan: ' + countScan);
   })
 
-  grunt.registerTask("local_url-in-catalog", "local url must reference to a file", function () {
-    const catalog = require("./api/json/catalog.json");
+  grunt.registerTask("local_url-present-in-catalog", "local url must reference to a file", function () {
     const fs = require('fs')
     const httpPath = "http://json.schemastore.org"
     const httpsPath = "https://json.schemastore.org"
     const schemaPath = './schemas/json/'
+    let countScan = 0;
 
-    const getFilename = (schemaUrl) => {
-      const urlSplit = schemaUrl.split('/');
-      return urlSplit[urlSplit.length - 1]; // the last item must be the file name
-    }
+    getUrlFromCatalog(catalogUrl => {
+      if (catalogUrl.startsWith(httpsPath) || catalogUrl.startsWith(httpPath)) {
+        countScan++;
+        let filename = catalogUrl.split('/').pop();
+        filename = filename.endsWith(".json") ? filename : filename.concat(".json");
+        if (fs.existsSync(schemaPath.concat(filename)) === false) {
+          throw new Error("Schema file not found: URL: " + catalogUrl);
+        }
+      }
+    });
+    grunt.log.ok('All local url tested OK. Total: ' + countScan);
+  })
 
-    const processOneURL = (schemaUrl) => {
-      if (schemaUrl.startsWith(httpsPath) || schemaUrl.startsWith(httpPath)) {
-        let filename = getFilename(schemaUrl);
-        if (filename) {
-          filename = filename.endsWith(".json") ? filename : filename.concat(".json");
-          if (fs.existsSync(schemaPath.concat(filename)) === false) {
-            throw new Error("Schema file not found: URL: " + schemaUrl);
-          }
-        } else {
-          throw new Error("No filename found in the URL :" + schemaUrl);
+  grunt.registerTask("local_schema-present-in-catalog-list", "local schema must have a url reference in catalog list", function () {
+    const schemaValidation = require('./schema-validation.json');
+    const httpPath = "http://json.schemastore.org"
+    const httpsPath = "https://json.schemastore.org"
+    let countScan = 0;
+    let allCatalogLocalJsonFiles = [];
+
+    // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
+    getUrlFromCatalog(catalogUrl => {
+      if (catalogUrl.startsWith(httpsPath) || catalogUrl.startsWith(httpPath)) {
+        let filename = catalogUrl.split('/').pop();
+        filename = filename.endsWith(".json") ? filename : filename.concat(".json");
+        allCatalogLocalJsonFiles.push(filename);
+      }
+    })
+
+    // Check if allCatalogLocalJsonFiles[] have the actual schema filename.
+    const schemaFileCompare = (x) => {
+      // skip testing if present in "missingcatalogurl"
+      if (!schemaValidation["missingcatalogurl"].find(value => value === x.jsonName)) {
+        countScan++;
+        const found = allCatalogLocalJsonFiles.find(value => value === x.jsonName)
+        if (!found) {
+          throw new Error("No filename URL found in the catalog => " + x.jsonName);
         }
       }
     }
+    // Get all the json file for schemasafe and tv4
+    localSchemaFileAndTestFile({schema_1_PassScan: schemaFileCompare});
+    localSchemaFileAndTestFile({schema_1_PassScan: schemaFileCompare}, {tv4OnlyMode: true});
+    grunt.log.ok('All local schema files have URL link in catalog. Total:' + countScan);
+  })
 
+  grunt.registerTask("local_catalog-fileMatch-conflict", "note: app.json and *app.json conflicting will not be detected", function () {
+    const catalog = require('./api/json/catalog.json');
+    const schemaValidation = require('./schema-validation.json');
+    const fileMatchConflict = schemaValidation["fileMatchConflict"];
+    let fileMatchCollection = [];
+    // Collect all the "fileMatch" and put it in fileMatchCollection[]
     for (const schema of catalog["schemas"]) {
-      processOneURL(schema["url"]);
-      const versions = schema["versions"];
-      if (versions) {
-        for (const prop in versions) {
-          if (versions.hasOwnProperty(prop)){
-            processOneURL(versions[prop]);
+      const fileMatchArray = schema["fileMatch"];
+      if (fileMatchArray) {
+        // Check if this is already present in the "fileMatchConflict" list. If so then remove it from filtered[]
+        const filtered = fileMatchArray.filter(fileMatch => {
+          return fileMatchConflict.find(value => value === fileMatch) === undefined;
+        });
+        // Check if fileMatch is already present in the fileMatchCollection[]
+        filtered.forEach(fileMatch => {
+          if (fileMatchCollection.find(value => value === fileMatch)) {
+            throw new Error("Duplicate fileMatch found => " + fileMatch);
           }
-        }
+        });
+        fileMatchCollection = fileMatchCollection.concat(filtered);
       }
     }
-
-    grunt.log.ok('all local url tested OK');
+    grunt.log.ok('No new fileMatch conflict detected.');
   })
 
   function hasBOM(buf) {
@@ -826,7 +886,9 @@ module.exports = function (grunt) {
   grunt.registerTask("local_test",
       [
         "local_catalog",
-        "local_url-in-catalog",
+        "local_catalog-fileMatch-conflict",
+        "local_url-present-in-catalog",
+        "local_schema-present-in-catalog-list",
         "local_bom",
         "local_find-duplicated-property-keys",
         "local_tv4_only_for_non_compliance_schema",
