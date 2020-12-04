@@ -50,12 +50,10 @@ module.exports = function (grunt) {
       options: {
         schemas: {
           "http://json-schema.org/draft-04/schema#": grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
-          "http://json.schemastore.org/jshintrc": grunt.file.readJSON("schemas/json/jshintrc.json"),
-          "http://json.schemastore.org/grunt-task": grunt.file.readJSON("schemas/json/grunt-task.json"),
-          "http://json.schemastore.org/jsonld": grunt.file.readJSON("schemas/json/jsonld.json"),
-          "http://json.schemastore.org/schema-org-thing": grunt.file.readJSON("schemas/json/schema-org-thing.json"),
+          "https://json.schemastore.org/jsonld": grunt.file.readJSON("schemas/json/jsonld.json"),
+          "https://json.schemastore.org/schema-org-thing": grunt.file.readJSON("schemas/json/schema-org-thing.json"),
           "http://json.schemastore.org/xunit.runner.schema": grunt.file.readJSON("schemas/json/xunit.runner.schema.json"),
-          "http://json.schemastore.org/feed-1": grunt.file.readJSON("schemas/json/feed-1.json"),
+          "https://json.schemastore.org/feed-1": grunt.file.readJSON("schemas/json/feed-1.json"),
         }
       }
     },
@@ -266,17 +264,13 @@ module.exports = function (grunt) {
      */
     const canThisTestBeRun = (jsonFilename) => {
       let result = true;
-      if (schemaValidation["skiptest"].find((value) => {
-        return value === jsonFilename;
-      })) {
+      if (schemaValidation["skiptest"].includes(jsonFilename)) {
         return false; // This test can never be process
       }
 
       // Schema must be run for tv4 or schemasafe.
       if (fullScanAllFiles === false) {
-        if (schemaValidation["tv4test"].find((value) => {
-              return value === jsonFilename;
-            })) {
+        if (schemaValidation["tv4test"].includes(jsonFilename)) {
           // This file is NOT full compliance. Should be run only by tv4 validator
           if (tv4OnlyMode === false) {
             result = false;
@@ -501,8 +495,7 @@ module.exports = function (grunt) {
 
   function schemasafe(){
     const schemaValidation = require('./schema-validation.json');
-    const validationModeDefault = { includeErrors: true};
-    const validationModeStrong = { includeErrors: true, mode: 'strong'};
+    const includeErrors = true;
     const { validator } = require('@exodus/schemasafe')
     const textValidate = "validate    | ";
     const textPassSchema = "pass schema | ";
@@ -510,21 +503,41 @@ module.exports = function (grunt) {
     const textFailedTest = "failed test | ";
 
     let validate = undefined;
-    let selectedParserModeString = undefined;
-    let selectedParserMode = undefined;
-    let strongMode = undefined;
+    let selectedParserModeString = "(default mode) ";
     let countSchema = 0;
+    let schemas = [];
+
+    const fillExternalSchemaArray = () => {
+      const ExternalSchema = schemaValidation["externalschema"];
+      for( const schema_file_name of ExternalSchema){
+        const schema_full_path_name = `./schemas/json/${schema_file_name}`;
+        schemas.push(require(schema_full_path_name));
+      }
+      // Check for missing root "id"/"$id"
+      grunt.log.writeln("Check ref to external schema list");
+      validator(JSON.parse("{}") , {schemas})
+      grunt.log.ok("Check ref to external schema list. => OK");
+      grunt.log.writeln();
+    }
 
     const processSchemaFile = (callbackParameter) => {
-      strongMode = schemaValidation["strongmode"].find(
-          function (value) { return value === callbackParameter.jsonName;}
-      );
-      selectedParserMode =  strongMode ? validationModeStrong : validationModeDefault;
-      selectedParserModeString =  strongMode ? "(strong mode)  " : "(default mode) ";
+      // mode can be 'strong' | lax | undefined
+      let mode = undefined;
+      selectedParserModeString = "(default mode)  ";
+
+      if(schemaValidation["strongmode"].includes(callbackParameter.jsonName)){
+        mode = 'strong';
+        selectedParserModeString = "(strong mode)  ";
+      }else{
+        if(schemaValidation["laxmode"].includes(callbackParameter.jsonName)){
+          mode = 'lax';
+          selectedParserModeString = "(lax mode)     ";
+        }
+      }
 
       // Start validate the JSON schema
       try {
-        validate = validator(JSON.parse(callbackParameter.rawFile) , selectedParserMode);
+        validate = validator(JSON.parse(callbackParameter.rawFile) , {schemas, mode, includeErrors});
       }catch (e) {
         grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
         throw new Error(e);
@@ -558,6 +571,7 @@ module.exports = function (grunt) {
       countSchema = 0;
     }
 
+    fillExternalSchemaArray();
     return {
       testSchemaFile: processSchemaFile,
       testSchemaFileDone: processSchemaFileDone,
@@ -682,17 +696,16 @@ module.exports = function (grunt) {
     // Check if allCatalogLocalJsonFiles[] have the actual schema filename.
     const schemaFileCompare = (x) => {
       // skip testing if present in "missingcatalogurl"
-      if (!schemaValidation["missingcatalogurl"].find(value => value === x.jsonName)) {
+      if (!schemaValidation["missingcatalogurl"].includes(x.jsonName)) {
         countScan++;
-        const found = allCatalogLocalJsonFiles.find(value => value === x.jsonName)
+        const found = allCatalogLocalJsonFiles.includes(x.jsonName)
         if (!found) {
           throw new Error("No filename URL found in the catalog => " + x.jsonName);
         }
       }
     }
     // Get all the json file for schemasafe and tv4
-    localSchemaFileAndTestFile({schema_1_PassScan: schemaFileCompare});
-    localSchemaFileAndTestFile({schema_1_PassScan: schemaFileCompare}, {tv4OnlyMode: true});
+    localSchemaFileAndTestFile({schema_1_PassScan: schemaFileCompare}, {fullScanAllFiles: true});
     grunt.log.ok('All local schema files have URL link in catalog. Total:' + countScan);
   })
 
@@ -707,11 +720,11 @@ module.exports = function (grunt) {
       if (fileMatchArray) {
         // Check if this is already present in the "fileMatchConflict" list. If so then remove it from filtered[]
         const filtered = fileMatchArray.filter(fileMatch => {
-          return fileMatchConflict.find(value => value === fileMatch) === undefined;
+          return !fileMatchConflict.includes(fileMatch);
         });
         // Check if fileMatch is already present in the fileMatchCollection[]
         filtered.forEach(fileMatch => {
-          if (fileMatchCollection.find(value => value === fileMatch)) {
+          if (fileMatchCollection.includes(fileMatch)) {
             throw new Error("Duplicate fileMatch found => " + fileMatch);
           }
         });
