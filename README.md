@@ -11,3 +11,4 @@ Website: [schemastore.org](https://www.schemastore.org/json/)
 ## Contribute
 
 Contributions are more than welcome. Both to the website itself or to the various schema files. Before contributing, please carefully read the [guidelines](./CONTRIBUTING.md).
+#1
