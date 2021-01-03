@@ -734,6 +734,21 @@ module.exports = function (grunt) {
     grunt.log.ok('No new fileMatch conflict detected.');
   })
 
+  grunt.registerTask("local_filename_with_json_extension", "Dynamically check local schema/test file for filename extension", function () {
+    let countScan = 0;
+    const x = (data) => {
+      countScan++;
+      if (!data.jsonName.endsWith(".json")) {
+        throw new Error("Filename must have .json extension => " + data.urlOrFilePath);
+      }
+    }
+    localSchemaFileAndTestFile({schema_1_PassScan: x, test_1_PassScan: x}, {
+      fullScanAllFiles: true,
+      logTestFolder: false
+    });
+    grunt.log.ok("All schema and test filename have .json extension. Total files scan: " + countScan);
+  })
+
   function hasBOM(buf) {
     return buf.length > 2 && buf[0] == 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
   }
@@ -898,6 +913,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_test",
       [
+        "local_filename_with_json_extension",
         "local_catalog",
         "local_catalog-fileMatch-conflict",
         "local_url-present-in-catalog",
