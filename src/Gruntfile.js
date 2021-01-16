@@ -533,21 +533,22 @@ module.exports = function (grunt) {
     const processSchemaFile = (callbackParameter) => {
       // mode can be 'strong' | lax | undefined
       let mode = undefined;
+      let allowUnusedKeywords = false;
       selectedParserModeString = "(default mode)  ";
 
       if(schemaValidation["strongmode"].includes(callbackParameter.jsonName)){
         mode = 'strong';
         selectedParserModeString = "(strong mode)  ";
       }else{
-        if(schemaValidation["laxmode"].includes(callbackParameter.jsonName)){
-          mode = 'lax';
-          selectedParserModeString = "(lax mode)     ";
+        if(schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)){
+          allowUnusedKeywords = true;
+          selectedParserModeString = "(lax mode)      ";
         }
       }
 
       // Start validate the JSON schema
       try {
-        validate = validator(JSON.parse(callbackParameter.rawFile) , {schemas, mode, includeErrors});
+        validate = validator(JSON.parse(callbackParameter.rawFile) , {schemas, mode, includeErrors, allowUnusedKeywords});
       }catch (e) {
         grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
         throw new Error(e);
