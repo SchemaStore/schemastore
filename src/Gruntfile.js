@@ -237,6 +237,7 @@ module.exports = function (grunt) {
         schema_2_PassScan = undefined,
         test_1_PassScan = undefined,
         test_1_PassScanDone = undefined,
+        schema_without_test = undefined
       },
       {
         fullScanAllFiles = false,
@@ -294,15 +295,24 @@ module.exports = function (grunt) {
       fullScanAllFiles = false;
     }
 
-    if (skipTestFolder === false && logTestFolder === true ) {
+    if (schema_without_test) {
       // Show only test folder percentage if in test folder scan mode.
       const notCovered = schemas.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
         return !folders.includes(folderName.replace("_", "."));
       });
 
-      if (notCovered.length) {
+      notCovered.forEach((schema_file_name) => {
+        // If it's the .DS_Store folder from macOS, ignore and continue.
+        if (schema_file_name === ".DS_Store") {
+          return;
+        }
+        schema_without_test({jsonName: schema_file_name});
+      });
+
+      if (notCovered.length > 0) {
         const percent = (notCovered.length / schemas.length) * 100;
+        grunt.log.writeln();
         grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests or have malformed test folders`);
       }
     }
@@ -523,21 +533,22 @@ module.exports = function (grunt) {
     const processSchemaFile = (callbackParameter) => {
       // mode can be 'strong' | lax | undefined
       let mode = undefined;
+      let allowUnusedKeywords = false;
       selectedParserModeString = "(default mode)  ";
 
       if(schemaValidation["strongmode"].includes(callbackParameter.jsonName)){
         mode = 'strong';
         selectedParserModeString = "(strong mode)  ";
       }else{
-        if(schemaValidation["laxmode"].includes(callbackParameter.jsonName)){
-          mode = 'lax';
-          selectedParserModeString = "(lax mode)     ";
+        if(schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)){
+          allowUnusedKeywords = true;
+          selectedParserModeString = "(lax mode)      ";
         }
       }
 
       // Start validate the JSON schema
       try {
-        validate = validator(JSON.parse(callbackParameter.rawFile) , {schemas, mode, includeErrors});
+        validate = validator(JSON.parse(callbackParameter.rawFile) , {schemas, mode, includeErrors, allowUnusedKeywords});
       }catch (e) {
         grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
         throw new Error(e);
@@ -749,6 +760,16 @@ module.exports = function (grunt) {
     grunt.log.ok("All schema and test filename have .json extension. Total files scan: " + countScan);
   })
 
+  grunt.registerTask("local_search_for_schema_without_test_files", "Dynamically check local schema if test files are present", function () {
+    let countScan = 0;
+    const x = (data) => {
+      countScan++;
+      grunt.log.ok("(No test file present): " + data.jsonName);
+    }
+    localSchemaFileAndTestFile({schema_without_test: x});
+    grunt.log.ok("Schemas that have no test files. Total files: " + countScan);
+  })
+
   function hasBOM(buf) {
     return buf.length > 2 && buf[0] == 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
   }
@@ -920,6 +941,7 @@ module.exports = function (grunt) {
         "local_schema-present-in-catalog-list",
         "local_bom",
         "local_find-duplicated-property-keys",
+        "local_search_for_schema_without_test_files",
         "local_tv4_only_for_non_compliance_schema",
         "tv4",
         "local_schemasafe_test"
