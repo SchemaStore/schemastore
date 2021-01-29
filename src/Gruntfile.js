@@ -235,9 +235,11 @@ module.exports = function (grunt) {
         schema_1_PassScan = undefined,
         schema_1_PassScanDone = undefined,
         schema_2_PassScan = undefined,
-        test_1_PassScan = undefined,
-        test_1_PassScanDone = undefined,
-        schema_without_test = undefined
+        positiveTest_1_PassScan = undefined,
+        positiveTest_1_PassScanDone = undefined,
+        negativeTest_1_PassScan = undefined,
+        negativeTest_1_PassScanDone = undefined,
+        schema_without_positive_test = undefined
       },
       {
         fullScanAllFiles = false,
@@ -248,9 +250,12 @@ module.exports = function (grunt) {
     const path = require("path");
     const fs = require('fs');
     const schemaValidation = grunt.file.readJSON('schema-validation.json');
-    const testDir = "test";
     const schemas = fs.readdirSync("schemas/json");
-    const folders = fs.readdirSync(testDir);
+    const testPositiveDir = "test"
+    const testNegativeDir = "negative_test"
+    const foldersPositiveTest = fs.readdirSync(testPositiveDir);
+    const foldersNegativeTest = fs.readdirSync(testNegativeDir);
+
     let callbackParameter = {
       jsonName: undefined,
       rawFile: undefined,
@@ -287,19 +292,72 @@ module.exports = function (grunt) {
       return result;
     }
 
-    // Do not scan the test folder if there are no one to process the data
-    const skipTestFolder = (test_1_PassScan === undefined);
+    const runTestFolder = (testDir, folderName, schema_PassScan, test_PassScan, test_PassScanDone) => {
+      // If it's a file, ignore and continue. We only care about folders.
+      if (isFile(folderName)) {
+        return;
+      }
 
-    if (tv4OnlyMode === true) {
-      // tv4 need to scan the schemaValidation list only
-      fullScanAllFiles = false;
+      // If it's the .DS_Store folder from macOS, ignore and continue.
+      if (folderName === ".DS_Store") {
+        return;
+      }
+
+      if (canThisTestBeRun(`${folderName}.json`) === false) {
+        return;
+      }
+
+      if (tv4OnlyMode === false && logTestFolder === true) {
+        // tv4 already have it own console output take care of.
+        grunt.log.writeln(``);
+        grunt.log.writeln(`test folder   : ${folderName}`);
+      }
+
+      const toTestFilePath = toPath(testDir, folderName);
+      const name = folderName.replace("_", ".");
+      const files = fs.readdirSync(pt.join(testDir, folderName)).map(toTestFilePath);
+
+      if (!files.length) {
+        throw new Error(`Found folder with no test files: ${folderName}`);
+      }
+
+      const schemaFileWithPath = `schemas/json/${name}.json`;
+      if (schema_PassScan) {
+        callbackParameter = {
+          // Return the real Raw file for BOM file test rejection
+          rawFile: fs.readFileSync(schemaFileWithPath),
+          jsonName: path.basename(schemaFileWithPath),
+          urlOrFilePath: schemaFileWithPath,
+          schemaScan: false
+        }
+        schema_PassScan(callbackParameter);
+      }
+
+      if (test_PassScan) {
+        // Test file may have BOM. But this must be strip for the next process
+        grunt.file.preserveBOM = false; // Strip file from BOM
+        files.forEach(function (file) {
+          // must ignore BOM in test
+          callbackParameter = {
+            rawFile: grunt.file.read(file),
+            jsonName: path.basename(file.toString()),
+            urlOrFilePath: file,
+            schemaScan: false
+          }
+          test_PassScan(callbackParameter);
+        });
+        if (test_PassScanDone) {
+          test_PassScanDone();
+        }
+      }
     }
 
-    if (schema_without_test) {
+    // process callback for the schema_without_positive_test
+    if (schema_without_positive_test) {
       // Show only test folder percentage if in test folder scan mode.
       const notCovered = schemas.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
-        return !folders.includes(folderName.replace("_", "."));
+        return !foldersPositiveTest.includes(folderName.replace("_", "."));
       });
 
       notCovered.forEach((schema_file_name) => {
@@ -307,7 +365,7 @@ module.exports = function (grunt) {
         if (schema_file_name === ".DS_Store") {
           return;
         }
-        schema_without_test({jsonName: schema_file_name});
+        schema_without_positive_test({jsonName: schema_file_name});
       });
 
       if (notCovered.length > 0) {
@@ -355,70 +413,22 @@ module.exports = function (grunt) {
       schema_1_PassScanDone();
     }
 
-    if (skipTestFolder === true) {
-      return
+    // Do not scan the test folder if there are no one to process the data
+    if (positiveTest_1_PassScan) {
+      // Now run all positive test in each test folder
+      foldersPositiveTest.forEach((folderName) => {
+        runTestFolder(testPositiveDir, folderName, schema_2_PassScan, positiveTest_1_PassScan, positiveTest_1_PassScanDone);
+      });
     }
 
-    // Now run all test in each test folder
-    folders.forEach((folder) => {
-      // If it's a file, ignore and continue. We only care about folders.
-      if (isFile(folder)) {
-        return;
-      }
-
-      // If it's the .DS_Store folder from macOS, ignore and continue.
-      if (folder === ".DS_Store") {
-        return;
-      }
-
-      if (canThisTestBeRun(`${folder}.json`) === false) {
-        return;
-      }
-
-      if (tv4OnlyMode === false && logTestFolder === true) {
-        // tv4 already have it own console output take care of.
-        grunt.log.writeln(``);
-        grunt.log.writeln(`test folder   : ${folder}`);
-      }
-
-      const toTestFilePath = toPath(testDir, folder);
-      const name = folder.replace("_", ".");
-      const files = fs.readdirSync(pt.join(testDir, folder)).map(toTestFilePath);
-
-      if (!files.length) {
-        throw new Error(`Found folder with no test files: ${folder}`);
-      }
-
-      const schemaFileWithPath = `schemas/json/${name}.json`;
-      if (schema_2_PassScan) {
-        callbackParameter = {
-          // Return the real Raw file for BOM file test rejection
-          rawFile: fs.readFileSync(schemaFileWithPath),
-          jsonName: path.basename(schemaFileWithPath),
-          urlOrFilePath: schemaFileWithPath,
-          schemaScan: false
-        }
-        schema_2_PassScan(callbackParameter);
-      }
-
-      if (test_1_PassScan) {
-        // Test file may have BOM. But this must be strip for the next process
-        grunt.file.preserveBOM = false; // Strip file from BOM
-        files.forEach(function (file) {
-          // must ignore BOM in test
-          callbackParameter = {
-            rawFile: grunt.file.read(file),
-            jsonName: path.basename(file.toString()),
-            urlOrFilePath: file,
-            schemaScan: false
-          }
-          test_1_PassScan(callbackParameter);
-        });
-        if (test_1_PassScanDone) {
-          test_1_PassScanDone();
-        }
-      }
-    });
+    // Do not scan the test folder if there are no one to process the data
+    //  and tv4 don't have negative test
+    if (negativeTest_1_PassScan && (tv4OnlyMode === false)) {
+      // Now run all negative test in each test folder
+      foldersNegativeTest.forEach((folderName) => {
+        runTestFolder(testNegativeDir, folderName, schema_2_PassScan, negativeTest_1_PassScan, negativeTest_1_PassScanDone);
+      });
+    }
   }
 
   function testSchemaFileForBOM(callbackParameter){
@@ -508,9 +518,11 @@ module.exports = function (grunt) {
     const includeErrors = true;
     const { validator } = require('@exodus/schemasafe')
     const textValidate = "validate    | ";
-    const textPassSchema = "pass schema | ";
-    const textPassTest = "pass test   | ";
-    const textFailedTest = "failed test | ";
+    const textPassSchema         = "pass schema          | ";
+    const textPositivePassTest   = "pass positive test   | ";
+    const textPositiveFailedTest = "failed positive test | ";
+    const textNegativePassTest   = "pass negative test   | ";
+    const textNegativeFailedTest = "failed negative test | ";
 
     let validate = undefined;
     let selectedParserModeString = "(default mode) ";
@@ -557,7 +569,7 @@ module.exports = function (grunt) {
       grunt.log.ok(selectedParserModeString + textPassSchema + callbackParameter.urlOrFilePath);
     }
 
-    const processTestFile = (callbackParameter) => {
+    const processPositiveTestFile = (callbackParameter) => {
       let json;
       try {
         json = JSON.parse(callbackParameter.rawFile);
@@ -566,15 +578,41 @@ module.exports = function (grunt) {
         throw new Error(e);
       }
 
-      if(validate(json)){
-        grunt.log.ok(selectedParserModeString+textPassTest + callbackParameter.urlOrFilePath);
-      }else{
-        grunt.log.error(selectedParserModeString+textFailedTest + callbackParameter.urlOrFilePath);
+      if (validate(json)) {
+        grunt.log.ok(selectedParserModeString + textPositivePassTest + callbackParameter.urlOrFilePath);
+      } else {
+        grunt.log.error(selectedParserModeString + textPositiveFailedTest + callbackParameter.urlOrFilePath);
         grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
         grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
-        throw new Error(`Error in test`);
+        throw new Error(`Error in positive test.`);
       }
     }
+
+    const processNegativeTestFile = (callbackParameter) => {
+      let json;
+      try {
+        json = JSON.parse(callbackParameter.rawFile);
+      }catch (e) {
+        grunt.log.error(`Error in test: ${callbackParameter.urlOrFilePath}`)
+        throw new Error(e);
+      }
+
+      if (validate(json)) {
+        grunt.log.error(selectedParserModeString + textNegativeFailedTest + callbackParameter.urlOrFilePath);
+        throw new Error(`Negative test must always fail.`);
+      } else {
+        grunt.log.ok(selectedParserModeString
+            + textNegativePassTest
+            + callbackParameter.urlOrFilePath
+            + " (Schema: "
+            + validate.errors[0].keywordLocation
+            + ") (Test: "
+            + validate.errors[0].instanceLocation
+            + ")"
+        );
+      }
+    }
+
 
     const processSchemaFileDone = () => {
       grunt.log.writeln();
@@ -586,7 +624,8 @@ module.exports = function (grunt) {
     return {
       testSchemaFile: processSchemaFile,
       testSchemaFileDone: processSchemaFileDone,
-      testTestFile: processTestFile
+      positiveTestFile: processPositiveTestFile,
+      negativeTestFile: processNegativeTestFile
     }
   }
 
@@ -595,8 +634,8 @@ module.exports = function (grunt) {
     localSchemaFileAndTestFile({
       schema_2_PassScan: x.testSchemaFile,
       schema_1_PassScanDone: x.testSchemaFileDone,
-      test_1_PassScan: x.testTestFile,
-      test_1_PassScanDone: x.testTestFileDone
+      positiveTest_1_PassScan: x.testTestFile,
+      positiveTest_1_PassScanDone: x.testTestFileDone
     }, {tv4OnlyMode: true});
     // The tv4 task is actually run after this registerTask()
   })
@@ -605,7 +644,8 @@ module.exports = function (grunt) {
     const x = schemasafe();
     localSchemaFileAndTestFile({
       schema_2_PassScan: x.testSchemaFile,
-      test_1_PassScan: x.testTestFile,
+      positiveTest_1_PassScan: x.positiveTestFile,
+      negativeTest_1_PassScan: x.negativeTestFile,
       schema_1_PassScanDone: x.testSchemaFileDone
     });
     grunt.log.writeln()
@@ -664,7 +704,7 @@ module.exports = function (grunt) {
         throw new Error(`Error in test: find-duplicated-property-keys`);
       }
     }
-    localSchemaFileAndTestFile( {test_1_PassScan : findDuplicatedProperty}, {logTestFolder : false});
+    localSchemaFileAndTestFile( {positiveTest_1_PassScan : findDuplicatedProperty}, {logTestFolder : false});
     grunt.log.ok('No duplicated property key found in test files. Total files scan: ' + countScan);
   })
 
@@ -753,21 +793,21 @@ module.exports = function (grunt) {
         throw new Error("Filename must have .json extension => " + data.urlOrFilePath);
       }
     }
-    localSchemaFileAndTestFile({schema_1_PassScan: x, test_1_PassScan: x}, {
+    localSchemaFileAndTestFile({schema_1_PassScan: x, positiveTest_1_PassScan: x}, {
       fullScanAllFiles: true,
       logTestFolder: false
     });
     grunt.log.ok("All schema and test filename have .json extension. Total files scan: " + countScan);
   })
 
-  grunt.registerTask("local_search_for_schema_without_test_files", "Dynamically check local schema if test files are present", function () {
+  grunt.registerTask("local_search_for_schema_without_positive_test_files", "Dynamically check local schema if positive test files are present", function () {
     let countScan = 0;
     const x = (data) => {
       countScan++;
-      grunt.log.ok("(No test file present): " + data.jsonName);
+      grunt.log.ok("(No positive test file present): " + data.jsonName);
     }
-    localSchemaFileAndTestFile({schema_without_test: x});
-    grunt.log.ok("Schemas that have no test files. Total files: " + countScan);
+    localSchemaFileAndTestFile({schema_without_positive_test: x});
+    grunt.log.ok("Schemas that have no positive test files. Total files: " + countScan);
   })
 
   function hasBOM(buf) {
@@ -941,7 +981,7 @@ module.exports = function (grunt) {
         "local_schema-present-in-catalog-list",
         "local_bom",
         "local_find-duplicated-property-keys",
-        "local_search_for_schema_without_test_files",
+        "local_search_for_schema_without_positive_test_files",
         "local_tv4_only_for_non_compliance_schema",
         "tv4",
         "local_schemasafe_test"
