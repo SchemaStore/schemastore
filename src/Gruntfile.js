@@ -515,7 +515,6 @@ module.exports = function (grunt) {
 
   function schemasafe(){
     const schemaValidation = require('./schema-validation.json');
-    const includeErrors = true;
     const { validator } = require('@exodus/schemasafe')
     const textValidate = "validate    | ";
     const textPassSchema         = "pass schema          | ";
@@ -543,8 +542,9 @@ module.exports = function (grunt) {
     }
 
     const processSchemaFile = (callbackParameter) => {
-      // mode can be 'strong' | lax | undefined
-      let mode = undefined;
+      // mode can be 'strong' | lax | default
+      let mode = 'default';
+      let formatItems = undefined;
       let allowUnusedKeywords = false;
       selectedParserModeString = "(default mode)  ";
 
@@ -558,10 +558,33 @@ module.exports = function (grunt) {
         }
       }
 
+      // process unknownFormat
+      schemaValidation["unknownFormat"].some((item) => {
+        if (item.hasOwnProperty(callbackParameter.jsonName)) {
+          // This schema have format that are not supported by schemasafe
+          formatItems = {};
+          // Create new properties in formatItems{}
+          item[callbackParameter.jsonName].forEach((x) => {
+            // All the string input from format are always true. There is no string validation here.
+            formatItems[x] = (str) => true;
+          })
+          // Found the correct item. Stop processing the 'some' loop.
+          return true;
+        }
+        return false;
+      });
+
       // Start validate the JSON schema
       try {
-        validate = validator(JSON.parse(callbackParameter.rawFile) , {schemas, mode, includeErrors, allowUnusedKeywords});
-      }catch (e) {
+        validate = validator(JSON.parse(callbackParameter.rawFile), {
+          schemas,
+          mode,
+          allowUnusedKeywords,
+          includeErrors: true,
+          requireSchema: true,
+          formats: formatItems
+        });
+      } catch (e) {
         grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
         throw new Error(e);
       }
