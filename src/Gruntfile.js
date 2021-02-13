@@ -833,6 +833,26 @@ module.exports = function (grunt) {
     grunt.log.ok("Schemas that have no positive test files. Total files: " + countScan);
   })
 
+  grunt.registerTask("local_validate_directory_structure", "Dynamically check if schema and test directory structure are valid", function () {
+    schemasToBeTested.forEach((name) => {
+      if (!skipThisFileName(name) && !fs.lstatSync(pt.join(schemaDir, name)).isFile()) {
+        throw new Error("There can only be files in directory :" + schemaDir + " => " + name);
+      }
+    });
+
+    foldersPositiveTest.forEach((name) => {
+      if (!skipThisFileName(name) && !fs.lstatSync(pt.join(testPositiveDir, name)).isDirectory()) {
+        throw new Error("There can only be directory's in :" + testPositiveDir + " => " + name);
+      }
+    });
+
+    foldersNegativeTest.forEach((name) => {
+      if (!skipThisFileName(name) && !fs.lstatSync(pt.join(testNegativeDir, name)).isDirectory()) {
+        throw new Error("There can only be directory's in :" + testNegativeDir + " => " + name);
+      }
+    });
+  })
+
   function hasBOM(buf) {
     return buf.length > 2 && buf[0] == 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
   }
@@ -997,6 +1017,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_test",
       [
+        "local_validate_directory_structure",
         "local_filename_with_json_extension",
         "local_catalog",
         "local_catalog-fileMatch-conflict",
