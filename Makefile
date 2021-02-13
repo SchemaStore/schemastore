@@ -1,6 +1,6 @@
-.PHONY: build schemasafe remote
+.PHONY: build remote
 
-build:
+build: # Run the local build process
 	cd src && \
 	npm install && \
 	npm run build
@@ -9,12 +9,7 @@ build:
 		git status --porcelain; \
 		exit 1; }
 
-schemasafe:
-	cd src && \
-	npm install && \
-	npm run schemasafe
-
-remote:
+remote: # Run the remote build process
 	cd src && \
 	npm install && \
 	npm run remote

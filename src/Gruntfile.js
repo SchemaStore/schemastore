@@ -1020,10 +1020,7 @@ module.exports = function (grunt) {
         "local_schemasafe_test"
       ]);
   grunt.registerTask("remote_test", ["remote_bom", "remote_schemasafe_test"]);
-  //grunt.registerTask("build", ["setup", "tv4"]); // deprecated, "setup" is no longer used
-  grunt.registerTask("build", ["local_test"]); // "local_test"
-  grunt.registerTask("default", ["http", "build"]);
-  grunt.registerTask("schemasafe", ["local_test"]);
+  grunt.registerTask("default", ["http", "local_test"]);
 
 
   grunt.loadNpmTasks("grunt-tv4");
