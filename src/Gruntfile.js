@@ -3,13 +3,6 @@
 const pt = require("path");
 
 /**
- * @summary tests if an entry is a folder
- * @param {(string|import("fs").Dirent)} entry
- * @returns {boolean}
- */
-const isFile = (entry) => /.+(?=\.[a-zA-Z]+$)/.test(entry);
-
-/**
  * @summary joins file path parts
  * @param {string} base
  * @param {string} path
@@ -294,7 +287,7 @@ module.exports = function (grunt) {
 
     const runTestFolder = (testDir, folderName, schema_PassScan, test_PassScan, test_PassScanDone) => {
       // If it's a file, ignore and continue. We only care about folders.
-      if (isFile(folderName)) {
+      if (fs.lstatSync(pt.join(testDir, folderName)).isFile()) {
         return;
       }
 
@@ -314,7 +307,6 @@ module.exports = function (grunt) {
       }
 
       const toTestFilePath = toPath(testDir, folderName);
-      const name = folderName.replace("_", ".");
       const files = fs.readdirSync(pt.join(testDir, folderName)).map(toTestFilePath);
 
       if (!files.length) {
@@ -357,7 +349,7 @@ module.exports = function (grunt) {
       // Show only test folder percentage if in test folder scan mode.
       const notCovered = schemas.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
-        return !foldersPositiveTest.includes(folderName.replace("_", "."));
+        return !foldersPositiveTest.includes(folderName);
       });
 
       notCovered.forEach((schema_file_name) => {
@@ -381,7 +373,7 @@ module.exports = function (grunt) {
       const schema_full_path_name = `schemas/json/${schema_file_name}`
 
       // If not a file, ignore and continue. We only care about files.
-      if (!isFile(schema_full_path_name)) {
+      if (!fs.lstatSync(schema_full_path_name).isFile()) {
         return;
       }
 
