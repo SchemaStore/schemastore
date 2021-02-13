@@ -195,8 +195,7 @@ module.exports = function (grunt) {
     const path = require("path");
 
     for( const {url} of schemas ){
-      if(url.startsWith("https://json.schemastore.org") ||
-          url.startsWith("http://json.schemastore.org")){
+      if(url.startsWith("https://json.schemastore.org")){
         // Skip local schema
         continue;
       }
@@ -725,13 +724,12 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_url-present-in-catalog", "local url must reference to a file", function () {
     const fs = require('fs')
-    const httpPath = "http://json.schemastore.org"
     const httpsPath = "https://json.schemastore.org"
     const schemaPath = './schemas/json/'
     let countScan = 0;
 
     getUrlFromCatalog(catalogUrl => {
-      if (catalogUrl.startsWith(httpsPath) || catalogUrl.startsWith(httpPath)) {
+      if (catalogUrl.startsWith(httpsPath)) {
         countScan++;
         let filename = catalogUrl.split('/').pop();
         filename = filename.endsWith(".json") ? filename : filename.concat(".json");
@@ -745,14 +743,13 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_schema-present-in-catalog-list", "local schema must have a url reference in catalog list", function () {
     const schemaValidation = require('./schema-validation.json');
-    const httpPath = "http://json.schemastore.org"
     const httpsPath = "https://json.schemastore.org"
     let countScan = 0;
     let allCatalogLocalJsonFiles = [];
 
     // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
     getUrlFromCatalog(catalogUrl => {
-      if (catalogUrl.startsWith(httpsPath) || catalogUrl.startsWith(httpPath)) {
+      if (catalogUrl.startsWith(httpsPath)) {
         let filename = catalogUrl.split('/').pop();
         filename = filename.endsWith(".json") ? filename : filename.concat(".json");
         allCatalogLocalJsonFiles.push(filename);
