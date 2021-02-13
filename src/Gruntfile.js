@@ -1,6 +1,13 @@
 /// <binding AfterBuild='build' />
 
 const pt = require("path");
+const fs = require('fs');
+const schemaDir = "schemas/json"
+const testPositiveDir = "test"
+const testNegativeDir = "negative_test"
+const schemasToBeTested = fs.readdirSync(schemaDir);
+const foldersPositiveTest = fs.readdirSync(testPositiveDir);
+const foldersNegativeTest = fs.readdirSync(testNegativeDir);
 
 /**
  * @summary joins file path parts
@@ -105,72 +112,10 @@ module.exports = function (grunt) {
     }
   });
 
-  // "setup" is deprecated -> now use "local_tv4_only_for_non_compliance_schema"
-  grunt.registerTask("setup", "Dynamically load schema validation based on the files and folders in /test/", function () {
-    var fs = require('fs');
-
-    var testDir = "test";
-    var schemas = fs.readdirSync("schemas/json");
-
-    var folders = fs.readdirSync(testDir);
-//    var tv4 = {};
-
-    const notCovered = schemas.filter(schemaName => {
-      const folderName = schemaName.replace("\.json","");
-      return !folders.includes(folderName.replace("_", "."));
-    });
-
-    if(notCovered.length) {
-      const percent = (notCovered.length / schemas.length) * 100;
-      console.log(`${parseInt(percent)}% of schemas do not have tests or have malformed test folders`);
-    }
-
-    // schemas.forEach(function (schema) {
-    //   var name = schema.replace(".json", "");
-    //   tv4[name] = {};
-    //   tv4[name].files = [];
-    // });
-
-    folders.forEach(function (folder) {
-
-      // If it's a file, ignore and continue. We only care about folders.
-      if (isFile(folder)) {
-        return;
-      }
-
-      // If it's the .DS_Store folder from macOS, ignore and continue.
-      if (folder == ".DS_Store") {
-        return;
-      }
-
-      const toTestFilePath = toPath(testDir, folder);
-
-      const name = folder.replace("_", ".");
-
-      const schema = grunt.file.readJSON(`schemas/json/${name}.json`);
-
-      const files = fs.readdirSync(pt.join(testDir, folder)).map(toTestFilePath);
-
-      if(!files.length) {
-        throw new Error(`Found folder with no test files: ${folder}`);
-      }
-
-      const valid = folder.replace(/\./g, "\\.");
-
-      grunt.config.set("tv4." + valid, {
-        options: {
-          root: schema,
-          banUnknown: false
-        },
-        src: files
-      });
-
-      //tv4[name].files = files;
-
-      //// Write the config to disk so it can be consumed by the browser based test infrastru
-      //fs.writeFileSync("test/tests.json", JSON.stringify(tv4));
-    });
-  });
+  function skipThisFileName(name){
+    // This macOS file must always be ignored.
+    return name === ".DS_Store";
+  }
 
   function getUrlFromCatalog(catalogUrl) {
     const catalog = require('./api/json/catalog.json');
@@ -192,7 +137,6 @@ module.exports = function (grunt) {
     const catalog = require('./api/json/catalog.json');
     const schemas = catalog["schemas"];
     const url_ = require("url");
-    const path = require("path");
 
     for( const {url} of schemas ){
       if(url.startsWith("https://json.schemastore.org")){
@@ -204,7 +148,7 @@ module.exports = function (grunt) {
         if (response["statusCode"] === 200) {
           const parsed = url_.parse(url);
           const callbackParameter = {
-            jsonName: path.basename(parsed.pathname),
+            jsonName: pt.basename(parsed.pathname),
             rawFile: response["rawBody"],
             urlOrFilePath: url,
             schemaScan: true
@@ -238,15 +182,7 @@ module.exports = function (grunt) {
         tv4OnlyMode = false,
         logTestFolder = true
       } = {}) {
-    // The structure is copy and paste from the tv4 function
-    const path = require("path");
-    const fs = require('fs');
     const schemaValidation = grunt.file.readJSON('schema-validation.json');
-    const schemas = fs.readdirSync("schemas/json");
-    const testPositiveDir = "test"
-    const testNegativeDir = "negative_test"
-    const foldersPositiveTest = fs.readdirSync(testPositiveDir);
-    const foldersNegativeTest = fs.readdirSync(testNegativeDir);
 
     let callbackParameter = {
       jsonName: undefined,
@@ -290,8 +226,7 @@ module.exports = function (grunt) {
         return;
       }
 
-      // If it's the .DS_Store folder from macOS, ignore and continue.
-      if (folderName === ".DS_Store") {
+      if (skipThisFileName(folderName)) {
         return;
       }
 
@@ -312,12 +247,12 @@ module.exports = function (grunt) {
         throw new Error(`Found folder with no test files: ${folderName}`);
       }
 
-      const schemaFileWithPath = `schemas/json/${name}.json`;
+      const schemaFileWithPath = `schemas/json/${folderName}.json`;
       if (schema_PassScan) {
         callbackParameter = {
           // Return the real Raw file for BOM file test rejection
           rawFile: fs.readFileSync(schemaFileWithPath),
-          jsonName: path.basename(schemaFileWithPath),
+          jsonName: pt.basename(schemaFileWithPath),
           urlOrFilePath: schemaFileWithPath,
           schemaScan: false
         }
@@ -331,7 +266,7 @@ module.exports = function (grunt) {
           // must ignore BOM in test
           callbackParameter = {
             rawFile: grunt.file.read(file),
-            jsonName: path.basename(file.toString()),
+            jsonName: pt.basename(file.toString()),
             urlOrFilePath: file,
             schemaScan: false
           }
@@ -346,38 +281,34 @@ module.exports = function (grunt) {
     // process callback for the schema_without_positive_test
     if (schema_without_positive_test) {
       // Show only test folder percentage if in test folder scan mode.
-      const notCovered = schemas.filter(schemaName => {
+      const notCovered = schemasToBeTested.filter(schemaName => {
         const folderName = schemaName.replace("\.json", "");
         return !foldersPositiveTest.includes(folderName);
       });
 
       notCovered.forEach((schema_file_name) => {
-        // If it's the .DS_Store folder from macOS, ignore and continue.
-        if (schema_file_name === ".DS_Store") {
-          return;
+        if (!skipThisFileName(schema_file_name)) {
+          schema_without_positive_test({jsonName: schema_file_name});
         }
-        schema_without_positive_test({jsonName: schema_file_name});
       });
 
       if (notCovered.length > 0) {
-        const percent = (notCovered.length / schemas.length) * 100;
+        const percent = (notCovered.length / schemasToBeTested.length) * 100;
         grunt.log.writeln();
         grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests or have malformed test folders`);
       }
     }
 
     // Verify each schema file
-    schemas.forEach((schema_file_name) => {
-
-      const schema_full_path_name = `schemas/json/${schema_file_name}`
+    schemasToBeTested.forEach((schema_file_name) => {
+      const schema_full_path_name = pt.join(schemaDir, schema_file_name);
 
       // If not a file, ignore and continue. We only care about files.
       if (!fs.lstatSync(schema_full_path_name).isFile()) {
         return;
       }
 
-      // If it's the .DS_Store folder from macOS, ignore and continue.
-      if (schema_file_name === ".DS_Store") {
+      if (skipThisFileName(schema_file_name)) {
         return;
       }
 
@@ -388,7 +319,7 @@ module.exports = function (grunt) {
       callbackParameter = {
         // Return the real Raw file for BOM file test rejection
         rawFile: fs.readFileSync(schema_full_path_name),
-        jsonName: path.basename(schema_full_path_name),
+        jsonName: pt.basename(schema_full_path_name),
         urlOrFilePath: schema_full_path_name,
         schemaScan: true
       }
@@ -557,7 +488,7 @@ module.exports = function (grunt) {
           // Create new properties in formatItems{}
           item[callbackParameter.jsonName].forEach((x) => {
             // All the string input from format are always true. There is no string validation here.
-            formatItems[x] = (str) => true;
+            formatItems[x] = () => true;
           })
           // Found the correct item. Stop processing the 'some' loop.
           return true;
@@ -723,7 +654,6 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_url-present-in-catalog", "local url must reference to a file", function () {
-    const fs = require('fs')
     const httpsPath = "https://json.schemastore.org"
     const schemaPath = './schemas/json/'
     let countScan = 0;
@@ -805,10 +735,15 @@ module.exports = function (grunt) {
         throw new Error("Filename must have .json extension => " + data.urlOrFilePath);
       }
     }
-    localSchemaFileAndTestFile({schema_1_PassScan: x, positiveTest_1_PassScan: x}, {
-      fullScanAllFiles: true,
-      logTestFolder: false
-    });
+    localSchemaFileAndTestFile(
+        {
+          schema_1_PassScan: x,
+          positiveTest_1_PassScan: x,
+          negativeTest_1_PassScan: x
+        }, {
+          fullScanAllFiles: true,
+          logTestFolder: false
+        });
     grunt.log.ok("All schema and test filename have .json extension. Total files scan: " + countScan);
   })
 
@@ -840,6 +775,7 @@ module.exports = function (grunt) {
         throw new Error("There can only be directory's in :" + testNegativeDir + " => " + name);
       }
     });
+    grunt.log.ok("OK");
   })
 
   function hasBOM(buf) {
