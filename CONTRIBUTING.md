@@ -47,10 +47,10 @@ If the build succeeds, your changes are valid and you can safely create a PR.
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog).
 
 ## CSS spec
-The CSS specification is divided into multple XML documents
+The CSS specification is divided into multiple XML documents
 > one for each CSS module as specified by the W3C.
 
-Each XML document can contain properies, @-directives and
+Each XML document can contain properties, @-directives and
 pseudo elements/classes with descriptions, example usage
 and allowed values.
 
