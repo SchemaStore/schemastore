@@ -126,7 +126,7 @@ module.exports = function (grunt) {
     }
   }
 
-  async function remoteSchemaFile(schema_1_PassScan){
+  async function remoteSchemaFile(schema_1_PassScan, showLog= true){
     const got = require("got");
     const schemas = catalog["schemas"];
     const url_ = require("url");
@@ -147,14 +147,20 @@ module.exports = function (grunt) {
             schemaScan: true
           }
           schema_1_PassScan(callbackParameter);
-          grunt.log.ok(url);
+          if (showLog) {
+            grunt.log.ok(url);
+          }
         }else{
-          grunt.log.error(url, response["statusCode"]);
+          if (showLog) {
+            grunt.log.error(url, response["statusCode"]);
+          }
         }
       } catch (error) {
-        grunt.log.writeln('')
-        grunt.log.error(url, error.name, error.message);
-        grunt.log.writeln('')
+        if (showLog) {
+          grunt.log.writeln('')
+          grunt.log.error(url, error.name, error.message);
+          grunt.log.writeln('')
+        }
       }
     }
   }
@@ -428,6 +434,7 @@ module.exports = function (grunt) {
 
   function schemasafe(){
     const { validator } = require('@exodus/schemasafe')
+    const schema_version = show_schema_versions();
     const textValidate = "validate    | ";
     const textPassSchema         = "pass schema          | ";
     const textPositivePassTest   = "pass positive test   | ";
@@ -487,8 +494,10 @@ module.exports = function (grunt) {
       });
 
       // Start validate the JSON schema
+      let schemaJson;
       try {
-        validate = validator(JSON.parse(callbackParameter.rawFile), {
+        schemaJson = JSON.parse(callbackParameter.rawFile);
+        validate = validator(schemaJson, {
           schemas,
           mode,
           allowUnusedKeywords,
@@ -501,7 +510,13 @@ module.exports = function (grunt) {
         throw new Error(e);
       }
       countSchema++;
-      grunt.log.ok(selectedParserModeString + textPassSchema + callbackParameter.urlOrFilePath);
+      // Get the schema draft version.
+      let schemaVersionStr = "unknown"
+      const obj = schema_version.getObj(schemaJson);
+      if(obj){
+        schemaVersionStr = obj.schemaName;
+      }
+      grunt.log.ok(`${selectedParserModeString}${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`);
     }
 
     const processPositiveTestFile = (callbackParameter) => {
@@ -606,7 +621,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("remote_bom", "Dynamically load remote schema file for BOM validation", async function () {
     const done = this.async();
-    await remoteSchemaFile(testSchemaFileForBOM);
+    await remoteSchemaFile(testSchemaFileForBOM, false);
     done();
   })
 
@@ -661,7 +676,6 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_schema-present-in-catalog-list", "local schema must have a url reference in catalog list", function () {
-    const schemaValidation = require('./schema-validation.json');
     const httpsPath = "https://json.schemastore.org"
     let countScan = 0;
     let allCatalogLocalJsonFiles = [];
@@ -692,8 +706,6 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_catalog-fileMatch-conflict", "note: app.json and *app.json conflicting will not be detected", function () {
-    const catalog = require('./api/json/catalog.json');
-    const schemaValidation = require('./schema-validation.json');
     const fileMatchConflict = schemaValidation["fileMatchConflict"];
     let fileMatchCollection = [];
     // Collect all the "fileMatch" and put it in fileMatchCollection[]
@@ -918,6 +930,25 @@ module.exports = function (grunt) {
     }
   }
 
+  grunt.registerTask("local_count_schema_versions", "Dynamically check local schema for schema version count", function () {
+    const x = show_schema_versions();
+    localSchemaFileAndTestFile({
+          schema_1_PassScan: x.process_data,
+          schema_1_PassScanDone: x.process_data_done
+        },
+        {
+          fullScanAllFiles: true
+        });
+  })
+
+  grunt.registerTask("remote_count_schema_versions", "Dynamically load remote schema file for schema version count", async function () {
+    const done = this.async();
+    const x = show_schema_versions();
+    await remoteSchemaFile((callbackParameter) => {x.process_data(callbackParameter)}, false);
+    x.process_data_done();
+    done();
+  })
+
   grunt.registerTask("local_check_for_wrong_id", "Dynamically load schema file for schema id check", function () {
     const schema_version = show_schema_versions();
     localSchemaFileAndTestFile({
@@ -1110,12 +1141,13 @@ module.exports = function (grunt) {
         "local_schema-present-in-catalog-list",
         "local_bom",
         "local_find-duplicated-property-keys",
+        "local_count_schema_versions",
         "local_search_for_schema_without_positive_test_files",
         "local_tv4_only_for_non_compliance_schema",
         "tv4",
         "local_schemasafe_test"
       ]);
-  grunt.registerTask("remote_test", ["remote_bom", "remote_schemasafe_test"]);
+  grunt.registerTask("remote_test", ["remote_count_schema_versions", "remote_bom", "remote_schemasafe_test"]);
   grunt.registerTask("default", ["http", "local_test"]);
   grunt.registerTask("local_maintenance", ["local_check_for_wrong_id", "local_test_downgrade_schema_version"]);
 
