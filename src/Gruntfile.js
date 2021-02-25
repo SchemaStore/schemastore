@@ -2,6 +2,9 @@
 
 const pt = require("path");
 const fs = require('fs');
+const catalog = require('./api/json/catalog.json');
+const schemaV4JSON = require('./schemas/json/schema-draft-v4.json');
+const schemaValidation = require('./schema-validation.json');
 const schemaDir = "schemas/json"
 const testPositiveDir = "test"
 const testNegativeDir = "negative_test"
@@ -30,23 +33,6 @@ module.exports = function (grunt) {
   grunt.initConfig({
 
     tv4: {
-
-      // Deprecated -> now use "local_catalog"
-      // catalog: {
-      //   options: {
-      //     root: grunt.file.readJSON("schemas/json/schema-catalog.json")
-      //   },
-      //   src: ["api/json/catalog.json"]
-      // },
-
-      // Deprecated -> now use "local_tv4_only_for_non_compliance_schema"
-      // schemas: {
-      //   options: {
-      //     banUnknown: false,
-      //     root: grunt.file.readJSON("schemas/json/schema-draft-v4.json")
-      //   },
-      //   src: ["schemas/json/*.json", "!schemas/json/ninjs-1.0.json"] // ninjs 1.0 is draft v3
-      // },
       options: {
         schemas: {
           "http://json-schema.org/draft-04/schema#": grunt.file.readJSON("schemas/json/schema-draft-v4.json"),
@@ -118,7 +104,6 @@ module.exports = function (grunt) {
   }
 
   function getUrlFromCatalog(catalogUrl) {
-    const catalog = require('./api/json/catalog.json');
     for (const schema of catalog["schemas"]) {
       catalogUrl(schema["url"]);
       const versions = schema["versions"];
@@ -134,7 +119,6 @@ module.exports = function (grunt) {
 
   async function remoteSchemaFile(schema_1_PassScan){
     const got = require("got");
-    const catalog = require('./api/json/catalog.json');
     const schemas = catalog["schemas"];
     const url_ = require("url");
 
@@ -182,7 +166,6 @@ module.exports = function (grunt) {
         tv4OnlyMode = false,
         logTestFolder = true
       } = {}) {
-    const schemaValidation = grunt.file.readJSON('schema-validation.json');
 
     let callbackParameter = {
       jsonName: undefined,
@@ -375,7 +358,6 @@ module.exports = function (grunt) {
   }
 
   function tv4() {
-    const schemaV4JSON = require('./schemas/json/schema-draft-v4.json');
     let schemaPath = undefined;
     let schemaName = undefined;
     let testSchemaPath = [];
@@ -436,7 +418,6 @@ module.exports = function (grunt) {
   }
 
   function schemasafe(){
-    const schemaValidation = require('./schema-validation.json');
     const { validator } = require('@exodus/schemasafe')
     const textValidate = "validate    | ";
     const textPassSchema         = "pass schema          | ";
@@ -622,11 +603,10 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_catalog", "Catalog validation", function () {
     const {validator} = require('@exodus/schemasafe');
-    const catalogFile = require("./api/json/catalog.json");
     const catalogSchema = require("./schemas/json/schema-catalog.json");
 
     const validate = validator(catalogSchema, {includeErrors: true});
-    if (validate(catalogFile)) {
+    if (validate(catalog)) {
       grunt.log.ok("catalog.json OK");
     } else {
       grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
@@ -672,7 +652,6 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_schema-present-in-catalog-list", "local schema must have a url reference in catalog list", function () {
-    const schemaValidation = require('./schema-validation.json');
     const httpsPath = "https://json.schemastore.org"
     let countScan = 0;
     let allCatalogLocalJsonFiles = [];
@@ -703,8 +682,6 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_catalog-fileMatch-conflict", "note: app.json and *app.json conflicting will not be detected", function () {
-    const catalog = require('./api/json/catalog.json');
-    const schemaValidation = require('./schema-validation.json');
     const fileMatchConflict = schemaValidation["fileMatchConflict"];
     let fileMatchCollection = [];
     // Collect all the "fileMatch" and put it in fileMatchCollection[]
