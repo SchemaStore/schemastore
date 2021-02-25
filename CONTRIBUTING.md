@@ -27,7 +27,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
     "fileMatch": [
         "list of well-known filenames matching schema"
     ],
-    "url": "http://json.schemastore.org/<schemaName>.json"
+    "url": "https://json.schemastore.org/<schemaName>.json"
 }
 ```
 

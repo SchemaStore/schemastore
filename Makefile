@@ -13,3 +13,8 @@ remote: # Run the remote build process
 	cd src && \
 	npm install && \
 	npm run remote
+
+maintenance: # Run the maintenance check
+	cd src && \
+	npm install && \
+	npm run maintenance
