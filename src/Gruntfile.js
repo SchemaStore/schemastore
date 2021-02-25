@@ -11,6 +11,15 @@ const testNegativeDir = "negative_test"
 const schemasToBeTested = fs.readdirSync(schemaDir);
 const foldersPositiveTest = fs.readdirSync(testPositiveDir);
 const foldersNegativeTest = fs.readdirSync(testNegativeDir);
+const countSchemasType = [
+  {schemaName: "2020-12", schemaStr: "json-schema.org/draft/2020-12/schema", totalCount: 0, active: true},
+  {schemaName: "2019-09", schemaStr: "json-schema.org/draft/2019-09/schema", totalCount: 0, active: true},
+  {schemaName: "draft-07", schemaStr: "json-schema.org/draft-07/schema", totalCount: 0, active: true},
+  {schemaName: "draft-06", schemaStr: "json-schema.org/draft-06/schema", totalCount: 0, active: true},
+  {schemaName: "draft-04", schemaStr: "json-schema.org/draft-04/schema", totalCount: 0, active: true},
+  {schemaName: "draft-03", schemaStr: "json-schema.org/draft-03/schema", totalCount: 0, active: false},
+  {schemaName: "draft without version", schemaStr: "json-schema.org/schema", totalCount: 0, active: false}
+];
 
 /**
  * @summary joins file path parts
@@ -652,6 +661,7 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_schema-present-in-catalog-list", "local schema must have a url reference in catalog list", function () {
+    const schemaValidation = require('./schema-validation.json');
     const httpsPath = "https://json.schemastore.org"
     let countScan = 0;
     let allCatalogLocalJsonFiles = [];
@@ -682,6 +692,8 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_catalog-fileMatch-conflict", "note: app.json and *app.json conflicting will not be detected", function () {
+    const catalog = require('./api/json/catalog.json');
+    const schemaValidation = require('./schema-validation.json');
     const fileMatchConflict = schemaValidation["fileMatchConflict"];
     let fileMatchCollection = [];
     // Collect all the "fileMatch" and put it in fileMatchCollection[]
@@ -753,6 +765,177 @@ module.exports = function (grunt) {
       }
     });
     grunt.log.ok("OK");
+  })
+
+  grunt.registerTask("local_test_downgrade_schema_version", "Dynamically check local schema version is not to high", function () {
+    const {validator} = require('@exodus/schemasafe');
+    const tv4 = require('tv4');
+    let countSchemas = countSchemasType;
+
+    const validateViaSchemasafe = (schemaJson) => {
+      try {
+        validator(schemaJson, {
+          mode: "default",
+          requireSchema: true,
+        });
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    const validateViaTv4 = (schemaJson) => {
+      try {
+        return tv4.validate(schemaJson, schemaV4JSON, true, true);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // There are no positive or negative test processes here.
+    // Only the schema files are tested.
+    const testLowerSchemaVersion = (callbackParameter) => {
+      // skip schema with unused keyword
+      if (schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)) {
+        return;
+      }
+      let wrong_$id_usage = false;
+      let versionIndexOriginal = 0;
+      let schemaVersionToBeTested = countSchemas[versionIndexOriginal];
+      let schemaJson = JSON.parse(callbackParameter.rawFile);
+
+      if (!("$schema" in schemaJson)) {
+        // There is no $schema present in the file.
+        return;
+      }
+
+      // get the present schema_version
+      const schemaVersion = schemaJson["$schema"]
+      for (const [index, value] of countSchemas.entries()) {
+        if (schemaVersion.includes(value.schemaStr)) {
+          versionIndexOriginal = index;
+          break;
+        }
+      }
+
+      // start testing each schema version in a while loop.
+      let result = false;
+      let recommendedIndex = versionIndexOriginal;
+      let versionIndexToBeTested = versionIndexOriginal;
+      do {
+        // keep trying to use the next lower schema version from the countSchemas[]
+        versionIndexToBeTested++;
+        schemaVersionToBeTested = countSchemas[versionIndexToBeTested];
+        if (!schemaVersionToBeTested.active) {
+          // Can not use this schema version. And there are no more 'active' list item left.
+          break;
+        }
+
+        if(schemaVersionToBeTested.schemaName === 'draft-06'){
+          // Not interested in downgrading to "draft-06". Skip this one.
+          result = true;
+          continue;
+        }
+
+        // update the schema with a new alternative $schema version
+        schemaJson["$schema"] = `https://${schemaVersionToBeTested.schemaStr}`;
+        // Test this new updated schema.
+        result = validateViaSchemasafe(schemaJson);
+        if (result && schemaVersionToBeTested.schemaName === "draft-04") {
+          // draft-04 must also pass the tv-4 validator.
+          const detected_$id = "$id" in schemaJson;
+          if(detected_$id){
+            // replace draft-06:'$id' with draft-04:'id'
+            schemaJson["id"] = schemaJson["$id"];
+            delete schemaJson["$id"];
+          }
+          result = validateViaTv4(schemaJson);
+          wrong_$id_usage = result && detected_$id;
+        }
+        if (result) {
+          // It pass the test. So this is the new recommended index
+          recommendedIndex = versionIndexToBeTested;
+        }
+        // keep in the loop till it fail the validation process.
+      } while (result);
+
+      if (recommendedIndex !== versionIndexOriginal) {
+        // found a different schema version that also work.
+        const original = countSchemas[versionIndexOriginal].schemaName;
+        const recommended = countSchemas[recommendedIndex].schemaName;
+        const wrong_$id_usage_str = wrong_$id_usage ? "(also need to change $id to id)" : "";
+        grunt.log.ok(`${callbackParameter.jsonName} (${original}) is also valid with (${recommended})${wrong_$id_usage_str}`);
+      }
+    }
+
+    grunt.log.writeln();
+    grunt.log.ok("Check if a lower $schema version will also pass the schema validation test");
+    localSchemaFileAndTestFile({schema_1_PassScan: testLowerSchemaVersion});
+    grunt.log.writeln();
+    grunt.log.ok("Check done");
+  })
+
+  function show_schema_versions(){
+    let countSchemas = countSchemasType;
+    let countSchemaVersionUnknown = 0;
+
+    const getObj_ = (schemaJson) => {
+      if ("$schema" in schemaJson) {
+        const schemaVersion = schemaJson["$schema"]
+        for (let obj of countSchemas) {
+          if (schemaVersion.includes(obj.schemaStr)) {
+            return obj;
+          }
+        }
+      }
+      // Can not find the $schema version.
+      return undefined;
+    }
+
+    return {
+      getObj : getObj_,
+      process_data: (callbackParameter) =>{
+        let obj;
+        try {
+          obj = getObj_(JSON.parse(callbackParameter.rawFile));
+        }catch(e){
+          // suppress possible JSON.parse exception. It will be process as obj = undefined
+        }
+        if(obj){
+          obj.totalCount++;
+        }else{
+          countSchemaVersionUnknown++;
+          grunt.log.error(`$schema is unknown in the file: ${callbackParameter.urlOrFilePath}`);
+        }
+      },
+      process_data_done: () =>{
+        // Show the all the schema version count.
+        for (const obj of countSchemas) {
+          grunt.log.ok(`Schemas using (${obj.schemaName}) Total files: ${obj.totalCount}`);
+        }
+        grunt.log.ok(`$schema unknown. Total files: ${countSchemaVersionUnknown}`);
+      }
+    }
+  }
+
+  grunt.registerTask("local_check_for_wrong_id", "Dynamically load schema file for schema id check", function () {
+    const schema_version = show_schema_versions();
+    localSchemaFileAndTestFile({
+          schema_1_PassScan: function (callbackParameter) {
+            const schemaJson = JSON.parse(callbackParameter.rawFile);
+            const obj = schema_version.getObj(schemaJson);
+            if (obj) {
+              if ((obj.schemaName === "draft-04") && ("$id" in schemaJson)) {
+                grunt.log.error(`Forbidden $id in draft-04 (${callbackParameter.jsonName})`);
+              }
+            }
+          }
+        },
+        {
+          fullScanAllFiles: true
+        });
+    grunt.log.writeln();
+    grunt.log.ok("Check done");
   })
 
   function hasBOM(buf) {
@@ -934,6 +1117,7 @@ module.exports = function (grunt) {
       ]);
   grunt.registerTask("remote_test", ["remote_bom", "remote_schemasafe_test"]);
   grunt.registerTask("default", ["http", "local_test"]);
+  grunt.registerTask("local_maintenance", ["local_check_for_wrong_id", "local_test_downgrade_schema_version"]);
 
 
   grunt.loadNpmTasks("grunt-tv4");
