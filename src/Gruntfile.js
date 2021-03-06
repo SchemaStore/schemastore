@@ -325,24 +325,24 @@ module.exports = function (grunt) {
     }
   }
 
-  function testSchemaFileForBOM(callbackParameter){
+  function testSchemaFileForBOM(callbackParameter) {
     // JSON schema file must not have any BOM type
     const buffer = callbackParameter.rawFile;
+    const bomTypes = [
+      {name: "UTF-8", signature: [0xEF, 0xBB, 0xBF]},
+      {name: "UTF-16 (BE)", signature: [0xFE, 0xFF]},
+      {name: "UTF-16 (LE)", signature: [0xFF, 0xFE]},
+      {name: "UTF-32 (BE)", signature: [0x00, 0x00, 0xFF, 0xFE]},
+      {name: "UTF-32 (LE)", signature: [0xFF, 0xFE, 0x00, 0x00]}
+    ];
 
-    if(buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF){
-      throw new Error(`Schema file must not have UTF-8 BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF){
-      throw new Error(`Schema file must not have UTF-16 (BE) BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE){
-      throw new Error(`Schema file must not have UTF-16 (LE) BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 4 && buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xFF && buffer[3] === 0xFE){
-      throw new Error(`Schema file must not have UTF-32 (BE) BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 4 && buffer[0] === 0xFF && buffer[1] === 0xFE && buffer[2] === 0x00 && buffer[3] === 0x00){
-      throw new Error(`Schema file must not have UTF-32 (LE) BOM: ${callbackParameter.urlOrFilePath}`);
+    for (const bom of bomTypes) {
+      if (buffer.length >= bom.signature.length) {
+        const bomFound = bom.signature.every((value, index) => buffer[index] === value)
+        if (bomFound) {
+          throw new Error(`Schema file must not have ${bom.name} BOM: ${callbackParameter.urlOrFilePath}`);
+        }
+      }
     }
   }
 
