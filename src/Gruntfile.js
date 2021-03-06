@@ -769,6 +769,7 @@ module.exports = function (grunt) {
     const {validator} = require('@exodus/schemasafe');
     const tv4 = require('tv4');
     let countSchemas = countSchemasType;
+    let countScan = 0;
 
     const validateViaSchemasafe = (schemaJson) => {
       try {
@@ -793,6 +794,7 @@ module.exports = function (grunt) {
     // There are no positive or negative test processes here.
     // Only the schema files are tested.
     const testLowerSchemaVersion = (callbackParameter) => {
+      countScan++;
       // skip schema with unused keyword
       if (schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)) {
         return;
@@ -870,7 +872,7 @@ module.exports = function (grunt) {
     grunt.log.ok("Check if a lower $schema version will also pass the schema validation test");
     localSchemaFileAndTestFile({schema_1_PassScan: testLowerSchemaVersion});
     grunt.log.writeln();
-    grunt.log.ok("Check done");
+    grunt.log.ok(`Total files scan: ${countScan}`);
   })
 
   function show_schema_versions(){
@@ -937,8 +939,10 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_check_for_wrong_id", "Dynamically load schema file for schema id check", function () {
     const schema_version = show_schema_versions();
+    let countScan = 0;
     localSchemaFileAndTestFile({
           schema_1_PassScan: function (callbackParameter) {
+            countScan++;
             const schemaJson = JSON.parse(callbackParameter.rawFile);
             const obj = schema_version.getObj(schemaJson);
             if (obj) {
@@ -952,7 +956,7 @@ module.exports = function (grunt) {
           fullScanAllFiles: true
         });
     grunt.log.writeln();
-    grunt.log.ok("Check done");
+    grunt.log.ok(`Total files scan: ${countScan}`);
   })
 
   function hasBOM(buf) {
