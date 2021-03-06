@@ -21,20 +21,6 @@ const countSchemasType = [
   {schemaName: "draft without version", schemaStr: "json-schema.org/schema", totalCount: 0, active: false}
 ];
 
-/**
- * @summary joins file path parts
- * @param {string} base
- * @param {string} path
- */
-const toPath = (base, path) =>
-
-  /**
-   * @param {string} fileName
-   * @returns {string}
-   */
-  (fileName) => pt.join(base, path, fileName);
-
-
 module.exports = function (grunt) {
   "use strict";
 
@@ -224,8 +210,10 @@ module.exports = function (grunt) {
         grunt.log.writeln(`test folder   : ${folderName}`);
       }
 
-      const toTestFilePath = toPath(testDir, folderName);
-      const files = fs.readdirSync(pt.join(testDir, folderName)).map(toTestFilePath);
+      const files = fs.readdirSync(pt.join(testDir, folderName)).map(
+          // Must create a full path
+          (fileName) => pt.join(testDir, folderName, fileName)
+      );
 
       if (!files.length) {
         throw new Error(`Found folder with no test files: ${folderName}`);
