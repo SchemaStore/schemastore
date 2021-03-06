@@ -91,20 +91,6 @@ module.exports = function (grunt) {
         dest: "schemas/json/xunit.runner.schema.json"
       }
     },
-
-    watch: {
-      tv4: {
-        files: ["test/**/*.json", "schemas/json/*.json"],
-        tasks: ["setup", "tv4"]
-      },
-      gruntfile: {
-        files: "gruntfile.js"
-      },
-      options: {
-        spawn: false,
-        event: ["changed"]
-      }
-    }
   });
 
   function skipThisFileName(name){
@@ -1153,6 +1139,5 @@ module.exports = function (grunt) {
 
 
   grunt.loadNpmTasks("grunt-tv4");
-  grunt.loadNpmTasks("grunt-contrib-watch");
   grunt.loadNpmTasks("grunt-http");
 };
