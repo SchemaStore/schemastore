@@ -424,6 +424,10 @@ module.exports = function (grunt) {
     const fillExternalSchemaArray = () => {
       const ExternalSchema = schemaValidation["externalschema"];
       for( const schema_file_name of ExternalSchema){
+        if(!schema_file_name.endsWith(".json")){
+          // must skip comment in the list
+          continue;
+        }
         const schema_full_path_name = `./schemas/json/${schema_file_name}`;
         schemas.push(require(schema_full_path_name));
       }
