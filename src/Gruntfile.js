@@ -444,13 +444,12 @@ module.exports = function (grunt) {
 
     const fillExternalSchemaArray = () => {
       const ExternalSchema = schemaValidation["externalschema"];
-      for( const schema_file_name of ExternalSchema){
-        if(!schema_file_name.endsWith(".json")){
-          // must skip comment in the list
-          continue;
+      for (const schema_file_name of ExternalSchema) {
+        // must skip comment in the list. If present.
+        if (schema_file_name.endsWith(".json")) {
+          const schema_full_path_name = pt.resolve(".", schemaDir, schema_file_name);
+          listOfExternalSchemas.push(require(schema_full_path_name));
         }
-        const schema_full_path_name = pt.resolve(".", schemaDir, schema_file_name);
-        listOfExternalSchemas.push(require(schema_full_path_name));
       }
       // Check for missing root "id"/"$id"
       grunt.log.writeln("Check ref to external schema list");
