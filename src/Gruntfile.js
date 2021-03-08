@@ -2,12 +2,13 @@
 
 const pt = require("path");
 const fs = require('fs');
-const catalog = require('./api/json/catalog.json');
-const schemaV4JSON = require('./schemas/json/schema-draft-v4.json');
-const schemaValidation = require('./schema-validation.json');
 const schemaDir = "schemas/json"
 const testPositiveDir = "test"
 const testNegativeDir = "negative_test"
+const URL_schemastore = "https://json.schemastore.org";
+const catalog = require('./api/json/catalog.json');
+const schemaV4JSON = require(pt.resolve(".", schemaDir, "schema-draft-v4.json"));
+const schemaValidation = require('./schema-validation.json');
 const schemasToBeTested = fs.readdirSync(schemaDir);
 const foldersPositiveTest = fs.readdirSync(testPositiveDir);
 const foldersNegativeTest = fs.readdirSync(testNegativeDir);
@@ -20,20 +21,6 @@ const countSchemasType = [
   {schemaName: "draft-03", schemaStr: "json-schema.org/draft-03/schema", totalCount: 0, active: false},
   {schemaName: "draft without version", schemaStr: "json-schema.org/schema", totalCount: 0, active: false}
 ];
-
-/**
- * @summary joins file path parts
- * @param {string} base
- * @param {string} path
- */
-const toPath = (base, path) =>
-
-  /**
-   * @param {string} fileName
-   * @returns {string}
-   */
-  (fileName) => pt.join(base, path, fileName);
-
 
 module.exports = function (grunt) {
   "use strict";
@@ -91,20 +78,6 @@ module.exports = function (grunt) {
         dest: "schemas/json/xunit.runner.schema.json"
       }
     },
-
-    watch: {
-      tv4: {
-        files: ["test/**/*.json", "schemas/json/*.json"],
-        tasks: ["setup", "tv4"]
-      },
-      gruntfile: {
-        files: "gruntfile.js"
-      },
-      options: {
-        spawn: false,
-        event: ["changed"]
-      }
-    }
   });
 
   function skipThisFileName(name){
@@ -132,7 +105,7 @@ module.exports = function (grunt) {
     const url_ = require("url");
 
     for( const {url} of schemas ){
-      if(url.startsWith("https://json.schemastore.org")){
+      if(url.startsWith(URL_schemastore)){
         // Skip local schema
         continue;
       }
@@ -219,8 +192,8 @@ module.exports = function (grunt) {
     }
 
     const runTestFolder = (testDir, folderName, schema_PassScan, test_PassScan, test_PassScanDone) => {
-      // If it's a file, ignore and continue. We only care about folders.
-      if (fs.lstatSync(pt.join(testDir, folderName)).isFile()) {
+      // We only care about test directory.
+      if (!fs.lstatSync(pt.join(testDir, folderName)).isDirectory()) {
         return;
       }
 
@@ -232,26 +205,28 @@ module.exports = function (grunt) {
         return;
       }
 
-      if (tv4OnlyMode === false && logTestFolder === true) {
-        // tv4 already have it own console output take care of.
+      if (logTestFolder) {
         grunt.log.writeln(``);
         grunt.log.writeln(`test folder   : ${folderName}`);
       }
 
-      const toTestFilePath = toPath(testDir, folderName);
-      const files = fs.readdirSync(pt.join(testDir, folderName)).map(toTestFilePath);
+      const filesInsideOneTestFolder = fs.readdirSync(pt.join(testDir, folderName)).map(
+          // Must create a full path
+          (fileName) => pt.join(testDir, folderName, fileName)
+      );
 
-      if (!files.length) {
+      if (!filesInsideOneTestFolder.length) {
         throw new Error(`Found folder with no test files: ${folderName}`);
       }
 
-      const schemaFileWithPath = `schemas/json/${folderName}.json`;
+      const schemaFileWithPath = pt.join(schemaDir, `${folderName}.json`);
       if (schema_PassScan) {
         callbackParameter = {
           // Return the real Raw file for BOM file test rejection
           rawFile: fs.readFileSync(schemaFileWithPath),
           jsonName: pt.basename(schemaFileWithPath),
           urlOrFilePath: schemaFileWithPath,
+          // This is a test folder scan process, not schema scan process
           schemaScan: false
         }
         schema_PassScan(callbackParameter);
@@ -260,12 +235,13 @@ module.exports = function (grunt) {
       if (test_PassScan) {
         // Test file may have BOM. But this must be strip for the next process
         grunt.file.preserveBOM = false; // Strip file from BOM
-        files.forEach(function (file) {
+        filesInsideOneTestFolder.forEach(function (file) {
           // must ignore BOM in test
           callbackParameter = {
             rawFile: grunt.file.read(file),
             jsonName: pt.basename(file.toString()),
             urlOrFilePath: file,
+            // This is a test folder scan process, not schema scan process
             schemaScan: false
           }
           test_PassScan(callbackParameter);
@@ -274,6 +250,11 @@ module.exports = function (grunt) {
           test_PassScanDone();
         }
       }
+    }
+
+    if (tv4OnlyMode) {
+      // tv4 already have it own console output take care of.
+      logTestFolder = false;
     }
 
     // process callback for the schema_without_positive_test
@@ -319,6 +300,7 @@ module.exports = function (grunt) {
         rawFile: fs.readFileSync(schema_full_path_name),
         jsonName: pt.basename(schema_full_path_name),
         urlOrFilePath: schema_full_path_name,
+        // This is a schema file scan process, not test folder process
         schemaScan: true
       }
       if (schema_1_PassScan) {
@@ -336,6 +318,10 @@ module.exports = function (grunt) {
     // Do not scan the test folder if there are no one to process the data
     if (positiveTest_1_PassScan) {
       // Now run all positive test in each test folder
+      if(logTestFolder){
+        grunt.log.writeln();
+        grunt.log.writeln("-------- Processing all the positive test folders")
+      }
       foldersPositiveTest.forEach((folderName) => {
         runTestFolder(testPositiveDir, folderName, schema_2_PassScan, positiveTest_1_PassScan, positiveTest_1_PassScanDone);
       });
@@ -345,34 +331,41 @@ module.exports = function (grunt) {
     //  and tv4 don't have negative test
     if (negativeTest_1_PassScan && (tv4OnlyMode === false)) {
       // Now run all negative test in each test folder
+      if(logTestFolder){
+        grunt.log.writeln();
+        grunt.log.writeln("-------- Processing all the negative test folders")
+      }
       foldersNegativeTest.forEach((folderName) => {
         runTestFolder(testNegativeDir, folderName, schema_2_PassScan, negativeTest_1_PassScan, negativeTest_1_PassScanDone);
       });
     }
   }
 
-  function testSchemaFileForBOM(callbackParameter){
+  function testSchemaFileForBOM(callbackParameter) {
     // JSON schema file must not have any BOM type
     const buffer = callbackParameter.rawFile;
+    const bomTypes = [
+      {name: "UTF-8", signature: [0xEF, 0xBB, 0xBF]},
+      {name: "UTF-16 (BE)", signature: [0xFE, 0xFF]},
+      {name: "UTF-16 (LE)", signature: [0xFF, 0xFE]},
+      {name: "UTF-32 (BE)", signature: [0x00, 0x00, 0xFF, 0xFE]},
+      {name: "UTF-32 (LE)", signature: [0xFF, 0xFE, 0x00, 0x00]}
+    ];
 
-    if(buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF){
-      throw new Error(`Schema file must not have UTF-8 BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF){
-      throw new Error(`Schema file must not have UTF-16 (BE) BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE){
-      throw new Error(`Schema file must not have UTF-16 (LE) BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 4 && buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xFF && buffer[3] === 0xFE){
-      throw new Error(`Schema file must not have UTF-32 (BE) BOM: ${callbackParameter.urlOrFilePath}`);
-    }
-    if(buffer.length >= 4 && buffer[0] === 0xFF && buffer[1] === 0xFE && buffer[2] === 0x00 && buffer[3] === 0x00){
-      throw new Error(`Schema file must not have UTF-32 (LE) BOM: ${callbackParameter.urlOrFilePath}`);
+    for (const bom of bomTypes) {
+      if (buffer.length >= bom.signature.length) {
+        const bomFound = bom.signature.every((value, index) => buffer[index] === value)
+        if (bomFound) {
+          throw new Error(`Schema file must not have ${bom.name} BOM: ${callbackParameter.urlOrFilePath}`);
+        }
+      }
     }
   }
 
   function tv4() {
+    // tv4 validator can only process draft-04 schema
+    // All unknown keyword used in draft-06 and newer are just ignored.
+    // This is the correct implementation of the json schema specification.
     let schemaPath = undefined;
     let schemaName = undefined;
     let testSchemaPath = [];
@@ -394,7 +387,7 @@ module.exports = function (grunt) {
       // Process the scan of all the schema files at once
       if (testSchemaPath.length === 0) {
         // tv4 task can never be empty. It will give error. Work around just rescan schema-catalog.json
-        testSchemaPath.push("./schemas/json/schema-catalog.json");
+        testSchemaPath.push(pt.resolve(".", schemaDir, "schema-catalog.json"));
       }
         const valid = "Schemas";
         grunt.config.set("tv4." + valid, {
@@ -433,6 +426,8 @@ module.exports = function (grunt) {
   }
 
   function schemasafe(){
+    // schemasafe validator support draft-04, 06, 07 and 2019-02
+    // This is the replacement for the tv4 validator
     const { validator } = require('@exodus/schemasafe')
     const schema_version = show_schema_versions();
     const textValidate = "validate    | ";
@@ -445,17 +440,20 @@ module.exports = function (grunt) {
     let validate = undefined;
     let selectedParserModeString = "(default mode) ";
     let countSchema = 0;
-    let schemas = [];
+    let listOfExternalSchemas = [];
 
     const fillExternalSchemaArray = () => {
       const ExternalSchema = schemaValidation["externalschema"];
-      for( const schema_file_name of ExternalSchema){
-        const schema_full_path_name = `./schemas/json/${schema_file_name}`;
-        schemas.push(require(schema_full_path_name));
+      for (const schema_file_name of ExternalSchema) {
+        // must skip comment in the list. If present.
+        if (schema_file_name.endsWith(".json")) {
+          const schema_full_path_name = pt.resolve(".", schemaDir, schema_file_name);
+          listOfExternalSchemas.push(require(schema_full_path_name));
+        }
       }
       // Check for missing root "id"/"$id"
       grunt.log.writeln("Check ref to external schema list");
-      validator(JSON.parse("{}") , {schemas})
+      validator(JSON.parse("{}") , {schemas: listOfExternalSchemas})
       grunt.log.ok("Check ref to external schema list. => OK");
       grunt.log.writeln();
     }
@@ -498,7 +496,7 @@ module.exports = function (grunt) {
       try {
         schemaJson = JSON.parse(callbackParameter.rawFile);
         validate = validator(schemaJson, {
-          schemas,
+          schemas: listOfExternalSchemas,
           mode,
           allowUnusedKeywords,
           includeErrors: true,
@@ -511,11 +509,8 @@ module.exports = function (grunt) {
       }
       countSchema++;
       // Get the schema draft version.
-      let schemaVersionStr = "unknown"
       const obj = schema_version.getObj(schemaJson);
-      if(obj){
-        schemaVersionStr = obj.schemaName;
-      }
+      const schemaVersionStr = obj ? obj.schemaName : "unknown"
       grunt.log.ok(`${selectedParserModeString}${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`);
     }
 
@@ -627,8 +622,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_catalog", "Catalog validation", function () {
     const {validator} = require('@exodus/schemasafe');
-    const catalogSchema = require("./schemas/json/schema-catalog.json");
-
+    const catalogSchema = require(pt.resolve(".", schemaDir, "schema-catalog.json"));
     const validate = validator(catalogSchema, {includeErrors: true});
     if (validate(catalog)) {
       grunt.log.ok("catalog.json OK");
@@ -658,17 +652,16 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_url-present-in-catalog", "local url must reference to a file", function () {
-    const httpsPath = "https://json.schemastore.org"
-    const schemaPath = './schemas/json/'
     let countScan = 0;
 
     getUrlFromCatalog(catalogUrl => {
-      if (catalogUrl.startsWith(httpsPath)) {
+      // Only scan for local schema
+      if (catalogUrl.startsWith(URL_schemastore)) {
         countScan++;
         let filename = catalogUrl.split('/').pop();
         filename = filename.endsWith(".json") ? filename : filename.concat(".json");
-        if (fs.existsSync(schemaPath.concat(filename)) === false) {
-          throw new Error("Schema file not found: URL: " + catalogUrl);
+        if (fs.existsSync(pt.resolve(".", schemaDir, filename)) === false) {
+          throw new Error(`Schema file not found: ${filename} Catalog URL: " + ${catalogUrl}`);
         }
       }
     });
@@ -676,13 +669,13 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_schema-present-in-catalog-list", "local schema must have a url reference in catalog list", function () {
-    const httpsPath = "https://json.schemastore.org"
     let countScan = 0;
     let allCatalogLocalJsonFiles = [];
 
     // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
     getUrlFromCatalog(catalogUrl => {
-      if (catalogUrl.startsWith(httpsPath)) {
+      // Only scan for local schema
+      if (catalogUrl.startsWith(URL_schemastore)) {
         let filename = catalogUrl.split('/').pop();
         filename = filename.endsWith(".json") ? filename : filename.concat(".json");
         allCatalogLocalJsonFiles.push(filename);
@@ -696,7 +689,7 @@ module.exports = function (grunt) {
         countScan++;
         const found = allCatalogLocalJsonFiles.includes(x.jsonName)
         if (!found) {
-          throw new Error("No filename URL found in the catalog => " + x.jsonName);
+          throw new Error("Schema file name must be present in the catalog URL. (see: src/api/json/catalog.json)=> " + x.jsonName);
         }
       }
     }
@@ -783,6 +776,7 @@ module.exports = function (grunt) {
     const {validator} = require('@exodus/schemasafe');
     const tv4 = require('tv4');
     let countSchemas = countSchemasType;
+    let countScan = 0;
 
     const validateViaSchemasafe = (schemaJson) => {
       try {
@@ -797,7 +791,7 @@ module.exports = function (grunt) {
     }
 
     const validateViaTv4 = (schemaJson) => {
-      try {
+      try { // run tv4 in strict mode by rejecting unknown keyword in draft-04
         return tv4.validate(schemaJson, schemaV4JSON, true, true);
       } catch (e) {
         return false;
@@ -807,6 +801,7 @@ module.exports = function (grunt) {
     // There are no positive or negative test processes here.
     // Only the schema files are tested.
     const testLowerSchemaVersion = (callbackParameter) => {
+      countScan++;
       // skip schema with unused keyword
       if (schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)) {
         return;
@@ -851,10 +846,12 @@ module.exports = function (grunt) {
 
         // update the schema with a new alternative $schema version
         schemaJson["$schema"] = `https://${schemaVersionToBeTested.schemaStr}`;
-        // Test this new updated schema.
+        // Test this new updated schema with schemasafe
         result = validateViaSchemasafe(schemaJson);
+        // if draft-04 then must also use tv4 validator to reconfirm that it is a valid schema
         if (result && schemaVersionToBeTested.schemaName === "draft-04") {
-          // draft-04 must also pass the tv-4 validator.
+          // draft-04 must also pass the tv-4 validator in strict mode (rejecting unknown keyword)
+          // "$id" will never be accepted in draft-04, so convert it to "id", if present.
           const detected_$id = "$id" in schemaJson;
           if(detected_$id){
             // replace draft-06:'$id' with draft-04:'id'
@@ -884,7 +881,7 @@ module.exports = function (grunt) {
     grunt.log.ok("Check if a lower $schema version will also pass the schema validation test");
     localSchemaFileAndTestFile({schema_1_PassScan: testLowerSchemaVersion});
     grunt.log.writeln();
-    grunt.log.ok("Check done");
+    grunt.log.ok(`Total files scan: ${countScan}`);
   })
 
   function show_schema_versions(){
@@ -951,14 +948,14 @@ module.exports = function (grunt) {
 
   grunt.registerTask("local_check_for_wrong_id", "Dynamically load schema file for schema id check", function () {
     const schema_version = show_schema_versions();
+    let countScan = 0;
     localSchemaFileAndTestFile({
           schema_1_PassScan: function (callbackParameter) {
+            countScan++;
             const schemaJson = JSON.parse(callbackParameter.rawFile);
             const obj = schema_version.getObj(schemaJson);
-            if (obj) {
-              if ((obj.schemaName === "draft-04") && ("$id" in schemaJson)) {
-                grunt.log.error(`Forbidden $id in draft-04 (${callbackParameter.jsonName})`);
-              }
+            if (obj && (obj.schemaName === "draft-04") && ("$id" in schemaJson)) {
+              grunt.log.error(`Forbidden $id in draft-04 (${callbackParameter.jsonName})`);
             }
           }
         },
@@ -966,7 +963,7 @@ module.exports = function (grunt) {
           fullScanAllFiles: true
         });
     grunt.log.writeln();
-    grunt.log.ok("Check done");
+    grunt.log.ok(`Total files scan: ${countScan}`);
   })
 
   function hasBOM(buf) {
@@ -1153,6 +1150,5 @@ module.exports = function (grunt) {
 
 
   grunt.loadNpmTasks("grunt-tv4");
-  grunt.loadNpmTasks("grunt-contrib-watch");
   grunt.loadNpmTasks("grunt-http");
 };

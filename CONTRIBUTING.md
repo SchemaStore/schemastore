@@ -11,6 +11,8 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
+Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```Shell
 make
