@@ -652,17 +652,28 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_url-present-in-catalog", "local url must reference to a file", function () {
+    const URL_recomendation = "https://json.schemastore.org/<schemaName>.json";
     let countScan = 0;
 
     getUrlFromCatalog(catalogUrl => {
-      // Only scan for local schema
-      if (catalogUrl.startsWith(URL_schemastore)) {
-        countScan++;
-        let filename = catalogUrl.split('/').pop();
-        filename = filename.endsWith(".json") ? filename : filename.concat(".json");
-        if (fs.existsSync(pt.resolve(".", schemaDir, filename)) === false) {
-          throw new Error(`Schema file not found: ${filename} Catalog URL: " + ${catalogUrl}`);
-        }
+      // URL that does not have "schemastore.org" is an external schema.
+      if (!catalogUrl.includes("schemastore.org")) {
+        return;
+      }
+      countScan++;
+      // Check if local URL is a valid format with subdomain format.
+      if (!catalogUrl.startsWith(URL_schemastore)) {
+        throw new Error(`Wrong: ${catalogUrl} Must be in this format: ${URL_recomendation}`);
+      }
+      // Check if local URL have .json extension
+      const filenameMustBeAtThisUrlDepthPosition = 3;
+      let filename = catalogUrl.split('/')[filenameMustBeAtThisUrlDepthPosition];
+      if (!filename?.endsWith(".json")) {
+        throw new Error(`Wrong: ${catalogUrl} Missing ".json" extension. Must be in this format: ${URL_recomendation}`);
+      }
+      // Check if schema file exist or not.
+      if (fs.existsSync(pt.resolve(".", schemaDir, filename)) === false) {
+        throw new Error(`Schema file not found: ${filename} Catalog URL: ${catalogUrl}`);
       }
     });
     grunt.log.ok('All local url tested OK. Total: ' + countScan);
@@ -674,10 +685,10 @@ module.exports = function (grunt) {
 
     // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
     getUrlFromCatalog(catalogUrl => {
-      // Only scan for local schema
+      // No need to validate the local URL correctness. It is al ready done in "local_url-present-in-catalog"
+      // Only scan for local schema.
       if (catalogUrl.startsWith(URL_schemastore)) {
         let filename = catalogUrl.split('/').pop();
-        filename = filename.endsWith(".json") ? filename : filename.concat(".json");
         allCatalogLocalJsonFiles.push(filename);
       }
     })
