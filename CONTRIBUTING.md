@@ -44,6 +44,8 @@ To make sure that files are validated against your schema correctly (we strongly
 
 If the build succeeds, your changes are valid and you can safely create a PR.
 
+A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-yaml-to-json) file and used as a test file.
+
 ### Self-hosting schemas
 
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog).
