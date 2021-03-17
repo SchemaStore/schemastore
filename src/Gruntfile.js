@@ -168,27 +168,18 @@ module.exports = function (grunt) {
      * @returns {boolean}
      */
     const canThisTestBeRun = (jsonFilename) => {
-      let result = true;
       if (schemaValidation["skiptest"].includes(jsonFilename)) {
         return false; // This test can never be process
       }
-
-      // Schema must be run for tv4 or schemasafe.
-      if (fullScanAllFiles === false) {
-        if (schemaValidation["tv4test"].includes(jsonFilename)) {
-          // This file is NOT full compliance. Should be run only by tv4 validator
-          if (tv4OnlyMode === false) {
-            result = false;
-          }
-        } else {
-          // This file is full compliance. Can NOT be process by tv4 validator
-          if (tv4OnlyMode === true) {
-            // this file can not be process by tv4.
-            result = false;
-          }
-        }
+      if (fullScanAllFiles) {
+        return true;
+      } else {
+        // Schema must be run for tv4 or schemasafe validator
+        // tv4OnlyMode is only set true when it is called by tv4 validator
+        // If schema is present in "tv4test" list then it can only be run if tv4OnlyMode = true
+        // If schema is NOT present in "tv4test" list then it can only be run if tv4OnlyMode = false
+        return schemaValidation["tv4test"].includes(jsonFilename) ? tv4OnlyMode : !tv4OnlyMode
       }
-      return result;
     }
 
     const runTestFolder = (testDir, folderName, schema_PassScan, test_PassScan, test_PassScanDone) => {
