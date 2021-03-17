@@ -146,8 +146,7 @@ module.exports = function (grunt) {
         positiveTest_1_PassScan = undefined,
         positiveTest_1_PassScanDone = undefined,
         negativeTest_1_PassScan = undefined,
-        negativeTest_1_PassScanDone = undefined,
-        schema_without_positive_test = undefined
+        negativeTest_1_PassScanDone = undefined
       },
       {
         fullScanAllFiles = false,
@@ -246,27 +245,6 @@ module.exports = function (grunt) {
     if (tv4OnlyMode) {
       // tv4 already have it own console output take care of.
       logTestFolder = false;
-    }
-
-    // process callback for the schema_without_positive_test
-    if (schema_without_positive_test) {
-      // Show only test folder percentage if in test folder scan mode.
-      const notCovered = schemasToBeTested.filter(schemaName => {
-        const folderName = schemaName.replace("\.json", "");
-        return !foldersPositiveTest.includes(folderName);
-      });
-
-      notCovered.forEach((schema_file_name) => {
-        if (!skipThisFileName(schema_file_name)) {
-          schema_without_positive_test({jsonName: schema_file_name});
-        }
-      });
-
-      if (notCovered.length > 0) {
-        const percent = (notCovered.length / schemasToBeTested.length) * 100;
-        grunt.log.writeln();
-        grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests or have malformed test folders`);
-      }
     }
 
     // Verify each schema file
@@ -744,13 +722,22 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_search_for_schema_without_positive_test_files", "Dynamically check local schema if positive test files are present", function () {
-    let countScan = 0;
-    const x = (data) => {
-      countScan++;
-      grunt.log.ok("(No positive test file present): " + data.jsonName);
+    let countMissingTest = 0;
+    // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
+    schemasToBeTested.forEach(schema_file_name => {
+      if (!foldersPositiveTest.includes(schema_file_name.replace("\.json", ""))) {
+        countMissingTest++;
+        grunt.log.ok("(No positive test file present): " + schema_file_name);
+      }
+    })
+    if (countMissingTest > 0) {
+      const percent = (countMissingTest / schemasToBeTested.length) * 100;
+      grunt.log.writeln();
+      grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests.`);
+      grunt.log.ok("Schemas that have no positive test files. Total files: " + countMissingTest);
+    } else {
+      grunt.log.ok("All schemas have positive test");
     }
-    localSchemaFileAndTestFile({schema_without_positive_test: x});
-    grunt.log.ok("Schemas that have no positive test files. Total files: " + countScan);
   })
 
   grunt.registerTask("local_validate_directory_structure", "Dynamically check if schema and test directory structure are valid", function () {
