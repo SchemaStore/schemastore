@@ -13,7 +13,7 @@
     "services": { "$ref": "#/definitions/services" },
     "before_script": { "$ref": "#/definitions/before_script" },
     "after_script": { "$ref": "#/definitions/after_script" },
-    "variables": { "$ref": "#/definitions/variables" },
+    "variables": { "$ref": "#/definitions/globalVariables" },
     "cache": { "$ref": "#/definitions/cache" },
     "default": {
       "type": "object",
@@ -101,7 +101,7 @@
           "items": {
             "type": "string"
           },
-          "minLength": 1
+          "minItems": 1
         },
         "exclude": {
           "type": "array",
@@ -109,7 +109,7 @@
           "items": {
             "type": "string"
           },
-          "minLength": 1
+          "minItems": 1
         },
         "expose_as": {
           "type": "string",
@@ -165,7 +165,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "minLength": 1
+                  "minItems": 1
                 }
               ]
             },
@@ -182,7 +182,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "minLength": 1
+                  "minItems": 1
                 }
               ]
             },
@@ -419,7 +419,40 @@
     "secrets": {
       "type": "object",
       "description": "Defines secrets to be injected as environment variables",
-      "items": {}
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "description": "Environment variable name",
+          "properties": {
+            "vault": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "The secret to be fetched from Vault (e.g. 'production/db/password@ops' translates to secret 'ops/data/production/db', field `password`)"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "engine": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "path": { "type": "string" }
+                      },
+                      "required": ["name", "path"]
+                    },
+                    "path": { "type": "string" },
+                    "field": { "type": "string" }
+                  },
+                  "required": ["engine", "path", "field"]
+                }
+              ]
+            }
+          },
+          "required": ["vault"]
+        }
+      }
     },
     "before_script": {
       "type": "array",
@@ -491,11 +524,29 @@
         }
       }
     },
+    "globalVariables": {
+      "anyOf": [
+        { "$ref": "#/definitions/variables" },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "description": {
+                "type": "string",
+                "description": "Explains what the variable is used for, what the acceptable values are."
+              }
+            }
+          }
+        }
+      ]
+    },
     "variables": {
       "type": "object",
-      "description": "Defines environment variables for specific jobs or globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off.",
+      "description": "Defines environment variables for specific jobs or globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off. You can use the value and description keywords to define variables that are prefilled when running a pipeline manually.",
       "additionalProperties": {
-        "type": ["string", "integer", "object"]
+        "type": ["string", "integer"]
       }
     },
     "timeout": {
@@ -780,20 +831,7 @@
         "rules": { "$ref": "#/definitions/rules" },
         "variables": { "$ref": "#/definitions/variables" },
         "cache": { "$ref": "#/definitions/cache" },
-        "secrets": {
-          "type": "object",
-          "description": "Defines secrets to be injected as environment variables",
-          "additionalProperties": {
-            "type": "object",
-            "description": "Environment variable name",
-            "properties": {
-              "vault": {
-                "type": "string",
-                "description": "The secret to be fetched from Vault (e.g. 'production/db/password@ops' translates to secret 'ops/data/production/db', field `password`)"
-              }
-            }
-          }
-        },
+        "secrets": { "$ref": "#/definitions/secrets" },
         "script": {
           "description": "Shell scripts executed by the Runner. The only required property of jobs. Be careful with special characters (e.g. `:`, `{`, `}`, `&`) and use single or double quotes to avoid issues.",
           "oneOf": [
