@@ -1,0 +1,361 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "description": "A example Openstack network.",
+  "imports": [
+    "http://cloudify.co/spec/cloudify/5.0.5/types.yaml",
+    "plugin:cloudify-openstack-plugin?version= >=3.2.2"
+  ],
+  "inputs": {
+    "external_network_id": {
+      "description": "Openstack tenant external network name."
+    },
+    "username": {
+      "description": "OS_USERNAME as specified in Openstack RC file.",
+      "default": {
+        "get_secret": "openstack_username"
+      }
+    },
+    "password": {
+      "description": "Openstack user password.",
+      "default": {
+        "get_secret": "openstack_password"
+      }
+    },
+    "project_name": {
+      "description": "OS_TENANT_NAME as specified in Openstack RC file.",
+      "default": {
+        "get_secret": "openstack_tenant_name"
+      }
+    },
+    "auth_url": {
+      "description": "OS_AUTH_URL as specified in Openstack RC file.",
+      "default": {
+        "get_secret": "openstack_auth_url"
+      }
+    },
+    "region": {
+      "description": "OS_REGION_NAME as specified in Openstack RC file.",
+      "default": {
+        "get_secret": "openstack_region"
+      }
+    },
+    "nameservers": {
+      "default": [
+        "8.8.4.4",
+        "8.8.8.8"
+      ]
+    },
+    "public_cidr": {
+      "default": "0"
+    },
+    "public_subnet_cidr": {
+      "default": {
+        "concat": [
+          "10.10.",
+          {
+            "get_input": "public_cidr"
+          },
+          ".0/24"
+        ]
+      }
+    },
+    "public_subnet_allocation_pools": {
+      "default": [
+        {
+          "start": {
+            "concat": [
+              "10.10.",
+              {
+                "get_input": "public_cidr"
+              },
+              ".2"
+            ]
+          },
+          "end": {
+            "concat": [
+              "10.10.",
+              {
+                "get_input": "public_cidr"
+              },
+              ".254"
+            ]
+          }
+        }
+      ]
+    },
+    "private_cidr": {
+      "default": "1"
+    },
+    "private_subnet_cidr": {
+      "default": {
+        "concat": [
+          "10.10.",
+          {
+            "get_input": "private_cidr"
+          },
+          ".0/24"
+        ]
+      }
+    },
+    "private_subnet_allocation_pools": {
+      "default": [
+        {
+          "start": {
+            "concat": [
+              "10.10.",
+              {
+                "get_input": "private_cidr"
+              },
+              ".2"
+            ]
+          },
+          "end": {
+            "concat": [
+              "10.10.",
+              {
+                "get_input": "private_cidr"
+              },
+              ".254"
+            ]
+          }
+        }
+      ]
+    },
+    "resource_suffix": {
+      "default": "-1"
+    },
+    "user_domain_name": {
+      "description": "Openstack user domain name.",
+      "type": "string",
+      "default": "default"
+    },
+    "project_domain_name": {
+      "description": "The name of your OpenStack project.",
+      "type": "string",
+      "default": "default"
+    },
+    "client_config_dict": {
+      "description": "A dictionary containing the client configuration for Openstack. Default is for keystone v3. Provide an alternate input for keystone v2.",
+      "default": {
+        "username": {
+          "get_input": "username"
+        },
+        "password": {
+          "get_input": "password"
+        },
+        "project_name": {
+          "get_input": "project_name"
+        },
+        "auth_url": {
+          "get_input": "auth_url"
+        },
+        "region_name": {
+          "get_input": "region"
+        },
+        "user_domain_name": {
+          "get_input": "user_domain_name"
+        },
+        "project_domain_name": {
+          "get_input": "project_domain_name"
+        }
+      }
+    }
+  },
+  "node_templates": {
+    "external-network": {
+      "type": "cloudify.nodes.openstack.Network",
+      "properties": {
+        "client_config": {
+          "get_input": "client_config_dict"
+        },
+        "use_external_resource": true,
+        "resource_config": {
+          "name": {
+            "get_input": "external_network_id"
+          },
+          "kwargs": {
+            "routing": {
+              "external": true
+            }
+          }
+        }
+      }
+    },
+    "public-network": {
+      "type": "cloudify.nodes.openstack.Network",
+      "properties": {
+        "client_config": {
+          "get_input": "client_config_dict"
+        },
+        "resource_config": {
+          "name": {
+            "concat": [
+              "public-network",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "private-network": {
+      "type": "cloudify.nodes.openstack.Network",
+      "properties": {
+        "client_config": {
+          "get_input": "client_config_dict"
+        },
+        "resource_config": {
+          "name": {
+            "concat": [
+              "private-network",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "public-network-router": {
+      "type": "cloudify.nodes.openstack.Router",
+      "properties": {
+        "client_config": {
+          "get_input": "client_config_dict"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.connected_to",
+          "target": "external-network"
+        }
+      ]
+    },
+    "public-subnet": {
+      "type": "cloudify.nodes.openstack.Subnet",
+      "properties": {
+        "client_config": {
+          "get_input": "client_config_dict"
+        },
+        "resource_config": {
+          "name": {
+            "concat": [
+              "public-subnet",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          },
+          "ip_version": 4,
+          "dns_nameservers": {
+            "get_input": "nameservers"
+          },
+          "cidr": {
+            "get_input": "public_subnet_cidr"
+          },
+          "allocation_pools": {
+            "get_input": "public_subnet_allocation_pools"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "public-network"
+        },
+        {
+          "type": "cloudify.relationships.openstack.subnet_connected_to_router",
+          "target": "public-network-router"
+        }
+      ]
+    },
+    "private-subnet": {
+      "type": "cloudify.nodes.openstack.Subnet",
+      "properties": {
+        "client_config": {
+          "get_input": "client_config_dict"
+        },
+        "resource_config": {
+          "ip_version": 4,
+          "name": {
+            "concat": [
+              "private-subnet",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          },
+          "dns_nameservers": {
+            "get_input": "nameservers"
+          },
+          "cidr": {
+            "get_input": "private_subnet_cidr"
+          },
+          "allocation_pools": {
+            "get_input": "private_subnet_allocation_pools"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "private-network"
+        },
+        {
+          "type": "cloudify.relationships.openstack.subnet_connected_to_router",
+          "target": "public-network-router"
+        }
+      ]
+    }
+  },
+  "capabilities": {
+    "external_network": {
+      "value": {
+        "get_attribute": [
+          "external-network",
+          "id"
+        ]
+      }
+    },
+    "public_network_router": {
+      "value": {
+        "get_attribute": [
+          "public-network-router",
+          "id"
+        ]
+      }
+    },
+    "public_network": {
+      "value": {
+        "get_attribute": [
+          "public-network",
+          "id"
+        ]
+      }
+    },
+    "private_network": {
+      "value": {
+        "get_attribute": [
+          "private-network",
+          "id"
+        ]
+      }
+    },
+    "public_subnet": {
+      "value": {
+        "get_attribute": [
+          "public-subnet",
+          "id"
+        ]
+      }
+    },
+    "private_subnet": {
+      "value": {
+        "get_attribute": [
+          "private-subnet",
+          "id"
+        ]
+      }
+    }
+  }
+}

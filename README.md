@@ -1,8 +1,8 @@
 # JSON Schema Store
 
-The largest collection of independant JSON schemas in the world
+The largest collection of independent JSON schemas in the world
 
-[![Build status](https://ci.appveyor.com/api/projects/status/ab34h2jsrjfiw2xq?svg=true)](https://ci.appveyor.com/project/madskristensen/schemastore-371)
+[![Build status](https://github.com/SchemaStore/schemastore/workflows/Node.js%20CI/badge.svg)](https://github.com/SchemaStore/schemastore/actions)
 
 The repository is meant as a universal JSON schema store, where schemas for popular JSON documents can be found.
 

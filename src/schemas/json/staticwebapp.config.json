@@ -1,0 +1,252 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema",
+    "title": "Azure Static Web Apps configuration file",
+    "description": "Documentation: https://aka.ms/swa/config-schema",
+    "type": "object",
+    "default": {
+        "navigationFallback": {
+            "rewrite": "/index.html"
+        }
+    },
+    "definitions": {
+        "route": {
+            "type": "object",
+            "required": [
+                "route"
+            ],
+            "properties": {
+                "route": {
+                    "type": "string",
+                    "description": "Request route pattern to match. May contain valid wildcards. See documentation: https://aka.ms/swa/config-schema"
+                },
+                "methods": {
+                    "type": "array",
+                    "description": "Request method(s) to match",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "GET",
+                                    "HEAD",
+                                    "POST",
+                                    "PUT",
+                                    "DELETE",
+                                    "PATCH",
+                                    "CONNECT",
+                                    "OPTIONS",
+                                    "TRACE"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "allowedRoles": {
+                    "type": "array",
+                    "description": "Roles that are allowed to access this route. If not empty, only role(s) listed are authorized to access the route. Roles are only used for authorization; they are not used to evaluate whether the route matches the request.",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "examples": [
+                                    "anonymous",
+                                    "authenticated"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "headers": {
+                    "type": "object",
+                    "description": "Override any matching global headers",
+                    "additionalProperties": true
+                }
+            },
+            "additionalProperties": true
+        },
+
+        "routeRedirect": {
+            "required": [
+                "redirect"
+            ],
+            "not": {
+                "required": [
+                    "rewrite"
+                ]
+            },
+            "properties": {
+                "redirect": {
+                    "type": "string",
+                    "description": "Redirect to a relative or absolute path, or an external URI"
+                },
+                "statusCode": {
+                    "type": "integer",
+                    "description": "Status code used for the redirect",
+                    "default": 302,
+                    "enum": [
+                        301,
+                        302
+                    ]
+                }
+            }
+        },
+
+        "routeRewrite": {
+            "required": [
+                "rewrite"
+            ],
+            "not": {
+                "required": [
+                    "redirect",
+                    "statusCode"
+                ]
+            },
+            "properties": {
+                "rewrite": {
+                    "type": "string",
+                    "description": "A path to rewrite the request route to"
+                }
+            }
+        }
+    },
+    
+    "properties": {
+        "routes": {
+            "type": "array",
+            "description": "Route definitions to modify routing behavior",
+            "default": [
+                {
+                    "route": "/example",
+                    "rewrite": "/example.html"
+                }
+            ],
+            "items": {
+                "examples": [
+                    {
+                        "route": "/example",
+                        "rewrite": "/example.html"
+                    },
+                    {
+                        "route": "/login",
+                        "redirect": "/.auth/login/github"
+                    }
+                ],
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/definitions/route"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/definitions/route"
+                            },
+                            {
+                                "$ref": "#/definitions/routeRedirect"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/definitions/route"
+                            },
+                            {
+                                "$ref": "#/definitions/routeRewrite"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "navigationFallback": {
+            "type": "object",
+            "description": "A default file to return if the request does not match a resource",
+            "default": {
+                "rewrite": "/index.html"
+            },
+            "required": [
+                "rewrite"
+            ],
+            "properties": {
+                "rewrite": {
+                    "type": "string",
+                    "description": "The default file to return if the request does not match a resource",
+                    "default": "/index.html"
+                },
+                "exclude": {
+                    "type": "array",
+                    "description": "Paths to exclude from the fallback route. May use valid wildcards. https://aka.ms/swa/config-schema",
+                    "examples": [
+                        [
+                            "*.{jpg,gif,png}", "assets/*"
+                        ]
+                    ]
+                }
+            },
+            "additionalProperties": false
+        },
+        "responseErrorOverrides": {
+            "type": "object",
+            "description": "Custom error pages or redirects",
+            "examples": [
+                {
+                    "404": {
+                        "rewrite": "/custom_404.html",
+                        "statusCode": 200
+                    }
+                }
+            ],
+            "propertyNames": {
+                "pattern": "^\\d+$"
+            },
+            "patternProperties": {
+                ".*": {
+                    "oneOf": [
+                        {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/routeRewrite"
+                                },
+                                {
+                                    "properties": {
+                                        "statusCode": {
+                                            "type": "integer",
+                                            "description": "Status code for the response",
+                                            "examples": [
+                                                200
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "$ref": "#/definitions/routeRedirect"
+                        }
+                    ]
+                }
+            }
+        },
+        "mimeTypes": {
+            "type": "object",
+            "description": "Custom mime types configuration",
+            "default": {},
+            "examples": [
+                {
+                    ".config": "application/xml"
+                }
+            ],
+            "additionalProperties": true
+        },
+        "globalHeaders": {
+            "type": "object",
+            "description": "Default headers to set on all responses",
+            "additionalProperties": true
+        }
+    },
+    "additionalProperties": true
+}

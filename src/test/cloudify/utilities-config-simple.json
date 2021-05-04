@@ -1,0 +1,168 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/5.0.0/types.yaml",
+    "http://www.getcloudify.org/spec/utilities-plugin/1.18.0/plugin.yaml"
+  ],
+  "inputs": {
+    "terminal_ip": {
+      "type": "string",
+      "description": "terminal server ip\n",
+      "default": "127.0.0.1"
+    },
+    "terminal_user": {
+      "type": "string",
+      "description": "terminal server user\n",
+      "default": "root"
+    },
+    "terminal_password": {
+      "type": "string",
+      "description": "terminal server user password\n",
+      "default": "ssh_password"
+    },
+    "terminal_key_content": {
+      "type": "string",
+      "description": "terminal server user rsa key content, can be used instead password\n",
+      "default": ""
+    },
+    "terminal_port": {
+      "type": "integer",
+      "description": "terminal server port, for cisco ssh by default 22\n",
+      "default": 22
+    },
+    "parameters_json": {
+      "default": {
+        "RoutePublic": "Public",
+        "RouteVoice": true
+      }
+    }
+  },
+  "node_types": {
+    "terminal": {
+      "derived_from": "cloudify.terminal.raw",
+      "properties": {
+        "params_list": {
+          "default": {}
+        },
+        "params": {
+          "default": {}
+        },
+        "terminal_auth": {
+          "default": {}
+        }
+      }
+    }
+  },
+  "node_templates": {
+    "configuration": {
+      "type": "configuration_loader",
+      "properties": {
+        "parameters_json": {
+          "get_input": "parameters_json"
+        }
+      }
+    },
+    "linux_impl": {
+      "type": "terminal",
+      "properties": {
+        "params_list": [
+          "RouteExternal",
+          "RouteInternal",
+          "JpPrimary",
+          "JpSecondary",
+          "RoutePublic",
+          "RouteNat"
+        ],
+        "params": {
+          "JpPrimary": true,
+          "JpSecondary": false
+        },
+        "terminal_auth": {
+          "user": {
+            "get_input": "terminal_user"
+          },
+          "password": {
+            "get_input": "terminal_password"
+          },
+          "ip": {
+            "get_input": "terminal_ip"
+          },
+          "key_content": {
+            "get_input": "terminal_key_content"
+          },
+          "port": {
+            "get_input": "terminal_port"
+          },
+          "promt_check": [
+            "#",
+            "$"
+          ]
+        }
+      },
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "calls": [
+                {
+                  "template": "ssh.cmd",
+                  "params": {
+                    "get_attribute": [
+                      "SELF",
+                      "params"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "configure": {
+            "inputs": {
+              "calls": [
+                {
+                  "template": "ssh.cmd",
+                  "params": {
+                    "get_attribute": [
+                      "SELF",
+                      "params"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "update": {
+            "inputs": {
+              "calls": [
+                {
+                  "template": "ssh.cmd",
+                  "params": {
+                    "get_attribute": [
+                      "SELF",
+                      "params"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "is_alive": {
+            "inputs": {
+              "calls": [
+                {
+                  "template": "isalive.cmd"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "load_from_config",
+          "target": "configuration"
+        }
+      ]
+    }
+  }
+}

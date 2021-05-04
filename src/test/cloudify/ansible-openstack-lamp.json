@@ -1,0 +1,618 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "description": "This blueprint provides the basic architecture for an Openstack blueprint.\n",
+  "dsl_definitions": {
+    "openstack_config": {
+      "username": {
+        "get_input": "keystone_username"
+      },
+      "password": {
+        "get_input": "keystone_password"
+      },
+      "tenant_name": {
+        "get_input": "keystone_tenant_name"
+      },
+      "auth_url": {
+        "get_input": "keystone_url"
+      },
+      "region": {
+        "get_input": "region"
+      }
+    }
+  },
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/5.0.0/types.yaml",
+    "plugin:cloudify-openstack-plugin",
+    "https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/master/compat.yaml",
+    "plugin:cloudify-ansible-plugin",
+    "plugin:cloudify-utilities-plugin"
+  ],
+  "inputs": {
+    "keystone_username": {
+      "default": {
+        "get_secret": "openstack_username"
+      }
+    },
+    "keystone_password": {
+      "default": {
+        "get_secret": "openstack_password"
+      }
+    },
+    "keystone_tenant_name": {
+      "default": {
+        "get_secret": "openstack_tenant_name"
+      }
+    },
+    "keystone_url": {
+      "default": {
+        "get_secret": "openstack_auth_url"
+      }
+    },
+    "region": {
+      "default": "RegionOne"
+    },
+    "centos_core_image": {
+      "default": {
+        "get_secret": "centos_core_image"
+      }
+    },
+    "large_image_flavor": {
+      "default": {
+        "get_secret": "large_image_flavor"
+      }
+    },
+    "agent_key_private": {
+      "default": {
+        "get_secret": "agent_key_private"
+      }
+    },
+    "username": {
+      "type": "string",
+      "default": "centos"
+    },
+    "external_network_name": {
+      "default": "GATEWAY_NET"
+    },
+    "public_subnet_cidr": {
+      "default": "192.168.120.0/24"
+    },
+    "site_yaml_relative_path": {
+      "type": "string",
+      "default": "ansible-examples/lamp_simple/site.yml"
+    },
+    "key_name": {
+      "type": "string"
+    }
+  },
+  "node_types": {
+    "webservers": {
+      "derived_from": "cloudify.openstack.nodes.Server",
+      "properties": {
+        "openstack_config": {
+          "default": {
+            "username": {
+              "get_input": "keystone_username"
+            },
+            "password": {
+              "get_input": "keystone_password"
+            },
+            "tenant_name": {
+              "get_input": "keystone_tenant_name"
+            },
+            "auth_url": {
+              "get_input": "keystone_url"
+            },
+            "region": {
+              "get_input": "region"
+            }
+          }
+        },
+        "agent_config": {
+          "default": {
+            "install_method": "none",
+            "key": {
+              "get_input": "agent_key_private"
+            },
+            "user": {
+              "get_input": "username"
+            }
+          }
+        },
+        "server": {
+          "default": {
+            "image": {
+              "get_input": "centos_core_image"
+            },
+            "flavor": {
+              "get_input": "large_image_flavor"
+            },
+            "key_name": {
+              "get_input": "key_name"
+            },
+            "userdata": {
+              "get_attribute": [
+                "cloudify_host_cloud_config",
+                "cloud_config"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dbservers": {
+      "derived_from": "cloudify.openstack.nodes.Server",
+      "properties": {
+        "openstack_config": {
+          "default": {
+            "username": {
+              "get_input": "keystone_username"
+            },
+            "password": {
+              "get_input": "keystone_password"
+            },
+            "tenant_name": {
+              "get_input": "keystone_tenant_name"
+            },
+            "auth_url": {
+              "get_input": "keystone_url"
+            },
+            "region": {
+              "get_input": "region"
+            }
+          }
+        },
+        "agent_config": {
+          "default": {
+            "install_method": "none",
+            "key": {
+              "get_input": "agent_key_private"
+            },
+            "user": {
+              "get_input": "username"
+            }
+          }
+        },
+        "server": {
+          "default": {
+            "image": {
+              "get_input": "centos_core_image"
+            },
+            "flavor": {
+              "get_input": "large_image_flavor"
+            },
+            "key_name": {
+              "get_input": "key_name"
+            },
+            "userdata": {
+              "get_attribute": [
+                "cloudify_host_cloud_config",
+                "cloud_config"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "node_templates": {
+    "playbook": {
+      "type": "cloudify.nodes.ansible.Executor",
+      "properties": {
+        "site_yaml_path": {
+          "get_input": "site_yaml_relative_path"
+        },
+        "debug_level": 5
+      },
+      "relationships": [
+        {
+          "type": "cloudify.ansible.relationships.connected_to_host",
+          "target": "web",
+          "source_interfaces": {
+            "cloudify.interfaces.relationship_lifecycle": {
+              "preconfigure": {
+                "inputs": {
+                  "group_name": "webservers",
+                  "hostname": "web",
+                  "host_config": {
+                    "ansible_host": {
+                      "get_attribute": [
+                        "web_ip",
+                        "floating_ip_address"
+                      ]
+                    },
+                    "ansible_user": {
+                      "get_property": [
+                        "web",
+                        "agent_config",
+                        "user"
+                      ]
+                    },
+                    "ansible_ssh_private_key_file": {
+                      "get_property": [
+                        "web",
+                        "agent_config",
+                        "key"
+                      ]
+                    },
+                    "ansible_become": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "cloudify.ansible.relationships.connected_to_host",
+          "target": "db",
+          "source_interfaces": {
+            "cloudify.interfaces.relationship_lifecycle": {
+              "preconfigure": {
+                "inputs": {
+                  "group_name": "dbservers",
+                  "hostname": "db",
+                  "host_config": {
+                    "ansible_host": {
+                      "get_attribute": [
+                        "db_ip",
+                        "floating_ip_address"
+                      ]
+                    },
+                    "ansible_user": {
+                      "get_property": [
+                        "db",
+                        "agent_config",
+                        "user"
+                      ]
+                    },
+                    "ansible_ssh_private_key_file": {
+                      "get_property": [
+                        "db",
+                        "agent_config",
+                        "key"
+                      ]
+                    },
+                    "ansible_become": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "web": {
+      "type": "webservers",
+      "relationships": [
+        {
+          "target": "web_nic",
+          "type": "cloudify.openstack.server_connected_to_port"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "cloudify_host_cloud_config"
+        }
+      ]
+    },
+    "db": {
+      "type": "dbservers",
+      "relationships": [
+        {
+          "target": "db_nic",
+          "type": "cloudify.openstack.server_connected_to_port"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "cloudify_host_cloud_config"
+        }
+      ]
+    },
+    "web_nic": {
+      "type": "cloudify.openstack.nodes.Port",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "public_network"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "public_subnet"
+        },
+        {
+          "type": "cloudify.openstack.port_connected_to_security_group",
+          "target": "server_groups_example_security_group"
+        },
+        {
+          "type": "cloudify.openstack.port_connected_to_floating_ip",
+          "target": "web_ip"
+        }
+      ]
+    },
+    "db_nic": {
+      "type": "cloudify.openstack.nodes.Port",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "public_network"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "public_subnet"
+        },
+        {
+          "type": "cloudify.openstack.port_connected_to_security_group",
+          "target": "server_groups_example_security_group"
+        },
+        {
+          "type": "cloudify.openstack.port_connected_to_floating_ip",
+          "target": "db_ip"
+        }
+      ]
+    },
+    "web_ip": {
+      "type": "cloudify.openstack.nodes.FloatingIP",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        },
+        "floatingip": {
+          "floating_network_name": {
+            "get_property": [
+              "external_network",
+              "resource_id"
+            ]
+          }
+        }
+      }
+    },
+    "db_ip": {
+      "type": "cloudify.openstack.nodes.FloatingIP",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        },
+        "floatingip": {
+          "floating_network_name": {
+            "get_property": [
+              "external_network",
+              "resource_id"
+            ]
+          }
+        }
+      }
+    },
+    "server_groups_example_security_group": {
+      "type": "cloudify.openstack.nodes.SecurityGroup",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        },
+        "security_group": {
+          "name": "server_groups_example_security_group"
+        },
+        "rules": [
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port": 22
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port": 80
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port": 3306
+          }
+        ]
+      }
+    },
+    "public_subnet": {
+      "type": "cloudify.openstack.nodes.Subnet",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        },
+        "subnet": {
+          "ip_version": 4,
+          "cidr": {
+            "get_input": "public_subnet_cidr"
+          },
+          "dns_nameservers": [
+            "8.8.4.4",
+            "8.8.8.8"
+          ]
+        }
+      },
+      "relationships": [
+        {
+          "target": "public_network",
+          "type": "cloudify.relationships.contained_in"
+        },
+        {
+          "target": "router",
+          "type": "cloudify.openstack.subnet_connected_to_router"
+        }
+      ]
+    },
+    "public_network": {
+      "type": "cloudify.openstack.nodes.Network",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        }
+      }
+    },
+    "router": {
+      "type": "cloudify.openstack.nodes.Router",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "target": "external_network",
+          "type": "cloudify.relationships.connected_to"
+        }
+      ]
+    },
+    "external_network": {
+      "type": "cloudify.openstack.nodes.Network",
+      "properties": {
+        "openstack_config": {
+          "username": {
+            "get_input": "keystone_username"
+          },
+          "password": {
+            "get_input": "keystone_password"
+          },
+          "tenant_name": {
+            "get_input": "keystone_tenant_name"
+          },
+          "auth_url": {
+            "get_input": "keystone_url"
+          },
+          "region": {
+            "get_input": "region"
+          }
+        },
+        "use_external_resource": true,
+        "resource_id": {
+          "get_input": "external_network_name"
+        }
+      }
+    },
+    "cloudify_host_cloud_config": {
+      "type": "cloudify.nodes.CloudInit.CloudConfig",
+      "properties": {
+        "resource_config": {
+          "runcmd": [
+            "yum clean all",
+            "yum repolist"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "http://cloudify.co/spec/cloudify/5.0.5/types.yaml",
+    "plugin:cloudify-docker-plugin"
+  ],
+  "inputs": {
+    "docker_host": {
+      "type": "string",
+      "required": true
+    },
+    "docker_user": {
+      "type": "string",
+      "required": true
+    },
+    "centos_version": {
+      "description": "Ansible version to prepare image for",
+      "type": "string",
+      "default": "7"
+    },
+    "container_volume": {
+      "description": "volume that will be mapped to container",
+      "type": "string",
+      "default": "/mnt/vol1"
+    },
+    "image_tag": {
+      "description": "Tag for the image to build",
+      "type": "string",
+      "default": "centos:"
+    }
+  },
+  "dsl_definitions": {
+    "docker_config": {
+      "docker_host": {
+        "get_input": "docker_host"
+      },
+      "docker_rest_port": 2375
+    }
+  },
+  "node_templates": {
+    "docker_centos_image": {
+      "type": "cloudify.nodes.docker.image",
+      "properties": {
+        "client_config": {
+          "docker_host": {
+            "get_input": "docker_host"
+          },
+          "docker_rest_port": 2375
+        },
+        "resource_config": {
+          "image_content": {
+            "concat": [
+              "FROM amd64/centos:7\nMAINTAINER Cosmo (hello@cloudify.co)\nRUN yum install -y openssh-server openssh-clients\n"
+            ]
+          },
+          "tag": {
+            "concat": [
+              {
+                "get_input": "image_tag"
+              },
+              {
+                "get_input": "centos_version"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "docker_centos_container_files": {
+      "type": "cloudify.nodes.docker.container_files",
+      "properties": {
+        "resource_config": {
+          "docker_machine": {
+            "docker_ip": {
+              "get_input": "docker_host"
+            },
+            "docker_user": {
+              "get_input": "docker_user"
+            },
+            "docker_key": {
+              "get_secret": "agent_key_private"
+            }
+          },
+          "source": "https://github.com/cloudify-community/blueprint-examples/releases/download/5.0.5-28/hello-world-example.zip",
+          "destination": ""
+        }
+      }
+    },
+    "docker_centos_container": {
+      "type": "cloudify.nodes.docker.container",
+      "properties": {
+        "client_config": {
+          "docker_host": {
+            "get_input": "docker_host"
+          },
+          "docker_rest_port": 2375
+        },
+        "resource_config": {
+          "image_tag": {
+            "concat": [
+              {
+                "get_input": "image_tag"
+              },
+              {
+                "get_input": "centos_version"
+              }
+            ]
+          },
+          "container_args": {
+            "command": "ls",
+            "working_dir": {
+              "get_input": "container_volume"
+            },
+            "volumes": [
+              {
+                "get_input": "container_volume"
+              }
+            ],
+            "volumes_mapping": [
+              {
+                "get_attribute": [
+                  "docker_centos_container_files",
+                  "destination"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "docker_centos_image"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "docker_centos_container_files"
+        }
+      ]
+    }
+  }
+}

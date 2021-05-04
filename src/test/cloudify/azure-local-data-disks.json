@@ -1,0 +1,816 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "description": "This blueprint creates a generic Linux VM utilizing the DataDisk and OSDisk types\n",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/3.4/types.yaml",
+    "https://raw.githubusercontent.com/cloudify-incubator/cloudify-azure-plugin/master/plugin.yaml"
+  ],
+  "inputs": {
+    "resource_prefix": {
+      "default": "cfy"
+    },
+    "resource_suffix": {
+      "default": 12
+    },
+    "subscription_id": {
+      "type": "string",
+      "required": false
+    },
+    "tenant_id": {
+      "type": "string",
+      "required": false
+    },
+    "client_id": {
+      "type": "string",
+      "required": false
+    },
+    "client_secret": {
+      "type": "string",
+      "required": false
+    },
+    "location": {
+      "type": "string",
+      "required": true,
+      "default": "eastus"
+    },
+    "retry_after": {
+      "type": "integer",
+      "default": 60
+    },
+    "vm_size": {
+      "type": "string",
+      "required": true,
+      "default": "Standard_A2"
+    },
+    "vm_os_family": {
+      "type": "string",
+      "required": true,
+      "default": "linux"
+    },
+    "vm_image_publisher": {
+      "type": "string",
+      "required": true,
+      "default": "Canonical"
+    },
+    "vm_image_offer": {
+      "type": "string",
+      "required": true,
+      "default": "UbuntuServer"
+    },
+    "vm_image_sku": {
+      "type": "string",
+      "required": true,
+      "default": "14.04.4-LTS"
+    },
+    "vm_image_version": {
+      "type": "string",
+      "required": true,
+      "default": "14.04.201604060"
+    },
+    "vm_os_username": {
+      "description": "Username to create as the VM's administrator user\n",
+      "type": "string",
+      "required": true,
+      "default": "cloudify"
+    },
+    "vm_os_password": {
+      "description": "Password to use for the VM's administrator user\n",
+      "type": "string",
+      "required": true,
+      "default": "Cl0ud1fy!"
+    },
+    "vm_os_pubkeys": {
+      "description": "the public key",
+      "default": [
+        {
+          "path": {
+            "concat": [
+              "/home/",
+              {
+                "get_input": "vm_os_username"
+              },
+              "/.ssh/authorized_keys"
+            ]
+          },
+          "keyData": "ssh-rsa AAAAA3----your-key-here----aabbzz"
+        }
+      ]
+    },
+    "vm_os_pubkey_auth_only": {
+      "default": true
+    },
+    "endpoint_resource": {
+      "default": "https://management.core.windows.net/"
+    },
+    "endpoints_resource_manager": {
+      "default": "https://management.azure.com"
+    },
+    "endpoint_verify": {
+      "default": true
+    },
+    "endpoint_storage": {
+      "type": "string",
+      "default": "core.windows.net"
+    },
+    "endpoints_active_directory": {
+      "type": "string",
+      "default": "https://login.microsoftonline.com"
+    }
+  },
+  "dsl_definitions": {
+    "azure_config": {
+      "subscription_id": {
+        "get_input": "subscription_id"
+      },
+      "tenant_id": {
+        "get_input": "tenant_id"
+      },
+      "client_id": {
+        "get_input": "client_id"
+      },
+      "client_secret": {
+        "get_input": "client_secret"
+      },
+      "endpoint_resource": {
+        "get_input": "endpoint_resource"
+      },
+      "endpoints_resource_manager": {
+        "get_input": "endpoints_resource_manager"
+      },
+      "endpoint_verify": {
+        "get_input": "endpoint_verify"
+      },
+      "endpoints_active_directory": {
+        "get_input": "endpoints_active_directory"
+      }
+    }
+  },
+  "node_templates": {
+    "host": {
+      "type": "cloudify.azure.nodes.compute.VirtualMachine",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "os_family": {
+          "get_input": "vm_os_family"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "resource_config": {
+          "hardwareProfile": {
+            "vmSize": {
+              "get_input": "vm_size"
+            }
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": {
+                "get_input": "vm_image_publisher"
+              },
+              "offer": {
+                "get_input": "vm_image_offer"
+              },
+              "sku": {
+                "get_input": "vm_image_sku"
+              },
+              "version": {
+                "get_input": "vm_image_version"
+              }
+            }
+          },
+          "osProfile": {
+            "adminUsername": {
+              "get_input": "vm_os_username"
+            },
+            "adminPassword": {
+              "get_input": "vm_os_password"
+            },
+            "linuxConfiguration": {
+              "ssh": {
+                "publicKeys": {
+                  "get_input": "vm_os_pubkeys"
+                }
+              },
+              "disablePasswordAuthentication": {
+                "get_input": "vm_os_pubkey_auth_only"
+              }
+            }
+          }
+        },
+        "agent_config": {
+          "install_method": "none"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_storage_account",
+          "target": "storage_account"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_availability_set",
+          "target": "availability_set"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_nic",
+          "target": "host_nic"
+        },
+        {
+          "type": "cloudify.azure.relationships.vm_connected_to_datadisk",
+          "target": "data_disk_0",
+          "source_interfaces": {
+            "cloudify.interfaces.relationship_lifecycle": {
+              "establish": {
+                "implementation": "azure.cloudify_azure.resources.compute.virtualmachine.attach_data_disk",
+                "inputs": {
+                  "lun": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "cloudify.azure.relationships.vm_connected_to_datadisk",
+          "target": "data_disk_1",
+          "source_interfaces": {
+            "cloudify.interfaces.relationship_lifecycle": {
+              "establish": {
+                "implementation": "azure.cloudify_azure.resources.compute.virtualmachine.attach_data_disk",
+                "inputs": {
+                  "lun": 1
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "resource_group": {
+      "type": "cloudify.azure.nodes.ResourceGroup",
+      "properties": {
+        "name": {
+          "concat": [
+            {
+              "get_input": "resource_prefix"
+            },
+            "rg",
+            {
+              "get_input": "resource_suffix"
+            }
+          ]
+        },
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        }
+      }
+    },
+    "storage_account": {
+      "type": "cloudify.azure.nodes.storage.StorageAccount",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "accountType": "Standard_LRS"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        }
+      ]
+    },
+    "data_disk_0": {
+      "type": "cloudify.azure.nodes.storage.DataDisk",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "size": 1,
+          "force_delete": true
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_storage_account",
+          "target": "storage_account"
+        }
+      ]
+    },
+    "data_disk_1": {
+      "type": "cloudify.azure.nodes.storage.DataDisk",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "size": 10
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_storage_account",
+          "target": "storage_account"
+        }
+      ]
+    },
+    "file_share_1": {
+      "type": "cloudify.azure.nodes.storage.FileShare",
+      "properties": {
+        "resource_config": {
+          "quota": 5
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_storage_account",
+          "target": "storage_account"
+        }
+      ]
+    },
+    "virtual_network": {
+      "type": "cloudify.azure.nodes.network.VirtualNetwork",
+      "properties": {
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "location": {
+          "get_input": "location"
+        },
+        "resource_config": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "172.16.0.0/24"
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        }
+      ]
+    },
+    "subnet": {
+      "type": "cloudify.azure.nodes.network.Subnet",
+      "properties": {
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "location": {
+          "get_input": "location"
+        },
+        "resource_config": {
+          "addressPrefix": "172.16.0.0/24"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_virtual_network",
+          "target": "virtual_network"
+        }
+      ]
+    },
+    "availability_set": {
+      "type": "cloudify.azure.nodes.compute.AvailabilitySet",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        }
+      ]
+    },
+    "host_nic": {
+      "type": "cloudify.azure.nodes.network.NetworkInterfaceCard",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.nic_connected_to_ip_configuration",
+          "target": "host_nic_ip_cfg"
+        }
+      ]
+    },
+    "host_nic_ip_cfg": {
+      "type": "cloudify.azure.nodes.network.IPConfiguration",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "privateIPAllocationMethod": "Dynamic"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.ip_configuration_connected_to_subnet",
+          "target": "subnet"
+        },
+        {
+          "type": "cloudify.azure.relationships.ip_configuration_connected_to_public_ip",
+          "target": "pip"
+        }
+      ]
+    },
+    "pip": {
+      "type": "cloudify.azure.nodes.network.PublicIPAddress",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          },
+          "endpoint_resource": {
+            "get_input": "endpoint_resource"
+          },
+          "endpoints_resource_manager": {
+            "get_input": "endpoints_resource_manager"
+          },
+          "endpoint_verify": {
+            "get_input": "endpoint_verify"
+          },
+          "endpoints_active_directory": {
+            "get_input": "endpoints_active_directory"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "publicIPAllocationMethod": "Static"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        }
+      ]
+    }
+  },
+  "groups": {
+    "vm_and_ips": {
+      "members": [
+        "host",
+        "host_nic",
+        "host_nic_ip_cfg",
+        "pip"
+      ]
+    }
+  },
+  "policies": {
+    "scale_policy1": {
+      "type": "cloudify.policies.scaling",
+      "properties": {
+        "default_instances": 1
+      },
+      "targets": [
+        "vm_and_ips"
+      ]
+    }
+  },
+  "outputs": {
+    "file_share_1": {
+      "description": "File Share connection details",
+      "value": {
+        "name": {
+          "get_attribute": [
+            "file_share_1",
+            "name"
+          ]
+        },
+        "created": {
+          "get_attribute": [
+            "file_share_1",
+            "created"
+          ]
+        },
+        "uri": {
+          "get_attribute": [
+            "file_share_1",
+            "uri"
+          ]
+        },
+        "username": {
+          "get_attribute": [
+            "file_share_1",
+            "username"
+          ]
+        },
+        "password": {
+          "get_attribute": [
+            "file_share_1",
+            "password"
+          ]
+        }
+      }
+    }
+  }
+}

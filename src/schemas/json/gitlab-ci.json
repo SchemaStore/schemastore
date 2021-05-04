@@ -13,31 +13,28 @@
     "services": { "$ref": "#/definitions/services" },
     "before_script": { "$ref": "#/definitions/before_script" },
     "after_script": { "$ref": "#/definitions/after_script" },
-    "variables": { "$ref": "#/definitions/variables" },
+    "variables": { "$ref": "#/definitions/globalVariables" },
     "cache": { "$ref": "#/definitions/cache" },
     "default": {
       "type": "object",
       "properties": {
-        "image": { "$ref": "#/definitions/image" },
-        "services": { "$ref": "#/definitions/services" },
-        "before_script": { "$ref": "#/definitions/before_script" },
         "after_script": { "$ref": "#/definitions/after_script" },
-        "tags": { "$ref": "#/definitions/tags" },
-        "cache": { "$ref": "#/definitions/cache" },
         "artifacts": { "$ref": "#/definitions/artifacts" },
+        "before_script": { "$ref": "#/definitions/before_script" },
+        "cache": { "$ref": "#/definitions/cache" },
+        "image": { "$ref": "#/definitions/image" },
+        "interruptible": { "$ref": "#/definitions/interruptible" },
         "retry": { "$ref": "#/definitions/retry" },
-        "timeout": { "$ref": "#/definitions/timeout" },
-        "interruptible": { "$ref": "#/definitions/interruptible" }
-      }
+        "services": { "$ref": "#/definitions/services" },
+        "tags": { "$ref": "#/definitions/tags" },
+        "timeout": { "$ref": "#/definitions/timeout" }
+      },
+      "additionalProperties": false
     },
     "stages": {
       "type": "array",
       "description": "Groups jobs into stages. All jobs in one stage must complete before next stage is executed. Defaults to ['build', 'test', 'deploy'].",
-      "default": [
-        "build",
-        "test",
-        "deploy"
-      ],
+      "default": ["build", "test", "deploy"],
       "items": {
         "type": "string"
       },
@@ -64,13 +61,17 @@
         "rules": {
           "type": "array",
           "items": {
-            "if": {
-              "type": "string"
+            "type": "object",
+            "properties": {
+              "if": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string",
+                "enum": ["always", "never"]
+              }
             },
-            "when": {
-              "type": "string",
-              "enum": ["always", "never"]
-            }
+            "additionalProperties": false
           }
         }
       }
@@ -100,7 +101,15 @@
           "items": {
             "type": "string"
           },
-          "minLength": 1
+          "minItems": 1
+        },
+        "exclude": {
+          "type": "array",
+          "description": "A list of paths to files/folders that should be excluded in the artifact.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
         },
         "expose_as": {
           "type": "string",
@@ -138,7 +147,7 @@
           "description": "How long artifacts should be kept. They are saved 30 days by default. Artifacts that have expired are removed periodically via cron job. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'.",
           "default": "30 days"
         },
-        "reports":{
+        "reports": {
           "type": "object",
           "description": "Reports will be uploaded as artifacts, and often displayed in the Gitlab UI, such as in Merge Requests.",
           "additionalProperties": false,
@@ -156,7 +165,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "minLength": 1
+                  "minItems": 1
                 }
               ]
             },
@@ -173,7 +182,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "minLength": 1
+                  "minItems": 1
                 }
               ]
             },
@@ -256,7 +265,7 @@
           "description": "Will infer the method based on the value. E.g. `https://...` strings will be of type `include:remote`, and `/templates/...` will be of type `include:local`.",
           "type": "string",
           "format": "uri-reference",
-          "pattern": "^(https?:\/\/|\/).+\\.ya?ml$"
+          "pattern": "^(https?://|/).+\\.ya?ml$"
         },
         {
           "type": "object",
@@ -285,9 +294,21 @@
               "type": "string"
             },
             "file": {
-              "description": "Relative path from project root (`/`) to the `yaml`/`yml` file template.",
-              "type": "string",
-              "pattern": "\\.ya?ml$"
+              "oneOf": [
+                {
+                  "description": "Relative path from project root (`/`) to the `yaml`/`yml` file template.",
+                  "type": "string",
+                  "pattern": "\\.ya?ml$"
+                },
+                {
+                  "description": "List of files by relative path from project root (`/`) to the `yaml`/`yml` file template.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "\\.ya?ml$"
+                  }
+                }
+              ]
             }
           },
           "required": ["project", "file"]
@@ -313,7 +334,7 @@
               "description": "URL to a `yaml`/`yml` template file using HTTP/HTTPS.",
               "type": "string",
               "format": "uri-reference",
-              "pattern": "^https?:\/\/.+\\.ya?ml$"
+              "pattern": "^https?://.+\\.ya?ml$"
             }
           },
           "required": ["remote"]
@@ -395,6 +416,44 @@
         ]
       }
     },
+    "secrets": {
+      "type": "object",
+      "description": "Defines secrets to be injected as environment variables",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "description": "Environment variable name",
+          "properties": {
+            "vault": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "The secret to be fetched from Vault (e.g. 'production/db/password@ops' translates to secret 'ops/data/production/db', field `password`)"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "engine": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "path": { "type": "string" }
+                      },
+                      "required": ["name", "path"]
+                    },
+                    "path": { "type": "string" },
+                    "field": { "type": "string" }
+                  },
+                  "required": ["engine", "path", "field"]
+                }
+              ]
+            }
+          },
+          "required": ["vault"]
+        }
+      }
+    },
     "before_script": {
       "type": "array",
       "description": "Defines scripts that should run *before* the job. Can be set globally or per job.",
@@ -454,6 +513,7 @@
               "type": "string"
             }
           },
+          "variables": { "$ref": "#/definitions/variables" },
           "when": { "$ref": "#/definitions/when" },
           "start_in": { "$ref": "#/definitions/start_in" },
           "allow_failure": {
@@ -464,9 +524,28 @@
         }
       }
     },
+    "globalVariables": {
+      "description": "Defines environment variables globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off. You can use the value and description keywords to define variables that are prefilled when running a pipeline manually.",
+      "anyOf": [
+        { "$ref": "#/definitions/variables" },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "description": {
+                "type": "string",
+                "description": "Explains what the variable is used for, what the acceptable values are."
+              }
+            }
+          }
+        }
+      ]
+    },
     "variables": {
       "type": "object",
-      "description": "Defines environment variables for specific jobs or globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off.",
+      "description": "Defines environment variables for specific jobs. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off.",
       "additionalProperties": {
         "type": ["string", "integer"]
       }
@@ -753,6 +832,7 @@
         "rules": { "$ref": "#/definitions/rules" },
         "variables": { "$ref": "#/definitions/variables" },
         "cache": { "$ref": "#/definitions/cache" },
+        "secrets": { "$ref": "#/definitions/secrets" },
         "script": {
           "description": "Shell scripts executed by the Runner. The only required property of jobs. Be careful with special characters (e.g. `:`, `{`, `}`, `&`) and use single or double quotes to avoid issues.",
           "oneOf": [
@@ -859,62 +939,142 @@
           "$ref": "#/definitions/artifacts"
         },
         "environment": {
-          "type": "object",
           "description": "Used to associate environment metadata with a deploy. Environment can have a name and URL attached to it, and will be displayed under /environments under the project.",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the environment, e.g. 'qa', 'staging', 'production'.",
+                  "minLength": 1
+                },
+                "url": {
+                  "type": "string",
+                  "description": "When set, this will expose buttons in various places for the current environment in Gitlab, that will take you to the defined URL.",
+                  "format": "uri",
+                  "pattern": "^(https?://.+|\\$[A-Za-z]+)"
+                },
+                "on_stop": {
+                  "type": "string",
+                  "description": "The name of a job to execute when the environment is about to be stopped."
+                },
+                "action": {
+                  "enum": ["start", "prepare", "stop"],
+                  "description": "Specifies what this job will do. 'start' (default) indicates the job will start the deployment. 'prepare' indicates this will not affect the deployment. 'stop' indicates this will stop the deployment.",
+                  "default": "start"
+                },
+                "auto_stop_in": {
+                  "type": "string",
+                  "description": "The amount of time it should take before Gitlab will automatically stop the environment. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'."
+                },
+                "kubernetes": {
+                  "type": "object",
+                  "description": "Used to configure the kubernetes deployment for this environment. This is currently not supported for kubernetes clusters that are managed by Gitlab.",
+                  "properties": {
+                    "namespace": {
+                      "type": "string",
+                      "description": "The kubernetes namespace where this environment should be deployed to.",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "deployment_tier": {
+                  "type": "string",
+                  "description": "Explicitly specifies the tier of the deployment environment if non-standard environment name is used.",
+                  "enum": [
+                    "production",
+                    "staging",
+                    "testing",
+                    "development",
+                    "other"
+                  ]
+                }
+              },
+              "required": ["name"]
+            }
+          ]
+        },
+        "release": {
+          "type": "object",
+          "description": "Indicates that the job creates a Release.",
           "additionalProperties": false,
           "properties": {
-            "name": {
+            "tag_name": {
               "type": "string",
-              "description": "The name of the environment, e.g. 'qa', 'staging', 'production'.",
+              "description": "The tag_name must be specified. It can refer to an existing Git tag or can be specified by the user",
               "minLength": 1
             },
-            "url": {
+            "description": {
               "type": "string",
-              "description": "When set, this will expose buttons in various places for the current environment in Gitlab, that will take you to the defined URL.",
-              "format": "uri",
-              "pattern": "^(https?:\/\/.+|\\$[A-Za-z]+)"
+              "description": "Specifies the longer description of the Release.",
+              "minLength": 1
             },
-            "on_stop": {
+            "name": {
               "type": "string",
-              "description": "The name of a job to execute when the environment is about to be stopped."
+              "description": "The Release name. If omitted, it is populated with the value of release: tag_name."
             },
-            "action": {
-              "enum": ["stop"],
-              "description": "Stops this environment so that it is inactive."
-            },
-            "auto_stop_in": {
+            "ref": {
               "type": "string",
-              "description": "The amount of time it should take before Gitlab will automatically stop the environment. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'."
+              "description": "If the release: tag_name doesn’t exist yet, the release is created from ref. ref can be a commit SHA, another tag name, or a branch name."
             },
-            "kubernetes": {
-              "type" : "object",
-              "description": "Used to configure the kubernetes deployment for this environment. This is currently not supported for kubernetes clusters that are managed by Gitlab.",
-              "properties": {
-                "namespace": {
-                  "type": "string",
-                  "description": "The kubernetes namespace where this environment should be deployed to.",
-                  "minLength": 1
-                }
+            "milestones": {
+              "type": "array",
+              "description": "The title of each milestone the release is associated with",
+              "items": {
+                "type": "string"
               }
+            },
+            "released_at": {
+              "type": "string",
+              "description": "The date and time when the release is ready. Defaults to the current date and time if not defined. Should be enclosed in quotes and expressed in ISO 8601 format.",
+              "format": "date-time",
+              "pattern": "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:Z|[+-][01]\\d:[0-5]\\d)$"
             }
           },
-          "required": ["name"]
+          "required": ["tag_name", "description"]
         },
         "coverage": {
           "type": "string",
           "description": "Must be a regular expression, optionally but recommended to be quoted, and must be surrounded with '/'. Example: '/Code coverage: \\d+\\.\\d+/'",
           "format": "regex",
-          "pattern": "^\/.+\/$"
+          "pattern": "^/.+/$"
         },
         "retry": {
           "$ref": "#/definitions/retry"
         },
         "parallel": {
-          "type": "integer",
           "description": "Parallel will split up a single job into several, and provide `CI_NODE_INDEX` and `CI_NODE_TOTAL` environment variables for the running jobs.",
-          "default": 0,
-          "minimum": 2,
-          "maximum": 50
+          "oneOf": [
+            {
+              "type": "integer",
+              "description": "Creates N instances of the same job that run in parallel.",
+              "default": 0,
+              "minimum": 2,
+              "maximum": 50
+            },
+            {
+              "type": "object",
+              "properties": {
+                "matrix": {
+                  "type": "array",
+                  "description": "Defines different variables for jobs that are running in parallel.",
+                  "items": {
+                    "type": "object",
+                    "description": "Defines environment variables for specific job.",
+                    "additionalProperties": {
+                      "type": ["string", "number", "array"]
+                    }
+                  },
+                  "maxItems": 50
+                }
+              },
+              "additionalProperties": false,
+              "required": ["matrix"]
+            }
+          ]
         },
         "interruptible": {
           "$ref": "#/definitions/interruptible"
@@ -943,7 +1103,7 @@
                 "strategy": {
                   "description": "You can mirror the pipeline status from the triggered pipeline to the source bridge job by using strategy: depend",
                   "type": "string",
-                  "enum" : ["depend"]
+                  "enum": ["depend"]
                 }
               },
               "required": ["project"],
@@ -969,7 +1129,7 @@
                       "description": "References a local file or an artifact from another job to define the pipeline configuration.",
                       "maxItems": 3,
                       "items": {
-                          "oneOf": [
+                        "oneOf": [
                           {
                             "type": "object",
                             "additionalProperties": false,
@@ -1019,7 +1179,7 @@
                 "strategy": {
                   "description": "You can mirror the pipeline status from the triggered pipeline to the source bridge job by using strategy: depend",
                   "type": "string",
-                  "enum" : ["depend"]
+                  "enum": ["depend"]
                 }
               }
             },
@@ -1029,6 +1189,51 @@
               "pattern": "\\S/\\S"
             }
           ]
+        },
+        "inherit": {
+          "type": "object",
+          "description": "Controls inheritance of globally-defined defaults and variables. Boolean values control inheritance of all default: or variables: keywords. To inherit only a subset of default: or variables: keywords, specify what you wish to inherit. Anything not listed is not inherited.",
+          "properties": {
+            "default": {
+              "description": "Whether to inherit all globally-defined defaults or not. Or subset of inherited defaults",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "after_script",
+                      "artifacts",
+                      "before_script",
+                      "cache",
+                      "image",
+                      "interruptible",
+                      "retry",
+                      "services",
+                      "tags",
+                      "timeout"
+                    ]
+                  }
+                }
+              ]
+            },
+            "variables": {
+              "description": "Whether to inherit all globally-defined variables or not. Or subset of inherited variables",
+              "oneOf": [
+                { "type": "boolean" },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       },
       "oneOf": [

@@ -11,6 +11,8 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
+Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```Shell
 make
@@ -27,7 +29,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
     "fileMatch": [
         "list of well-known filenames matching schema"
     ],
-    "url": "http://json.schemastore.org/<schemaName>.json"
+    "url": "https://json.schemastore.org/<schemaName>.json"
 }
 ```
 
@@ -42,15 +44,17 @@ To make sure that files are validated against your schema correctly (we strongly
 
 If the build succeeds, your changes are valid and you can safely create a PR.
 
+A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-yaml-to-json) file and used as a test file.
+
 ### Self-hosting schemas
 
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog).
 
 ## CSS spec
-The CSS specification is divided into multple XML documents
+The CSS specification is divided into multiple XML documents
 > one for each CSS module as specified by the W3C.
 
-Each XML document can contain properies, @-directives and
+Each XML document can contain properties, @-directives and
 pseudo elements/classes with descriptions, example usage
 and allowed values.
 

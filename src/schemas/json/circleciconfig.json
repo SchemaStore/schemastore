@@ -3,6 +3,49 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
 
   "definitions": {
+    "logical": {
+      "description": "https://circleci.com/docs/2.0/configuration-reference/#logic-statements \n\nA logical statement to be used in dynamic configuration",
+      "oneOf": [
+        {
+          "type": [
+            "string",
+            "boolean",
+            "integer",
+            "number"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 1,
+          "properties": {
+            "and": {
+              "description": "https://circleci.com/docs/2.0/configuration-reference/#logic-statements \n\nLogical and: true when all statements in the list are true",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/logical"
+              }
+            },
+            "or": {
+              "description": "https://circleci.com/docs/2.0/configuration-reference/#logic-statements \n\nLogical or: true when at least one statements in the list is true",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/logical"
+              }
+            },
+            "not": {
+              "description": "https://circleci.com/docs/2.0/configuration-reference/#logic-statements \n\nLogical not: true when statement is false",
+              "$ref": "#/definitions/logical"
+            },
+            "equal": {
+              "description": "https://circleci.com/docs/2.0/configuration-reference/#logic-statements \n\nTrue when all elements in the list are equal",
+              "type": "array"
+            }
+          }
+        }
+      ]
+    },
     "filter": {
       "description": "A map defining rules for execution on specific branches",
       "type": "object",
@@ -276,7 +319,7 @@
             "description": "A map of environment variable names and values",
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": ["string", "number"]
             }
           },
           "auth": {
@@ -346,12 +389,6 @@
           "properties": {
             "docker": {
               "$ref": "#/definitions/dockerExecutor"
-            },
-            "resource_class": {
-              "description": "Amount of CPU and RAM allocated to each container in a job. (Only works with the `docker` key for paid accounts and is subject to change in a future pricing update. **Note:** Paid accounts must request to use this feature by opening a support ticket (or by contacting their Customer Success Manager when applicable) and non-paid users must request to use this feature by opening a ticket at <https://support.circleci.com/hc/en-us/requests/new>.)",
-              "type": "string",
-              "default": "medium",
-              "enum": ["small", "medium", "medium+", "large", "xlarge"]
             }
           }
         },
@@ -392,6 +429,12 @@
         "type": "object",
         "$ref": "#/definitions/executorChoice",
         "properties": {
+          "resource_class": {
+            "description": "Amount of CPU and RAM allocated to each container in a job. Note: A performance plan is required to access this feature.",
+            "type": "string",
+            "default": "medium",
+            "enum": ["small", "medium", "medium+", "large", "xlarge", "2xlarge", "2xlarge+", "gpu.nvidia.small", "gpu.nvidia.medium", "windows.gpu.nvidia.medium"]
+          },
           "shell": {
             "description": "Shell to use for execution command in all steps. Can be overridden by shell in each step (default: See [Default Shell Options](https://circleci.com/docs/2.0/configuration-reference/#default-shell-options)",
             "type": "string"
@@ -404,7 +447,7 @@
             "description": "A map of environment variable names and values.",
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": ["string", "number"]
             }
           }
         }
@@ -444,6 +487,12 @@
         },
         "add_ssh_keys": {
           "description": "https://circleci.com/docs/2.0/configuration-reference/#add_ssh_keys\n\nSpecial step that adds SSH keys from a project’s settings to a container. Also configures SSH to use these keys."
+        },
+        "when": {
+          "description": "https://circleci.com/docs/2.0/configuration-reference/#the-when-step-requires-version-21 \n\nConditional step to run on custom conditions (determined at config-compile time) that are checked before a workflow runs"
+        },
+        "unless": {
+          "description": "https://circleci.com/docs/2.0/configuration-reference/#the-when-step-requires-version-21 \n\nConditional step to run when custom conditions aren't met (determined at config-compile time) that are checked before a workflow runs"
         }
       },
       "configuration": {
@@ -478,7 +527,7 @@
                   "description": "Additional environmental variables, locally scoped to command",
                   "type": "object",
                   "additionalProperties": {
-                    "type": "string"
+                    "type": ["string", "number"]
                   }
                 },
                 "background": {
@@ -544,26 +593,15 @@
             "version": {
               "description": "If your build requires a specific docker image, you can set it as an image attribute",
               "enum": [
-                "17.03.0-ce",
-                "17.05.0-ce",
-                "17.06.0-ce",
-                "17.06.1-ce",
-                "17.07.0-ce",
-                "17.09.0-ce",
-                "17.10.0-ce",
-                "17.11.0-ce",
-                "17.12.0-ce",
-                "17.12.1-ce",
-                "18.01.0-ce",
-                "18.02.0-ce",
-                "18.03.0-ce",
-                "18.03.1-ce",
-                "18.04.0-ce",
-                "18.05.0-ce",
-                "18.06.0-ce",
-                "18.09.3"
+                "20.10.2",
+                "19.03.14",
+                "19.03.13",
+                "19.03.12",
+                "19.03.8",
+                "18.09.3",
+                "17.09.0-ce"
               ],
-              "default": "17.09.0-ce"
+              "default": "19.03.13"
             }
           }
         },
@@ -762,6 +800,50 @@
               }
             }
           }
+        },
+        "when": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/builtinSteps/documentation/when"
+            }
+          ],
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "condition": {
+              "$ref": "#/definitions/logical"
+            },
+            "steps": {
+              "description": "A list of steps to be performed",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/step"
+              }
+            }
+          },
+          "required": ["condition", "steps"]
+        },
+        "unless": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/builtinSteps/documentation/unless"
+            }
+          ],
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "condition": {
+              "$ref": "#/definitions/logical"
+            },
+            "steps": {
+              "description": "A list of steps to be performed",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/step"
+              }
+            }
+          },
+          "required": ["condition", "steps"]
         }
       }
     },
@@ -826,6 +908,12 @@
             },
             "add_ssh_keys": {
               "$ref": "#/definitions/builtinSteps/configuration/add_ssh_keys"
+            },
+            "when": {
+              "$ref": "#/definitions/builtinSteps/configuration/when"
+            },
+            "unless": {
+              "$ref": "#/definitions/builtinSteps/configuration/unless"
             }
           },
           "patternProperties": {
@@ -852,8 +940,18 @@
           }
         },
         "context": {
-          "description": "The name of the context. The default name is `org-global`",
-          "type": "string",
+          "description": "Either a single context name, or a list of contexts. The default name is `org-global`",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
           "default": "org-global"
         },
         "type": {
@@ -917,6 +1015,23 @@
                 "type": "string"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": ["executor"],
+            "properties": {
+              "executor": {
+                "description": "Executor stanza to use for the job",
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "description": "The name of the executor to use (defined via the top level executors map).",
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         ],
         "required": ["steps"],
@@ -939,14 +1054,22 @@
           },
           "parallelism": {
             "description": "Number of parallel instances of this job to run (default: 1)",
-            "type": "integer",
-            "default": 1
+            "default": 1,
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string",
+                "pattern": "^<<.+\\..+>>$"
+              }
+            ]
           },
           "environment": {
             "description": "A map of environment variable names and variables (NOTE: these will override any environment variables you set in the CircleCI web interface).",
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": ["string", "number"]
             }
           },
           "branches": {
@@ -1040,6 +1163,14 @@
                 }
               ]
             }
+          },
+          "when": {
+            "description": "Specify when to run the workflow.",
+            "$ref": "#/definitions/logical"
+          },
+          "unless": {
+            "description": "Specify when *not* to run the workflow.",
+            "$ref": "#/definitions/logical"
           }
         }
       }

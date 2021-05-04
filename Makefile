@@ -1,6 +1,6 @@
-.PHONY: build
+.PHONY: build remote
 
-build:
+build: # Run the local build process
 	cd src && \
 	npm install && \
 	npm run build
@@ -8,3 +8,13 @@ build:
 		echo "ERROR: Dirty repository found"; \
 		git status --porcelain; \
 		exit 1; }
+
+remote: # Run the remote build process
+	cd src && \
+	npm install && \
+	npm run remote
+
+maintenance: # Run the maintenance check
+	cd src && \
+	npm install && \
+	npm run maintenance

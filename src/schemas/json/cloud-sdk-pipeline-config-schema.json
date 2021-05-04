@@ -27,6 +27,18 @@
                     "description": "Name of the project. Will be used as identifier e.g. when creating a hdi container or executing code scans.",
                     "type": "string"
                 },
+                "globalExtensionsRepository": {
+                    "description": "Git url of the repository containing the extensions.",
+                    "type": "string"
+                },
+                "globalExtensionsVersion": {
+                    "description": "Version of the extensions which should be used, e.g. the tag name",
+                    "type": "string"
+                },
+                "globalExtensionsRepositoryCredentialsId": {
+                    "description": "Credentials required to clone the repository",
+                    "type": "string"
+                },
                 "collectTelemetryData": {
                     "description": "No personal data is collected. For details, consult the analytics documentation.",
                     "type": "boolean",
@@ -75,20 +87,6 @@
                 "null"
             ],
             "properties": {
-                "staticCodeChecks": {
-                    "type": "object",
-                    "properties": {
-                        "pmdExcludes": {
-                            "description": "A comma-separated list of exclusions (.java source files) expressed as an Ant-style pattern relative to the sources root folder, i.e. application/src/main/java for maven projects and srv/src/main/java for MTA projects.\nExample: generated/**/*.java. Please find more details in the maven plugin documentation for pmd.",
-                            "type": "string"
-                        },
-                        "findbugsExcludesFile": {
-                            "description": "Path to a FindBugs XML exclusion file relative to the application folder.",
-                            "type": "string"
-                        }
-                    },
-                    "additionalProperties": false
-                },
                 "backendIntegrationTests": {
                     "type": "object",
                     "properties": {
@@ -121,14 +119,6 @@
                                 ],
                                 "additionalProperties": false
                             }
-                        },
-                        "createHdiContainer": {
-                            "description": "Activates the creation of a HDI containers in CAP projects. The name of the container will contain the project name and a random id.",
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "cloudFoundry": {
-                            "$ref": "#/definitions/cloudFoundry"
                         },
                         "sidecarImage": {
                             "description": "Name of the Docker image that should be used.",
@@ -445,62 +435,14 @@
                     ],
                     "additionalProperties": false
                 },
-                "sonarQubeScan": {
-                    "description": "Configure SonarQube (https://www.sonarqube.org/) scans.",
+                "compliance": {
+                    "description": "Configure the stage Compliance, which currently executes a SonarQube (https://www.sonarqube.org/) scan.",
                     "type": "object",
                     "properties": {
                         "runInAllBranches": {
                             "description": "Define whether the scan should also happen in non productive branches, i.e. if your SonarQube instance supports that.",
                             "type": "boolean",
                             "default": false
-                        },
-                        "projectKey": {
-                            "description": "The project is used to refer your project.",
-                            "type": "string"
-                        },
-                        "instance": {
-                            "description": "This property refers to a sonarqube instance, which needs to be defined in the Jenkins.",
-                            "type": "string"
-                        },
-                        "dockerImage": {
-                            "$ref": "#/definitions/dockerImage",
-                            "default": "ppiper/node-browsers:v3"
-                        }
-                    },
-                    "required": [
-                        "projectKey",
-                        "instance"
-                    ],
-                    "additionalProperties": true
-                },
-                "lint": {
-                    "description": "The lint stage can enforce common coding guidelines within a team.It supports the SAPUI5 best practices linter which operates on SAPUI5 components. A component is identified by a Component.js file in the directory.",
-                    "type": "object",
-                    "properties": {
-                        "ui5BestPractices": {
-                            "type": "object",
-                            "properties": {
-                                "esLanguageLevel": {
-                                    "type": "string",
-                                    "pattern": "es6|es2017|es2020"
-                                },
-                                "failThreshold": {
-                                    "type": "object",
-                                    "properties": {
-                                        "error": {
-                                            "type": "integer"
-                                        },
-                                        "warning": {
-                                            "type": "integer"
-                                        },
-                                        "info": {
-                                            "type": "integer"
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                }
-                            },
-                            "additionalProperties": false
                         }
                     },
                     "additionalProperties": false
@@ -570,11 +512,6 @@
                             "description": "The default npm registry url to be used as the remote mirror. Bypasses the local download cache if specified.",
                             "type": "string",
                             "default": "npmjs.com"
-                        },
-                        "sapNpmRegistry": {
-                            "description": "The default npm registry url to be used as the remote mirror for the SAP npm packages. Bypasses the local download cache if specified.",
-                            "type": "string",
-                            "default": "npm.sap.com"
                         }
                     }
                 },
@@ -657,17 +594,6 @@
                                 "runtimeVersion"
                             ],
                             "additionalProperties": false
-                        }
-                    }
-                },
-                "checkFindBugs": {
-                    "description": "SpotBugs static code analysis is executed as part of the static code checks.",
-                    "type": "object",
-                    "properties": {
-                        "includeFilterFile": {
-                            "description": "Bug definition filter file.",
-                            "type": "string",
-                            "default": "s4hana_findbugs_include_filter.xml"
                         }
                     }
                 },
@@ -782,6 +708,32 @@
                         "fortifyCredentialsId"
                     ]
                 },
+                "whitesourceExecuteScan": {
+                    "description": "Configure credentials for WhiteSource scans. The minimum required Maven WhiteSource plugin version is 18.6.2, ensure this in the plugins section of the project pom.xml file.\n\nPipeline will execute npx whitesource run for npm projects. Please ensure that all package.json files have a name configured so that it is possible to distinguish between the different packages.",
+                    "type": "object",
+                    "properties": {
+                        "productName": {
+                            "description": "Name of your product in WhiteSource.",
+                            "type": "string"
+                        },
+                        "productVersion": {
+                            "description": "Overwrites the project version in the WhiteSource UI per scan with the given version. Per default, the version from the main build descriptor file is used and transformed according to the versioningModel parameter, i.e. \"1\" for the default model of \"major\".",
+                            "type": "string"
+                        },
+                        "orgAdminUserTokenCredentialsId": {
+                            "$ref": "#/definitions/credentialsId"
+                        },
+                        "userTokenCredentialsId": {
+                            "description": "Unique identifier of the Secret Text on Jenkins server that stores WhiteSource userKey of a user. This is required only if the administrator of the WhiteSource service has enabled additional access level control. More details can be found here.",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "productName",
+                        "orgAdminUserTokenCredentialsId"
+                    ],
+                    "additionalProperties": true
+                },
                 "mtaBuild": {
                     "type": "object",
                     "properties": {
@@ -833,15 +785,6 @@
                         }
                     }
                 },
-                "createHdiContainer": {
-                    "type": "object",
-                    "properties": {
-                        "dockerImage": {
-                            "$ref": "#/definitions/dockerImage",
-                            "default": "ppiper/cf-cli:v2"
-                        }
-                    }
-                },
                 "debugReportArchive": {
                     "description": "The debugReportArchive configuration can be used to create confidential (instead of redacted) debug reports. The difference between the redacted and the confidential debug report is that potentially confidential information, such as the GitHub repository and branch, global extension repository and shared libraries, are included in the confidential debug report. It is the user's responsibility to make sure that the debug report does not contain any confidential information.",
                     "type": "object",
@@ -850,6 +793,55 @@
                             "description": "If set to true, a confidential debug report is being generated with each build.",
                             "type": "boolean",
                             "default": false
+                        }
+                    }
+                },
+                "sonarExecuteScan": {
+                    "description": "Configure SonarQube (https://www.sonarqube.org/) scans.",
+                    "type": "object",
+                    "properties": {
+                        "projectKey": {
+                            "description": "The project key is used to refer your project.",
+                            "type": "string"
+                        },
+                        "instance": {
+                            "description": "This property refers to a SonarQube instance, which needs to be defined in the Jenkins.",
+                            "type": "string"
+                        },
+                        "options": {
+                            "type": [
+                                "array",
+                                "string"
+                            ],
+                            "description": "A list of additional options (in the form of '-Dxy=z') to be passed to the sonar scanner tool."
+                        },
+                        "dockerImage": {
+                            "$ref": "#/definitions/dockerImage",
+                            "default": "ppiper/node-browsers:v3"
+                        }
+                    },
+                    "required": [
+                        "projectKey",
+                        "instance"
+                    ],
+                    "additionalProperties": true
+                },
+                "tmsUpload": {
+                    "description": "This step allows you to upload an MTA file (multi-target application archive) and multiple MTA extension descriptors into a TMS (SAP Cloud Platform Transport Management Service) landscape for further TMS-controlled distribution through a TMS-configured landscape.",
+                    "type": "object",
+                    "properties": {
+                        "nodeName": {
+                            "description": "Defines the name of the node to which the *.mtar file should be uploaded.",
+                            "type": "string"
+                        },
+                        "credentialsId": {
+                            "description": "Credentials to be used for the file and node uploads to the Transport Management Service.",
+                            "type": "string"
+                        },
+                        "customDescription": {
+                            "description": "Can be used as the description of a transport request. Will overwrite the default.",
+                            "type": "string",
+                            "default": "<Corresponding Git Commit-ID>"
                         }
                     }
                 }
@@ -1015,13 +1007,12 @@
                         "type": "string"
                     },
                     "parameters": {
-                        "description": "Additional parameters can be passed for each end-to-end test deployment by specifying optional parameters for an application URL. These parameters are appended to the npm command during execution.",
-                        "type": "string"
+                        "description": "Additional parameters can be passed for each end-to-end test deployment by specifying optional parameters for an application URL. These parameters are appended to the npm command during execution. These parameters must be a list of strings, where each string corresponds to one element of the parameters. For example, if the parameter `--tag scenario1` should be passed to the test, specify parameters: ['--tag', 'scenario1'].",
+                        "type": "array"
                     }
                 },
                 "required": [
-                    "url",
-                    "credentialId"
+                    "url"
                 ],
                 "additionalProperties": false
             }
