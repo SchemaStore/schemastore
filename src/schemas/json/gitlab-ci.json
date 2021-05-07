@@ -13,7 +13,7 @@
     "services": { "$ref": "#/definitions/services" },
     "before_script": { "$ref": "#/definitions/before_script" },
     "after_script": { "$ref": "#/definitions/after_script" },
-    "variables": { "$ref": "#/definitions/variables" },
+    "variables": { "$ref": "#/definitions/globalVariables" },
     "cache": { "$ref": "#/definitions/cache" },
     "default": {
       "type": "object",
@@ -25,11 +25,11 @@
         "image": { "$ref": "#/definitions/image" },
         "interruptible": { "$ref": "#/definitions/interruptible" },
         "retry": { "$ref": "#/definitions/retry" },
-        "secrets": { "$ref": "#/definitions/secrets" },
         "services": { "$ref": "#/definitions/services" },
         "tags": { "$ref": "#/definitions/tags" },
         "timeout": { "$ref": "#/definitions/timeout" }
-      }
+      },
+      "additionalProperties": false
     },
     "stages": {
       "type": "array",
@@ -101,7 +101,7 @@
           "items": {
             "type": "string"
           },
-          "minLength": 1
+          "minItems": 1
         },
         "exclude": {
           "type": "array",
@@ -109,7 +109,7 @@
           "items": {
             "type": "string"
           },
-          "minLength": 1
+          "minItems": 1
         },
         "expose_as": {
           "type": "string",
@@ -165,7 +165,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "minLength": 1
+                  "minItems": 1
                 }
               ]
             },
@@ -182,7 +182,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "minLength": 1
+                  "minItems": 1
                 }
               ]
             },
@@ -419,7 +419,40 @@
     "secrets": {
       "type": "object",
       "description": "Defines secrets to be injected as environment variables",
-      "items": {}
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "description": "Environment variable name",
+          "properties": {
+            "vault": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "The secret to be fetched from Vault (e.g. 'production/db/password@ops' translates to secret 'ops/data/production/db', field `password`)"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "engine": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "path": { "type": "string" }
+                      },
+                      "required": ["name", "path"]
+                    },
+                    "path": { "type": "string" },
+                    "field": { "type": "string" }
+                  },
+                  "required": ["engine", "path", "field"]
+                }
+              ]
+            }
+          },
+          "required": ["vault"]
+        }
+      }
     },
     "before_script": {
       "type": "array",
@@ -491,11 +524,30 @@
         }
       }
     },
+    "globalVariables": {
+      "description": "Defines environment variables globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off. You can use the value and description keywords to define variables that are prefilled when running a pipeline manually.",
+      "anyOf": [
+        { "$ref": "#/definitions/variables" },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "description": {
+                "type": "string",
+                "description": "Explains what the variable is used for, what the acceptable values are."
+              }
+            }
+          }
+        }
+      ]
+    },
     "variables": {
       "type": "object",
-      "description": "Defines environment variables for specific jobs or globally. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off.",
+      "description": "Defines environment variables for specific jobs. Job level property overrides global variables. If a job sets `variables: {}`, all global variables are turned off.",
       "additionalProperties": {
-        "type": ["string", "integer", "object"]
+        "type": ["string", "integer"]
       }
     },
     "timeout": {
@@ -780,20 +832,7 @@
         "rules": { "$ref": "#/definitions/rules" },
         "variables": { "$ref": "#/definitions/variables" },
         "cache": { "$ref": "#/definitions/cache" },
-        "secrets": {
-          "type": "object",
-          "description": "Defines secrets to be injected as environment variables",
-          "additionalProperties": {
-            "type": "object",
-            "description": "Environment variable name",
-            "properties": {
-              "vault": {
-                "type": "string",
-                "description": "The secret to be fetched from Vault (e.g. 'production/db/password@ops' translates to secret 'ops/data/production/db', field `password`)"
-              }
-            }
-          }
-        },
+        "secrets": { "$ref": "#/definitions/secrets" },
         "script": {
           "description": "Shell scripts executed by the Runner. The only required property of jobs. Be careful with special characters (e.g. `:`, `{`, `}`, `&`) and use single or double quotes to avoid issues.",
           "oneOf": [
@@ -900,46 +939,63 @@
           "$ref": "#/definitions/artifacts"
         },
         "environment": {
-          "type": "object",
           "description": "Used to associate environment metadata with a deploy. Environment can have a name and URL attached to it, and will be displayed under /environments under the project.",
-          "additionalProperties": false,
-          "properties": {
-            "name": {
-              "type": "string",
-              "description": "The name of the environment, e.g. 'qa', 'staging', 'production'.",
-              "minLength": 1
-            },
-            "url": {
-              "type": "string",
-              "description": "When set, this will expose buttons in various places for the current environment in Gitlab, that will take you to the defined URL.",
-              "format": "uri",
-              "pattern": "^(https?://.+|\\$[A-Za-z]+)"
-            },
-            "on_stop": {
-              "type": "string",
-              "description": "The name of a job to execute when the environment is about to be stopped."
-            },
-            "action": {
-              "enum": ["start", "prepare", "stop"],
-              "description": "Specifies what this job will do. 'start' (default) indicates the job will start the deployment. 'prepare' indicates this will not affect the deployment. 'stop' indicates this will stop the deployment."
-            },
-            "auto_stop_in": {
-              "type": "string",
-              "description": "The amount of time it should take before Gitlab will automatically stop the environment. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'."
-            },
-            "kubernetes": {
+          "oneOf": [
+            { "type": "string" },
+            {
               "type": "object",
-              "description": "Used to configure the kubernetes deployment for this environment. This is currently not supported for kubernetes clusters that are managed by Gitlab.",
+              "additionalProperties": false,
               "properties": {
-                "namespace": {
+                "name": {
                   "type": "string",
-                  "description": "The kubernetes namespace where this environment should be deployed to.",
+                  "description": "The name of the environment, e.g. 'qa', 'staging', 'production'.",
                   "minLength": 1
+                },
+                "url": {
+                  "type": "string",
+                  "description": "When set, this will expose buttons in various places for the current environment in Gitlab, that will take you to the defined URL.",
+                  "format": "uri",
+                  "pattern": "^(https?://.+|\\$[A-Za-z]+)"
+                },
+                "on_stop": {
+                  "type": "string",
+                  "description": "The name of a job to execute when the environment is about to be stopped."
+                },
+                "action": {
+                  "enum": ["start", "prepare", "stop"],
+                  "description": "Specifies what this job will do. 'start' (default) indicates the job will start the deployment. 'prepare' indicates this will not affect the deployment. 'stop' indicates this will stop the deployment.",
+                  "default": "start"
+                },
+                "auto_stop_in": {
+                  "type": "string",
+                  "description": "The amount of time it should take before Gitlab will automatically stop the environment. Supports a wide variety of formats, e.g. '1 week', '3 mins 4 sec', '2 hrs 20 min', '2h20min', '6 mos 1 day', '47 yrs 6 mos and 4d', '3 weeks and 2 days'."
+                },
+                "kubernetes": {
+                  "type": "object",
+                  "description": "Used to configure the kubernetes deployment for this environment. This is currently not supported for kubernetes clusters that are managed by Gitlab.",
+                  "properties": {
+                    "namespace": {
+                      "type": "string",
+                      "description": "The kubernetes namespace where this environment should be deployed to.",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "deployment_tier": {
+                  "type": "string",
+                  "description": "Explicitly specifies the tier of the deployment environment if non-standard environment name is used.",
+                  "enum": [
+                    "production",
+                    "staging",
+                    "testing",
+                    "development",
+                    "other"
+                  ]
                 }
-              }
+              },
+              "required": ["name"]
             }
-          },
-          "required": ["name"]
+          ]
         },
         "release": {
           "type": "object",
@@ -1133,6 +1189,51 @@
               "pattern": "\\S/\\S"
             }
           ]
+        },
+        "inherit": {
+          "type": "object",
+          "description": "Controls inheritance of globally-defined defaults and variables. Boolean values control inheritance of all default: or variables: keywords. To inherit only a subset of default: or variables: keywords, specify what you wish to inherit. Anything not listed is not inherited.",
+          "properties": {
+            "default": {
+              "description": "Whether to inherit all globally-defined defaults or not. Or subset of inherited defaults",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "after_script",
+                      "artifacts",
+                      "before_script",
+                      "cache",
+                      "image",
+                      "interruptible",
+                      "retry",
+                      "services",
+                      "tags",
+                      "timeout"
+                    ]
+                  }
+                }
+              ]
+            },
+            "variables": {
+              "description": "Whether to inherit all globally-defined variables or not. Or subset of inherited variables",
+              "oneOf": [
+                { "type": "boolean" },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       },
       "oneOf": [

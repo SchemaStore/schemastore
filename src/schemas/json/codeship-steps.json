@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CodeShip Pro steps configuration",
+  "description": "codeship-steps.yml is where you configure each step to run in your CI/CD builds with CodeShip.",
+  "definitions": {
+    "ExternalStep": {
+      "title": "CodeShip Pro Step",
+      "description": "The definition of a step",
+      "properties": {
+        "name": {
+          "description": "The name of the step. Can be omitted.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the step. If omitted, defaults to 'run'",
+          "type": "string",
+          "enum": [
+            null,
+            "run",
+            "serial",
+            "push",
+            "parallel",
+            "load",
+            "manual"
+          ]
+        },
+        "tag": {
+          "description": "A pattern matching tags or branches this step and any of its children should be run against. Defaults to always running.",
+          "type": "string"
+        },
+        "exclude": {
+          "description": "A pattern matching tags or branches on which this step should NOT be run. Defaults to empty.",
+          "type": "string"
+        },
+        "service": {
+          "description": "The service name defined in codeship-services.yml this step will run on",
+          "type": "string"
+        },
+        "services": {
+          "description": "A list of service names defined in codeship-services.yml that will be used for this step.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command": {
+          "description": "The command to be run in this step. Required with and can only be used with the 'run' type or no specified type",
+          "type": "string"
+        },
+        "steps": {
+          "description": "A list of steps to run within this step or on_fail group. Cannot be used with 'run', 'push', or 'load' steps",
+          "items": {
+            "$ref": "#/definitions/ExternalStep"
+          },
+          "type": "array"
+        },
+        "image_name": {
+          "description": "The image name this push step should push to. Required with and only used by the push step",
+          "type": "string"
+        },
+        "image_tag": {
+          "description": "The image tag this push step should push to. See https://docs.cloudbees.com/docs/cloudbees-codeship/latest/pro-builds-and-configuration/steps#_push_steps for details. Only used by the push step",
+          "default": "latest",
+          "type": "string"
+        },
+        "registry": {
+          "description": "The image registry this push step should push to. For Docker Hub, use https://registry-1.docker.io. Required with and only used by the push step",
+          "type": "string"
+        },
+        "encrypted_dockercfg_path": {
+          "description": "The location of a Docker configuration file encrypted by Jet to be used with this step. Optional.",
+          "type": "string"
+        },
+        "dockercfg_service": {
+          "description": "The name of a service defined in codeship-services.yml that provides the Docker configuration. Optional.",
+          "type": "string"
+        },
+        "on_fail": {
+          "description": "An optional list of steps to run if this step fails.",
+          "items": {
+            "$ref": "#/definitions/ExternalStep"
+          },
+          "type": "array"
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              { "const": "run" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "steps": {
+            "type": "null"
+          },
+          "image_name": {
+            "type": "null"
+          },
+          "image_tag": {
+            "type": "null"
+          },
+          "registry": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "command"
+        ]
+      },
+      "else": {
+        "if": {
+          "properties": {
+            "type": {
+              "const": "push"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "command": {
+              "type": "null"
+            },
+            "steps": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "image_name",
+            "registry"
+          ]
+        },
+        "else": {
+          "if": {
+            "properties": {
+              "type": {
+                "anyOf": [
+                  { "const": "serial" },
+                  { "const": "parallel" },
+                  { "const": "manual" }
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "command": {
+                "type": "null"
+              },
+              "image_name": {
+                "type": "null"
+              },
+              "image_tag": {
+                "type": "null"
+              },
+              "registry": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "steps"
+            ]
+          }
+        }
+      },
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/ExternalStep"
+  }
+}

@@ -146,8 +146,7 @@ module.exports = function (grunt) {
         positiveTest_1_PassScan = undefined,
         positiveTest_1_PassScanDone = undefined,
         negativeTest_1_PassScan = undefined,
-        negativeTest_1_PassScanDone = undefined,
-        schema_without_positive_test = undefined
+        negativeTest_1_PassScanDone = undefined
       },
       {
         fullScanAllFiles = false,
@@ -168,27 +167,18 @@ module.exports = function (grunt) {
      * @returns {boolean}
      */
     const canThisTestBeRun = (jsonFilename) => {
-      let result = true;
       if (schemaValidation["skiptest"].includes(jsonFilename)) {
         return false; // This test can never be process
       }
-
-      // Schema must be run for tv4 or schemasafe.
-      if (fullScanAllFiles === false) {
-        if (schemaValidation["tv4test"].includes(jsonFilename)) {
-          // This file is NOT full compliance. Should be run only by tv4 validator
-          if (tv4OnlyMode === false) {
-            result = false;
-          }
-        } else {
-          // This file is full compliance. Can NOT be process by tv4 validator
-          if (tv4OnlyMode === true) {
-            // this file can not be process by tv4.
-            result = false;
-          }
-        }
+      if (fullScanAllFiles) {
+        return true;
+      } else {
+        // Schema must be run for tv4 or schemasafe validator
+        // tv4OnlyMode is only set true when it is called by tv4 validator
+        // If schema is present in "tv4test" list then it can only be run if tv4OnlyMode = true
+        // If schema is NOT present in "tv4test" list then it can only be run if tv4OnlyMode = false
+        return schemaValidation["tv4test"].includes(jsonFilename) ? tv4OnlyMode : !tv4OnlyMode
       }
-      return result;
     }
 
     const runTestFolder = (testDir, folderName, schema_PassScan, test_PassScan, test_PassScanDone) => {
@@ -255,27 +245,6 @@ module.exports = function (grunt) {
     if (tv4OnlyMode) {
       // tv4 already have it own console output take care of.
       logTestFolder = false;
-    }
-
-    // process callback for the schema_without_positive_test
-    if (schema_without_positive_test) {
-      // Show only test folder percentage if in test folder scan mode.
-      const notCovered = schemasToBeTested.filter(schemaName => {
-        const folderName = schemaName.replace("\.json", "");
-        return !foldersPositiveTest.includes(folderName);
-      });
-
-      notCovered.forEach((schema_file_name) => {
-        if (!skipThisFileName(schema_file_name)) {
-          schema_without_positive_test({jsonName: schema_file_name});
-        }
-      });
-
-      if (notCovered.length > 0) {
-        const percent = (notCovered.length / schemasToBeTested.length) * 100;
-        grunt.log.writeln();
-        grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests or have malformed test folders`);
-      }
     }
 
     // Verify each schema file
@@ -652,17 +621,28 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_url-present-in-catalog", "local url must reference to a file", function () {
+    const URL_recomendation = "https://json.schemastore.org/<schemaName>.json";
     let countScan = 0;
 
     getUrlFromCatalog(catalogUrl => {
-      // Only scan for local schema
-      if (catalogUrl.startsWith(URL_schemastore)) {
-        countScan++;
-        let filename = catalogUrl.split('/').pop();
-        filename = filename.endsWith(".json") ? filename : filename.concat(".json");
-        if (fs.existsSync(pt.resolve(".", schemaDir, filename)) === false) {
-          throw new Error(`Schema file not found: ${filename} Catalog URL: " + ${catalogUrl}`);
-        }
+      // URL that does not have "schemastore.org" is an external schema.
+      if (!catalogUrl.includes("schemastore.org")) {
+        return;
+      }
+      countScan++;
+      // Check if local URL is a valid format with subdomain format.
+      if (!catalogUrl.startsWith(URL_schemastore)) {
+        throw new Error(`Wrong: ${catalogUrl} Must be in this format: ${URL_recomendation}`);
+      }
+      // Check if local URL have .json extension
+      const filenameMustBeAtThisUrlDepthPosition = 3;
+      let filename = catalogUrl.split('/')[filenameMustBeAtThisUrlDepthPosition];
+      if (!filename?.endsWith(".json")) {
+        throw new Error(`Wrong: ${catalogUrl} Missing ".json" extension. Must be in this format: ${URL_recomendation}`);
+      }
+      // Check if schema file exist or not.
+      if (fs.existsSync(pt.resolve(".", schemaDir, filename)) === false) {
+        throw new Error(`Schema file not found: ${filename} Catalog URL: ${catalogUrl}`);
       }
     });
     grunt.log.ok('All local url tested OK. Total: ' + countScan);
@@ -674,10 +654,10 @@ module.exports = function (grunt) {
 
     // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
     getUrlFromCatalog(catalogUrl => {
-      // Only scan for local schema
+      // No need to validate the local URL correctness. It is al ready done in "local_url-present-in-catalog"
+      // Only scan for local schema.
       if (catalogUrl.startsWith(URL_schemastore)) {
         let filename = catalogUrl.split('/').pop();
-        filename = filename.endsWith(".json") ? filename : filename.concat(".json");
         allCatalogLocalJsonFiles.push(filename);
       }
     })
@@ -742,13 +722,22 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_search_for_schema_without_positive_test_files", "Dynamically check local schema if positive test files are present", function () {
-    let countScan = 0;
-    const x = (data) => {
-      countScan++;
-      grunt.log.ok("(No positive test file present): " + data.jsonName);
+    let countMissingTest = 0;
+    // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
+    schemasToBeTested.forEach(schema_file_name => {
+      if (!foldersPositiveTest.includes(schema_file_name.replace("\.json", ""))) {
+        countMissingTest++;
+        grunt.log.ok("(No positive test file present): " + schema_file_name);
+      }
+    })
+    if (countMissingTest > 0) {
+      const percent = (countMissingTest / schemasToBeTested.length) * 100;
+      grunt.log.writeln();
+      grunt.log.writeln(`${Math.round(percent)}% of schemas do not have tests.`);
+      grunt.log.ok("Schemas that have no positive test files. Total files: " + countMissingTest);
+    } else {
+      grunt.log.ok("All schemas have positive test");
     }
-    localSchemaFileAndTestFile({schema_without_positive_test: x});
-    grunt.log.ok("Schemas that have no positive test files. Total files: " + countScan);
   })
 
   grunt.registerTask("local_validate_directory_structure", "Dynamically check if schema and test directory structure are valid", function () {
