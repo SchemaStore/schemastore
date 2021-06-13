@@ -931,16 +931,14 @@ module.exports = function (grunt) {
     done();
   })
 
-  grunt.registerTask("local_check_for_wrong_id", "Dynamically load schema file for schema id check", function () {
-    const schema_version = show_schema_versions();
+  grunt.registerTask("local_check_for_schema_version_present", "Dynamically load schema file for $schema present check", function () {
     let countScan = 0;
     localSchemaFileAndTestFile({
           schema_1_PassScan: function (callbackParameter) {
             countScan++;
             const schemaJson = JSON.parse(callbackParameter.rawFile);
-            const obj = schema_version.getObj(schemaJson);
-            if (obj && (obj.schemaName === "draft-04") && ("$id" in schemaJson)) {
-              grunt.log.error(`Forbidden $id in draft-04 (${callbackParameter.jsonName})`);
+            if( !('$schema' in schemaJson)){
+              throw new Error("Schema file is missing '$schema' keyword => " + callbackParameter.jsonName);
             }
           }
         },
@@ -1123,6 +1121,7 @@ module.exports = function (grunt) {
         "local_schema-present-in-catalog-list",
         "local_bom",
         "local_find-duplicated-property-keys",
+        "local_check_for_schema_version_present",
         "local_count_schema_versions",
         "local_search_for_schema_without_positive_test_files",
         "local_tv4_only_for_non_compliance_schema",
