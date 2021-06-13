@@ -435,9 +435,11 @@ module.exports = function (grunt) {
         break
       case '2019-09':
         ajv_selected = new Ajv2019(AJV_options)
+        ajv_formats_draft2019(ajv_selected);
         break
       case '2020-12':
         ajv_selected = new Ajv2020(AJV_options)
+        ajv_formats_draft2019(ajv_selected);
         break
     }
 
