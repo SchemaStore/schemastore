@@ -1,5 +1,10 @@
 /// <binding AfterBuild='build' />
-
+const addFormats = require("ajv-formats");
+const ajv_formats_draft2019 = require("ajv-formats-draft2019");
+const Ajv_draft_04 = require("ajv-draft-04");
+const Ajv_draft_06_07 = require("ajv");
+const Ajv2019 = require("ajv/dist/2019");
+const Ajv2020 = require("ajv/dist/2020");
 const pt = require("path");
 const fs = require('fs');
 const schemaDir = "schemas/json"
@@ -98,7 +103,6 @@ module.exports = function (grunt) {
   async function remoteSchemaFile(schema_1_PassScan, showLog= true){
     const got = require("got");
     const schemas = catalog["schemas"];
-    const url_ = require("url");
 
     for( const {url} of schemas ){
       if(url.startsWith(URL_schemastore)){
@@ -108,7 +112,7 @@ module.exports = function (grunt) {
       try {
         const response = await got(url);
         if (response["statusCode"] === 200) {
-          const parsed = url_.parse(url);
+          const parsed = new URL(url);
           const callbackParameter = {
             jsonName: pt.basename(parsed.pathname),
             rawFile: response["rawBody"],
@@ -169,7 +173,7 @@ module.exports = function (grunt) {
       if (fullScanAllFiles) {
         return true;
       } else {
-        // Schema must be run for tv4 or schemasafe validator
+        // Schema must be run for tv4 or AJV validator
         // tv4OnlyMode is only set true when it is called by tv4 validator
         // If schema is present in "tv4test" list then it can only be run if tv4OnlyMode = true
         // If schema is NOT present in "tv4test" list then it can only be run if tv4OnlyMode = false
@@ -354,15 +358,15 @@ module.exports = function (grunt) {
         // tv4 task can never be empty. It will give error. Work around just rescan schema-catalog.json
         testSchemaPath.push(pt.resolve(".", schemaDir, "schema-catalog.json"));
       }
-        const valid = "Schemas";
-        grunt.config.set("tv4." + valid, {
-          options: {
-            root: schemaV4JSON,
-            banUnknown: false
-          },
-          src: [testSchemaPath]
-        });
-      }
+      const valid = "Schemas";
+      grunt.config.set("tv4." + valid, {
+        options: {
+          root: schemaV4JSON,
+          banUnknown: false
+        },
+        src: [testSchemaPath]
+      });
+    }
 
     const processTestFile = (callbackParameter) => {
       // Add all the test list path of one test group together.
@@ -390,147 +394,209 @@ module.exports = function (grunt) {
     }
   }
 
-  function schemasafe(){
-    // schemasafe validator support draft-04, 06, 07 and 2019-02
-    // This is the replacement for the tv4 validator
-    const { validator } = require('@exodus/schemasafe')
-    const schema_version = show_schema_versions();
-    const textValidate = "validate    | ";
-    const textPassSchema         = "pass schema          | ";
-    const textPositivePassTest   = "pass positive test   | ";
-    const textPositiveFailedTest = "failed positive test | ";
-    const textNegativePassTest   = "pass negative test   | ";
-    const textNegativeFailedTest = "failed negative test | ";
 
-    let validate = undefined;
-    let selectedParserModeString = "(default mode) ";
-    let countSchema = 0;
-    let listOfExternalSchemas = [];
-
-    const fillExternalSchemaArray = () => {
-      const ExternalSchema = schemaValidation["externalschema"];
-      for (const schema_file_name of ExternalSchema) {
-        // must skip comment in the list. If present.
-        if (schema_file_name.endsWith(".json")) {
-          const schema_full_path_name = pt.resolve(".", schemaDir, schema_file_name);
-          listOfExternalSchemas.push(require(schema_full_path_name));
-        }
-      }
-      // Check for missing root "id"/"$id"
-      grunt.log.writeln("Check ref to external schema list");
-      validator(JSON.parse("{}") , {schemas: listOfExternalSchemas})
-      grunt.log.ok("Check ref to external schema list. => OK");
-      grunt.log.writeln();
+  /**
+   * There are multiple AJV version for each $schema version.
+   * return the correct AJV instance
+   * @param {string} schemaName
+   * @param {string[]} unknownFormatsList
+   * @returns {Object}
+   */
+  function factoryAJV (schemaName, unknownFormatsList = []) {
+    // some AJV default setting are [true, false or log]
+    // Some option are default: 'log'
+    // 'log' will generate a lot of noise in the build log. So make it true or false.
+    // Hiding the issue log also does not solve anything.
+    // These option items that are not strict must be reduces in the future.
+    /** @type {Object} */
+    const AJV_options = {
+      strictTypes: false, // recommended : true
+      strictTuples: false, // recommended : true
+      allowMatchingProperties: true // recommended : false
     }
 
+    let ajv_selected
+    // There are multiple AJV version for each $schema version.
+    // Create the correct one.
+    switch (schemaName) {
+      default:
+      case 'draft-04':
+        ajv_selected = new Ajv_draft_04(AJV_options)
+        break
+      case 'draft-06':
+      case 'draft-07':
+        ajv_selected = new Ajv_draft_06_07(AJV_options)
+        if(schemaName === "draft-06"){
+          ajv_selected.addMetaSchema(require("ajv/dist/refs/json-schema-draft-06.json"));
+        }else{
+          // 'draft-07' have additional format
+          ajv_formats_draft2019(ajv_selected);
+        }
+        break
+      case '2019-09':
+        ajv_selected = new Ajv2019(AJV_options)
+        ajv_formats_draft2019(ajv_selected);
+        break
+      case '2020-12':
+        ajv_selected = new Ajv2020(AJV_options)
+        ajv_formats_draft2019(ajv_selected);
+        break
+    }
+
+    // addFormats() and addFormat() to the latest AJV version
+    addFormats(ajv_selected)
+    unknownFormatsList.forEach((x) => {
+      ajv_selected.addFormat(x, true)
+    })
+    return ajv_selected
+  }
+
+  /**
+   * Get the option items for this specific jsonName
+   * @param {string} jsonName
+   * @returns {
+   * {unknownFormatsList: string[],
+   * externalSchemaWithPathList: string[],
+   * unknownKeywordsList: string[]}
+   * }
+   */
+  function getOption(jsonName){
+    const options = schemaValidation['options'].find(
+        item => jsonName in item
+    )?.[jsonName]
+
+    // collect the unknownFormat list
+    const unknownFormatsList = options?.['unknownFormat'] ?? []
+
+    // collect the unknownKeywords list
+    const unknownKeywordsList = options?.['unknownKeywords'] ?? []
+
+    // collect the externalSchema list
+    const externalSchemaList = options?.['externalSchema'] ?? []
+    const externalSchemaWithPathList = externalSchemaList?.map((schema_file_name) => {
+      return pt.resolve('.', schemaDir, schema_file_name)
+    })
+
+    // return all the collected values
+    return {
+      unknownFormatsList,
+      unknownKeywordsList,
+      externalSchemaWithPathList
+    }
+  }
+
+  function ajv () {
+    const schema_version = show_schema_versions()
+    const textCompile = 'compile    | '
+    const textPassSchema = 'pass schema          | '
+    const textPositivePassTest = 'pass positive test   | '
+    const textPositiveFailedTest = 'failed positive test | '
+    const textNegativePassTest = 'pass negative test   | '
+    const textNegativeFailedTest = 'failed negative test | '
+
+    let validate = undefined
+    let countSchema = 0
+
     const processSchemaFile = (callbackParameter) => {
-      // mode can be 'strong' | lax | default
-      let mode = 'default';
-      let formatItems = undefined;
-      let allowUnusedKeywords = false;
-      selectedParserModeString = "(default mode)  ";
+      let ajv_selected;
 
-      if(schemaValidation["strongmode"].includes(callbackParameter.jsonName)){
-        mode = 'strong';
-        selectedParserModeString = "(strong mode)  ";
-      }else{
-        if(schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)){
-          allowUnusedKeywords = true;
-          selectedParserModeString = "(lax mode)      ";
-        }
-      }
-
-      // process unknownFormat
-      schemaValidation["unknownFormat"].some((item) => {
-        if (item.hasOwnProperty(callbackParameter.jsonName)) {
-          // This schema have format that are not supported by schemasafe
-          formatItems = {};
-          // Create new properties in formatItems{}
-          item[callbackParameter.jsonName].forEach((x) => {
-            // All the string input from format are always true. There is no string validation here.
-            formatItems[x] = () => true;
-          })
-          // Found the correct item. Stop processing the 'some' loop.
-          return true;
-        }
-        return false;
-      });
+      // Get possible options define in schema-validation.json
+      const {
+        unknownFormatsList,
+        unknownKeywordsList,
+        externalSchemaWithPathList
+      } = getOption(callbackParameter.jsonName)
 
       // Start validate the JSON schema
-      let schemaJson;
+      let schemaJson
+      let versionObj
+      let schemaVersionStr = 'unknown'
       try {
-        schemaJson = JSON.parse(callbackParameter.rawFile);
-        validate = validator(schemaJson, {
-          schemas: listOfExternalSchemas,
-          mode,
-          allowUnusedKeywords,
-          includeErrors: true,
-          requireSchema: true,
-          formats: formatItems
-        });
+        // select the correct AJV object for this schema
+        schemaJson = JSON.parse(callbackParameter.rawFile)
+        versionObj = schema_version.getObj(schemaJson)
+
+        // Get the correct AJV version
+        ajv_selected = factoryAJV(versionObj?.schemaName, unknownFormatsList)
+
+        // AJV must ignore these keywords
+        unknownKeywordsList?.forEach((x) => {
+          ajv_selected.addKeyword(x)
+        })
+
+        // Add external schema to AJV
+        externalSchemaWithPathList.forEach((x) => {
+          ajv_selected.addSchema(require(x.toString()))
+        })
+
+        // What schema draft version is it?
+        schemaVersionStr = versionObj ? versionObj.schemaName : 'unknown'
+
+        // compile the schema
+        validate = ajv_selected.compile(schemaJson)
+
       } catch (e) {
-        grunt.log.error(`${selectedParserModeString}${textValidate}${callbackParameter.urlOrFilePath}`);
-        throw new Error(e);
+        grunt.log.error(`${textCompile}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`)
+        throw new Error(e)
       }
-      countSchema++;
-      // Get the schema draft version.
-      const obj = schema_version.getObj(schemaJson);
-      const schemaVersionStr = obj ? obj.schemaName : "unknown"
-      grunt.log.ok(`${selectedParserModeString}${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`);
+      countSchema++
+      grunt.log.ok(`${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`)
+    }
+
+    const processTestFile = (callbackParameter, success, failure) => {
+      let json
+      try {
+        json = JSON.parse(callbackParameter.rawFile)
+      } catch (e) {
+        grunt.log.error(`Error in parse test: ${callbackParameter.urlOrFilePath}`)
+        throw new Error(e)
+      }
+      validate(json) ? success() : failure()
     }
 
     const processPositiveTestFile = (callbackParameter) => {
-      let json;
-      try {
-        json = JSON.parse(callbackParameter.rawFile);
-      }catch (e) {
-        grunt.log.error(`Error in test: ${callbackParameter.urlOrFilePath}`)
-        throw new Error(e);
-      }
-
-      if (validate(json)) {
-        grunt.log.ok(selectedParserModeString + textPositivePassTest + callbackParameter.urlOrFilePath);
-      } else {
-        grunt.log.error(selectedParserModeString + textPositiveFailedTest + callbackParameter.urlOrFilePath);
-        grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
-        grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
-        throw new Error(`Error in positive test.`);
-      }
+      processTestFile(callbackParameter,
+          () => {
+            grunt.log.ok(textPositivePassTest + callbackParameter.urlOrFilePath)
+          },
+          () => {
+            const path = validate.errors[0].instancePath
+            grunt.log.error(textPositiveFailedTest + callbackParameter.urlOrFilePath)
+            grunt.log.error('(Schema file) keywordLocation: ' + validate.errors[0].schemaPath)
+            grunt.log.error('(Test file) instanceLocation: ' + path)
+            grunt.log.error('(Message) ' + validate.errors[0].message)
+            throw new Error(`Error in positive test.`)
+          }
+      )
     }
 
     const processNegativeTestFile = (callbackParameter) => {
-      let json;
-      try {
-        json = JSON.parse(callbackParameter.rawFile);
-      }catch (e) {
-        grunt.log.error(`Error in test: ${callbackParameter.urlOrFilePath}`)
-        throw new Error(e);
-      }
-
-      if (validate(json)) {
-        grunt.log.error(selectedParserModeString + textNegativeFailedTest + callbackParameter.urlOrFilePath);
-        throw new Error(`Negative test must always fail.`);
-      } else {
-        grunt.log.ok(selectedParserModeString
-            + textNegativePassTest
-            + callbackParameter.urlOrFilePath
-            + " (Schema: "
-            + validate.errors[0].keywordLocation
-            + ") (Test: "
-            + validate.errors[0].instanceLocation
-            + ")"
-        );
-      }
+      processTestFile(callbackParameter,
+          () => {
+            grunt.log.error(textNegativeFailedTest + callbackParameter.urlOrFilePath)
+            throw new Error(`Negative test must always fail.`)
+          },
+          () => {
+            // must show log as single line
+            const path = validate.errors[0].instancePath
+            grunt.log.ok(textNegativePassTest
+                + callbackParameter.urlOrFilePath
+                + ' (Schema: '
+                + validate.errors[0].schemaPath
+                + ') (Test: '
+                + path
+                + ') (Message) ' + validate.errors[0].message
+            )
+          }
+      )
     }
-
 
     const processSchemaFileDone = () => {
-      grunt.log.writeln();
-      grunt.log.writeln("Total schemas validated with schemasafe: " + countSchema.toString());
-      countSchema = 0;
+      grunt.log.writeln()
+      grunt.log.writeln('Total schemas validated with AJV: ' + countSchema.toString())
+      countSchema = 0
     }
 
-    fillExternalSchemaArray();
     return {
       testSchemaFile: processSchemaFile,
       testSchemaFileDone: processSchemaFileDone,
@@ -550,8 +616,8 @@ module.exports = function (grunt) {
     // The tv4 task is actually run after this registerTask()
   })
 
-  grunt.registerTask("local_schemasafe_test", "Dynamically load local schema file for validation with /test/", function () {
-    const x = schemasafe();
+  grunt.registerTask("local_ajv_test", "Dynamically load local schema file for validation with /test/", function () {
+    const x = ajv();
     localSchemaFileAndTestFile({
       schema_2_PassScan: x.testSchemaFile,
       positiveTest_1_PassScan: x.positiveTestFile,
@@ -562,9 +628,9 @@ module.exports = function (grunt) {
     grunt.log.ok("local schema passed");
   })
 
-  grunt.registerTask("remote_schemasafe_test", "Dynamically load external schema file for validation", async function () {
+  grunt.registerTask("remote_ajv_test", "Dynamically load external schema file for validation", async function () {
     const done = this.async();
-    const x = schemasafe();
+    const x = ajv();
     await remoteSchemaFile(x.testSchemaFile);
     done();
   })
@@ -585,16 +651,16 @@ module.exports = function (grunt) {
     done();
   })
 
-  grunt.registerTask("local_catalog", "Catalog validation", function () {
-    const {validator} = require('@exodus/schemasafe');
-    const catalogSchema = require(pt.resolve(".", schemaDir, "schema-catalog.json"));
-    const validate = validator(catalogSchema, {includeErrors: true});
-    if (validate(catalog)) {
-      grunt.log.ok("catalog.json OK");
+  grunt.registerTask('local_catalog', 'Catalog validation', function () {
+    const catalogSchema = require(pt.resolve('.', schemaDir, 'schema-catalog.json'))
+    const ajvInstance = factoryAJV('draft-04')
+    if (ajvInstance.validate(catalogSchema, catalog)) {
+      grunt.log.ok('catalog.json OK')
     } else {
-      grunt.log.error("(Schema file) keywordLocation: " + validate.errors[0].keywordLocation);
-      grunt.log.error("(Test file) instanceLocation: " + validate.errors[0].instanceLocation);
-      throw new Error(`"Catalog ERROR"`);
+      grunt.log.error('(Schema file) keywordLocation: ' + ajvInstance.errors[0].schemaPath)
+      grunt.log.error('(Catalog file) instanceLocation: ' + ajvInstance.errors[0].instancePath)
+      grunt.log.error('(message) instanceLocation: ' + ajvInstance.errors[0].message)
+      throw new Error(`"Catalog ERROR"`)
     }
   })
 
@@ -669,7 +735,7 @@ module.exports = function (grunt) {
         }
       }
     }
-    // Get all the json file for schemasafe and tv4
+    // Get all the json file for AJV and tv4
     localSchemaFileAndTestFile({schema_1_PassScan: schemaFileCompare}, {fullScanAllFiles: true});
     grunt.log.ok('All local schema files have URL link in catalog. Total:' + countScan);
   })
@@ -758,26 +824,26 @@ module.exports = function (grunt) {
   })
 
   grunt.registerTask("local_test_downgrade_schema_version", "Dynamically check local schema version is not to high", function () {
-    const {validator} = require('@exodus/schemasafe');
-    const tv4 = require('tv4');
     let countSchemas = countSchemasType;
     let countScan = 0;
+    let option;
 
-    const validateViaSchemasafe = (schemaJson) => {
+    const validateViaAjv = (schemaJson, schemaName, option) => {
       try {
-        validator(schemaJson, {
-          mode: "default",
-          requireSchema: true,
-        });
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
+        const ajv_selected = factoryAJV(schemaName, option.unknownFormatsList);
 
-    const validateViaTv4 = (schemaJson) => {
-      try { // run tv4 in strict mode by rejecting unknown keyword in draft-04
-        return tv4.validate(schemaJson, schemaV4JSON, true, true);
+        // AJV must ignore these keywords
+        option.unknownKeywordsList?.forEach((x) => {
+          ajv_selected.addKeyword(x)
+        })
+
+        // Add external schema to AJV
+        option.externalSchemaWithPathList.forEach((x) => {
+          ajv_selected.addSchema(require(x.toString()))
+        })
+
+        ajv_selected.compile(schemaJson);
+        return true;
       } catch (e) {
         return false;
       }
@@ -787,11 +853,6 @@ module.exports = function (grunt) {
     // Only the schema files are tested.
     const testLowerSchemaVersion = (callbackParameter) => {
       countScan++;
-      // skip schema with unused keyword
-      if (schemaValidation["laxmodeAllowUnusedKeywords"].includes(callbackParameter.jsonName)) {
-        return;
-      }
-      let wrong_$id_usage = false;
       let versionIndexOriginal = 0;
       let schemaVersionToBeTested = countSchemas[versionIndexOriginal];
       let schemaJson = JSON.parse(callbackParameter.rawFile);
@@ -800,6 +861,8 @@ module.exports = function (grunt) {
         // There is no $schema present in the file.
         return;
       }
+
+      option = getOption(callbackParameter.jsonName);
 
       // get the present schema_version
       const schemaVersion = schemaJson["$schema"]
@@ -830,24 +893,12 @@ module.exports = function (grunt) {
         }
 
         // update the schema with a new alternative $schema version
-        schemaJson["$schema"] = `https://${schemaVersionToBeTested.schemaStr}`;
-        // Test this new updated schema with schemasafe
-        result = validateViaSchemasafe(schemaJson);
-        // if draft-04 then must also use tv4 validator to reconfirm that it is a valid schema
-        if (result && schemaVersionToBeTested.schemaName === "draft-04") {
-          // draft-04 must also pass the tv-4 validator in strict mode (rejecting unknown keyword)
-          // "$id" will never be accepted in draft-04, so convert it to "id", if present.
-          const detected_$id = "$id" in schemaJson;
-          if(detected_$id){
-            // replace draft-06:'$id' with draft-04:'id'
-            schemaJson["id"] = schemaJson["$id"];
-            delete schemaJson["$id"];
-          }
-          result = validateViaTv4(schemaJson);
-          wrong_$id_usage = result && detected_$id;
-        }
+        schemaJson["$schema"] = `http://${schemaVersionToBeTested.schemaStr}`;
+        // Test this new updated schema with AJV
+        result = validateViaAjv(schemaJson, schemaVersionToBeTested.schemaName, option);
+
         if (result) {
-          // It pass the test. So this is the new recommended index
+          // It passes the test. So this is the new recommended index
           recommendedIndex = versionIndexToBeTested;
         }
         // keep in the loop till it fail the validation process.
@@ -857,8 +908,7 @@ module.exports = function (grunt) {
         // found a different schema version that also work.
         const original = countSchemas[versionIndexOriginal].schemaName;
         const recommended = countSchemas[recommendedIndex].schemaName;
-        const wrong_$id_usage_str = wrong_$id_usage ? "(also need to change $id to id)" : "";
-        grunt.log.ok(`${callbackParameter.jsonName} (${original}) is also valid with (${recommended})${wrong_$id_usage_str}`);
+        grunt.log.ok(`${callbackParameter.jsonName} (${original}) is also valid with (${recommended})`);
       }
     }
 
@@ -868,6 +918,7 @@ module.exports = function (grunt) {
     grunt.log.writeln();
     grunt.log.ok(`Total files scan: ${countScan}`);
   })
+
 
   function show_schema_versions(){
     let countSchemas = countSchemasType;
@@ -931,16 +982,14 @@ module.exports = function (grunt) {
     done();
   })
 
-  grunt.registerTask("local_check_for_wrong_id", "Dynamically load schema file for schema id check", function () {
-    const schema_version = show_schema_versions();
+  grunt.registerTask("local_check_for_schema_version_present", "Dynamically load schema file for $schema present check", function () {
     let countScan = 0;
     localSchemaFileAndTestFile({
           schema_1_PassScan: function (callbackParameter) {
             countScan++;
             const schemaJson = JSON.parse(callbackParameter.rawFile);
-            const obj = schema_version.getObj(schemaJson);
-            if (obj && (obj.schemaName === "draft-04") && ("$id" in schemaJson)) {
-              grunt.log.error(`Forbidden $id in draft-04 (${callbackParameter.jsonName})`);
+            if( !('$schema' in schemaJson)){
+              throw new Error("Schema file is missing '$schema' keyword => " + callbackParameter.jsonName);
             }
           }
         },
@@ -1123,15 +1172,16 @@ module.exports = function (grunt) {
         "local_schema-present-in-catalog-list",
         "local_bom",
         "local_find-duplicated-property-keys",
+        "local_check_for_schema_version_present",
         "local_count_schema_versions",
         "local_search_for_schema_without_positive_test_files",
         "local_tv4_only_for_non_compliance_schema",
         "tv4",
-        "local_schemasafe_test"
+        "local_ajv_test"
       ]);
-  grunt.registerTask("remote_test", ["remote_count_schema_versions", "remote_bom", "remote_schemasafe_test"]);
+  grunt.registerTask("remote_test", ["remote_count_schema_versions", "remote_bom", "remote_ajv_test"]);
   grunt.registerTask("default", ["http", "local_test"]);
-  grunt.registerTask("local_maintenance", ["local_check_for_wrong_id", "local_test_downgrade_schema_version"]);
+  grunt.registerTask("local_maintenance", ["local_test_downgrade_schema_version"]);
 
 
   grunt.loadNpmTasks("grunt-tv4");
