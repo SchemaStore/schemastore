@@ -45,6 +45,7 @@ module.exports = function (grunt) {
       }
     },
 
+    // Do not use grunt http download. Place the schema at SchemaStore or external but not both.
     http: {
       swagger20: {
         options: { url: 'https://raw.githubusercontent.com/swagger-api/swagger-spec/master/schemas/v2.0/schema.json' },
@@ -92,9 +93,7 @@ module.exports = function (grunt) {
       const versions = schema.versions
       if (versions) {
         for (const prop in versions) {
-          if (prop) {
-            catalogUrl(versions[prop])
-          }
+          catalogUrl(versions[prop])
         }
       }
     }
@@ -997,6 +996,37 @@ module.exports = function (grunt) {
     grunt.log.ok(`Total files scan: ${countScan}`)
   })
 
+  grunt.registerTask('local_check_duplicate_list_in_schema-validation.json', 'Check if options list is unique in schema-validation.json', function () {
+    function checkForDuplicateInList (list, listName) {
+      if (list) {
+        if (new Set(list).size !== list.length) {
+          throw new Error('Duplicate item found in ' + listName)
+        }
+      }
+    }
+    checkForDuplicateInList(schemaValidation.tv4test, 'tv4test[]')
+    checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
+    checkForDuplicateInList(schemaValidation.missingcatalogurl, 'missingcatalogurl[]')
+    checkForDuplicateInList(schemaValidation.fileMatchConflict, 'fileMatchConflict[]')
+
+    // Check for duplicate in options[]
+    const checkList = []
+    for (const item of schemaValidation.options) {
+      const schemaName = Object.keys(item).pop()
+      if (checkList.includes(schemaName)) {
+        throw new Error('Duplicate schema name found in options[] schema-validation.json => ' + schemaName)
+      }
+      // Check for all values inside one option object
+      const optionValues = Object.values(item).pop()
+      checkForDuplicateInList(optionValues?.unknownKeywords, schemaName + ' unknownKeywords[]')
+      checkForDuplicateInList(optionValues?.unknownFormat, schemaName + ' unknownFormat[]')
+      checkForDuplicateInList(optionValues?.externalSchema, schemaName + ' externalSchema[]')
+      checkList.push(schemaName)
+    }
+
+    grunt.log.ok('OK')
+  })
+
   function hasBOM (buf) {
     return buf.length > 2 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf
   }
@@ -1160,6 +1190,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('local_test',
     [
+      'local_check_duplicate_list_in_schema-validation.json',
       'local_validate_directory_structure',
       'local_filename_with_json_extension',
       'local_catalog',
