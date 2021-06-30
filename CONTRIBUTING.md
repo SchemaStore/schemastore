@@ -51,8 +51,8 @@ A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog).
 
 ### JSON formatter
-This project contain [.editorconfig](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
-Please install the [EditorConfig](https://editorconfig.org) plugin for your IDE.
+This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
+If your IDE or code editor doesn't natively support it, please install the [EditorConfig](https://editorconfig.org) plugin.
 
 ## CSS spec
 The CSS specification is divided into multiple XML documents
