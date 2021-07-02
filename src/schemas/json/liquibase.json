@@ -335,6 +335,9 @@
                         "properties": {
                             "column": {
                                 "$ref": "#/definitions/column"
+                            },
+                            "modifySql": {
+                                "$ref": "#/definitions/modifySql"
                             }
                         },
                         "additionalProperties": true
@@ -365,32 +368,317 @@
                             },
                             "onFail": {
                                 "description": "Controls what happens if the preconditions check fails.",
-                                "enum": [
-                                    "HALT",
-                                    "CONTINUE",
-                                    "MARK_RAN",
-                                    "WARN"
+                                "type": "string",
+                                "oneOf": [
+                                    {
+                                        "const": "HALT",
+                                        "description": "Halts the execution of the entire changelog (default). HALT can be put outside a changeset (e.g. at the beginning of the changelog)."
+                                    },
+                                    {
+                                        "const": "CONTINUE",
+                                        "description": "Skips over the changeset. Execution of the changeset will be attempted again on the next update. Continues with the changelog."
+                                    },
+                                    {
+                                        "const": "MARK_RAN",
+                                        "description": "Skips over the changeset but mark it as executed. Continues with the changelog."
+                                    },
+                                    {
+                                        "const": "WARN",
+                                        "description": "Sends a warning and continues executing the changeset / changelog as normal. WARN can be put outside a changeset (e.g. at the beginning of the changelog)."
+                                    }
                                 ],
-                                "default": ""
+                                "default": "HALT"
                             },
                             "onError": {
                                 "description": "Controls what happens if there is an error checking whether the precondition passed or not.",
-                                "enum": [
-                                    "HALT",
-                                    "CONTINUE",
-                                    "MARK_RAN",
-                                    "WARN"
+                                "type": "string",
+                                "oneOf": [
+                                    {
+                                        "const": "HALT",
+                                        "description": "Halts the execution of the entire changelog (default). HALT can be put outside a changeset (e.g. at the beginning of the changelog)."
+                                    },
+                                    {
+                                        "const": "CONTINUE",
+                                        "description": "Skips over the changeset. Execution of the changeset will be attempted again on the next update. Continues with the changelog."
+                                    },
+                                    {
+                                        "const": "MARK_RAN",
+                                        "description": "Skips over the changeset but mark it as executed. Continues with the changelog."
+                                    },
+                                    {
+                                        "const": "WARN",
+                                        "description": "Sends a warning and continues executing the changeset / changelog as normal. WARN can be put outside a changeset (e.g. at the beginning of the changelog)."
+                                    }
                                 ],
-                                "default": ""
+                                "default": "HALT"
                             },
                             "onSqlOutput": {
                                 "description": "Controls what to do in the updateSQL mode. Since 1.9.5",
-                                "enum": [
-                                    "TEST",
-                                    "FAIL",
-                                    "IGNORE"
+                                "type": "string",
+                                "oneOf": [
+                                    {
+                                        "const": "TEST",
+                                        "description": "Runs the changeset in the updateSQL mode."
+                                    },
+                                    {
+                                        "const": "FAIL",
+                                        "description": "Fails the preCondition in the updateSQL mode."
+                                    },
+                                    {
+                                        "const": "IGNORE",
+                                        "description": "Ignores the preCondition in the updateSQL mode (default)."
+                                    }
                                 ],
-                                "default": ""
+                                "default": "IGNORE"
+                            },
+                            "dbms": {
+                                "description": "Defines if the database executed against matches the type specified.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "type"
+                                ],
+                                "properties": {
+                                    "type": {
+                                        "description": "The type of database expected. Multiple dbms values can be specified using comma-separated values. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "runningAs": {
+                                "description": "Defines if the database user executed under matches the username specified.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "username"
+                                ],
+                                "properties": {
+                                    "username": {
+                                        "description": "The database user script which is expected to run as. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "changeSetExecuted": {
+                                "description": "Defines if the specified changeset has already been executed.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "id",
+                                    "author",
+                                    "changeLogFile"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "description": "The changeset id. (required)",
+                                        "type": "string"
+                                    },
+                                    "author": {
+                                        "description": "The changeset author. (required)",
+                                        "type": "string"
+                                    },
+                                    "changeLogFile": {
+                                        "description": "The file name (including classpath relative path) of the changeset. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "columnExists": {
+                                "description": "Defines if the specified column exists in the database.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "tableName",
+                                    "columnName"
+                                ],
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the table's schema.",
+                                        "type": "string"
+                                    },
+                                    "tableName": {
+                                        "description": "The name of the column's table. (required)",
+                                        "type": "string"
+                                    },
+                                    "columnName": {
+                                        "description": "The name of the column. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "tableExists": {
+                                "description": "Defines if the specified table exists in the database.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "tableName"
+                                ],
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the table's schema.",
+                                        "type": "string"
+                                    },
+                                    "tableName": {
+                                        "description": "The name of the table. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "viewExists": {
+                                "description": "Defines if the specified view exists in the database.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "viewName"
+                                ],
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the view's schema.",
+                                        "type": "string"
+                                    },
+                                    "viewName": {
+                                        "description": "The name of the view. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "foreignKeyConstraintExists": {
+                                "description": "Defines if the specified foreign key exists in the database.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "foreignKeyName"
+                                ],
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the foreign key's schema.",
+                                        "type": "string"
+                                    },
+                                    "foreignKeyName": {
+                                        "description": "The name of the foreign key. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "indexExists": {
+                                "description": "Defines if the specified index exists in the database. You can either specify the indexName attribute or tableName and columnName attributes.\nNote: There are a few databases where the indexName is not unique, that's why both indexName and tableName can be used.",
+                                "type": "object",
+                                "default": {},
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the index's schema.",
+                                        "type": "string"
+                                    },
+                                    "indexName": {
+                                        "description": "The name of the index.",
+                                        "type": "string"
+                                    },
+                                    "tableName": {
+                                        "description": "The name of the table.",
+                                        "type": "string"
+                                    },
+                                    "columnName": {
+                                        "description": "The name of the column.",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "sequenceExists": {
+                                "description": "Defines if the specified sequence exists in the database.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "sequenceName"
+                                ],
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the sequences' schema.",
+                                        "type": "string"
+                                    },
+                                    "sequenceName": {
+                                        "description": "The name of the sequence. (required)",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "primaryKeyExists": {
+                                "description": "Defines if the specified primary key exists in the database.\n(tableName or primaryKeyName is required)",
+                                "type": "object",
+                                "default": {},
+                                "properties": {
+                                    "schemaName": {
+                                        "description": "The name of the primary key's schema.",
+                                        "type": "string"
+                                    },
+                                    "primaryKeyName": {
+                                        "description": "The name of the primary key.",
+                                        "type": "string"
+                                    },
+                                    "tableName": {
+                                        "description": "The name of the table containing primary key.",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "sqlCheck": {
+                                "description": "Executes an SQL string and checks the returned value. The SQL must return a single row with a single value.\n\nTo check a number of rows, use the count SQL function.\nTo check for ranges of values, perform the check in the SQL and return a value that can be easily compared against.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "expectedResult"
+                                ],
+                                "properties": {
+                                    "expectedResult": {
+                                        "description": "The value to compare the SQL result to. (required)",
+                                        "type": "integer"
+                                    },
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "changeLogPropertyDefined": {
+                                "description": "Checks whether given changelog attribute is present. It fails if the value is not the same as given.",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "property"
+                                ],
+                                "properties": {
+                                    "property": {
+                                        "description": "The name of the property to check. (required)",
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "description": "The required value for a given property.",
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "customPrecondition": {
+                                "description": "Can be created by adding a class that implements the liquibase.precondition.CustomPrecondition interface. Parameters on custom classes are set through reflection based on the <param> sub-tags. Pass parameters as strings to the custom precondition.\n\nThe customPrecondition sub-tags:\nparam - the parameter to pass to the custom precondition.\nname - the name of the parameter to set. (required)\nvalue - a string value to set parameter to. (required)",
+                                "$comment": "FIXME How can pass params?",
+                                "type": "object",
+                                "default": {},
+                                "required": [
+                                    "className"
+                                ],
+                                "properties": {
+                                    "className": {
+                                        "description": "The name of the custom precondition class. (required)",
+                                        "type": "string"
+                                    }
+                                },
+                                "additionalProperties": true
+                            },
+                            "and": {
+                                "$ref": "#/definitions/preConditions"
+                            },
+                            "or": {
+                                "$ref": "#/definitions/preConditions"
+                            },
+                            "not": {
+                                "$ref": "#/definitions/preConditions"
                             }
                         },
                         "additionalProperties": true
@@ -426,7 +714,6 @@
                     "$ref": "#/definitions/remarks"
                 },
                 "columns": {
-                    "description": "Column definitions",
                     "$ref": "#/definitions/columns"
                 }
             },
@@ -445,7 +732,7 @@
                     "$ref": "#/definitions/schemaName"
                 },
                 "viewName": {
-                    "description": "\tName of the view to create",
+                    "description": "Name of the view to create",
                     "type": "string",
                     "default": ""
                 },
@@ -1145,7 +1432,7 @@
                     "default": ""
                 },
                 "startValue": {
-                    "description": "\tThe first sequence number to be generated.",
+                    "description": "The first sequence number to be generated.",
                     "type": "integer",
                     "default": ""
                 },
@@ -1868,7 +2155,7 @@
                     "default": ""
                 },
                 "defaultValueSequenceNext": {
-                    "description": "\tThe attribute that sets value for a specified column by using the value of the existing sequence. With every new input, the next value of the sequence will be taken.",
+                    "description": "The attribute that sets value for a specified column by using the value of the existing sequence. With every new input, the next value of the sequence will be taken.",
                     "type": "string",
                     "default": ""
                 },
@@ -2216,7 +2503,7 @@
                     "default": ""
                 },
                 "usePreparedStatements": {
-                    "description": "Use prepared statements instead of insert statement strings if the DB supports it\t",
+                    "description": "Use prepared statements instead of insert statement strings if the DB supports it.",
                     "type": "boolean",
                     "default": ""
                 },
@@ -2316,52 +2603,74 @@
         "modifySql": {
             "$comment": "https://docs.liquibase.com/workflows/liquibase-community/modify-sql.html?Highlight=modifySql",
             "description": "Although Liquibase supports most standard SQL statements with its Change Types, there are times when you need the generated SQL to be different. The following examples show how to change data types or add additional vendor-specific clauses such as ENGINE INNODB to CREATE TABLE statements. Since 1.9",
-            "type": "array",
-            "default": [],
-            "items": {
-                "anyOf": [
-                    {
-                        "type": "object",
-                        "default": {},
-                        "properties": {
-                            "dbms": {
-                                "$ref": "#/definitions/dbms"
-                            },
-                            "context": {
-                                "description": "Specifies the list of Contexts in which to run the SQL modification. If you do not specify any context, every changeset will be applied. Since 2.0",
-                                "type": "string",
-                                "default": ""
-                            },
-                            "labels": {
-                                "type": "string",
-                                "default": ""
-                            },
-                            "applyToRollback": {
-                                "description": "Defines whether the SQL modification should be applied to rollback statements. The default value is false. Since 2.0",
-                                "type": "boolean",
-                                "default": false
-                            },
-                            "prepend": {
-                                "description": "Adds SQL to the beginning of the statement.",
-                                "type": "object"
-                            },
-                            "append": {
-                                "description": "Adds SQL to the end of the statement.",
-                                "type": "object"
-                            },
-                            "replace": {
-                                "description": "Replaces all instances of the text specified.",
-                                "type": "object"
-                            },
-                            "regExpReplace": {
-                                "description": "Replaces all instances of the regular expression specified.",
-                                "type": "object"
-                            }
-                        },
-                        "additionalProperties": true
+            "type": "object",
+            "default": {},
+            "properties": {
+                "dbms": {
+                    "$ref": "#/definitions/dbms"
+                },
+                "context": {
+                    "description": "Specifies the list of Contexts in which to run the SQL modification. If you do not specify any context, every changeset will be applied. Since 2.0",
+                    "type": "string",
+                    "default": ""
+                },
+                "labels": {
+                    "type": "string",
+                    "default": ""
+                },
+                "applyToRollback": {
+                    "description": "Defines whether the SQL modification should be applied to rollback statements. The default value is false. Since 2.0",
+                    "type": "boolean",
+                    "default": false
+                },
+                "prepend": {
+                    "description": "Adds SQL to the beginning of the statement.",
+                    "type": "object",
+                    "default": {},
+                    "properties": {
+                        "value": {
+                            "type": "string"
+                        }
                     }
-                ]
-            }
+                },
+                "append": {
+                    "description": "Adds SQL to the end of the statement.",
+                    "type": "object",
+                    "default": {},
+                    "properties": {
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "replace": {
+                    "description": "Replaces all instances of the text specified.",
+                    "type": "object",
+                    "default": {},
+                    "properties": {
+                        "replace": {
+                            "type": "string"
+                        },
+                        "with": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "regExpReplace": {
+                    "description": "Replaces all instances of the regular expression specified.",
+                    "type": "object",
+                    "default": {},
+                    "properties": {
+                        "replace": {
+                            "type": "string"
+                        },
+                        "with": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "additionalProperties": true
         },
         "changes": {
             "type": "array",
@@ -2711,7 +3020,10 @@
                                         "$ref": "#/definitions/changes"
                                     },
                                     "modifySql": {
-                                        "$ref": "#/definitions/modifySql"
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/definitions/modifySql"
+                                        }
                                     }
                                 },
                                 "additionalProperties": true
