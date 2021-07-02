@@ -983,7 +983,12 @@ module.exports = function (grunt) {
     localSchemaFileAndTestFile({
       schema_1_PassScan: function (callbackParameter) {
         countScan++
-        const schemaJson = JSON.parse(callbackParameter.rawFile)
+        let schemaJson
+        try {
+          schemaJson = JSON.parse(callbackParameter.rawFile)
+        } catch (err) {
+          throw new Error(`Schema file ${callbackParameter.jsonName} at did not parse correctly: ${err}`)
+        }
         if (!('$schema' in schemaJson)) {
           throw new Error("Schema file is missing '$schema' keyword => " + callbackParameter.jsonName)
         }
