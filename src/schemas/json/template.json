@@ -54,10 +54,6 @@
         },
         "parameters": {
           "properties": {
-            "action": {
-              "description": "Must be the string literal \"new\".",
-              "enum": [ "new" ]
-            },
             "format": {
               "description": "When a string representation of the guid is needed, this is used as the format string in Guid.ToString().",
               "type": "string"
@@ -73,7 +69,7 @@
         },
         "parameters": {
           "properties": {
-            "action": {
+            "format": {
               "description": "The format string to use when converting the date-time to a string representation.",
               "type": "string"
             },
@@ -93,10 +89,6 @@
         "parameters": {
           "required": [ "low" ],
           "properties": {
-            "action": {
-              "description": "Must be the string literal \"new\"",
-              "enum": [ "new" ]
-            },
             "low": {
               "description": "An integer value indicating the low-end of the range to generate the random number in.",
               "type": "integer"
@@ -136,6 +128,28 @@
                   }
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "generatorRegexMatch": {
+      "properties": {
+        "generator": {
+          "enum": [ "regexMatch" ]
+        },
+        "datatype": {
+          "enum": [ "bool" ]
+        },
+        "parameters": {
+          "properties": {
+            "source": {
+              "description": "The symbol to search for a match. Its value will be used by this generator's regex to evaluate if there is a match. The value of the source parameter is not modified",
+              "type": "string"
+            },
+            "pattern": {
+              "description": "The regular expression to use to match",
+              "type": "string"
             }
           }
         }
@@ -232,6 +246,38 @@
                   },
                   "value": {
                     "description": "The value to return if the condition evaluates to true",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "generatorJoin": {
+      "properties": {
+        "generator": { "enum": [ "join" ] },
+        "parameters": {
+          "properties": {
+            "separator": {
+              "description": "The value used as the separator between the values to be concatenated, notice that you can use \"/\" as folder separator also on Windows since File API will convert it into \"\\\"",
+              "default": "",
+              "type": "string"
+            },
+            "symbols": {
+              "description": "All values to concatenate",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [ "value" ],
+                "properties": {
+                  "type": {
+                    "description": "\"ref\" to reference value from another symbol or \"const\" for string constant, defaults to \"const\".",
+                    "enum": [ "ref", "const" ]
+                  },
+                  "value": {
+                    "description": "Either name of another symbol or string constant",
                     "type": "string"
                   }
                 }
@@ -386,10 +432,7 @@
               },
               "args": {
                 "description": "A list of key-value pairs to use when performing the action. The specific parameters required / allowed are defined by the action itself.",
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                }
+                "type": "object"
               },
               "condition": {
                 "description": "A C++ style expression that, if it evaluates to 'false' causes the post-action to be skipped. This expression may refer to any symbols that have been defined",
@@ -552,9 +595,30 @@
                 "description": "NuGet package restore - restores NuGet packages for all primary outputs with file extensions *proj or sln",
                 "properties": {
                   "actionId": {
-                    "enum": [ "210D431B-A78B-4D2F-B762-4ED3E3EA9025" ]
+                    "enum": [
+                      "210D431B-A78B-4D2F-B762-4ED3E3EA9025"
+                    ]
                   },
-                  "args": {}
+                  "args": {
+                    "properties": {
+                      "files": {
+                        "oneOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "uniqueItems": true
+                            },
+                            "description": "An array of files that should be restored. If not specified, all primary outputs are restored."
+                          },
+                          {
+                            "type": "string",
+                            "description": "A semicolon delimited list of files that should be restored. If not specified, all primary outputs are restored."
+                          }
+                        ]
+                      }
+                    }
+                  }
                 }
               },
               {
@@ -568,6 +632,10 @@
                       "primaryOutputIndexes": {
                         "type": "string",
                         "description": "A semicolon delimited list of indexes of the primary outputs that should be added to the solution, if not specified, all primary outputs are used"
+                      },
+                      "solutionFolder": {
+                        "type": "string",
+                        "description": "Defines the destination solution folder path to add the projects to. Optional."
                       }
                     }
                   }
@@ -625,8 +693,8 @@
       }
     },
     "shortName": {
-      "description": "A shorthand name or a list of names for selecting the template (applies to environments where the template name is specified by the user - not selected via a GUI). The first entry is the preferred short name.",
-      "type": [ "string", "array" ],
+      "description": "A shorthand name for selecting the template (applies to environments where the template name is specified by the user - not selected via a GUI).",
+      "type": [ "string" ],
       "minLength": 1
     },
     "sourceName": {
@@ -674,7 +742,13 @@
                     "lowerCase",
                     "identity",
                     "upperCase",
-                    "jsonEncode"
+                    "jsonEncode",
+                    "firstLowerCase",
+                    "firstLowerCaseInvariant",
+                    "firstUpperCase",
+                    "firstUpperCaseInvariant",
+                    "titleCase",
+                    "kebabCase"
                   ]
                 }
               }
@@ -792,6 +866,54 @@
                 "enum": [ "jsonEncode" ]
               }
             }
+          },
+          {
+            "description": "Converts the first letter of the value to lowercase using the casing rules of the current culture.",
+            "properties": {
+              "identifier": {
+                "enum": [ "firstLowerCase" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the first letter of the value to lowercase using the casing rules of the invariant culture.",
+            "properties": {
+              "identifier": {
+                "enum": [ "firstLowerCaseInvariant" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the first letter of the value to uppercase using the casing rules of the current culture.",
+            "properties": {
+              "identifier": {
+                "enum": [ "firstUpperCase" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the first letter of the value to uppercase using the casing rules of the invariant culture.",
+            "properties": {
+              "identifier": {
+                "enum": [ "firstUpperCaseInvariant" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the value to title case using the casing rules of the current culture.",
+            "properties": {
+              "identifier": {
+                "enum": [ "titleCase" ]
+              }
+            }
+          },
+          {
+            "description": "Converts the value to kebab case using the casing rules of the invariant culture.",
+            "properties": {
+              "identifier": {
+                "enum": [ "kebabCase" ]
+              }
+            }
           }
         ]
       }
@@ -807,7 +929,17 @@
             "type": "string",
             "description": "The text to replace with the value of this symbol"
           },
-          "datatype": { "$ref": "#/definitions/datatype" }
+          "datatype": { "$ref": "#/definitions/datatype" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "bind",
+              "derived",
+              "generated",
+              "parameter",
+              "computed"
+            ]
+          }
         },
         "oneOf": [
           {
@@ -837,6 +969,10 @@
               "valueTransform": {
                 "type": "string",
                 "description": "The name of the value form that should be applied to the source value to use as the value of this symbol"
+              },
+              "fileRename": {
+                "type": "string",
+                "description": "The element defines the portion of file names which will be replaced by symbol value"
               }
             }
           },
@@ -846,6 +982,10 @@
               "type": {
                 "description": "Defines the high level configuration of symbol",
                 "enum": [ "generated" ]
+              },
+              "fileRename": {
+                "type": "string",
+                "description": "The element defines the portion of file names which will be replaced by symbol value"
               }
             },
             "oneOf": [
@@ -858,7 +998,9 @@
               { "$ref": "#/definitions/generatorPort" },
               { "$ref": "#/definitions/generatorRandom" },
               { "$ref": "#/definitions/generatorRegex" },
-              { "$ref": "#/definitions/generatorSwitch" }
+              { "$ref": "#/definitions/generatorRegexMatch" },
+              { "$ref": "#/definitions/generatorSwitch" },
+              { "$ref": "#/definitions/generatorJoin" }
             ]
           },
           {
@@ -894,6 +1036,10 @@
               "description": {
                 "description": "The description of the parameter",
                 "type": "string"
+              },
+              "fileRename": {
+                "type": "string",
+                "description": "The element defines the portion of file names which will be replaced by symbol value"
               },
               "onlyIf": {
                 "properties": {
@@ -933,7 +1079,7 @@
         "properties": {
           "description": {
             "type": "string",
-            "description": "A string to use to indicate the intent of the baesline"
+            "description": "A string to use to indicate the intent of the baseline"
           },
           "defaultOverrides": {
             "description": "A lookup of symbol names to new defaults",
@@ -949,7 +1095,7 @@
     "tags": {
       "description": "Common information about templates, these are effectively interchangeable with choice type parameter symbols",
       "type": "object",
-      "required": ["type"],
+      "required": [ "type" ],
       "properties": {
         "language": {
           "description": "The programming language the template primarily contains or is intended for use with",
