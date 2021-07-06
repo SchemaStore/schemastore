@@ -43,42 +43,6 @@ module.exports = function (grunt) {
           'https://json.schemastore.org/feed-1': grunt.file.readJSON('schemas/json/feed-1.json')
         }
       }
-    },
-
-    // Do not use grunt http download. Place the schema at SchemaStore or external but not both.
-    http: {
-      swagger20: {
-        options: { url: 'https://raw.githubusercontent.com/swagger-api/swagger-spec/master/schemas/v2.0/schema.json' },
-        dest: 'schemas/json/swagger-2.0.json'
-      },
-      resume: {
-        options: { url: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json' },
-        dest: 'schemas/json/resume.json'
-      },
-      jsonld: {
-        options: { url: 'https://raw.githubusercontent.com/json-ld/json-ld.org/master/schemas/jsonld-schema.json' },
-        dest: 'schemas/json/jsonld.json'
-      },
-      ninjs_v13: {
-        options: { url: 'https://www.iptc.org/std/ninjs/ninjs-schema_1.3.json' },
-        dest: 'schemas/json/ninjs-1.3.json'
-      },
-      ninjs_v12: {
-        options: { url: 'https://www.iptc.org/std/ninjs/ninjs-schema_1.2.json' },
-        dest: 'schemas/json/ninjs-1.2.json'
-      },
-      ninjs_v11: {
-        options: { url: 'https://www.iptc.org/std/ninjs/ninjs-schema_1.1.json' },
-        dest: 'schemas/json/ninjs-1.1.json'
-      },
-      ninjs_v10: {
-        options: { url: 'https://www.iptc.org/std/ninjs/ninjs-schema_1.0.json' },
-        dest: 'schemas/json/ninjs-1.0.json'
-      },
-      xunit_v23: {
-        options: { url: 'https://raw.githubusercontent.com/xunit/xunit/gh-pages/schema/v2.3/xunit.runner.schema.json' },
-        dest: 'schemas/json/xunit.runner.schema.json'
-      }
     }
   })
 
@@ -1212,9 +1176,8 @@ module.exports = function (grunt) {
       'local_ajv_test'
     ])
   grunt.registerTask('remote_test', ['remote_count_schema_versions', 'remote_bom', 'remote_ajv_test'])
-  grunt.registerTask('default', ['http', 'local_test'])
+  grunt.registerTask('default', ['local_test'])
   grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version'])
 
   grunt.loadNpmTasks('grunt-tv4')
-  grunt.loadNpmTasks('grunt-http')
 }
