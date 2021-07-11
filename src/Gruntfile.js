@@ -39,7 +39,8 @@ module.exports = function (grunt) {
           'https://json.schemastore.org/jsonld': grunt.file.readJSON('schemas/json/jsonld.json'),
           'https://json.schemastore.org/schema-org-thing': grunt.file.readJSON('schemas/json/schema-org-thing.json'),
           'http://json.schemastore.org/xunit.runner.schema': grunt.file.readJSON('schemas/json/xunit.runner.schema.json'),
-          'https://json.schemastore.org/feed-1': grunt.file.readJSON('schemas/json/feed-1.json')
+          'https://json.schemastore.org/feed-1': grunt.file.readJSON('schemas/json/feed-1.json'),
+          'https://json.schemastore.org/ansible-role-2.9': grunt.file.readJSON('schemas/json/ansible-role-2.9.json')
         }
       }
     }
