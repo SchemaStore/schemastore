@@ -536,11 +536,10 @@ module.exports = function (grunt) {
           grunt.log.ok(`${textPositivePassTest}${callbackParameter.urlOrFilePath}`)
         },
         () => {
-          const path = validate.errors[0].instancePath
           throwWithErrorText([
             `${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
             `(Schema file) keywordLocation: ${validate.errors[0].schemaPath}`,
-            `(Test file) instanceLocation:  ${path}`,
+            `(Test file) instanceLocation:  ${validate.errors[0].instancePath}`,
             `(Message)  ${validate.errors[0].message}`,
             'Error in positive test.'
           ])
@@ -979,7 +978,7 @@ module.exports = function (grunt) {
         try {
           schemaJson = JSON.parse(callbackParameter.rawFile)
         } catch (err) {
-          throwWithErrorText([`Schema file ${callbackParameter.jsonName} did not parse correctly.`, `${err}`])
+          throwWithErrorText([`Schema file ${callbackParameter.jsonName} did not parse correctly.`, err])
         }
         if (!('$schema' in schemaJson)) {
           throwWithErrorText([`Schema file is missing '$schema' keyword => ${callbackParameter.jsonName}`])
