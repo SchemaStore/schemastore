@@ -176,7 +176,7 @@ module.exports = function (grunt) {
 
       if (logTestFolder) {
         grunt.log.writeln('')
-        grunt.log.writeln(`test folder   : ${folderName}`)
+        grunt.log.writeln(`test folder             : ${folderName}`)
       }
 
       const filesInsideOneTestFolder = fs.readdirSync(pt.join(testDir, folderName)).map(
