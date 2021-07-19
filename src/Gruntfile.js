@@ -176,7 +176,7 @@ module.exports = function (grunt) {
 
       if (logTestFolder) {
         grunt.log.writeln('')
-        grunt.log.writeln(`test folder   : ${folderName}`)
+        grunt.log.writeln(`test folder             : ${folderName}`)
       }
 
       const filesInsideOneTestFolder = fs.readdirSync(pt.join(testDir, folderName)).map(
@@ -648,7 +648,12 @@ module.exports = function (grunt) {
     let countScan = 0
     const findDuplicatedProperty = (callbackParameter) => {
       countScan++
-      const result = findDuplicatedPropertyKeys(callbackParameter.rawFile)
+      let result
+      try {
+        result = findDuplicatedPropertyKeys(callbackParameter.rawFile)
+      } catch (e) {
+        throwWithErrorText([`Test file: ${callbackParameter.urlOrFilePath}`, e])
+      }
       if (result.length > 0) {
         const errorText = []
         errorText.push(`Duplicated key found in: ${callbackParameter.urlOrFilePath}`)
