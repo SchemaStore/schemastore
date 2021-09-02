@@ -50,6 +50,9 @@
         "namespace": {
           "description": "Namespace for the configmap, optional",
           "type": "string"
+        },
+        "options": {
+          "$ref": "#/definitions/GeneratorOptions"
         }
       },
       "additionalProperties": false,
@@ -229,6 +232,20 @@
           "description": "Namespace to add to all objects",
           "type": "string"
         },
+        "replacements": {
+          "type": "array",
+          "description": "Substitute field(s) in N target(s) with a field from a source",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/definitions/ReplacementsPath"
+              },
+              {
+                "$ref": "#/definitions/ReplacementsInline"
+              }
+            ]
+          }
+        },
         "patches": {
           "description": "Apply a patch to multiple resources",
           "items": {
@@ -254,6 +271,13 @@
           "description": " PatchesStrategicMerge specifies the relative path to a file containing a strategic merge patch. URLs and globs are not supported",
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "replicas": {
+          "description": "Replicas is a list of (resource name, count) for changing number of replicas for a resources. It will match any group and kind that has a matching name and that is one of: Deployment, ReplicationController, Replicaset, Statefulset.",
+          "items": {
+            "$ref": "#/definitions/Replicas"
           },
           "type": "array"
         },
@@ -309,26 +333,90 @@
       "type": "object"
     },
     "PatchJson6902": {
-      "required": [
-        "path",
-        "target"
-      ],
-      "properties": {
-        "path": {
-          "description": "relative file path for a json patch file inside a kustomization",
-          "type": "string"
+      "oneOf": [
+        {
+          "required": [
+            "path",
+            "target"
+          ],
+          "properties": {
+            "path": {
+              "description": "relative file path for a json patch file inside a kustomization",
+              "type": "string"
+            },
+            "target": {
+              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
+              "$ref": "#/definitions/PatchTarget"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
         },
-        "target": {
-          "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
-          "$ref": "#/definitions/PatchTarget"
+        {
+          "required": [
+            "patch",
+            "target"
+          ],
+          "properties": {
+            "patch": {
+              "description": "inline json patch",
+              "type": "string"
+            },
+            "target": {
+              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
+              "$ref": "#/definitions/PatchTarget"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
+        },
+        {
+          "required": [
+            "op",
+            "path"
+          ],
+          "properties": {
+            "op": {
+              "description": "The operation",
+              "type": "string",
+              "enum": [
+                "add",
+                "remove",
+                "replace",
+                "move",
+                "copy",
+                "test"
+              ]
+            },
+            "from": {
+              "description": "The source location.",
+              "type": "string"
+            },
+            "path": {
+              "description": "The target location.",
+              "type": "string"
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items":{
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
         }
-      },
-      "additionalProperties": false,
-      "type": "object"
+      ]
     },
     "PatchTarget": {
       "required": [
-        "group",
         "kind",
         "name",
         "version"
@@ -408,6 +496,170 @@
       },
       "additionalProperties": false
     },
+    "ReplacementsInline": {
+      "required": [
+        "source",
+        "targets"
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "object",
+          "description": "The source of the value",
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "The group of the referent"
+            },
+            "version": {
+              "type": "string",
+              "description": "The version of the referent"
+            },
+            "kind": {
+              "type": "string",
+              "description": "The kind of the referent"
+            },
+            "name": {
+              "type": "string",
+              "description": "The name of the referent"
+            },
+            "namespace": {
+              "type": "string",
+              "description": "The namespace of the referent"
+            },
+            "fieldPath": {
+              "type": "string",
+              "description": "The structured path to the source value"
+            },
+            "options": {
+              "type": "object",
+              "properties": {
+                "delimiter": {
+                  "type": "string"
+                },
+                "index": {
+                  "type": "number"
+                },
+                "create": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "targets": {
+          "description": "The N fields to write the value to",
+          "type": "array",
+          "items": {
+            "required": [
+              "select"
+            ],
+            "type": "object",
+            "properties": {
+              "select": {
+                "type": "object",
+                "description": "Include objects that match this",
+                "properties": {
+                  "group": {
+                    "type": "string",
+                    "description": "The group of the referent"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "The version of the referent"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "The kind of the referent"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the referent"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "The namespace of the referent"
+                  }
+                }
+              },
+              "reject": {
+                "type": "object",
+                "description": "Exclude objects that match this",
+                "properties": {
+                  "group": {
+                    "type": "string",
+                    "description": "The group of the referent"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "The version of the referent"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "The kind of the referent"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the referent"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "The namespace of the referent"
+                  }
+                }
+              },
+              "fieldPaths": {
+                "type": "array",
+                "description": "The structured path(s) to the target nodes",
+                "items": {
+                  "type": "string",
+                  "description": "The structured path to the source value"
+                }
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "delimiter": {
+                    "type": "string"
+                  },
+                  "index": {
+                    "type": "number"
+                  },
+                  "create": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ReplacementsPath": {
+      "required": [
+        "path"
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "Replicas": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "count": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "SecretArgs": {
       "description": "SecretArgs contains the metadata of how to generate a secret",
       "properties": {
@@ -452,6 +704,9 @@
         "namespace": {
           "description": "Namespace for the secret, optional",
           "type": "string"
+        },
+        "options": {
+          "$ref": "#/definitions/GeneratorOptions"
         },
         "type": {
           "description": "Type of the secret, optional",

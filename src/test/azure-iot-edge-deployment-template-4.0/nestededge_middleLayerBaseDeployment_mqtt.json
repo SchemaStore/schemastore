@@ -1,0 +1,137 @@
+{
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": {
+              "buildcr": {
+                "username": "<CR.Username>",
+                "password": "<CR.Password>",
+                "address": "<Container_Registry>"
+              }
+            }
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "$upstream:443/microsoft/azureiotedge-agent:<Build.BuildNumber>-linux-<Architecture>",
+              "createOptions": "{\"HostConfig\":{\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}}}"
+            },
+            "env": {
+              "UpstreamProtocol": {
+                "value": "mqtt"
+              }
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "settings": {
+              "image": "$upstream:443/microsoft/azureiotedge-hub:<Build.BuildNumber>-linux-<Architecture>",
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"100m\",\"max-file\":\"7\"}}, \"PortBindings\": {\"8883/tcp\": [{\"HostPort\": \"8883\"}],\"5671/tcp\": [{\"HostPort\": \"5671\"}]}}}"
+            },
+            "env": {
+              "experimentalFeatures__enabled": {
+                "value": "true"
+              },
+              "experimentalFeatures__mqttBrokerEnabled": {
+                "value": "true"
+              },
+              "DeviceScopeCacheRefreshDelaySecs": {
+                "value": 0
+              },
+              "RuntimeLogLevel": {
+                "value": "debug"
+              },
+              "SslProtocols": {
+                "value": "tls1.2"
+              }
+            },
+            "status": "running",
+            "restartPolicy": "always"
+          }
+        },
+        "modules": {
+          "iotedgeApiProxy": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "startupOrder": 3,
+            "settings": {
+              "image": "$upstream:443/microsoft/azureiotedge-api-proxy:<Build.BuildNumber>-linux-<Architecture>",
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"443\/tcp\": [{\"HostPort\": \"443\"}]}}}"
+            },
+            "env": {
+              "NGINX_DEFAULT_PORT": {
+                "value": "443"
+              }
+            }
+          },
+          "genericMqttTester": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "env": {
+              "TEST_SCENARIO": {
+                "value": "Relay"
+              },
+              "TRACKING_ID": {
+                "value": "AForgottenVariableLostToTimeAndSpace-PleaseRememberToRemoveMeSomedayFromTheRelayerScenarioOfGenericMqttTesterOrAlternativelyAddValidationInTheTesterAndGenerateTheTrackingIdFromAHigherYaml"
+              },
+              "TEST_START_DELAY": {
+                "value": "10s"
+              },
+              "SslProtocols": {
+                "value": "tls1.2"
+              }
+            },
+            "settings": {
+              "image": "<Container_Registry>/microsoft/azureiotedge-generic-mqtt-tester:<Build.BuildNumber>-linux-<Architecture>",
+              "createOptions": "{\"HostConfig\":{\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}}}"
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.2",
+        "routes": {
+          "ToUpstream": "FROM /messages/* INTO $upstream"
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        },
+        "mqttBroker": {
+          "authorizations": [
+            {
+              "identities": [
+                "{{iot:identity}}"
+              ],
+              "allow": [
+                {
+                  "operations": [
+                    "mqtt:connect",
+                    "mqtt:publish",
+                    "mqtt:subscribe"
+                  ],
+                  "resources": [
+                    "#"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
