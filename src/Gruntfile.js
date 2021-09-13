@@ -188,8 +188,11 @@ module.exports = function (grunt) {
         throwWithErrorText([`Found folder with no test files: ${folderName}`])
       }
 
-      const schemaFileWithPath = pt.join(schemaDir, `${folderName}.json`)
       if (schemaPassScan) {
+        const schemaFileWithPath = pt.join(schemaDir, `${folderName}.json`)
+        if (!fs.existsSync(schemaFileWithPath)) {
+          throwWithErrorText([`Found test folder "${folderName}" with no schema file: ${schemaFileWithPath}`])
+        }
         callbackParameter = {
           // Return the real Raw file for BOM file test rejection
           rawFile: fs.readFileSync(schemaFileWithPath),
