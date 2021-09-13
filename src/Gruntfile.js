@@ -378,20 +378,24 @@ module.exports = function (grunt) {
    * return the correct AJV instance
    * @param {string} schemaName
    * @param {string[]} unknownFormatsList
+   * @param {boolean} fullStrictMode
    * @returns {Object}
    */
-  function factoryAJV (schemaName, unknownFormatsList = []) {
+  function factoryAJV (schemaName, unknownFormatsList = [], fullStrictMode = true) {
     // some AJV default setting are [true, false or log]
     // Some options are default: 'log'
     // 'log' will generate a lot of noise in the build log. So make it true or false.
     // Hiding the issue log also does not solve anything.
     // These option items that are not strict must be reduces in the future.
-    /** @type {Object} */
-    const ajvOptions = {
+    const ajvOptionsNotStrictMode = {
       strictTypes: false, // recommended : true
       strictTuples: false, // recommended : true
       allowMatchingProperties: true // recommended : false
     }
+    const ajvOptionsStrictMode = {
+      strict: true
+    }
+    const ajvOptions = fullStrictMode ? ajvOptionsStrictMode : ajvOptionsNotStrictMode
 
     let ajvSelected
     // There are multiple AJV version for each $schema version.
@@ -490,13 +494,15 @@ module.exports = function (grunt) {
       let schemaJson
       let versionObj
       let schemaVersionStr = 'unknown'
+      const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)
+      const fullStrictModeStr = fullStrictMode ? '(FullStrictMode)' : ''
       try {
         // select the correct AJV object for this schema
         schemaJson = JSON.parse(callbackParameter.rawFile)
         versionObj = schemaVersion.getObj(schemaJson)
 
         // Get the correct AJV version
-        ajvSelected = factoryAJV(versionObj?.schemaName, unknownFormatsList)
+        ajvSelected = factoryAJV(versionObj?.schemaName, unknownFormatsList, fullStrictMode)
 
         // AJV must ignore these keywords
         unknownKeywordsList?.forEach((x) => {
@@ -514,10 +520,10 @@ module.exports = function (grunt) {
         // compile the schema
         validate = ajvSelected.compile(schemaJson)
       } catch (e) {
-        throwWithErrorText([`${textCompile}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`, e])
+        throwWithErrorText([`${textCompile}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`, e])
       }
       countSchema++
-      grunt.log.ok(`${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`)
+      grunt.log.ok(`${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`)
     }
 
     const processTestFile = (callbackParameter, success, failure) => {
@@ -630,7 +636,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('local_catalog', 'Catalog validation', function () {
     const catalogSchema = require(pt.resolve('.', schemaDir, 'schema-catalog.json'))
-    const ajvInstance = factoryAJV('draft-04')
+    const ajvInstance = factoryAJV('draft-04', [])
     if (ajvInstance.validate(catalogSchema, catalog)) {
       grunt.log.ok('catalog.json OK')
     } else {
@@ -823,7 +829,7 @@ module.exports = function (grunt) {
 
     const validateViaAjv = (schemaJson, schemaName, option) => {
       try {
-        const ajvSelected = factoryAJV(schemaName, option.unknownFormatsList)
+        const ajvSelected = factoryAJV(schemaName, option.unknownFormatsList, false)
 
         // AJV must ignore these keywords
         option.unknownKeywordsList?.forEach((x) => {
@@ -1006,6 +1012,7 @@ module.exports = function (grunt) {
       }
     }
     checkForDuplicateInList(schemaValidation.tv4test, 'tv4test[]')
+    checkForDuplicateInList(schemaValidation.ajvFullStrictMode, 'ajvFullStrictMode[]')
     checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
     checkForDuplicateInList(schemaValidation.missingcatalogurl, 'missingcatalogurl[]')
     checkForDuplicateInList(schemaValidation.fileMatchConflict, 'fileMatchConflict[]')
