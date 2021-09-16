@@ -34,7 +34,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 ```
 
 
-### Adding tests
+### Adding tests (for [local schemas](src/schemas/json) only)
 
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
