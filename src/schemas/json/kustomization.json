@@ -68,6 +68,26 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "FieldSpec": {
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "GeneratorOptions": {
       "description": "GeneratorOptions modify behavior of all ConfigMap and Secret generators",
       "properties": {
@@ -84,6 +104,10 @@
           "description": "DisableNameSuffixHash if true disables the default behavior of adding a suffix to the names of generated resources that is a hash of the resource contents",
           "type": "boolean"
         },
+        "immutable": {
+          "description": "Immutable if true add to all generated resources",
+          "type": "boolean"
+        },
         "labels": {
           "description": "Labels to add to all generated resources",
           "patternProperties": {
@@ -92,6 +116,49 @@
             }
           },
           "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "HelmChart": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "releaseName": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "valuesFile": {
+          "type": "string"
+        },
+        "valuesInline": {
+          "type": "object",
+          "patternProperties": {
+            ".*": {
+              "additionalProperties": true
+            }
+          }
+        },
+        "valuesMerge": {
+          "type": "string",
+          "enum": [
+            "merge",
+            "override",
+            "replace"
+          ]
+        },
+        "includeCRDs": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -152,7 +219,7 @@
           "type": "string"
         },
         "bases": {
-          "description": "Bases are relative paths or git repository URLs specifying a directory containing a kustomization.yaml file.",
+          "description": "DEPRECATED. Bases are relative paths or git repository URLs specifying a directory containing a kustomization.yaml file.",
           "items": {
             "type": "string"
           },
@@ -166,6 +233,13 @@
             }
           },
           "type": "object"
+        },
+        "buildMetadata": {
+          "description": "BuildMetadata is a list of strings used to toggle different build options",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "commonLabels": {
           "description": " CommonLabels to add to all objects and selectors",
@@ -207,6 +281,28 @@
           },
           "type": "array"
         },
+        "helmCharts": {
+          "description": "HelmCharts is a list of helm chart configuration instances",
+          "items": {
+            "$ref": "#/definitions/HelmChart"
+          },
+          "type": "array"
+        },
+        "helmGlobals": {
+          "description": "HelmGlobals contains helm configuration that isn't chart specific",
+          "properties": {
+            "chartHome": {
+              "description": "ChartHome is a file path, relative to the kustomization root, to a directory containing a subdirectory for each chart to be included in the kustomization",
+              "type": "string"
+            },
+            "configHome": {
+              "description": "ConfigHome defines a value that kustomize should pass to helm via the HELM_CONFIG_HOME environment variable",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
+        },
         "images": {
           "description": "Images is a list of (image name, new name, new tag or digest) for changing image names, tags or digests. This can also be achieved with a patch, but this operator is simpler to specify.",
           "items": {
@@ -217,8 +313,19 @@
         "inventory": {
           "$ref": "#/definitions/Inventory"
         },
+        "labels": {
+          "description": "Labels to add to all objects but not selectors",
+          "items": {
+            "$ref": "#/definitions/Labels"
+          },
+          "type": "array"
+        },
         "kind": {
           "type": "string"
+        },
+        "metadata": {
+          "description": "Contains metadata about a Resource",
+          "$ref": "#/definitions/Metadata"
         },
         "namePrefix": {
           "description": "NamePrefix will prefix the names of all resources mentioned in the kustomization file including generated configmaps and secrets",
@@ -245,6 +352,15 @@
               }
             ]
           }
+        },
+        "openapi": {
+          "description": "OpenAPI contains information about what kubernetes schema to use",
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "patches": {
           "description": "Apply a patch to multiple resources",
@@ -309,12 +425,72 @@
           },
           "type": "array"
         },
+        "validators": {
+          "description": "Validators is a list of files containing validators",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "vars": {
           "description": "Allows things modified by kustomize to be injected into a container specification. A var is a name (e.g. FOO) associated with a field in a specific resource instance.  The field must contain a value of type string, and defaults to the name field of the instance",
           "items": {
             "$ref": "#/definitions/Var"
           },
           "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Labels": {
+      "properties": {
+        "pairs": {
+          "description": "Pairs contains the key-value pairs for labels to add",
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          }
+        },
+        "includeSelectors": {
+          "description": "IncludeSelectors inidicates should transformer include the fieldSpecs for selectors",
+          "type": "boolean"
+        },
+        "fields": {
+          "description": "FieldSpec completely specifies a kustomizable field in a k8s API object. It helps define the operands of transformations",
+          "items": {
+            "$ref": "#/definitions/FieldSpec"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Metadata": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "labels": {
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "annotations": {
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
         }
       },
       "additionalProperties": false,
