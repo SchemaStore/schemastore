@@ -34,7 +34,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 ```
 
 
-### Adding tests
+### Adding tests (for [local schemas](src/schemas/json) only)
 
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
@@ -49,6 +49,10 @@ A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-
 ### Self-hosting schemas
 
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog).
+
+### JSON formatter
+This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
+If your IDE or code editor doesn't natively support it, please install the [EditorConfig](https://editorconfig.org) plugin.
 
 ## CSS spec
 The CSS specification is divided into multiple XML documents

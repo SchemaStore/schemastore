@@ -50,6 +50,9 @@
         "namespace": {
           "description": "Namespace for the configmap, optional",
           "type": "string"
+        },
+        "options": {
+          "$ref": "#/definitions/GeneratorOptions"
         }
       },
       "additionalProperties": false,
@@ -63,6 +66,26 @@
         }
       },
       "additionalProperties": false,
+      "type": "object"
+    },
+    "FieldSpec": {
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "GeneratorOptions": {
@@ -81,6 +104,10 @@
           "description": "DisableNameSuffixHash if true disables the default behavior of adding a suffix to the names of generated resources that is a hash of the resource contents",
           "type": "boolean"
         },
+        "immutable": {
+          "description": "Immutable if true add to all generated resources",
+          "type": "boolean"
+        },
         "labels": {
           "description": "Labels to add to all generated resources",
           "patternProperties": {
@@ -89,6 +116,49 @@
             }
           },
           "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "HelmChart": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "releaseName": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "valuesFile": {
+          "type": "string"
+        },
+        "valuesInline": {
+          "type": "object",
+          "patternProperties": {
+            ".*": {
+              "additionalProperties": true
+            }
+          }
+        },
+        "valuesMerge": {
+          "type": "string",
+          "enum": [
+            "merge",
+            "override",
+            "replace"
+          ]
+        },
+        "includeCRDs": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -149,7 +219,7 @@
           "type": "string"
         },
         "bases": {
-          "description": "Bases are relative paths or git repository URLs specifying a directory containing a kustomization.yaml file.",
+          "description": "DEPRECATED. Bases are relative paths or git repository URLs specifying a directory containing a kustomization.yaml file.",
           "items": {
             "type": "string"
           },
@@ -163,6 +233,13 @@
             }
           },
           "type": "object"
+        },
+        "buildMetadata": {
+          "description": "BuildMetadata is a list of strings used to toggle different build options",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "commonLabels": {
           "description": " CommonLabels to add to all objects and selectors",
@@ -204,6 +281,28 @@
           },
           "type": "array"
         },
+        "helmCharts": {
+          "description": "HelmCharts is a list of helm chart configuration instances",
+          "items": {
+            "$ref": "#/definitions/HelmChart"
+          },
+          "type": "array"
+        },
+        "helmGlobals": {
+          "description": "HelmGlobals contains helm configuration that isn't chart specific",
+          "properties": {
+            "chartHome": {
+              "description": "ChartHome is a file path, relative to the kustomization root, to a directory containing a subdirectory for each chart to be included in the kustomization",
+              "type": "string"
+            },
+            "configHome": {
+              "description": "ConfigHome defines a value that kustomize should pass to helm via the HELM_CONFIG_HOME environment variable",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
+        },
         "images": {
           "description": "Images is a list of (image name, new name, new tag or digest) for changing image names, tags or digests. This can also be achieved with a patch, but this operator is simpler to specify.",
           "items": {
@@ -214,8 +313,19 @@
         "inventory": {
           "$ref": "#/definitions/Inventory"
         },
+        "labels": {
+          "description": "Labels to add to all objects but not selectors",
+          "items": {
+            "$ref": "#/definitions/Labels"
+          },
+          "type": "array"
+        },
         "kind": {
           "type": "string"
+        },
+        "metadata": {
+          "description": "Contains metadata about a Resource",
+          "$ref": "#/definitions/Metadata"
         },
         "namePrefix": {
           "description": "NamePrefix will prefix the names of all resources mentioned in the kustomization file including generated configmaps and secrets",
@@ -228,6 +338,29 @@
         "namespace": {
           "description": "Namespace to add to all objects",
           "type": "string"
+        },
+        "replacements": {
+          "type": "array",
+          "description": "Substitute field(s) in N target(s) with a field from a source",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/definitions/ReplacementsPath"
+              },
+              {
+                "$ref": "#/definitions/ReplacementsInline"
+              }
+            ]
+          }
+        },
+        "openapi": {
+          "description": "OpenAPI contains information about what kubernetes schema to use",
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "patches": {
           "description": "Apply a patch to multiple resources",
@@ -254,6 +387,13 @@
           "description": " PatchesStrategicMerge specifies the relative path to a file containing a strategic merge patch. URLs and globs are not supported",
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "replicas": {
+          "description": "Replicas is a list of (resource name, count) for changing number of replicas for a resources. It will match any group and kind that has a matching name and that is one of: Deployment, ReplicationController, Replicaset, Statefulset.",
+          "items": {
+            "$ref": "#/definitions/Replicas"
           },
           "type": "array"
         },
@@ -285,12 +425,72 @@
           },
           "type": "array"
         },
+        "validators": {
+          "description": "Validators is a list of files containing validators",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "vars": {
           "description": "Allows things modified by kustomize to be injected into a container specification. A var is a name (e.g. FOO) associated with a field in a specific resource instance.  The field must contain a value of type string, and defaults to the name field of the instance",
           "items": {
             "$ref": "#/definitions/Var"
           },
           "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Labels": {
+      "properties": {
+        "pairs": {
+          "description": "Pairs contains the key-value pairs for labels to add",
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          }
+        },
+        "includeSelectors": {
+          "description": "IncludeSelectors inidicates should transformer include the fieldSpecs for selectors",
+          "type": "boolean"
+        },
+        "fields": {
+          "description": "FieldSpec completely specifies a kustomizable field in a k8s API object. It helps define the operands of transformations",
+          "items": {
+            "$ref": "#/definitions/FieldSpec"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Metadata": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "labels": {
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "annotations": {
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
         }
       },
       "additionalProperties": false,
@@ -309,26 +509,90 @@
       "type": "object"
     },
     "PatchJson6902": {
-      "required": [
-        "path",
-        "target"
-      ],
-      "properties": {
-        "path": {
-          "description": "relative file path for a json patch file inside a kustomization",
-          "type": "string"
+      "oneOf": [
+        {
+          "required": [
+            "path",
+            "target"
+          ],
+          "properties": {
+            "path": {
+              "description": "relative file path for a json patch file inside a kustomization",
+              "type": "string"
+            },
+            "target": {
+              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
+              "$ref": "#/definitions/PatchTarget"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
         },
-        "target": {
-          "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
-          "$ref": "#/definitions/PatchTarget"
+        {
+          "required": [
+            "patch",
+            "target"
+          ],
+          "properties": {
+            "patch": {
+              "description": "inline json patch",
+              "type": "string"
+            },
+            "target": {
+              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
+              "$ref": "#/definitions/PatchTarget"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
+        },
+        {
+          "required": [
+            "op",
+            "path"
+          ],
+          "properties": {
+            "op": {
+              "description": "The operation",
+              "type": "string",
+              "enum": [
+                "add",
+                "remove",
+                "replace",
+                "move",
+                "copy",
+                "test"
+              ]
+            },
+            "from": {
+              "description": "The source location.",
+              "type": "string"
+            },
+            "path": {
+              "description": "The target location.",
+              "type": "string"
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items":{
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "type": "object"
         }
-      },
-      "additionalProperties": false,
-      "type": "object"
+      ]
     },
     "PatchTarget": {
       "required": [
-        "group",
         "kind",
         "name",
         "version"
@@ -408,6 +672,170 @@
       },
       "additionalProperties": false
     },
+    "ReplacementsInline": {
+      "required": [
+        "source",
+        "targets"
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "object",
+          "description": "The source of the value",
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "The group of the referent"
+            },
+            "version": {
+              "type": "string",
+              "description": "The version of the referent"
+            },
+            "kind": {
+              "type": "string",
+              "description": "The kind of the referent"
+            },
+            "name": {
+              "type": "string",
+              "description": "The name of the referent"
+            },
+            "namespace": {
+              "type": "string",
+              "description": "The namespace of the referent"
+            },
+            "fieldPath": {
+              "type": "string",
+              "description": "The structured path to the source value"
+            },
+            "options": {
+              "type": "object",
+              "properties": {
+                "delimiter": {
+                  "type": "string"
+                },
+                "index": {
+                  "type": "number"
+                },
+                "create": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "targets": {
+          "description": "The N fields to write the value to",
+          "type": "array",
+          "items": {
+            "required": [
+              "select"
+            ],
+            "type": "object",
+            "properties": {
+              "select": {
+                "type": "object",
+                "description": "Include objects that match this",
+                "properties": {
+                  "group": {
+                    "type": "string",
+                    "description": "The group of the referent"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "The version of the referent"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "The kind of the referent"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the referent"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "The namespace of the referent"
+                  }
+                }
+              },
+              "reject": {
+                "type": "object",
+                "description": "Exclude objects that match this",
+                "properties": {
+                  "group": {
+                    "type": "string",
+                    "description": "The group of the referent"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "The version of the referent"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "The kind of the referent"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the referent"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "The namespace of the referent"
+                  }
+                }
+              },
+              "fieldPaths": {
+                "type": "array",
+                "description": "The structured path(s) to the target nodes",
+                "items": {
+                  "type": "string",
+                  "description": "The structured path to the source value"
+                }
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "delimiter": {
+                    "type": "string"
+                  },
+                  "index": {
+                    "type": "number"
+                  },
+                  "create": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ReplacementsPath": {
+      "required": [
+        "path"
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "Replicas": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "count": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "SecretArgs": {
       "description": "SecretArgs contains the metadata of how to generate a secret",
       "properties": {
@@ -452,6 +880,9 @@
         "namespace": {
           "description": "Namespace for the secret, optional",
           "type": "string"
+        },
+        "options": {
+          "$ref": "#/definitions/GeneratorOptions"
         },
         "type": {
           "description": "Type of the secret, optional",
