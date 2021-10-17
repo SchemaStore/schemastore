@@ -36,7 +36,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 - Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
 - Add test files.
 - Add "additionalProperties": true/false to each "properties": {}
-- Validate in [full strict mode](https://ajv.js.org/strict-mode.html) by adding the JSON schema filename to the "ajvFullStrictMode" list. [(schema-validation.json)](src/schema-validation.json)  
+- Validate in [full strict mode](https://ajv.js.org/strict-mode.html) by adding the JSON schema filename to the "ajvFullStrictMode" list in [`src/schema-validation.json`](src/schema-validation.json)
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
