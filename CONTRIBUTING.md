@@ -11,8 +11,6 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
-Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
-
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```Shell
 make
@@ -33,6 +31,12 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 }
 ```
 
+### Best practices
+
+- Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+- Add test files.
+- Add "additionalProperties": true/false to each "properties": {}
+- Validate in [full strict mode](https://ajv.js.org/strict-mode.html) by adding the JSON schema filename to the "ajvFullStrictMode" list in [`src/schema-validation.json`](src/schema-validation.json)
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
