@@ -1,0 +1,547 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/4.5.5/types.yaml",
+    "plugin.yaml",
+    "install-script.yaml"
+  ],
+  "inputs": {
+    "auth_url": {
+      "type": "string",
+      "default": {
+        "get_secret": "openstack_url"
+      }
+    },
+    "username": {
+      "type": "string",
+      "default": {
+        "get_secret": "openstack_username"
+      }
+    },
+    "password": {
+      "type": "string",
+      "default": {
+        "get_secret": "openstack_password"
+      }
+    },
+    "project_name": {
+      "type": "string",
+      "default": {
+        "get_secret": "openstack_tenant_name"
+      }
+    },
+    "region_name": {
+      "type": "string"
+    },
+    "external_network_id": {
+      "type": "string",
+      "description": "A network that provisions floating IPs."
+    },
+    "image": {
+      "type": "string",
+      "description": "The UUID of an Ubuntu Trusty 14.04 image in your Openstack account."
+    },
+    "flavor": {
+      "type": "string",
+      "description": "The UUID of small flavor in your Openstack account."
+    },
+    "network_name": {
+      "type": "string",
+      "description": "A name for your new Openstack Network.",
+      "default": "cloudify-hello-world-network"
+    },
+    "subnet_name": {
+      "type": "string",
+      "description": "A name for your new Openstack Subnet.",
+      "default": "cloudify-hello-world-subnet"
+    },
+    "name_prefix": {
+      "type": "string",
+      "default": "hellow_world"
+    }
+  },
+  "dsl_definitions": {
+    "client_config": {
+      "auth_url": {
+        "get_input": "auth_url"
+      },
+      "username": {
+        "get_input": "username"
+      },
+      "password": {
+        "get_input": "password"
+      },
+      "project_name": {
+        "get_input": "project_name"
+      },
+      "region_name": {
+        "get_input": "region_name"
+      }
+    }
+  },
+  "node_templates": {
+    "external-network": {
+      "type": "cloudify.nodes.openstack.Network",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "use_external_resource": true,
+        "resource_config": {
+          "id": {
+            "get_input": "external_network_id"
+          },
+          "kwargs": {
+            "routing": {
+              "external": true
+            }
+          }
+        }
+      }
+    },
+    "vm": {
+      "type": "cloudify.nodes.openstack.Server",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "agent_config": {
+          "install_method": "none"
+        },
+        "resource_config": {
+          "name": {
+            "concat": [
+              {
+                "get_input": "name_prefix"
+              },
+              "_server"
+            ]
+          },
+          "user_data": {
+            "get_input": "install_script"
+          },
+          "image_id": {
+            "get_input": "image"
+          },
+          "flavor_id": {
+            "get_input": "flavor"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.openstack.server_connected_to_port",
+          "target": "port"
+        }
+      ],
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "resource_config": {
+                "get_property": [
+                  "SELF",
+                  "resource_config"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "port": {
+      "type": "cloudify.nodes.openstack.Port",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "resource_config": {
+          "name": {
+            "concat": [
+              {
+                "get_input": "name_prefix"
+              },
+              "_port"
+            ]
+          },
+          "fixed_ips": [
+            {
+              "subnet_id": {
+                "get_attribute": [
+                  "subnet",
+                  "id"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "network"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "subnet"
+        },
+        {
+          "type": "cloudify.relationships.connected_to",
+          "target": "security_group"
+        },
+        {
+          "type": "cloudify.relationships.openstack.port_connected_to_floating_ip",
+          "target": "ip"
+        }
+      ],
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "resource_config": {
+                "get_property": [
+                  "SELF",
+                  "resource_config"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "subnet": {
+      "type": "cloudify.nodes.openstack.Subnet",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "resource_config": {
+          "name": {
+            "get_input": "subnet_name"
+          },
+          "ip_version": 4,
+          "cidr": "10.10.4.0/24",
+          "dns_nameservers": [
+            "8.8.4.4",
+            "8.8.8.8"
+          ],
+          "allocation_pools": [
+            {
+              "start": "10.10.4.2",
+              "end": "10.10.4.254"
+            }
+          ]
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "network"
+        },
+        {
+          "type": "cloudify.relationships.openstack.subnet_connected_to_router",
+          "target": "router"
+        }
+      ],
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "resource_config": {
+                "get_property": [
+                  "SELF",
+                  "resource_config"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "type": "cloudify.nodes.openstack.Network",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "resource_config": {
+          "name": {
+            "get_input": "network_name"
+          }
+        }
+      }
+    },
+    "router": {
+      "type": "cloudify.nodes.openstack.Router",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "resource_config": {
+          "name": {
+            "concat": [
+              {
+                "get_input": "name_prefix"
+              },
+              "_router"
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.connected_to",
+          "target": "external-network"
+        }
+      ],
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "resource_config": {
+                "get_property": [
+                  "SELF",
+                  "resource_config"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "security_group": {
+      "type": "cloudify.nodes.openstack.SecurityGroup",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        },
+        "security_group_rules": [
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port_range_max": 80,
+            "port_range_min": 80,
+            "direction": "ingress",
+            "protocol": "tcp"
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port_range_max": 80,
+            "port_range_min": 80,
+            "direction": "egress",
+            "protocol": "tcp"
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port_range_min": 53333,
+            "port_range_max": 53333,
+            "protocol": "tcp",
+            "direction": "ingress"
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port_range_min": 53333,
+            "port_range_max": 53333,
+            "protocol": "tcp",
+            "direction": "egress"
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port_range_max": 22,
+            "port_range_min": 22,
+            "direction": "ingress",
+            "protocol": "tcp"
+          },
+          {
+            "remote_ip_prefix": "0.0.0.0/0",
+            "port_range_max": 22,
+            "port_range_min": 22,
+            "direction": "egress",
+            "protocol": "tcp"
+          }
+        ],
+        "resource_config": {
+          "name": {
+            "concat": [
+              {
+                "get_input": "name_prefix"
+              },
+              "agent_sg"
+            ]
+          },
+          "description": "A security group created by Cloudify OpenStack SDK plugin."
+        }
+      },
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "resource_config": {
+                "get_property": [
+                  "SELF",
+                  "resource_config"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "ip": {
+      "type": "cloudify.nodes.openstack.FloatingIP",
+      "properties": {
+        "client_config": {
+          "auth_url": {
+            "get_input": "auth_url"
+          },
+          "username": {
+            "get_input": "username"
+          },
+          "password": {
+            "get_input": "password"
+          },
+          "project_name": {
+            "get_input": "project_name"
+          },
+          "region_name": {
+            "get_input": "region_name"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.connected_to",
+          "target": "external-network"
+        }
+      ],
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "inputs": {
+              "resource_config": {
+                "get_property": [
+                  "SELF",
+                  "resource_config"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "outputs": {
+    "application_endpoint": {
+      "description": "The external endpoint of the application.",
+      "value": {
+        "concat": [
+          "http://",
+          {
+            "get_attribute": [
+              "ip",
+              "floating_ip_address"
+            ]
+          },
+          ":80"
+        ]
+      }
+    }
+  }
+}

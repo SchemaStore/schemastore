@@ -1,0 +1,390 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/5.0.0/types.yaml",
+    "plugin:cloudify-awssdk-plugin",
+    "plugin:cloudify-utilities-plugin"
+  ],
+  "inputs": {
+    "aws_access_key_id": {
+      "type": "string"
+    },
+    "aws_secret_access_key": {
+      "type": "string"
+    },
+    "aws_region_name": {
+      "type": "string"
+    },
+    "aws_availability_zone": {
+      "default": {
+        "concat": [
+          {
+            "get_input": "aws_region_name"
+          },
+          "b"
+        ]
+      }
+    },
+    "public_key": {
+      "type": "string"
+    },
+    "vpc_cidr": {
+      "default": "10.10.0.0/16"
+    },
+    "subnet_cidr": {
+      "default": "10.10.0.0/24"
+    },
+    "ami_image_filter_name": {
+      "default": "ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20170727"
+    },
+    "ami_image_filter_owner": {
+      "default": "099720109477"
+    }
+  },
+  "dsl_definitions": {
+    "client_config": {
+      "aws_access_key_id": {
+        "get_input": "aws_access_key_id"
+      },
+      "aws_secret_access_key": {
+        "get_input": "aws_secret_access_key"
+      },
+      "region_name": {
+        "get_input": "aws_region_name"
+      }
+    }
+  },
+  "node_templates": {
+    "host": {
+      "type": "cloudify.nodes.aws.ec2.Instances",
+      "properties": {
+        "agent_config": {
+          "install_method": "none",
+          "port": 22
+        },
+        "resource_config": {
+          "ImageId": {
+            "get_attribute": [
+              "ubuntu_trusty_ami",
+              "aws_resource_id"
+            ]
+          },
+          "InstanceType": "t2.medium",
+          "kwargs": {
+            "BlockDeviceMappings": [
+              {
+                "DeviceName": "/dev/sda1",
+                "Ebs": {
+                  "DeleteOnTermination": true
+                }
+              }
+            ],
+            "Placement": {
+              "AvailabilityZone": {
+                "get_input": "aws_availability_zone"
+              }
+            },
+            "UserData": {
+              "get_attribute": [
+                "cloudinit",
+                "cloud_config"
+              ]
+            }
+          }
+        },
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "nic"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "ip"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "ami"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "cloudinit"
+        }
+      ]
+    },
+    "ip": {
+      "type": "cloudify.nodes.aws.ec2.ElasticIP",
+      "properties": {
+        "resource_config": {
+          "kwargs": {
+            "Domain": "vpc"
+          }
+        },
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "nic"
+        }
+      ]
+    },
+    "nic": {
+      "type": "cloudify.nodes.aws.ec2.Interface",
+      "properties": {
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        },
+        "resource_config": {
+          "kwargs": {
+            "Description": "Utilities Plugin CloudInit Test Nic",
+            "SubnetId": {
+              "get_attribute": [
+                "public_subnet",
+                "aws_resource_id"
+              ]
+            },
+            "Groups": [
+              {
+                "get_attribute": [
+                  "security_group",
+                  "aws_resource_id"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "public_subnet"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "security_group"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "security_group_rules"
+        }
+      ]
+    },
+    "security_group_rules": {
+      "type": "cloudify.nodes.aws.ec2.SecurityGroupRuleIngress",
+      "properties": {
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        },
+        "resource_config": {
+          "kwargs": {
+            "IpPermissions": [
+              {
+                "IpProtocol": "tcp",
+                "FromPort": 22,
+                "ToPort": 22,
+                "IpRanges": [
+                  {
+                    "CidrIp": "0.0.0.0/0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "security_group"
+        }
+      ]
+    },
+    "security_group": {
+      "type": "cloudify.nodes.aws.ec2.SecurityGroup",
+      "properties": {
+        "resource_config": {
+          "kwargs": {
+            "GroupName": "UtilsPluginTestGroup",
+            "Description": "Utilities Plugin CloudInit Test Group",
+            "VpcId": {
+              "get_attribute": [
+                "vpc",
+                "aws_resource_id"
+              ]
+            }
+          }
+        },
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "vpc"
+        }
+      ]
+    },
+    "public_subnet": {
+      "type": "cloudify.nodes.aws.ec2.Subnet",
+      "properties": {
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        },
+        "resource_config": {
+          "kwargs": {
+            "CidrBlock": {
+              "get_input": "subnet_cidr"
+            },
+            "AvailabilityZone": {
+              "get_input": "aws_availability_zone"
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "vpc"
+        }
+      ]
+    },
+    "vpc": {
+      "type": "cloudify.nodes.aws.ec2.Vpc",
+      "properties": {
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        },
+        "resource_config": {
+          "kwargs": {
+            "CidrBlock": {
+              "get_input": "vpc_cidr"
+            }
+          }
+        }
+      }
+    },
+    "ami": {
+      "type": "cloudify.nodes.aws.ec2.Image",
+      "properties": {
+        "resource_config": {
+          "kwargs": {
+            "Filters": [
+              {
+                "Name": "name",
+                "Values": [
+                  {
+                    "get_input": "ami_image_filter_name"
+                  }
+                ]
+              },
+              {
+                "Name": "owner-id",
+                "Values": [
+                  {
+                    "get_input": "ami_image_filter_owner"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "client_config": {
+          "aws_access_key_id": {
+            "get_input": "aws_access_key_id"
+          },
+          "aws_secret_access_key": {
+            "get_input": "aws_secret_access_key"
+          },
+          "region_name": {
+            "get_input": "aws_region_name"
+          }
+        }
+      }
+    },
+    "cloudinit": {
+      "type": "cloudify.nodes.CloudInit.CloudConfig",
+      "properties": {
+        "resource_config": {
+          "users": [
+            {
+              "name": "ubuntu",
+              "primary-group": "ubuntu",
+              "shell": "/bin/bash",
+              "sudo": [
+                "ALL=(ALL) NOPASSWD:ALL"
+              ],
+              "ssh-authorized-keys": [
+                {
+                  "get_input": "public_key"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,634 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "description": "This blueprint create a managed cluster.\n",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/3.4/types.yaml",
+    "plugin:cloudify-azure-plugin?version= >=2.1.10",
+    "plugin:cloudify-kubernetes-plugin?version= >=2.7.0",
+    "plugin:cloudify-utilities-plugin?version= >=1.22.1"
+  ],
+  "inputs": {
+    "subscription_id": {
+      "type": "string",
+      "required": false,
+      "default": {
+        "get_secret": "azure_subscription_id"
+      }
+    },
+    "tenant_id": {
+      "type": "string",
+      "required": false,
+      "default": {
+        "get_secret": "azure_tenant_id"
+      }
+    },
+    "client_id": {
+      "type": "string",
+      "required": false,
+      "default": {
+        "get_secret": "azure_client_id"
+      }
+    },
+    "client_secret": {
+      "type": "string",
+      "required": false,
+      "default": {
+        "get_secret": "azure_client_secret"
+      }
+    },
+    "location": {
+      "type": "string",
+      "required": true,
+      "default": "eastus2"
+    },
+    "resource_suffix": {
+      "type": "string",
+      "description": "Must be a letter.",
+      "default": "a"
+    },
+    "resource_group_name": {
+      "type": "string",
+      "default": {
+        "concat": [
+          "aks-test-rg",
+          {
+            "get_input": "resource_suffix"
+          }
+        ]
+      }
+    },
+    "managed_cluster_name": {
+      "type": "string",
+      "default": {
+        "concat": [
+          "aks-test-mc",
+          {
+            "get_input": "resource_suffix"
+          }
+        ]
+      }
+    },
+    "service_account_name": {
+      "type": "string",
+      "default": "examples-user"
+    },
+    "service_account_namespace": {
+      "type": "string",
+      "default": "default"
+    },
+    "agent_key_name": {
+      "type": "string",
+      "default": "agent_key"
+    }
+  },
+  "dsl_definitions": {
+    "azure_config": {
+      "subscription_id": {
+        "get_input": "subscription_id"
+      },
+      "tenant_id": {
+        "get_input": "tenant_id"
+      },
+      "client_id": {
+        "get_input": "client_id"
+      },
+      "client_secret": {
+        "get_input": "client_secret"
+      }
+    },
+    "resource_config": {
+      "location": {
+        "get_input": "location"
+      },
+      "tags": {
+        "Name": {
+          "concat": [
+            "AKS_Test",
+            {
+              "get_input": "resource_suffix"
+            }
+          ]
+        },
+        "tier": "Testing"
+      },
+      "kubernetes_version": "",
+      "dns_prefix": {
+        "concat": [
+          "akstest",
+          {
+            "get_input": "resource_suffix"
+          }
+        ]
+      },
+      "agent_pool_profiles": [
+        {
+          "name": {
+            "concat": [
+              "nodepool1",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          },
+          "count": 3,
+          "vmSize": "Standard_DS1_v2",
+          "osType": "Linux",
+          "type": "VirtualMachineScaleSets",
+          "availabilityZones": [
+            "1",
+            "2",
+            "3"
+          ],
+          "enableNodePublicIP": true
+        }
+      ],
+      "linux_profile": {
+        "adminUsername": "azureuser",
+        "ssh": {
+          "publicKeys": [
+            {
+              "keyData": {
+                "get_attribute": [
+                  "agent_key",
+                  "public_key_export"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "network_profile": {
+        "loadBalancerSku": "standard",
+        "outboundType": "loadBalancer",
+        "loadBalancerProfile": {
+          "managedOutboundIPs": {
+            "count": 2
+          }
+        }
+      },
+      "windows_profile": {
+        "adminUsername": "azureuser",
+        "adminPassword": "az#1234"
+      },
+      "service_principal_profile": {
+        "clientId": {
+          "get_input": "client_id"
+        },
+        "secret": {
+          "get_input": "client_secret"
+        }
+      },
+      "addon_profiles": {},
+      "enable_rbac": true
+    }
+  },
+  "node_templates": {
+    "resource_group": {
+      "type": "cloudify.azure.nodes.ResourceGroup",
+      "properties": {
+        "name": {
+          "get_input": "resource_group_name"
+        },
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        }
+      }
+    },
+    "managed_cluster": {
+      "type": "cloudify.azure.nodes.compute.ManagedCluster",
+      "properties": {
+        "resource_group": {
+          "get_input": "resource_group_name"
+        },
+        "cluster_name": {
+          "get_input": "managed_cluster_name"
+        },
+        "resource_config": {
+          "location": {
+            "get_input": "location"
+          },
+          "tags": {
+            "Name": {
+              "concat": [
+                "AKS_Test",
+                {
+                  "get_input": "resource_suffix"
+                }
+              ]
+            },
+            "tier": "Testing"
+          },
+          "kubernetes_version": "",
+          "dns_prefix": {
+            "concat": [
+              "akstest",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          },
+          "agent_pool_profiles": [
+            {
+              "name": {
+                "concat": [
+                  "nodepool1",
+                  {
+                    "get_input": "resource_suffix"
+                  }
+                ]
+              },
+              "count": 3,
+              "vmSize": "Standard_DS1_v2",
+              "osType": "Linux",
+              "type": "VirtualMachineScaleSets",
+              "availabilityZones": [
+                "1",
+                "2",
+                "3"
+              ],
+              "enableNodePublicIP": true
+            }
+          ],
+          "linux_profile": {
+            "adminUsername": "azureuser",
+            "ssh": {
+              "publicKeys": [
+                {
+                  "keyData": {
+                    "get_attribute": [
+                      "agent_key",
+                      "public_key_export"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "network_profile": {
+            "loadBalancerSku": "standard",
+            "outboundType": "loadBalancer",
+            "loadBalancerProfile": {
+              "managedOutboundIPs": {
+                "count": 2
+              }
+            }
+          },
+          "windows_profile": {
+            "adminUsername": "azureuser",
+            "adminPassword": "az#1234"
+          },
+          "service_principal_profile": {
+            "clientId": {
+              "get_input": "client_id"
+            },
+            "secret": {
+              "get_input": "client_secret"
+            }
+          },
+          "addon_profiles": {},
+          "enable_rbac": true
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        },
+        "store_kube_config_in_runtime": true
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "agent_key"
+        }
+      ]
+    },
+    "kubernetes_master": {
+      "type": "cloudify.kubernetes.nodes.Master",
+      "properties": {
+        "configuration": {
+          "file_content": {
+            "get_attribute": [
+              "managed_cluster",
+              "kubeconf"
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "managed_cluster"
+        }
+      ]
+    },
+    "new_service_account": {
+      "type": "cloudify.kubernetes.resources.ServiceAccount",
+      "properties": {
+        "client_config": {
+          "configuration": {
+            "file_content": {
+              "get_attribute": [
+                "managed_cluster",
+                "kubeconf"
+              ]
+            }
+          }
+        },
+        "definition": {
+          "apiVersion": "v1",
+          "kind": "ServiceAccount",
+          "metadata": {
+            "name": {
+              "get_input": "service_account_name"
+            },
+            "namespace": {
+              "get_input": "service_account_namespace"
+            }
+          }
+        },
+        "options": {
+          "namespace": {
+            "get_input": "service_account_namespace"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "kubernetes_master"
+        }
+      ]
+    },
+    "new_role_binding": {
+      "type": "cloudify.kubernetes.resources.RoleBinding",
+      "properties": {
+        "client_config": {
+          "configuration": {
+            "file_content": {
+              "get_attribute": [
+                "managed_cluster",
+                "kubeconf"
+              ]
+            }
+          }
+        },
+        "definition": {
+          "apiVersion": "rbac.authorization.k8s.io/v1beta1",
+          "kind": "ClusterRoleBinding",
+          "metadata": {
+            "name": {
+              "get_input": "service_account_name"
+            }
+          },
+          "roleRef": {
+            "apiGroup": "rbac.authorization.k8s.io",
+            "kind": "ClusterRole",
+            "name": "cluster-admin"
+          },
+          "subjects": [
+            {
+              "kind": "ServiceAccount",
+              "name": {
+                "get_input": "service_account_name"
+              },
+              "namespace": {
+                "get_input": "service_account_namespace"
+              }
+            }
+          ]
+        },
+        "options": {
+          "namespace": {
+            "get_input": "service_account_namespace"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "kubernetes_master"
+        }
+      ]
+    },
+    "secret": {
+      "type": "cloudify.kubernetes.resources.CustomBlueprintDefinedResource",
+      "properties": {
+        "client_config": {
+          "configuration": {
+            "file_content": {
+              "get_attribute": [
+                "managed_cluster",
+                "kubeconf"
+              ]
+            }
+          }
+        },
+        "use_external_resource": true,
+        "definition": {
+          "apiVersion": "v1",
+          "kind": "Secret",
+          "metadata": {
+            "name": {
+              "get_attribute": [
+                "new_service_account",
+                "kubernetes",
+                "secrets",
+                0,
+                "name"
+              ]
+            }
+          }
+        },
+        "api_mapping": {
+          "create": {
+            "api": "CoreV1Api",
+            "method": "create_namespaced_secret",
+            "payload": "V1Secret"
+          },
+          "read": {
+            "api": "CoreV1Api",
+            "method": "read_namespaced_secret"
+          },
+          "update": {
+            "api": "CoreV1Api",
+            "method": "replace_namespaced_secret",
+            "payload": "V1Secret"
+          },
+          "delete": {
+            "api": "CoreV1Api",
+            "method": "delete_namespaced_secret",
+            "payload": "V1DeleteOptions"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "kubernetes_master"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "new_role_binding"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "new_service_account"
+        }
+      ]
+    },
+    "store_token": {
+      "type": "cloudify.nodes.Root",
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "scripts/store_kube_token.py",
+            "executor": "central_deployment_agent",
+            "inputs": {
+              "kube_token": {
+                "get_attribute": [
+                  "secret",
+                  "kubernetes",
+                  "data",
+                  "token"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "secret"
+        }
+      ]
+    },
+    "sanity_master": {
+      "type": "cloudify.kubernetes.nodes.Master",
+      "properties": {
+        "configuration": {
+          "api_options": {
+            "host": {
+              "get_attribute": [
+                "managed_cluster",
+                "kubeconf",
+                "clusters",
+                0,
+                "cluster",
+                "server"
+              ]
+            },
+            "api_key": {
+              "get_secret": "kubernetes_token"
+            },
+            "debug": false,
+            "verify_ssl": false
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "store_token"
+        }
+      ]
+    },
+    "sanity_pod": {
+      "type": "cloudify.kubernetes.resources.Pod",
+      "properties": {
+        "client_config": {
+          "configuration": {
+            "api_options": {
+              "host": {
+                "get_attribute": [
+                  "managed_cluster",
+                  "kubeconf",
+                  "clusters",
+                  0,
+                  "cluster",
+                  "server"
+                ]
+              },
+              "api_key": {
+                "get_secret": "kubernetes_token"
+              },
+              "debug": false,
+              "verify_ssl": false
+            }
+          }
+        },
+        "definition": {
+          "apiVersion": "v1",
+          "kind": "Pod",
+          "metadata": {
+            "name": "nginx"
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "nginx",
+                "image": "nginx:stable"
+              }
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "sanity_master"
+        }
+      ]
+    },
+    "agent_key": {
+      "type": "cloudify.keys.nodes.RSAKey",
+      "properties": {
+        "resource_config": {
+          "key_name": {
+            "get_input": "agent_key_name"
+          },
+          "openssh_format": true
+        },
+        "use_secret_store": true,
+        "use_secrets_if_exist": true
+      },
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "keys.cloudify_ssh_key.operations.create",
+            "inputs": {
+              "store_private_key_material": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

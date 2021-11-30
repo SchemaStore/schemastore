@@ -241,26 +241,26 @@
             * @typedef {Object} httpConfig
             * @property {String} method HTTP method (e.g. 'GET', 'POST', etc)
             *    @property {String} url Absolute or relative URL of the resource that is being requested.
-            * @property {Object.<string|Object>} params  – Map of strings or objects which will be turned
+            * @property {Object.<string|Object>} params  ï¿½ Map of strings or objects which will be turned
             *      to `?key1=value1&key2=value2` after the url. If the value is not a string, it will be
             *      JSONified.
-            * @property {string|Object} data  – Data to be sent as the request message data.
-            * @property {Object} headers  – Map of strings or functions which return strings representing
+            * @property {string|Object} data  ï¿½ Data to be sent as the request message data.
+            * @property {Object} headers  ï¿½ Map of strings or functions which return strings representing
             *      HTTP headers to send to the server. If the return value of a function is null, the
             *      header will not be sent.
-            * @property {string} xsrfHeaderName  – Name of HTTP header to populate with the XSRF token.
-            * @property {string} xsrfCookieName  – Name of cookie containing the XSRF token.
-            * @property {function(data, headersGetter)|Array.<function(data, headersGetter)>} transformRequest  –
+            * @property {string} xsrfHeaderName  ï¿½ Name of HTTP header to populate with the XSRF token.
+            * @property {string} xsrfCookieName  ï¿½ Name of cookie containing the XSRF token.
+            * @property {function(data, headersGetter)|Array.<function(data, headersGetter)>} transformRequest  ï¿½
             *      transform function or an array of such functions. The transform function takes the http
             *      request body and headers and returns its transformed (typically serialized) version.
-            * @property {function(data, headersGetter)|Array.<function(data, headersGetter)>} transformResponse  –
+            * @property {function(data, headersGetter)|Array.<function(data, headersGetter)>} transformResponse  ï¿½
             *      transform function or an array of such functions. The transform function takes the http
             *      response body and headers and returns its transformed (typically deserialized) version.
-            * @property {boolean|Cache} cache  – If true, a default $http cache will be used to cache the
+            * @property {boolean|Cache} cache  ï¿½ If true, a default $http cache will be used to cache the
             *      GET request, otherwise if a cache instance built with
             *      {@link ng.$cacheFactory $cacheFactory}, this cache will be used for
             *      caching.
-            * @property {number|Promise} timeout  – timeout in milliseconds, or {@link ng.$q promise}
+            * @property {number|Promise} timeout  ï¿½ timeout in milliseconds, or {@link ng.$q promise}
             *      that should abort the request when resolved.
             * @property {boolean} withCredentials  - whether to set the `withCredentials` flag on the
             *      XHR object.
@@ -498,7 +498,7 @@
                 return;
             }
 
-            // When the callback defintion is an array, pull the actual callback off the end
+            // When the callback definition is an array, pull the actual callback off the end
             if (angular.isArray(callBackDefinition)) {
                 callBackDefinition = callBackDefinition[callBackDefinition.length - 1];
             }

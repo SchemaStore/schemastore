@@ -1,0 +1,540 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "description": "This blueprint creates many small Linux instances in Azure to demonstrate grid computing capabilities.\n",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/3.4/types.yaml",
+    "https://raw.githubusercontent.com/cloudify-cosmo/cloudify-azure-plugin/master/plugin.yaml"
+  ],
+  "inputs": {
+    "resource_prefix": {
+      "default": "cfy"
+    },
+    "resource_suffix": {
+      "default": 12
+    },
+    "subscription_id": {
+      "type": "string",
+      "required": false
+    },
+    "tenant_id": {
+      "type": "string",
+      "required": false
+    },
+    "client_id": {
+      "type": "string",
+      "required": false
+    },
+    "client_secret": {
+      "type": "string",
+      "required": false
+    },
+    "location": {
+      "type": "string",
+      "required": true,
+      "default": "eastus"
+    },
+    "retry_after": {
+      "type": "integer",
+      "default": 60
+    },
+    "vm_size": {
+      "type": "string",
+      "required": true,
+      "default": "Basic_A2"
+    },
+    "vm_os_family": {
+      "type": "string",
+      "required": true,
+      "default": "linux"
+    },
+    "vm_image_publisher": {
+      "type": "string",
+      "required": true,
+      "default": "Canonical"
+    },
+    "vm_image_offer": {
+      "type": "string",
+      "required": true,
+      "default": "UbuntuServer"
+    },
+    "vm_image_sku": {
+      "type": "string",
+      "required": true,
+      "default": "14.04.4-LTS"
+    },
+    "vm_image_version": {
+      "type": "string",
+      "required": true,
+      "default": "14.04.201604060"
+    },
+    "vm_os_username": {
+      "description": "Username to create as the VM's administrator user\n",
+      "type": "string",
+      "required": true,
+      "default": "cloudify"
+    },
+    "vm_os_password": {
+      "description": "Password to use for the VM's administrator user\n",
+      "type": "string",
+      "required": true,
+      "default": "Cl0ud1fy!"
+    },
+    "vm_os_pubkeys": {
+      "description": "the public key",
+      "default": [
+        {
+          "path": {
+            "concat": [
+              "/home/",
+              {
+                "get_input": "vm_os_username"
+              },
+              "/.ssh/authorized_keys"
+            ]
+          },
+          "keyData": "ssh-rsa AAAAA3----your-key-here----aabbzz"
+        }
+      ]
+    },
+    "vm_os_pubkey_auth_only": {
+      "default": true
+    },
+    "manager_resource_group": {
+      "required": true,
+      "default": "shayrg"
+    },
+    "manager_virtual_network": {
+      "required": true,
+      "default": "a73c364c-a14d-4b96-9dd5-04e561144788"
+    },
+    "manager_subnet": {
+      "required": true,
+      "default": "3da67af5-cd44-47bd-b229-fa4357301b8d"
+    },
+    "scale_vm_per_sa": {
+      "default": 50
+    },
+    "scale_sa_per_rg": {
+      "default": 4
+    },
+    "scale_total_rg": {
+      "default": 2
+    }
+  },
+  "dsl_definitions": {
+    "azure_config": {
+      "subscription_id": {
+        "get_input": "subscription_id"
+      },
+      "tenant_id": {
+        "get_input": "tenant_id"
+      },
+      "client_id": {
+        "get_input": "client_id"
+      },
+      "client_secret": {
+        "get_input": "client_secret"
+      }
+    }
+  },
+  "node_types": {
+    "self.nodes.compute.VirtualMachine": {
+      "derived_from": "cloudify.azure.nodes.compute.VirtualMachine",
+      "properties": {
+        "location": {
+          "default": {
+            "get_input": "location"
+          }
+        },
+        "retry_after": {
+          "default": {
+            "get_input": "retry_after"
+          }
+        },
+        "os_family": {
+          "default": {
+            "get_input": "vm_os_family"
+          }
+        },
+        "azure_config": {
+          "default": {
+            "subscription_id": {
+              "get_input": "subscription_id"
+            },
+            "tenant_id": {
+              "get_input": "tenant_id"
+            },
+            "client_id": {
+              "get_input": "client_id"
+            },
+            "client_secret": {
+              "get_input": "client_secret"
+            }
+          }
+        },
+        "agent_config": {
+          "default": {
+            "user": {
+              "get_input": "vm_os_username"
+            },
+            "password": {
+              "get_input": "vm_os_password"
+            },
+            "install_method": "remote"
+          }
+        },
+        "resource_config": {
+          "default": {
+            "hardwareProfile": {
+              "vmSize": {
+                "get_input": "vm_size"
+              }
+            },
+            "storageProfile": {
+              "imageReference": {
+                "publisher": {
+                  "get_input": "vm_image_publisher"
+                },
+                "offer": {
+                  "get_input": "vm_image_offer"
+                },
+                "sku": {
+                  "get_input": "vm_image_sku"
+                },
+                "version": {
+                  "get_input": "vm_image_version"
+                }
+              }
+            },
+            "osProfile": {
+              "adminUsername": {
+                "get_input": "vm_os_username"
+              },
+              "adminPassword": {
+                "get_input": "vm_os_password"
+              },
+              "linuxConfiguration": {
+                "ssh": {
+                  "publicKeys": {
+                    "get_input": "vm_os_pubkeys"
+                  }
+                },
+                "disablePasswordAuthentication": {
+                  "get_input": "vm_os_pubkey_auth_only"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "node_templates": {
+    "core_resource_group": {
+      "type": "cloudify.azure.nodes.ResourceGroup",
+      "properties": {
+        "name": {
+          "get_input": "manager_resource_group"
+        },
+        "use_external_resource": true,
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        }
+      }
+    },
+    "core_virtual_network": {
+      "type": "cloudify.azure.nodes.network.VirtualNetwork",
+      "properties": {
+        "name": {
+          "get_input": "manager_virtual_network"
+        },
+        "use_external_resource": true,
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        },
+        "location": {
+          "get_input": "location"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "core_resource_group"
+        }
+      ]
+    },
+    "core_subnet": {
+      "type": "cloudify.azure.nodes.network.Subnet",
+      "properties": {
+        "name": {
+          "get_input": "manager_subnet"
+        },
+        "use_external_resource": true,
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        },
+        "location": {
+          "get_input": "location"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_virtual_network",
+          "target": "core_virtual_network"
+        }
+      ]
+    },
+    "resource_group": {
+      "type": "cloudify.azure.nodes.ResourceGroup",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        }
+      }
+    },
+    "storage_account": {
+      "type": "cloudify.azure.nodes.storage.StorageAccount",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "accountType": "Standard_LRS"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        }
+      ]
+    },
+    "host": {
+      "type": "self.nodes.compute.VirtualMachine",
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_storage_account",
+          "target": "storage_account"
+        },
+        {
+          "type": "cloudify.azure.relationships.connected_to_nic",
+          "target": "host_nic"
+        }
+      ]
+    },
+    "application": {
+      "type": "cloudify.nodes.ApplicationModule",
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "start": "scripts/example.py"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.contained_in",
+          "target": "host"
+        }
+      ]
+    },
+    "host_nic": {
+      "type": "cloudify.azure.nodes.network.NetworkInterfaceCard",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.nic_connected_to_ip_configuration",
+          "target": "host_nic_ip_cfg"
+        }
+      ]
+    },
+    "host_nic_ip_cfg": {
+      "type": "cloudify.azure.nodes.network.IPConfiguration",
+      "properties": {
+        "location": {
+          "get_input": "location"
+        },
+        "azure_config": {
+          "subscription_id": {
+            "get_input": "subscription_id"
+          },
+          "tenant_id": {
+            "get_input": "tenant_id"
+          },
+          "client_id": {
+            "get_input": "client_id"
+          },
+          "client_secret": {
+            "get_input": "client_secret"
+          }
+        },
+        "retry_after": {
+          "get_input": "retry_after"
+        },
+        "resource_config": {
+          "privateIPAllocationMethod": "Dynamic"
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.azure.relationships.contained_in_resource_group",
+          "target": "resource_group"
+        },
+        {
+          "type": "cloudify.azure.relationships.ip_configuration_connected_to_subnet",
+          "target": "core_subnet"
+        }
+      ]
+    }
+  },
+  "groups": {
+    "container": {
+      "members": [
+        "outer",
+        "resource_group"
+      ]
+    },
+    "outer": {
+      "members": [
+        "inner",
+        "storage_account"
+      ]
+    },
+    "inner": {
+      "members": [
+        "host",
+        "host_nic",
+        "host_nic_ip_cfg"
+      ]
+    }
+  },
+  "policies": {
+    "inner_scale": {
+      "type": "cloudify.policies.scaling",
+      "properties": {
+        "default_instances": {
+          "get_input": "scale_vm_per_sa"
+        }
+      },
+      "targets": [
+        "inner"
+      ]
+    },
+    "outer_scale": {
+      "type": "cloudify.policies.scaling",
+      "properties": {
+        "default_instances": {
+          "get_input": "scale_sa_per_rg"
+        }
+      },
+      "targets": [
+        "outer"
+      ]
+    },
+    "container_scale": {
+      "type": "cloudify.policies.scaling",
+      "properties": {
+        "default_instances": {
+          "get_input": "scale_total_rg"
+        }
+      },
+      "targets": [
+        "container"
+      ]
+    }
+  }
+}

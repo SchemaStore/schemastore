@@ -1,0 +1,145 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "imports": [
+    "http://www.getcloudify.org/spec/cloudify/5.0.0/types.yaml",
+    "plugin:cloudify-ansible-plugin"
+  ],
+  "inputs": {
+    "site_yaml_relative_path": {
+      "type": "string",
+      "default": "ansible-examples/lamp_simple/site.yml"
+    },
+    "webserver_vm_ip": {
+      "type": "string",
+      "default": "11.0.0.7"
+    },
+    "dbserver_vm_ip": {
+      "type": "string",
+      "default": "11.0.0.8"
+    },
+    "web_private_key": {
+      "type": "string"
+    },
+    "db_private_key": {
+      "type": "string",
+      "default": {
+        "get_input": "web_private_key"
+      }
+    },
+    "username": {
+      "type": "string",
+      "default": "centos"
+    }
+  },
+  "node_templates": {
+    "ansible_playbook": {
+      "type": "cloudify.nodes.Root",
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "ansible.cloudify_ansible.tasks.run",
+            "inputs": {
+              "site_yaml_path": {
+                "get_input": "site_yaml_relative_path"
+              },
+              "sources": {
+                "webservers": {
+                  "hosts": {
+                    "web": {
+                      "ansible_host": {
+                        "get_property": [
+                          "webserver_vm",
+                          "ip"
+                        ]
+                      },
+                      "ansible_user": {
+                        "get_input": "username"
+                      },
+                      "ansible_ssh_private_key_file": {
+                        "get_property": [
+                          "webserver_vm",
+                          "agent_config",
+                          "key"
+                        ]
+                      },
+                      "ansible_become": true,
+                      "ansible_ssh_common_args": "-o StrictHostKeyChecking=no"
+                    }
+                  }
+                },
+                "dbservers": {
+                  "hosts": {
+                    "db": {
+                      "ansible_host": {
+                        "get_property": [
+                          "dbserver_vm",
+                          "ip"
+                        ]
+                      },
+                      "ansible_user": {
+                        "get_input": "username"
+                      },
+                      "ansible_ssh_private_key_file": {
+                        "get_property": [
+                          "dbserver_vm",
+                          "agent_config",
+                          "key"
+                        ]
+                      },
+                      "ansible_become": true,
+                      "ansible_ssh_common_args": "-o StrictHostKeyChecking=no"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "webserver_vm"
+        },
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "dbserver_vm"
+        }
+      ]
+    },
+    "webserver_vm": {
+      "type": "cloudify.nodes.Compute",
+      "properties": {
+        "ip": {
+          "get_input": "webserver_vm_ip"
+        },
+        "agent_config": {
+          "install_method": "none",
+          "key": {
+            "get_input": "web_private_key"
+          },
+          "user": {
+            "get_input": "username"
+          }
+        }
+      }
+    },
+    "dbserver_vm": {
+      "type": "cloudify.nodes.Compute",
+      "properties": {
+        "ip": {
+          "get_input": "dbserver_vm_ip"
+        },
+        "agent_config": {
+          "install_method": "none",
+          "key": {
+            "get_input": "db_private_key"
+          },
+          "user": {
+            "get_input": "username"
+          }
+        }
+      }
+    }
+  }
+}

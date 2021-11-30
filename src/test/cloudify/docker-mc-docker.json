@@ -1,0 +1,178 @@
+{
+  "tosca_definitions_version": "cloudify_dsl_1_3",
+  "description": "Cloudify Docker blueprint. Deploys Docker.",
+  "imports": [
+    "http://cloudify.co/spec/cloudify/5.0.5/types.yaml",
+    "plugin:cloudify-fabric-plugin"
+  ],
+  "inputs": {
+    "infra_name": {
+      "description": "Name of infrastructure blueprint to deploy.\n",
+      "type": "string",
+      "constraints": [
+        {
+          "valid_values": [
+            "openstack",
+            "azure",
+            "azure-arm",
+            "aws",
+            "aws-terraform",
+            "aws-cloudformation",
+            "gcp"
+          ]
+        }
+      ]
+    },
+    "infra_archive": {
+      "description": "URL of infra zip file.\n",
+      "type": "string",
+      "default": "https://github.com/cloudify-community/blueprint-examples/releases/download/5.0.5-10/virtual-machine.zip"
+    },
+    "infra_exists": {
+      "description": "Whether a getting started infrastructure blueprint has already been uploaded to the manager or not.\n",
+      "default": false
+    },
+    "infra_deployment_id": {
+      "description": "The blueprint name, the deployment name.",
+      "default": {
+        "concat": [
+          "infra-",
+          {
+            "get_input": "infra_name"
+          }
+        ]
+      }
+    }
+  },
+  "node_templates": {
+    "infrastructure": {
+      "type": "cloudify.nodes.Component",
+      "properties": {
+        "resource_config": {
+          "blueprint": {
+            "id": {
+              "get_input": "infra_deployment_id"
+            },
+            "blueprint_archive": {
+              "get_input": "infra_archive"
+            },
+            "main_file_name": {
+              "concat": [
+                {
+                  "get_input": "infra_name"
+                },
+                ".yaml"
+              ]
+            },
+            "external_resource": {
+              "get_input": "infra_exists"
+            }
+          },
+          "deployment": {
+            "id": {
+              "get_input": "infra_deployment_id"
+            }
+          }
+        }
+      }
+    },
+    "docker": {
+      "type": "cloudify.nodes.ApplicationServer",
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "fabric.fabric_plugin.tasks.run_script",
+            "inputs": {
+              "script_path": "scripts/install_docker.sh",
+              "fabric_env": {
+                "host_string": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "endpoint"
+                  ]
+                },
+                "user": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "user"
+                  ]
+                },
+                "key": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "key_content"
+                  ]
+                }
+              },
+              "use_sudo": true
+            }
+          },
+          "delete": {
+            "implementation": "fabric.fabric_plugin.tasks.run_script",
+            "inputs": {
+              "script_path": "scripts/uninstall_docker.sh",
+              "fabric_env": {
+                "host_string": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "endpoint"
+                  ]
+                },
+                "user": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "user"
+                  ]
+                },
+                "key": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "key_content"
+                  ]
+                }
+              },
+              "use_sudo": true
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "cloudify.relationships.depends_on",
+          "target": "infrastructure"
+        }
+      ]
+    }
+  },
+  "outputs": {
+    "docker_api_url": {
+      "description": "Administration console URL",
+      "value": {
+        "concat": [
+          "http://",
+          {
+            "get_capability": [
+              {
+                "get_input": "infra_deployment_id"
+              },
+              "endpoint"
+            ]
+          },
+          ":2375"
+        ]
+      }
+    }
+  }
+}
