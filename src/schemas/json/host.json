@@ -26,9 +26,9 @@
     "functions": {
       "description": "The list of functions the host should load.",
       "type": "array",
+      "uniqueItems": true,
       "items": {
-        "type": "string",
-        "uniqueItems": true
+        "type": "string"
       }
     },
 
@@ -37,7 +37,7 @@
       "oneOf": [
         {
           "type": "string",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+          "pattern": "^(-1|(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d)$"
         },
         { "enum": [ null ] }
       ]
@@ -46,10 +46,10 @@
     "watchDirectories": {
       "description": "Set of shared code directories that should be monitored for changes to ensure that when code in these directories is changed, it is picked up by your functions",
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "type": "string",
-        "minLength": 1,
-        "uniqueItems": true
+        "minLength": 1
       }
     },
 
@@ -134,7 +134,7 @@
           "default": -1
         },
         "maxOutstandingRequests": {
-          "description": "Defines the maximum number of oustanding requests that will be held at any given time.",
+          "description": "Defines the maximum number of outstanding requests that will be held at any given time.",
           "type": "integer",
           "default": -1
         },
@@ -142,6 +142,41 @@
           "description": "Indicates whether dynamic host counter checks should be enabled.",
           "type": "boolean",
           "default": false
+        },
+        "hsts": {
+          "description": "Configuration settings for Strict-Transport-Security",
+          "type": "object",
+          "properties": {
+            "isEnabled": {
+              "description": "Indicates whether the hsts configuration should be applied",
+              "type": "boolean"
+            },
+            "excludedHosts": {
+              "description": "Defines the list of host names that will not add the HSTS header.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "includeSubDomains": {
+              "description": "Indicates whether the includeSubDomain parameter of the Strict-Transport-Security header should be enabled.",
+              "type": "boolean"
+            },
+            "maxAge": {
+              "description": "Defines the max-age parameter of the Strict-Transport-Security header.",
+              "type": "string"
+            },
+            "preload": {
+              "description": "Indicates whether the preload parameter of the Strict-Transport-Security header should be enabled.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "customHeaders": {
+          "description": "Allows you to set custom headers in the HTTP response, ex. X-Content-Type-Options.",
+          "type": "object"
         }
       },
       "additionalProperties": false
@@ -180,7 +215,7 @@
       },
       "additionalProperties": false
     },
-    
+
     "queues-extension-v2": {
       "description": "Configuration settings for 'queue' triggers.",
       "type": "object",
@@ -487,7 +522,7 @@
           },
           "additionalProperties": false
         },
-        "eventHub": { 
+        "eventHub": {
           "description": "Configuration settings for 'eventHub' triggers.",
           "type": "object",
           "properties": {
@@ -521,53 +556,25 @@
           "properties": {
             "id": {
               "description": "The id of the extension bundle",
-              "type": "string"
+              "type": "string",
+              "default": "Microsoft.Azure.Functions.ExtensionBundle"
             },
             "version": {
               "description": "The version of the extension bundle.",
-              "type": "string"
+              "type": "string",
+              "examples": [
+                "[1.*, 2.0.0)",
+                "[2.*, 3.0.0)"
+              ],
+              "default": "[2.*, 3.0.0)"
             }
           },
-          "additionalProperties": false
-        },
-        "http": {
-          "description": "Configuration settings for customizing the response to http requests",
-          "type": "object",
-          "hsts": {
-            "description": "Configuration settings for Strict-Transport-Security",
-            "type": "object",
-            "properties": {
-              "isEnabled": {
-                "description": "Indicates whether the hsts configuration should be applied",
-                "type": "boolean"
-              },
-              "excludedHosts": {
-                "description": "Defines the list of host names that will not add the HSTS header.",
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "uniqueItems": true
-                }
-              },
-              "includeSubDomains": {
-                "description": "Indicates whether the includeSubDomain parameter of the Strict-Transport-Security header should be enabled.",
-                "type": "boolean"
-              },
-              "maxAge": {
-                "description": "Defines the max-age parameter of the Strict-Transport-Security header.",
-                "type": "string"
-              },
-              "preload": {
-                "description": "Indicates whether the preload parameter of the Strict-Transport-Security header should be enabled.",
-                "type": "boolean"
-              }
-            },
-            "additionalProperties": false
-          },
-          "customHeaders": {
-            "description": "Configuration settings for adding custom http headers.",
-            "type": "object"
-          },
+          "examples": [
+            {
+              "id": "Microsoft.Azure.Functions.ExtensionBundle",
+              "version": "[2.*, 3.0.0)"
+            }
+          ],
           "additionalProperties": false
         },
         "aggregator": { "$ref": "#/definitions/aggregator" },
@@ -616,6 +623,11 @@
                       "type": "boolean",
                       "default": true
                     },
+                    "excludedTypes": {
+                      "description": "A semi-colon delimited list of types excluded from sampling. Recognized: Dependency, Event, Exception, PageView, Request, Trace.",
+                      "type": "string",
+                      "default": "Request"
+                    },
                     "maxTelemetryItemsPerSecond": {
                       "description": "The target rate that the adaptive algorithm aims for on each instance",
                       "type": "integer",
@@ -624,6 +636,14 @@
                   }
                 }
               },
+              "examples": [
+                {
+                  "samplingSettings": {
+                    "isEnabled": true,
+                    "excludedTypes": "Request"
+                  }
+                }
+              ],
               "additionalProperties": false
             },
             "fileLoggingMode": {
@@ -633,10 +653,88 @@
             }
           }
         },
+        "retry": {
+          "description": "Retry policy of function execution failures at the app level. Retry policy applies to all the functions in the function app.",
+          "type": "object",
+              "properties": {
+                "strategy": {
+                  "description": "Retry strategy to use for retrying function executions",
+                  "enum": [ "exponentialBackoff", "fixedDelay" ],
+                  "default": "exponentialBackoff"
+                },
+                "maxRetryCount": {
+                  "description": "The maximum number of retries allowed per function execution. -1 means to retry indefinitely.",
+                  "type": "integer"
+                },
+                "delayInterval":{
+                  "description": "Value indicating the delayInterval for function execution retries when using FixedDelay strategy.",
+                  "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                  },
+                  { "enum": [ null ] }
+                ]
+                },
+                "minimumInterval":{
+                  "description": "Value indicating the minimumInterval for function execution retries when using ExponentialBackoff strategy.",
+                  "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                  },
+                  { "enum": [ null ] }
+                ]
+                },
+                "maximumInterval":{
+                  "description": "Value indicating the maximumInterval for function execution retries when using ExponentialBackoff strategy.",
+                  "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                  },
+                  { "enum": [ null ] }
+                ]
+                }
+              }
+        },
+        "customHandler": {
+          "description": "Configuration settings for Custom Handler.",
+          "type": "object",
+          "properties": {
+            "description": {
+              "description": "Configuration settings for Custom Handler process",
+              "type": "object",
+              "properties": {
+                "defaultExecutablePath": {
+                  "description": "Name or path to the Custom Handler process",
+                  "type": "string"
+                },
+                "workingDirectory": {
+                  "description": "WorkingDirectory to be used by the Custom Handler process. If not set, defaults to function app root folder.",
+                  "type": "string"
+                },
+                "arguments": {
+                  "description": "Arguments to be passed to the Custom Handler process. Can use environment variables following pattern %envVarName%",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "enableForwardingHttpRequest": {
+              "description": "Forward HttpTrigger request to the custom handler",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
         "singleton": { "$ref": "#/definitions/singleton" },
         "watchDirectories": { "$ref": "#/definitions/watchDirectories" },
         "version": {
-          "description": "The version of the function application.",
+          "description": "The version of the Azure Functions host.json schema. This is NOT the version of the Azure Functions host.",
           "enum": [ "2.0" ]
         },
         "extensions": {
@@ -674,7 +772,7 @@
                     }
                   },
                   "additionalProperties": false
-                }                
+                }
               },
               "additionalProperties": false
             },
@@ -710,7 +808,7 @@
                     }
                   },
                   "additionalProperties": false
-                },                
+                },
                 "batchCheckpointFrequency": {
                   "description": "The number of batches to process before creating an EventHub cursor checkpoint",
                   "type": "integer",
@@ -725,6 +823,23 @@
         }
       },
       "required": [ "version" ],
+      "examples": [
+        {
+          "version": "2.0",
+          "logging": {
+            "applicationInsights": {
+              "samplingSettings": {
+                "isEnabled": true,
+                "excludedTypes": "Request"
+              }
+            }
+          },
+          "extensionBundle": {
+            "id": "Microsoft.Azure.Functions.ExtensionBundle",
+            "version": "[2.*, 3.0.0)"
+          }
+        }
+      ],
       "additionalProperties": false
     }
   },
