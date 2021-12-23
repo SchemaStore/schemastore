@@ -1,55 +1,292 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "#Configuration",
-  "$comment": "https://github.com/nestjs/nest-cli/blob/master/lib/configuration/configuration.ts",
+  "$comment": "https://docs.nestjs.com/cli/monorepo#cli-properties",
   "title": "Nest CLI configuration",
   "type": "object",
   "properties": {
-    "language": {"type": "string", "default": "ts"},
-    "collection": {"type": "string", "default": "@nestjs/schematics"},
-    "sourceRoot": {"type": "string", "default": "src"},
-    "entryFile": {"type": "string", "default": "main"},
-    "monorepo": {"type": "boolean", "default": false},
-    "compilerOptions": {
-      "allOf": [
-        {"$ref": "#/definitions/CompilerOptions"},
-        {
-          "properties": {
-            "tsConfigPath": {"default": "tsconfig.build.json"},
-            "webpack": {"default": false},
-            "webpackConfigPath": {"default": "webpack.config.js"},
-            "plugins": {"default": []},
-            "assets": {"default": []}
-          }
-        }
-      ]
+    "language": {
+      "type": "string",
+      "default": "ts"
     },
-    "generateOptions": {"$ref": "#/definitions/GenerateOptions", "default": {}},
+    "collection": {
+      "type": "string",
+      "default": "@nestjs/schematics",
+      "description": "Points at the collection of schematics used to generate components. you generally should not change this value."
+    },
+    "sourceRoot": {
+      "type": "string",
+      "default": "src",
+      "description": "Points at the root of the source code for the single project in standard mode structures, or the default project in monorepo mode structures.",
+      "$comment": "https://github.com/nestjs/nest-cli/blob/master/actions/add.action.ts"
+    },
+    "entryFile": {
+      "type": "string",
+      "default": "main",
+      "description": "The entry file where 'nest start' work with. Default to 'main'.",
+      "$comment": "https://github.com/nestjs/nest-cli/blob/master/actions/start.action.ts"
+    },
+    "monorepo": {
+      "type": "boolean",
+      "description": "(monorepo only) For a monorepo mode structure, this value is always true.",
+      "default": false
+    },
+    "root": {
+      "type": "string",
+      "description": "(monorepo only) Points at the project root of the default project.",
+      "default": ""
+    },
+    "compilerOptions": {
+      "$ref": "#/definitions/CompilerOptions"
+    },
+    "generateOptions": {
+      "$ref": "#/definitions/GenerateOptions"
+    },
     "projects": {
       "type": "object",
-      "additionalProperties": {"$ref": "#/definitions/ProjectConfiguration"},
+      "additionalProperties": {
+        "$ref": "#/definitions/ProjectConfiguration"
+      },
       "default": {}
     }
   },
   "definitions": {
     "CompilerOptions": {
       "type": "object",
+      "description": "A map with keys specifying compiler options and values specifying the option setting. See https://docs.nestjs.com/cli/monorepo#global-compiler-options for details",
+      "$comment": "https://docs.nestjs.com/cli/monorepo#global-compiler-options",
+      "default": {},
       "properties": {
-        "tsConfigPath": {"type": "string"},
-        "webpack": {"type": "boolean"},
-        "webpackConfigPath": {"type": "string"},
-        "plugins": {"type": "array", "items": {"type": "string"}},
-        "assets": {"type": "array", "items": {"type": "string"}},
-        "deleteOutDir": {"type": "boolean"}
+        "tsConfigPath": {
+          "default": "tsconfig.build.json",
+          "type": "string",
+          "description": "(monorepo only) Points at the file containing the tsconfig.json settings that will be used when nest build or nest start is called without a project option (e.g., when the default project is built or started). 'nest build' will not work as expected without this file.",
+          "$comment": "https://github.com/nestjs/nest-cli/blob/master/lib/compiler/defaults/webpac-defaults.ts"
+        },
+        "webpack": {
+          "default": false,
+          "type": "boolean",
+          "description": "If true, use webpack compiler. If false or not present, use tsc. In monorepo mode, the default is true (use webpack), in standard mode, the default is false (use tsc). See https://docs.nestjs.com/cli/monorepo#cli-properties for details.",
+          "$comment": "https://github.com/nestjs/nest-cli/blob/master/commands/build.command.ts"
+        },
+        "webpackConfigPath": {
+          "default": "webpack.config.js",
+          "type": "string",
+          "description": "Points at a webpack options file. If not specified, Nest looks for the file webpack.config.js.",
+          "$comment": "https://github.com/nestjs/nest-cli/blob/master/commands/build.command.ts"
+        },
+        "plugins": {
+          "default": [],
+          "$comment": "https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PluginItems"
+          }
+        },
+        "assets": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetsOptions"
+          },
+          "description": "Enables automatically distributing non-TypeScript assets whenever a compilation step begins (asset distribution does not happen on incremental compiles in --watch mode). Accept glob-like string and object. See https://docs.nestjs.com/cli/monorepo#assets for details.",
+          "$comment": "https://docs.nestjs.com/cli/monorepo#assets"
+        },
+        "watchAssets": {
+          "default": false,
+          "type": "boolean",
+          "description": "If true, run in watch-mode, watching all non-TypeScript assets. Setting watchAssets in a top-level compilerOptions property overrides any watchAssets settings within the assets property."
+        },
+        "deleteOutDir": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, whenever the compiler is invoked, it will first remove the compilation output directory (as configured in tsconfig.json, where the default is ./dist)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "AssetsOptions": {
+      "type": [
+        "string",
+        "object"
+      ],
+      "$comment": "https://docs.nestjs.com/cli/monorepo#assets",
+      "description": "For finer control, the element can be object.",
+      "properties": {
+        "include": {
+          "type": "string",
+          "description": "Glob-like file specifications for the assets to be distributed."
+        },
+        "exclude": {
+          "type": "string",
+          "description": "Glob-like file specifications for the assets to be excluded from the include list."
+        },
+        "outDir": {
+          "type": "string",
+          "description": "A string specifying the path (relative to the root folder) where the assets should be distributed. Defaults to the same output directory configured for compiler output."
+        },
+        "watchAssets": {
+          "type": "boolean",
+          "description": "If true, run in watch mode watching specified assets. Setting watchAssets in a top-level compilerOptions property overrides any watchAssets settings within the assets property."
+        }
       },
       "additionalProperties": false
     },
     "GenerateOptions": {
       "type": "object",
+      "description": "A map with keys specifying global generate options and values specifying the option setting. See https://docs.nestjs.com/cli/monorepo#global-generate-options for details",
+      "$comment": "https://docs.nestjs.com/cli/monorepo#global-generate-options",
       "properties": {
         "spec": {
-          "type": ["boolean", "object"],
-          "additionalProperties": {"type": "boolean"}
+          "$ref": "#/definitions/GenerateSpecOptions"
+        }
+      },
+      "default": {},
+      "additionalProperties": false
+    },
+    "GenerateSpecOptions": {
+      "type": [
+        "boolean",
+        "object"
+      ],
+      "description": "If the value is boolean, a value of true enables spec generation by default and a value of false disables it. A flag passed on the CLI command line overrides this setting, as does a project-specific generateOptions setting (more below). If the value is an object, each key represents a schematic name, and the boolean value determines whether the default spec generation is enabled / disabled for that specific schematic. See https://docs.nestjs.com/cli/monorepo#global-generate-options for details.",
+      "$comment": "https://docs.nestjs.com/cli/monorepo#global-generate-options",
+      "properties": {
+        "application": {
+          "type": "boolean",
+          "description": "Generate spec file for application schematics or not."
+        },
+        "class": {
+          "type": "boolean",
+          "description": "Disable spec file generation for class schematics."
+        },
+        "cl": {
+          "type": "boolean",
+          "description": "Alias for class"
+        },
+        "configuration": {
+          "type": "boolean",
+          "description": "Generate spec file for configuration schematics or not."
+        },
+        "co": {
+          "type": "boolean",
+          "description": "Alias for configuration"
+        },
+        "decorator": {
+          "type": "boolean",
+          "description": "Generate spec file for decorator schematics or not."
+        },
+        "d": {
+          "type": "boolean",
+          "description": "Alias fro decorator"
+        },
+        "filter": {
+          "type": "boolean",
+          "description": "Generate spec file for filter schematics or not."
+        },
+        "f": {
+          "type": "boolean",
+          "description": "Alias for filter"
+        },
+        "gateway": {
+          "type": "boolean",
+          "description": "Generate spec file for gateway schematics or not."
+        },
+        "ga": {
+          "type": "boolean",
+          "description": "Alias for gateway"
+        },
+        "guard": {
+          "type": "boolean",
+          "description": "Generate spec file for guard schematics or not."
+        },
+        "gu": {
+          "type": "boolean",
+          "description": "Alias for guard"
+        },
+        "interceptor": {
+          "type": "boolean",
+          "description": "Generate spec file for interceptor schematics or not."
+        },
+        "in": {
+          "type": "boolean",
+          "description": "Alias for interceptor"
+        },
+        "interface": {
+          "type": "boolean",
+          "description": "Generate spec file for interface schematics or not."
+        },
+        "middleware": {
+          "type": "boolean",
+          "description": "Generate spec file for middleware schematics or not."
+        },
+        "mi": {
+          "type": "boolean",
+          "description": "Alias for middleware"
+        },
+        "module": {
+          "type": "boolean",
+          "description": "Generate spec file for module schematics or not."
+        },
+        "mo": {
+          "type": "boolean",
+          "description": "Alias for module"
+        },
+        "pipe": {
+          "type": "boolean",
+          "description": "Generate spec file for pipe schematics or not."
+        },
+        "pi": {
+          "type": "boolean",
+          "description": "Alias for pipe"
+        },
+        "provider": {
+          "type": "boolean",
+          "description": "Generate spec file for provider schematics or not."
+        },
+        "pr": {
+          "type": "boolean",
+          "description": "Alias for provider"
+        },
+        "resolver": {
+          "type": "boolean",
+          "description": "Generate spec file for resolver schematics or not."
+        },
+        "r": {
+          "type": "boolean",
+          "description": "Alias for resolver"
+        },
+        "service": {
+          "type": "boolean",
+          "description": "Generate spec file for service schematics or not."
+        },
+        "s": {
+          "type": "boolean",
+          "description": "Alias for resolver"
+        },
+        "library": {
+          "type": "boolean",
+          "description": "Generate spec file for library schematics or not."
+        },
+        "lib": {
+          "type": "boolean",
+          "description": "Alias for library"
+        },
+        "sub-app": {
+          "type": "boolean",
+          "description": "Generate spec file for sub-app schematics or not."
+        },
+        "app": {
+          "type": "boolean",
+          "description": "Alias for sub-app"
+        },
+        "resource": {
+          "type": "boolean",
+          "description": "Generate spec file for resource schematics or not."
+        },
+        "res": {
+          "type": "boolean",
+          "description": "Alias for resource"
         }
       },
       "additionalProperties": false
@@ -57,13 +294,112 @@
     "ProjectConfiguration": {
       "type": "object",
       "properties": {
-        "type": {"type": "string"},
-        "root": {"type": "string"},
-        "entryFile": {"type": "string"},
-        "sourceRoot": {"type": "string"},
-        "compilerOptions": {"$ref": "#/definitions/CompilerOptions"}
+        "type": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "entryFile": {
+          "type": "string"
+        },
+        "sourceRoot": {
+          "type": "string"
+        },
+        "compilerOptions": {
+          "$ref": "#/definitions/CompilerOptions"
+        }
       },
       "additionalProperties": false
+    },
+    "PluginItems": {
+      "$comment": "https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin",
+      "type": [
+        "string",
+        "object"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The npm package name of the cli plugin, eg @nestjs/swagger."
+        },
+        "options": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PluginOptions"
+            },
+            {
+              "$ref": "#/definitions/GraphQLPluginOptions"
+            },
+            {
+              "$ref": "#/definitions/SwaggerPluginOptions"
+            }
+          ]
+        }
+      }
+    },
+    "PluginOptions": {
+      "type": "object",
+      "properties": {
+        "introspectComments": {
+          "type": "boolean",
+          "default": true,
+          "description": "If set to true, plugin will generate descriptions and example values for properties based on comments."
+        }
+      }
+    },
+    "GraphQLPluginOptions": {
+      "type": "object",
+      "$comment": "https://docs.nestjs.com/graphql/cli-plugin#using-the-cli-plugin",
+      "properties": {
+        "typeFileNameSuffix": {
+          "type": "array",
+          "default": [
+            ".input.ts",
+            ".args.ts",
+            ".entity.ts",
+            ".model.ts"
+          ],
+          "description": "(GraphQL Only) GraphQL types files suffix. Default value: ['.input.ts', '.args.ts', '.entity.ts', '.model.ts']. See https://docs.nestjs.com/graphql/cli-plugin#using-the-cli-plugin for details."
+        }
+      }
+    },
+    "SwaggerPluginOptions": {
+      "type": "object",
+      "$comment": "https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin",
+      "properties": {
+        "dtoFileNameSuffix": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".dto.ts",
+            ".entity.ts"
+          ],
+          "description": "(Swagger Only) DTO (Data Transfer Object) files suffix. Default value: ['.dto.ts', '.entity.ts']. See https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin for details"
+        },
+        "controllerFileNameSuffix": {
+          "type": "string",
+          "default": ".controller.ts",
+          "description": "(Swagger Only) Controller files suffix. See https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin for details"
+        },
+        "classValidatorShim": {
+          "type": "boolean",
+          "default": true,
+          "description": "(Swagger Only) If set to true, the module will reuse class-validator validation decorators (e.g. @Max(10) will add max: 10 to schema definition). See https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin for details"
+        },
+        "dtoKeyOfComment": {
+          "type": "string",
+          "default": "description",
+          "description": "(Swagger Only) The property key to set the comment text to on ApiProperty. See https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin for details"
+        },
+        "controllerKeyOfComment": {
+          "type": "string",
+          "default": "description",
+          "description": "(Swagger Only) The property key to set the comment text to on ApiOperation. See https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin for details"
+        }
+      }
     }
   }
 }

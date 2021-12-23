@@ -188,8 +188,11 @@ module.exports = function (grunt) {
         throwWithErrorText([`Found folder with no test files: ${folderName}`])
       }
 
-      const schemaFileWithPath = pt.join(schemaDir, `${folderName}.json`)
       if (schemaPassScan) {
+        const schemaFileWithPath = pt.join(schemaDir, `${folderName}.json`)
+        if (!fs.existsSync(schemaFileWithPath)) {
+          throwWithErrorText([`Found test folder "${folderName}" with no schema file: ${schemaFileWithPath}`])
+        }
         callbackParameter = {
           // Return the real Raw file for BOM file test rejection
           rawFile: fs.readFileSync(schemaFileWithPath),
@@ -378,20 +381,24 @@ module.exports = function (grunt) {
    * return the correct AJV instance
    * @param {string} schemaName
    * @param {string[]} unknownFormatsList
+   * @param {boolean} fullStrictMode
    * @returns {Object}
    */
-  function factoryAJV (schemaName, unknownFormatsList = []) {
+  function factoryAJV (schemaName, unknownFormatsList = [], fullStrictMode = true) {
     // some AJV default setting are [true, false or log]
     // Some options are default: 'log'
     // 'log' will generate a lot of noise in the build log. So make it true or false.
     // Hiding the issue log also does not solve anything.
     // These option items that are not strict must be reduces in the future.
-    /** @type {Object} */
-    const ajvOptions = {
+    const ajvOptionsNotStrictMode = {
       strictTypes: false, // recommended : true
       strictTuples: false, // recommended : true
       allowMatchingProperties: true // recommended : false
     }
+    const ajvOptionsStrictMode = {
+      strict: true
+    }
+    const ajvOptions = fullStrictMode ? ajvOptionsStrictMode : ajvOptionsNotStrictMode
 
     let ajvSelected
     // There are multiple AJV version for each $schema version.
@@ -490,13 +497,15 @@ module.exports = function (grunt) {
       let schemaJson
       let versionObj
       let schemaVersionStr = 'unknown'
+      const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)
+      const fullStrictModeStr = fullStrictMode ? '(FullStrictMode)' : ''
       try {
         // select the correct AJV object for this schema
         schemaJson = JSON.parse(callbackParameter.rawFile)
         versionObj = schemaVersion.getObj(schemaJson)
 
         // Get the correct AJV version
-        ajvSelected = factoryAJV(versionObj?.schemaName, unknownFormatsList)
+        ajvSelected = factoryAJV(versionObj?.schemaName, unknownFormatsList, fullStrictMode)
 
         // AJV must ignore these keywords
         unknownKeywordsList?.forEach((x) => {
@@ -514,10 +523,10 @@ module.exports = function (grunt) {
         // compile the schema
         validate = ajvSelected.compile(schemaJson)
       } catch (e) {
-        throwWithErrorText([`${textCompile}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`, e])
+        throwWithErrorText([`${textCompile}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`, e])
       }
       countSchema++
-      grunt.log.ok(`${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`)
+      grunt.log.ok(`${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`)
     }
 
     const processTestFile = (callbackParameter, success, failure) => {
@@ -630,7 +639,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('local_catalog', 'Catalog validation', function () {
     const catalogSchema = require(pt.resolve('.', schemaDir, 'schema-catalog.json'))
-    const ajvInstance = factoryAJV('draft-04')
+    const ajvInstance = factoryAJV('draft-04', [])
     if (ajvInstance.validate(catalogSchema, catalog)) {
       grunt.log.ok('catalog.json OK')
     } else {
@@ -823,7 +832,7 @@ module.exports = function (grunt) {
 
     const validateViaAjv = (schemaJson, schemaName, option) => {
       try {
-        const ajvSelected = factoryAJV(schemaName, option.unknownFormatsList)
+        const ajvSelected = factoryAJV(schemaName, option.unknownFormatsList, false)
 
         // AJV must ignore these keywords
         option.unknownKeywordsList?.forEach((x) => {
@@ -1006,6 +1015,7 @@ module.exports = function (grunt) {
       }
     }
     checkForDuplicateInList(schemaValidation.tv4test, 'tv4test[]')
+    checkForDuplicateInList(schemaValidation.ajvFullStrictMode, 'ajvFullStrictMode[]')
     checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
     checkForDuplicateInList(schemaValidation.missingcatalogurl, 'missingcatalogurl[]')
     checkForDuplicateInList(schemaValidation.fileMatchConflict, 'fileMatchConflict[]')
@@ -1026,167 +1036,6 @@ module.exports = function (grunt) {
     }
 
     grunt.log.ok('OK')
-  })
-
-  function hasBOM (buf) {
-    return buf.length > 2 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf
-  }
-
-  function parseJSON (text) {
-    try {
-      return {
-        json: JSON.parse(text)
-      }
-    } catch (err) {
-      return {
-        error: err.message
-      }
-    }
-  }
-
-  const rawGithubPrefix = 'https://raw.githubusercontent.com/'
-
-  function isRawGithubURL (url) {
-    return url.startsWith(rawGithubPrefix)
-  }
-
-  // extract repo, branch and path from a raw GitHub url
-  // returns false if not a raw GitHub url
-  function parseRawGithubURL (url) {
-    if (isRawGithubURL(url)) {
-      const [project, repo, branch, ...path] =
-        url
-          .substr(rawGithubPrefix.length)
-          .split('/')
-      return {
-        repo: `https://github.com/${project}/${repo}`,
-        base: `${project}/${repo}`,
-        branch,
-        path: path.join('/')
-      }
-    }
-    return false
-  }
-
-  const util = require('util')
-  const exec = util.promisify(require('child_process').exec)
-
-  // heuristic to find valid version tag
-  // disregard versions that are marked as special
-  // require at least a number
-  function validVersion (version) {
-    const invalid =
-      /alpha|beta|next|rc|tag|pre|\^/i.test(version) ||
-      !/\d+/.test(version)
-    return !invalid
-  }
-
-  // extract tags that might represent versions and return most recent
-  // returns false none found
-  async function githubNewestRelease (githubRepo) {
-    const cmd = `git ls-remote --tags ${githubRepo}`
-
-    const result = await exec(cmd)
-    const stdout = result.stdout.trim()
-    if (stdout === '') {
-      return false
-    }
-    const refs =
-      stdout
-        .split('\n')
-        .map(line =>
-          line
-            .split('\t')[1]
-            .split('/')[2]
-        )
-
-    // sort refs using "natural" ordering (so that it works with versions)
-    const collator = new Intl.Collator(undefined, {
-      numeric: true,
-      sensitivity: 'base'
-    })
-    refs.sort(collator.compare)
-    const refsDescending =
-      refs
-        .reverse()
-        .filter(version => validVersion(version))
-    if (refsDescending.length > 0) {
-      return refsDescending[0]
-    }
-    return false
-  }
-
-  // git default branch (master/main)
-  async function githubDefaultBranch (githubRepo) {
-    const cmd = `git ls-remote --symref ${githubRepo} HEAD`
-    const prefix = 'ref: refs/heads/'
-
-    const result = await exec(cmd)
-    const stdout = result.stdout.trim()
-    const rows =
-      stdout
-        .split('\n')
-        .map(line => line.split('\t'))
-    for (const row of rows) {
-      if (row[0].startsWith(prefix)) {
-        return row[0].substr(prefix.length)
-      }
-    }
-    throwWithErrorText(['unable to determine default branch'])
-  }
-
-  // construct raw GitHub url to the newest version
-  async function rawGithubVersionedURL (url) {
-    const urlParts = parseRawGithubURL(url)
-    let branch = await githubNewestRelease(urlParts.repo)
-    if (branch === false) {
-      branch = await githubDefaultBranch(urlParts.repo)
-    }
-    return {
-      repo: urlParts.repo,
-      branch,
-      rawURL: `${rawGithubPrefix}${urlParts.base}/${branch}/${urlParts.path}`
-    }
-  }
-
-  // Async task structure: https://gruntjs.com/creating-tasks
-  grunt.registerTask('validate_links', 'Check if links return 200 and valid json', async function () {
-    // Force task into async mode and grab a handle to the "done" function.
-    const done = this.async()
-
-    const catalogFileName = 'api/json/catalog.json'
-    const catalog = grunt.file.readJSON(catalogFileName)
-    const got = require('got')
-
-    for (let { url } of catalog.schemas) {
-      if (isRawGithubURL(url)) {
-        const { repo, branch, rawURL } = await rawGithubVersionedURL(url)
-        if (url !== rawURL) {
-          grunt.log.error('repo', repo, 'branch', branch, 'url should be', rawURL)
-          // test if the advised url works
-          url = rawURL
-        }
-      }
-
-      try {
-        const body = await got(url)
-        if (body.statusCode !== 200) {
-          grunt.log.error(url, body.statusCode)
-          continue
-        }
-        if (hasBOM(body.rawBody)) {
-          grunt.log.error(url, 'contains UTF-8 BOM')
-        }
-        const result = parseJSON(body.rawBody.toString('utf8'))
-        if (result.error) {
-          grunt.log.error(url, result.error)
-        }
-      } catch (err) {
-        grunt.log.error(url, err.message)
-      }
-    }
-
-    done()
   })
 
   grunt.registerTask('local_test',
