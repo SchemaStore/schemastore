@@ -1038,6 +1038,22 @@ module.exports = function (grunt) {
     grunt.log.ok('OK')
   })
 
+  grunt.registerTask('local_check_for_test_folders_without_schema_to_be_tested', 'Check if schema file is missing', function () {
+    let countTestFolders = 0
+    const x = (listFolders) => {
+      listFolders.forEach((folderName) => {
+        if (!skipThisFileName(folderName)) {
+          countTestFolders++
+          if (!schemasToBeTested.includes(folderName + '.json')) {
+            throwWithErrorText([`No schema ${folderName}.json found for test folder => ${folderName}`])
+          }
+        }
+      })
+    }
+    x(foldersPositiveTest)
+    x(foldersNegativeTest)
+    grunt.log.ok(`Total test folders: ${countTestFolders}`)
+  })
 
   grunt.registerTask('local_count_url_in_catalog', 'Show statistic info of the catalog', function () {
     let countScanURLExternal = 0
@@ -1057,6 +1073,7 @@ module.exports = function (grunt) {
       'local_check_duplicate_list_in_schema-validation.json',
       'local_validate_directory_structure',
       'local_filename_with_json_extension',
+      'local_check_for_test_folders_without_schema_to_be_tested',
       'local_catalog',
       'local_catalog-fileMatch-conflict',
       'local_url-present-in-catalog',
