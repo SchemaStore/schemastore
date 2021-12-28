@@ -1038,6 +1038,20 @@ module.exports = function (grunt) {
     grunt.log.ok('OK')
   })
 
+
+  grunt.registerTask('local_count_url_in_catalog', 'Show statistic info of the catalog', function () {
+    let countScanURLExternal = 0
+    let countScanURLInternal = 0
+    getUrlFromCatalog(catalogUrl => {
+      catalogUrl.startsWith(urlSchemaStore) ? countScanURLInternal++ : countScanURLExternal++
+    })
+    const totalCount = countScanURLExternal + countScanURLInternal
+    const percentExternal = (countScanURLExternal / totalCount) * 100
+    grunt.log.ok(`${countScanURLInternal} SchemaStore URL`)
+    grunt.log.ok(`${countScanURLExternal} External URL (${Math.round(percentExternal)}%)`)
+    grunt.log.ok(`${totalCount} Total URL`)
+  })
+
   grunt.registerTask('local_test',
     [
       'local_check_duplicate_list_in_schema-validation.json',
@@ -1050,6 +1064,7 @@ module.exports = function (grunt) {
       'local_bom',
       'local_find-duplicated-property-keys',
       'local_check_for_schema_version_present',
+      'local_count_url_in_catalog',
       'local_count_schema_versions',
       'local_search_for_schema_without_positive_test_files',
       'local_tv4_only_for_non_compliance_schema',
