@@ -1084,9 +1084,9 @@ module.exports = function (grunt) {
       'local_count_url_in_catalog',
       'local_count_schema_versions',
       'local_search_for_schema_without_positive_test_files',
+      'local_ajv_test',
       'local_tv4_only_for_non_compliance_schema',
-      'tv4',
-      'local_ajv_test'
+      'tv4'
     ])
   grunt.registerTask('remote_test', ['remote_count_schema_versions', 'remote_bom', 'remote_ajv_test'])
   grunt.registerTask('default', ['local_test'])
