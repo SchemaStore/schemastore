@@ -206,14 +206,20 @@ module.exports = function (grunt) {
       // Test file may have BOM. This must be removed.
       grunt.file.preserveBOM = false // Strip BOM from file
       filesInsideOneTestFolder.forEach(function (testFileFullPathName) {
-        const callbackParameter = {
-          rawFile: grunt.file.read(testFileFullPathName),
-          jsonName: pt.basename(testFileFullPathName),
-          urlOrFilePath: testFileFullPathName,
-          // This is a test folder scan process, not schema scan process
-          schemaScan: false
+        // forbidden to add extra folder inside the specific test folder
+        if (!fs.lstatSync(testFileFullPathName).isFile()) {
+          throwWithErrorText([`Found non test file inside test folder: ${testFileFullPathName}`])
         }
-        testPassScan(callbackParameter)
+        if (!skipThisFileName(pt.basename(testFileFullPathName))) {
+          const callbackParameter = {
+            rawFile: grunt.file.read(testFileFullPathName),
+            jsonName: pt.basename(testFileFullPathName),
+            urlOrFilePath: testFileFullPathName,
+            // This is a test folder scan process, not schema scan process
+            schemaScan: false
+          }
+          testPassScan(callbackParameter)
+        }
       })
       testPassScanDone?.()
     }
