@@ -1019,6 +1019,19 @@ module.exports = function (grunt) {
     grunt.log.ok(`${totalCount} Total URL`)
   })
 
+  grunt.registerTask('local_count_schema_tested_in_full_strict_mode', 'Show statistic how many full strict schema there are', function () {
+    let countSchemaScanViaAJV = 0
+    localSchemaFileAndTestFile({
+      schemaOnlyScan: function (callbackParameter) {
+        countSchemaScanViaAJV++
+      }
+    })
+    const countFullStrictSchema = schemaValidation.ajvFullStrictMode.length
+    const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
+    grunt.log.ok('Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.')
+    grunt.log.ok(`${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(percent)}%)`)
+  })
+
   grunt.registerTask('local_tv4_validator_cannot_have_negative_test', 'Check for forbidden negative test folder', function () {
     const found = foldersNegativeTest.find((x) => schemaValidation.tv4test.includes(x + '.json'))
     if (found) {
@@ -1044,6 +1057,7 @@ module.exports = function (grunt) {
       'local_count_url_in_catalog',
       'local_count_schema_versions',
       'local_search_for_schema_without_positive_test_files',
+      'local_count_schema_tested_in_full_strict_mode',
       'local_ajv_test',
       'local_tv4_only_for_non_compliance_schema',
       'tv4'
