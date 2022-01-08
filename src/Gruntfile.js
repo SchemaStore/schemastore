@@ -130,7 +130,8 @@ module.exports = function (grunt) {
     },
     {
       fullScanAllFiles = false,
-      calledByTV4Validator = false
+      calledByTV4Validator = false,
+      skipReadFile = true
     } = {}) {
     /**
      * @summary Check if the present json schema file must be tested or not
@@ -170,7 +171,7 @@ module.exports = function (grunt) {
             !skipThisFileName(schemaFileName)) {
           const callbackParameter = {
             // Return the real Raw file for BOM file test rejection
-            rawFile: fs.readFileSync(schemaFullPathName),
+            rawFile: skipReadFile ? undefined : fs.readFileSync(schemaFullPathName),
             jsonName: pt.basename(schemaFullPathName),
             urlOrFilePath: schemaFullPathName,
             schemaScan: onlySchemaScan
@@ -211,7 +212,7 @@ module.exports = function (grunt) {
         }
         if (!skipThisFileName(pt.basename(testFileFullPathName))) {
           const callbackParameter = {
-            rawFile: grunt.file.read(testFileFullPathName),
+            rawFile: skipReadFile ? undefined : grunt.file.read(testFileFullPathName),
             jsonName: pt.basename(testFileFullPathName),
             urlOrFilePath: testFileFullPathName,
             // This is a test folder scan process, not schema scan process
@@ -552,7 +553,7 @@ module.exports = function (grunt) {
       schemaOnlyScanDone: x.testSchemaFileDone,
       positiveTestScan: x.testTestFile,
       positiveTestScanDone: x.testTestFileDone
-    }, { calledByTV4Validator: true })
+    }, { calledByTV4Validator: true, skipReadFile: false })
     // The tv4 task is actually run after this registerTask()
   })
 
@@ -563,7 +564,7 @@ module.exports = function (grunt) {
       positiveTestScan: x.positiveTestFile,
       negativeTestScan: x.negativeTestFile,
       schemaForTestScanDone: x.testSchemaFileDone
-    })
+    }, { skipReadFile: false })
     grunt.log.ok('local AJV schema passed')
   })
 
@@ -580,7 +581,7 @@ module.exports = function (grunt) {
       countScan++
       testSchemaFileForBOM(data)
     }
-    localSchemaFileAndTestFile({ schemaOnlyScan: x }, { fullScanAllFiles: true })
+    localSchemaFileAndTestFile({ schemaOnlyScan: x }, { fullScanAllFiles: true, skipReadFile: false })
     grunt.log.ok(`no BOM file found in all schema files. Total files scan: ${countScan}`)
   })
 
@@ -626,7 +627,7 @@ module.exports = function (grunt) {
         throwWithErrorText(errorText)
       }
     }
-    localSchemaFileAndTestFile({ positiveTestScan: findDuplicatedProperty, negativeTestScan: findDuplicatedProperty })
+    localSchemaFileAndTestFile({ positiveTestScan: findDuplicatedProperty, negativeTestScan: findDuplicatedProperty }, { skipReadFile: false })
     grunt.log.ok(`No duplicated property key found in test files. Total files scan: ${countScan}`)
   })
 
@@ -868,7 +869,7 @@ module.exports = function (grunt) {
 
     grunt.log.writeln()
     grunt.log.ok('Check if a lower $schema version will also pass the schema validation test')
-    localSchemaFileAndTestFile({ schemaOnlyScan: testLowerSchemaVersion })
+    localSchemaFileAndTestFile({ schemaOnlyScan: testLowerSchemaVersion }, { skipReadFile: false })
     grunt.log.writeln()
     grunt.log.ok(`Total files scan: ${countScan}`)
   })
@@ -923,7 +924,8 @@ module.exports = function (grunt) {
       schemaOnlyScanDone: x.process_data_done
     },
     {
-      fullScanAllFiles: true
+      fullScanAllFiles: true,
+      skipReadFile: false
     })
   })
 
@@ -952,7 +954,8 @@ module.exports = function (grunt) {
       }
     },
     {
-      fullScanAllFiles: true
+      fullScanAllFiles: true,
+      skipReadFile: false
     })
     grunt.log.ok(`Total files scan: ${countScan}`)
   })
