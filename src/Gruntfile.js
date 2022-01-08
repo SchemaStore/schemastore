@@ -1019,12 +1019,21 @@ module.exports = function (grunt) {
     grunt.log.ok(`${totalCount} Total URL`)
   })
 
+  grunt.registerTask('local_tv4_validator_cannot_have_negative_test', 'Check for forbidden negative test folder', function () {
+    const found = foldersNegativeTest.find((x) => schemaValidation.tv4test.includes(x + '.json'))
+    if (found) {
+      throwWithErrorText([`Negative folder found for TV4 validator => ${pt.join(testNegativeDir, found)}`])
+    }
+    grunt.log.ok('OK')
+  })
+
   grunt.registerTask('local_test',
     [
       'local_check_duplicate_list_in_schema-validation.json',
       'local_validate_directory_structure',
       'local_filename_with_json_extension',
       'local_check_for_test_folders_without_schema_to_be_tested',
+      'local_tv4_validator_cannot_have_negative_test',
       'local_catalog',
       'local_catalog-fileMatch-conflict',
       'local_url-present-in-catalog',
