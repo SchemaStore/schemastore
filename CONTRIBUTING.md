@@ -11,8 +11,6 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
-Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
-
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```Shell
 make
@@ -33,8 +31,14 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 }
 ```
 
+### Best practices
 
-### Adding tests
+- Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+- Add test files.
+- Add "additionalProperties": true/false to each "properties": {}
+- Validate in [full strict mode](https://ajv.js.org/strict-mode.html) by adding the JSON schema filename to the "ajvFullStrictMode" list in [`src/schema-validation.json`](src/schema-validation.json)
+
+### Adding tests (for [local schemas](src/schemas/json) only)
 
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
@@ -45,6 +49,10 @@ To make sure that files are validated against your schema correctly (we strongly
 If the build succeeds, your changes are valid and you can safely create a PR.
 
 A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-yaml-to-json) file and used as a test file.
+
+#### Adding negative tests
+
+To make sure that invalid files fail to validate against your schema, use a subfolder in [`src/negative_test/`](src/negative_test) instead.
 
 ### Self-hosting schemas
 
