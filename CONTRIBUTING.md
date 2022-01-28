@@ -61,32 +61,3 @@ If you wish to retain full control over your schema definition, simply register 
 ### JSON formatter
 This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
 If your IDE or code editor doesn't natively support it, please install the [EditorConfig](https://editorconfig.org) plugin.
-
-## CSS spec
-The CSS specification is divided into multiple XML documents
-> one for each CSS module as specified by the W3C.
-
-Each XML document can contain properties, @-directives and
-pseudo elements/classes with descriptions, example usage
-and allowed values.
-
-Here are some ways to contribute:
-
-1. Add missing descriptions
-2. Add missing properties and values
-3. Update the supported browsers attribute
-4. Add new CSS modules by creating a new file
-
-The easiest way to contribute is to use Visual Studio 2012
-or newer, since it has native support for this XML format.
-
-After cloning this project to your local machine, copy
-the [XML schema files](/src/schemas/css) to this folder:
-
-**C:\Users\[username]\AppData\Roaming\Microsoft\VisualStudio\14.0\schemas\css** where **14.0** refers to the version of Visual Studio.
-
-If the last part of the path (_schemas\css_) doesn't exist, 
-you should create it manually. 
-
-Visual Studio will now use these schema files instead of
-the ones it ships with.
