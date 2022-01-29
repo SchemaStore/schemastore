@@ -55,9 +55,7 @@ module.exports = function (grunt) {
       catalogUrl(schema.url)
       const versions = schema.versions
       if (versions) {
-        for (const prop in versions) {
-          catalogUrl(versions[prop])
-        }
+        Object.values(versions).forEach(url => catalogUrl(url))
       }
     }
   }
@@ -885,16 +883,8 @@ module.exports = function (grunt) {
     let countSchemaVersionUnknown = 0
 
     const getObj_ = (schemaJson) => {
-      if ('$schema' in schemaJson) {
-        const schemaVersion = schemaJson.$schema
-        for (const obj of countSchemas) {
-          if (schemaVersion.includes(obj.schemaStr)) {
-            return obj
-          }
-        }
-      }
-      // Can not find the $schema version.
-      return undefined
+      const schemaVersion = schemaJson?.$schema
+      return countSchemas.find(obj => schemaVersion?.includes(obj.schemaStr))
     }
 
     return {
