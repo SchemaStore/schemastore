@@ -571,7 +571,13 @@ module.exports = function (grunt) {
   grunt.registerTask('remote_ajv_test', 'Dynamically load external schema file for validation', async function () {
     const done = this.async()
     const x = ajv()
-    await remoteSchemaFile(x.testSchemaFile)
+    let countScan = 0
+    await remoteSchemaFile(testSchemaFile => {
+      x.testSchemaFile(testSchemaFile)
+      countScan++
+    })
+    grunt.log.writeln()
+    grunt.log.writeln(`Total schemas validated with AJV: ${countScan}`)
     done()
   })
 
