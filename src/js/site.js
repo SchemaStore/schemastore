@@ -3,7 +3,7 @@
 (function (global) {
 
     global.get = function (url, asJson, callback) {
-        var xhr = new XMLHttpRequest();
+        let xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         xhr.onload = function () {
             if (asJson)
@@ -15,25 +15,25 @@
         xhr.send();
     };
 
-    var ul = document.querySelector("#schemalist ul");
-    var p = document.getElementById("count");
-    var schemas = document.getElementById("schemas");
+    let ul = document.querySelector("#schemalist ul");
+    let p = document.getElementById("count");
+    let schemas = document.getElementById("schemas");
 
     if (!ul || !p)
         return;
 
     if (schemas !== null) {
-        var api = schemas.getAttribute("data-api");
+        let api = schemas.getAttribute("data-api");
 
         get(api, true, function (catalog) {
 
             p.innerHTML = p.innerHTML.replace("{0}", catalog.schemas.length);
 
-            for (var i = 0; i < catalog.schemas.length; i++) {
+            for (let i = 0; i < catalog.schemas.length; i++) {
 
-                var schema = catalog.schemas[i];
-                var li = document.createElement("li");
-                var a = document.createElement("a");
+                let schema = catalog.schemas[i];
+                let li = document.createElement("li");
+                let a = document.createElement("a");
                 a.href = schema.url;
                 a.title = schema.description;
                 a.innerText = schema.name;
