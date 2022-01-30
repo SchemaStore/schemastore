@@ -46,7 +46,7 @@
         });
     }
 
-}(typeof window !== undefined ? window : this));
+}(typeof window !== 'undefined' ? window : this));
 
 
 (function (i, s, o, g, r, a, m) {
