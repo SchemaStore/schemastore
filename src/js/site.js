@@ -36,7 +36,7 @@
                 var a = document.createElement("a");
                 a.href = schema.url;
                 a.title = schema.description;
-                a.innerHTML = schema.name;
+                a.innerText = schema.name;
 
                 li.appendChild(a);
                 ul.appendChild(li);
