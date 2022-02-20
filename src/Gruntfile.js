@@ -7,6 +7,7 @@ const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
 const pt = require('path')
 const fs = require('fs')
+const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
 const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
@@ -26,7 +27,6 @@ const countSchemasType = [
   { schemaName: 'draft-03', schemaStr: 'json-schema.org/draft-03/schema', totalCount: 0, active: false },
   { schemaName: 'draft without version', schemaStr: 'json-schema.org/schema', totalCount: 0, active: false }
 ]
-
 module.exports = function (grunt) {
   'use strict'
 
@@ -129,7 +129,8 @@ module.exports = function (grunt) {
     {
       fullScanAllFiles = false,
       calledByTV4Validator = false,
-      skipReadFile = true
+      skipReadFile = true,
+      processOnlyThisOneSchemaFile = undefined
     } = {}) {
     /**
      * @summary Check if the present json schema file must be tested or not
@@ -162,6 +163,9 @@ module.exports = function (grunt) {
       }
       // Process all the schema files one by one via callback.
       schemasToBeTested.forEach((schemaFileName) => {
+        if (processOnlyThisOneSchemaFile) {
+          if (schemaFileName !== processOnlyThisOneSchemaFile) return
+        }
         const schemaFullPathName = pt.join(schemaDir, schemaFileName)
 
         // Some schema files must be ignored.
@@ -332,9 +336,11 @@ module.exports = function (grunt) {
    * @param {string} schemaName
    * @param {string[]} unknownFormatsList
    * @param {boolean} fullStrictMode
+   * @param {boolean} standAloneCode
+   * @param {string[]} standAloneCodeWithMultipleSchema
    * @returns {Object}
    */
-  function factoryAJV (schemaName, unknownFormatsList = [], fullStrictMode = true) {
+  function factoryAJV ({ schemaName, unknownFormatsList = [], fullStrictMode = true, standAloneCode = false, standAloneCodeWithMultipleSchema = [] } = {}) {
     // some AJV default setting are [true, false or log]
     // Some options are default: 'log'
     // 'log' will generate a lot of noise in the build log. So make it true or false.
@@ -350,6 +356,13 @@ module.exports = function (grunt) {
     }
     const ajvOptions = fullStrictMode ? ajvOptionsStrictMode : ajvOptionsNotStrictMode
 
+    // Stand-alone code need some special options parameters
+    if (standAloneCode) {
+      ajvOptions.code = { source: true }
+      if (standAloneCodeWithMultipleSchema.length) {
+        ajvOptions.schemas = standAloneCodeWithMultipleSchema
+      }
+    }
     let ajvSelected
     // There are multiple AJV version for each $schema version.
     // Create the correct one.
@@ -455,7 +468,11 @@ module.exports = function (grunt) {
         versionObj = schemaVersion.getObj(schemaJson)
 
         // Get the correct AJV version
-        ajvSelected = factoryAJV(versionObj?.schemaName, unknownFormatsList, fullStrictMode)
+        ajvSelected = factoryAJV({
+          schemaName: versionObj?.schemaName,
+          unknownFormatsList: unknownFormatsList,
+          fullStrictMode: fullStrictMode
+        })
 
         // AJV must ignore these keywords
         unknownKeywordsList?.forEach((x) => {
@@ -597,7 +614,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('local_catalog', 'Catalog validation', function () {
     const catalogSchema = require(pt.resolve('.', schemaDir, 'schema-catalog.json'))
-    const ajvInstance = factoryAJV('draft-04', [])
+    const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
     if (ajvInstance.validate(catalogSchema, catalog)) {
       grunt.log.ok('catalog.json OK')
     } else {
@@ -790,7 +807,11 @@ module.exports = function (grunt) {
 
     const validateViaAjv = (schemaJson, schemaName, option) => {
       try {
-        const ajvSelected = factoryAJV(schemaName, option.unknownFormatsList, false)
+        const ajvSelected = factoryAJV({
+          schemaName: schemaName,
+          unknownFormatsList: option.unknownFormatsList,
+          fullStrictMode: false
+        })
 
         // AJV must ignore these keywords
         option.unknownKeywordsList?.forEach((x) => {
@@ -1066,6 +1087,118 @@ module.exports = function (grunt) {
       }
     }
     grunt.log.ok(`Total schema-validation.json items check: ${countSchemaValidationItems}`)
+  })
+
+  grunt.registerTask('local_coverage', 'Run one selected schema in coverage mode', function () {
+    const javaScriptCoverageName = 'schema.json.translated.to.js'
+    const javaScriptCoverageNameWithPath = pt.join(__dirname, `${temporaryCoverageDir}/${javaScriptCoverageName}`)
+
+    /**
+     * Translate one JSON schema file to javascript via AJV validator.
+     * And run the positive and negative test files with it.
+     * @param {string} processOnlyThisOneSchemaFile The schema file that need to process
+     */
+    const generateCoverage = (processOnlyThisOneSchemaFile) => {
+      const standaloneCode = require('ajv/dist/standalone').default
+      const schemaVersion = showSchemaVersions()
+      let jsonName
+      let mainSchema
+      let mainSchemaJsonId
+      let isThisWithExternalSchema
+      let validations
+
+      // Compile JSON schema to javascript and write it to disk.
+      const processSchemaFile = (callbackParameter) => {
+        jsonName = callbackParameter.jsonName
+        // Get possible options define in schema-validation.json
+        const {
+          unknownFormatsList,
+          unknownKeywordsList,
+          externalSchemaWithPathList
+        } = getOption(callbackParameter.jsonName)
+
+        // select the correct AJV object for this schema
+        mainSchema = JSON.parse(callbackParameter.rawFile)
+        const versionObj = schemaVersion.getObj(mainSchema)
+
+        // External schema present to be included?
+        const multipleSchema = []
+        isThisWithExternalSchema = externalSchemaWithPathList.length > 0
+        if (isThisWithExternalSchema) {
+          // There is an external schema that need to be included.
+          externalSchemaWithPathList.forEach((x) => {
+            multipleSchema.push(require(x.toString()))
+          })
+          // Also add the 'root' schema
+          multipleSchema.push(mainSchema)
+        }
+
+        // Get the correct AJV version
+        const ajvSelected = factoryAJV({
+          schemaName: versionObj?.schemaName,
+          unknownFormatsList: unknownFormatsList,
+          fullStrictMode: schemaValidation.ajvFullStrictMode.includes(jsonName),
+          standAloneCode: true,
+          standAloneCodeWithMultipleSchema: multipleSchema
+        })
+
+        // AJV must ignore these keywords
+        unknownKeywordsList?.forEach((x) => {
+          ajvSelected.addKeyword(x)
+        })
+
+        let moduleCode
+        if (isThisWithExternalSchema) {
+          // Multiple schemas are combine to one JavaScript file.
+          // Must use the root $id/id to call the correct 'main' schema in JavaScript code
+          mainSchemaJsonId = schemaVersion.getObj(mainSchema).schemaName === 'draft-04' ? mainSchema.id : mainSchema.$id
+          if (!mainSchemaJsonId) {
+            throwWithErrorText([`Missing $id or id in ${jsonName}`])
+          }
+          moduleCode = standaloneCode(ajvSelected)
+        } else { // Single schema
+          mainSchemaJsonId = undefined
+          moduleCode = standaloneCode(ajvSelected, ajvSelected.compile(mainSchema))
+        }
+
+        // Write the javascript module code to file + 'js-beautify' it
+        fs.writeFileSync(javaScriptCoverageNameWithPath, require('js-beautify').js(moduleCode, { indent_size: 2 }))
+        // Now use this JavaScript as validation in the positive and negative test
+        validations = require(javaScriptCoverageNameWithPath)
+      }
+
+      // Load the Javascript file from the disk and run it with the JSON test file.
+      // This will generate the NodeJS coverage data in the background.
+      const processTestFile = (callbackParameter) => {
+        // Test only for the code coverage. Not for the validity of the test.
+        if (isThisWithExternalSchema) {
+          // Must use the root $id/id to call the correct schema JavaScript code
+          const validateRootSchema = validations[mainSchemaJsonId]
+          validateRootSchema?.(JSON.parse(callbackParameter.rawFile))
+        } else {
+          // Single schema does not need $id
+          validations(JSON.parse(callbackParameter.rawFile))
+        }
+      }
+
+      localSchemaFileAndTestFile({
+        schemaForTestScan: processSchemaFile,
+        positiveTestScan: processTestFile,
+        negativeTestScan: processTestFile
+      }, { skipReadFile: false, processOnlyThisOneSchemaFile: processOnlyThisOneSchemaFile })
+    }
+
+    // Generate the schema via option parameter 'SchemaName'
+    const schemaNameToBeCoverage = grunt.option('SchemaName')
+    if (!schemaNameToBeCoverage) {
+      throwWithErrorText(['Must start "make" file with schema name parameter.'])
+    }
+    // Not for tv4 schema files
+    if (schemaValidation.tv4test.includes(schemaNameToBeCoverage)) {
+      throwWithErrorText([`Coverage is not possible for tv4-validator schema file :${schemaNameToBeCoverage}`])
+    }
+    generateCoverage(schemaNameToBeCoverage)
+    grunt.log.ok('OK')
   })
 
   grunt.registerTask('local_test',
