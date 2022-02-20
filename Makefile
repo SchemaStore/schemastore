@@ -1,4 +1,4 @@
-.PHONY: build remote
+.PHONY: build remote maintenance coverage
 
 build: # Run the local build process
 	cd src && \
@@ -18,3 +18,12 @@ maintenance: # Run the maintenance check
 	cd src && \
 	npm install && \
 	npm run maintenance
+
+# For a specific schema, generate a coverage report in src/temp/coverage/report/index.html
+# Example: via 'make' to generate coverage report for schema-catalog.json
+# make coverage schema=schema-catalog.json
+coverage: # generate HTML coverage report
+	cd src && \
+	npx c8 --temp-directory temp/coverage -x 'Gruntfile.js' grunt local_coverage --SchemaName=$(schema) && \
+	npx c8 --temp-directory temp/coverage report -r html -o temp/coverage/report -x 'Gruntfile.js' && \
+	echo "Full HTML report files stored in 'src/temp/coverage/report/index.html'"
