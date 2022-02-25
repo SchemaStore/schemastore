@@ -1,0 +1,565 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://microsoft.com/dotnet/tye.schema.json",
+    "title": "Tye Configuration",
+    "description": "Configuration file schema for Tye.",
+    "type": "object",
+    "properties": {
+        "name": {
+            "description": "The application name.",
+            "type": "string"
+        },
+        "registry": {
+            "description": "Dockerhub username or hostname of remote registry. Used for tagging images.",
+            "type": "string"
+        },
+        "containerEngine": {
+            "description": "Container engine.",
+            "type": "string",
+            "enum": ["docker", "podman"]
+        },
+        "namespace": {
+            "description": "The Kubernetes namespace to use.",
+            "type": "string"
+        },
+        "network": {
+            "description": "The Docker network to use.",
+            "type": "string"
+        },
+        "dashboardPort": {
+            "description": "Configure the dashboard port used for `tye run`. Can be overridden using the `--port` CLI argument, and falls back to port 8000 if free, or a random port if 8000 is in use.",
+            "type": "integer"
+        },
+        "ingress": {
+            "description": "The application's ingresses.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/definitions/ingress"
+            }
+        },
+        "extensions": {
+            "description": "Extensions to be added to tye.",
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/extension"
+            }
+        },
+        "solution": {
+            "description": "Indicates the solution file (.sln) or filter (.slnf) to use when building project-based services in watch mode. If omitted, those services will be built individually. Specifying the solution [filter] can help reduce repeated builds of shared libraries when in watch mode.",
+            "type": "string"
+        },
+        "services": {
+            "description": "The application's services.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "oneOf": [
+                    {
+                        "$ref": "#/definitions/executable"
+                    },
+                    {
+                        "$ref": "#/definitions/external"
+                    },
+                    {
+                        "$ref": "#/definitions/azureFunction"
+                    },
+                    {
+                        "$ref": "#/definitions/image"
+                    },
+                    {
+                        "$ref": "#/definitions/dockerFile"
+                    },
+                    {
+                        "$ref": "#/definitions/project"
+                    },
+                    {
+                        "$ref": "#/definitions/repository"
+                    },
+                    {
+                        "$ref": "#/definitions/include"
+                    }
+                ]
+            }
+        }
+    },
+    "required": [
+        "services"
+    ],
+    "definitions": {
+        "binding": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The binding name.",
+                    "type": "string"
+                },
+                "port": {
+                    "description": "The binding port.",
+                    "type": "integer"
+                },
+                "containerPort": {
+                    "description": "The port used when running inside a container.",
+                    "type": "integer"
+                },
+                "host": {
+                    "description": "The hostname for the binding.",
+                    "type": "string"
+                },
+                "protocol": {
+                    "description": "The protocol used by the binding",
+                    "type": "string"
+                },
+                "autoAssignPort": {
+                    "description": "Whether to auto-assign a port value.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "connectionString": {
+                    "description": "The connection string.",
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false
+        },
+        "env-var": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Environment variable name.",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "Environment variable value.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "value"
+            ],
+            "additionalProperties": false
+        },
+        "build-property": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Build property name.",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "Build property name.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "value"
+            ],
+            "additionalProperties": false
+        },
+        "volume": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "A named volume.",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "The local path.",
+                    "type": "string"
+                },
+                "target": {
+                    "description": "The destination path within the container.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "target"
+            ],
+            "additionalProperties": false
+        },
+        "azureFunction": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "azureFunction": {
+                    "description": "The directory path to the azure function.",
+                    "type": "string"
+                },
+                "env": {
+                    "description": "Environment variables to use when launching.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/env-var"
+                    }
+                },
+                "args": {
+                    "description": "Command-line arguments to use when launching.",
+                    "type": "string"
+                },
+                "replicas": {
+                    "description": "Number of service replicas to create.",
+                    "type": "integer"
+                },
+                "bindings": {
+                    "description": "The bindings provided by the service.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/binding"
+                    }
+                },
+                "pathToFunc":
+                {
+                    "description": "Optional path to the function host to be used when launching functions. Can point to either func.dll or the binary.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "azureFunction"
+            ]
+        },
+        "executable": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "executable": {
+                    "description": "The file path (or file name if on the system path) of an executable.",
+                    "type": "string"
+                },
+                "workingDirectory": {
+                    "description": "The working directory to use when launching.",
+                    "type": "string"
+                },
+                "env": {
+                    "description": "Environment variables to use when launching.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/env-var"
+                    }
+                },
+                "args": {
+                    "description": "Command-line arguments to use when launching.",
+                    "type": "string"
+                },
+                "replicas": {
+                    "description": "Number of service replicas to create.",
+                    "type": "integer"
+                },
+                "bindings": {
+                    "description": "The bindings provided by the service.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/binding"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "executable"
+            ]
+        },
+        "external": {
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "external": {
+                    "description": "Designates as service as external. External services will not be launched and can only provide bindings.",
+                    "type": "boolean",
+                    "const": true
+                },
+                "bindings": {
+                    "description": "The bindings provided by the service.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/binding"
+                    }
+                }
+            },
+            "additionalProperties": false
+        },
+        "repository": {
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "repository":
+                {
+                    "description": "The repository url which will be cloned.",
+                    "type": "string"
+                },
+                "cloneDirectory": 
+                {
+                    "description": "The directory to clone the repository into.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "repository"
+            ]
+        },
+        "include": {
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "include":
+                {
+                    "description": "Path to tye.yaml file which will be used in the application.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "include"
+            ]
+        },
+        "image": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "volumes": {
+                    "description": "Volumes to mount to the container.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/volume"
+                    }
+                },
+                "image": {
+                    "description": "The name of a Docker image.",
+                    "type": "string"
+                },
+                "env": {
+                    "description": "Environment variables to use when launching.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/env-var"
+                    }
+                },
+                "args": {
+                    "description": "Command-line arguments to use when launching.",
+                    "type": "string"
+                },
+                "replicas": {
+                    "description": "Number of service replicas to create.",
+                    "type": "integer"
+                },
+                "bindings": {
+                    "description": "The bindings provided by the service.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/binding"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "image"
+            ]
+        },
+        "dockerFile": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "volumes": {
+                    "description": "Volumes to mount to the container.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/volume"
+                    }
+                },
+                "dockerFile": {
+                    "description": "The Dockerfile to use.",
+                    "type": "string"
+                },
+                "dockerFileArgs": {
+                    "description": "Build arguments to use when building the image.",
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                },
+                "dockerFileContext": {
+                    "description": "The Dockerfile context to run docker build on.",
+                    "type": "string"
+                },
+                "env": {
+                    "description": "Environment variables to use when launching.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/env-var"
+                    }
+                },
+                "args": {
+                    "description": "Command-line arguments to use when launching.",
+                    "type": "string"
+                },
+                "replicas": {
+                    "description": "Number of service replicas to create.",
+                    "type": "integer"
+                },
+                "bindings": {
+                    "description": "The bindings provided by the service.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/binding"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "dockerFile"
+            ]
+        },
+        "ingress": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The ingress name.",
+                    "type": "string"
+                },
+                "bindings": {
+                    "description": "Bindings for the ingress in local development.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ingress-binding"
+                    }
+                },
+                "rules": {
+                    "description": "Rules for ingress routing.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ingress-rule"
+                    }
+                }
+            }
+        },
+        "ingress-binding": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The binding name.",
+                    "type": "string"
+                },
+                "port": {
+                    "description": "The binding port.",
+                    "type": "integer"
+                },
+                "protocol": {
+                    "description": "The protocol used by the binding",
+                    "type": "string"
+                },
+                "ip": {
+                    "description": "The ip address the ingress listens on.",
+                    "type": "string"
+                }
+            }
+        },
+        "ingress-rule": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "description": "The service to route traffic when the rule matches.",
+                    "type": "string"
+                },
+                "path": {
+                    "description": "The path prefix to match.",
+                    "type": "string"
+                },
+                "host": {
+                    "description": "The hostname to match.",
+                    "type": "string"
+                },
+                "preservePath": {
+                    "description": "Whether to keep the path that was originally present or not after a prefix match.",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "service"
+            ]
+        },
+        "project": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "The service name. Must be unique per-application.",
+                    "type": "string"
+                },
+                "project": {
+                    "description": "The relative path to a .NET project file.",
+                    "type": "string"
+                },
+                "env": {
+                    "description": "Environment variables to use when launching.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/env-var"
+                    }
+                },
+                "buildProperties": {
+                    "description": "Build properties to use when launching or building a project.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/build-property"
+                    }
+                },
+                "args": {
+                    "description": "Command-line arguments to use when launching.",
+                    "type": "string"
+                },
+                "build": {
+                    "description": "Whether to build the project.",
+                    "type": "boolean"
+                },
+                "replicas": {
+                    "description": "Number of service replicas to create.",
+                    "type": "integer"
+                },
+                "bindings": {
+                    "description": "The bindings provided by the service.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/binding"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "project"
+            ]
+        },
+        "extension":
+        {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Extension name.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name"
+            ]
+        }
+    }
+}
