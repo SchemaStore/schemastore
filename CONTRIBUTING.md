@@ -43,12 +43,10 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
 1. Create a subfolder in [`src/test`](src/test) named as your schema file
-2. Create one or more `.json` files in that folder
+2. Create one or more `.json, .yml or .yaml` files in that folder
 3. Run `npm run build`
 
 If the build succeeds, your changes are valid and you can safely create a PR.
-
-A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-yaml-to-json) file and used as a test file.
 
 #### Adding negative tests
 

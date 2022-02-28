@@ -5,6 +5,7 @@ const AjvDraft04 = require('ajv-draft-04')
 const AjvDraft06And07 = require('ajv')
 const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
+const YAML = require('yaml')
 const pt = require('path')
 const fs = require('fs')
 const temporaryCoverageDir = 'temp'
@@ -185,6 +186,19 @@ module.exports = function (grunt) {
 
     // Scan one test folder for all the files inside it
     const scanOneTestFolder = (schemaName, testDir, testPassScan, testPassScanDone) => {
+      const loadTestFile = (testFileNameWithPath) => {
+        // Test files have extension '.json' or else it must be a YAML file
+        if (testFileNameWithPath.endsWith('.json')) {
+          return grunt.file.read(testFileNameWithPath)
+        } else { // YAML file
+          try {
+            return JSON.stringify(YAML.parse(fs.readFileSync(testFileNameWithPath, 'utf8')))
+          } catch (e) {
+            throwWithErrorText([`Can't read/decode yaml file: ${testFileNameWithPath}`, e])
+          }
+        }
+      }
+
       if (!testPassScan) {
         return
       }
@@ -214,7 +228,7 @@ module.exports = function (grunt) {
         }
         if (!skipThisFileName(pt.basename(testFileFullPathName))) {
           const callbackParameter = {
-            rawFile: skipReadFile ? undefined : grunt.file.read(testFileFullPathName),
+            rawFile: skipReadFile ? undefined : loadTestFile(testFileFullPathName),
             jsonName: pt.basename(testFileFullPathName),
             urlOrFilePath: testFileFullPathName,
             // This is a test folder scan process, not schema scan process
@@ -741,23 +755,26 @@ module.exports = function (grunt) {
     grunt.log.ok('No new fileMatch conflict detected.')
   })
 
-  grunt.registerTask('local_filename_with_json_extension', 'Dynamically check local schema/test file for filename extension', function () {
+  grunt.registerTask('local_check_filename_extension', 'Dynamically check local schema/test file for filename extension', function () {
+    const schemaFileExtension = ['.json']
+    const testFileExtension = ['.json', '.yml', '.yaml']
     let countScan = 0
-    const x = (data) => {
+    const x = (data, fileExtensionList) => {
       countScan++
-      if (!data.jsonName.endsWith('.json')) {
-        throwWithErrorText([`Filename must have .json extension => ${data.urlOrFilePath}`])
+      const found = fileExtensionList.find(x => data.jsonName.endsWith(x))
+      if (!found) {
+        throwWithErrorText([`Filename must have ${fileExtensionList} extension => ${data.urlOrFilePath}`])
       }
     }
     localSchemaFileAndTestFile(
       {
-        schemaForTestScan: x,
-        positiveTestScan: x,
-        negativeTestScan: x
+        schemaForTestScan: (data) => x(data, schemaFileExtension),
+        positiveTestScan: (data) => x(data, testFileExtension),
+        negativeTestScan: (data) => x(data, testFileExtension)
       }, {
         fullScanAllFiles: true
       })
-    grunt.log.ok(`All schema and test filename have .json extension. Total files scan: ${countScan}`)
+    grunt.log.ok(`All schema and test filename have the correct file extension. Total files scan: ${countScan}`)
   })
 
   grunt.registerTask('local_search_for_schema_without_positive_test_files', 'Dynamically check local schema if positive test files are present', function () {
@@ -1205,7 +1222,7 @@ module.exports = function (grunt) {
     [
       'local_check_duplicate_list_in_schema-validation.json',
       'local_validate_directory_structure',
-      'local_filename_with_json_extension',
+      'local_check_filename_extension',
       'local_check_in_schema-validation.json_for_missing_schema_files',
       'local_check_for_test_folders_without_schema_to_be_tested',
       'local_tv4_validator_cannot_have_negative_test',
