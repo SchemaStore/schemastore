@@ -5,6 +5,7 @@ const AjvDraft04 = require('ajv-draft-04')
 const AjvDraft06And07 = require('ajv')
 const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
+const YAML = require('yaml')
 const pt = require('path')
 const fs = require('fs')
 const temporaryCoverageDir = 'temp'
@@ -185,6 +186,19 @@ module.exports = function (grunt) {
 
     // Scan one test folder for all the files inside it
     const scanOneTestFolder = (schemaName, testDir, testPassScan, testPassScanDone) => {
+      const loadTestFile = (testFileNameWithPath) => {
+        // Test files have extension '.json' or else it must be a YAML file
+        if (testFileNameWithPath.endsWith('.json')) {
+          return grunt.file.read(testFileNameWithPath)
+        } else { // YAML file
+          try {
+            return JSON.stringify(YAML.parse(fs.readFileSync(testFileNameWithPath, 'utf8')))
+          } catch (e) {
+            throwWithErrorText([`Can't read/decode yaml file: ${testFileNameWithPath}`, e])
+          }
+        }
+      }
+
       if (!testPassScan) {
         return
       }
@@ -214,7 +228,7 @@ module.exports = function (grunt) {
         }
         if (!skipThisFileName(pt.basename(testFileFullPathName))) {
           const callbackParameter = {
-            rawFile: skipReadFile ? undefined : grunt.file.read(testFileFullPathName),
+            rawFile: skipReadFile ? undefined : loadTestFile(testFileFullPathName),
             jsonName: pt.basename(testFileFullPathName),
             urlOrFilePath: testFileFullPathName,
             // This is a test folder scan process, not schema scan process
