@@ -5,6 +5,7 @@ const AjvDraft04 = require('ajv-draft-04')
 const AjvDraft06And07 = require('ajv')
 const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
+const tv4 = require('tv4')
 const YAML = require('yaml')
 const pt = require('path')
 const fs = require('fs')
@@ -30,21 +31,6 @@ const countSchemasType = [
 ]
 module.exports = function (grunt) {
   'use strict'
-
-  grunt.file.preserveBOM = false
-  grunt.initConfig({
-    tv4: {
-      options: {
-        schemas: {
-          'http://json-schema.org/draft-04/schema#': grunt.file.readJSON('schemas/json/schema-draft-v4.json'),
-          'https://json.schemastore.org/jsonld': grunt.file.readJSON('schemas/json/jsonld.json'),
-          'https://json.schemastore.org/schema-org-thing': grunt.file.readJSON('schemas/json/schema-org-thing.json'),
-          'http://json.schemastore.org/xunit.runner.schema': grunt.file.readJSON('schemas/json/xunit.runner.schema.json'),
-          'https://json.schemastore.org/feed-1': grunt.file.readJSON('schemas/json/feed-1.json')
-        }
-      }
-    }
-  })
 
   function skipThisFileName (name) {
     // This macOS file must always be ignored.
@@ -279,68 +265,94 @@ module.exports = function (grunt) {
     }
   }
 
-  function tv4 () {
+  function tv4Validator () {
     // tv4 validator can only process draft-04 schema
     // All unknown keyword used in draft-06 and newer are just ignored.
     // This is the correct implementation of the json schema specification.
-    let schemaPath
-    let schemaName
-    const testSchemaPath = []
-    let testListPath = []
+    const schemaVersion = showSchemaVersions()
+    const textValidate = 'validate              | '
+    const textPassSchema = 'pass schema          | '
+    const textPositivePassTest = 'pass positive test   | '
+    const textPositiveFailedTest = 'failed positive test | '
 
+    let schemaToBeValidated
+    let countSchema = 0
     const processSchemaFile = (callbackParameter) => {
-      if (callbackParameter.schemaScan === true) {
-        // Must later be process it, all at once in processSchemaFileDone()
-        testSchemaPath.push(callbackParameter.urlOrFilePath)
-      } else {
-        // This is a test scan. Copy schema path for the next test file process.
-        schemaName = callbackParameter.jsonName
-        schemaPath = callbackParameter.urlOrFilePath
-        testListPath = []
+      // Start validate the JSON schema
+      let validated
+      let versionObj
+      let schemaVersionStr = 'unknown'
+      try {
+        // select the correct AJV object for this schema
+        schemaToBeValidated = JSON.parse(callbackParameter.rawFile)
+        versionObj = schemaVersion.getObj(schemaToBeValidated)
+
+        // What schema draft version is it?
+        schemaVersionStr = versionObj ? versionObj.schemaName : 'unknown'
+
+        // validate the schema with draft-04. This is the only draft version it understands.
+        validated = tv4.validate(schemaToBeValidated, schemaV4JSON)
+      } catch (e) {
+        throwWithErrorText([`${textValidate}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`, e])
       }
+      if (!validated) {
+        throwWithErrorText([
+          `${textValidate}${callbackParameter.urlOrFilePath} (${schemaVersionStr}`,
+          `(Schema file) keywordLocation: ${tv4.error.schemaPath}`,
+          `(Test file) instanceLocation:  ${tv4.error.dataPath}`,
+          `(Message)  ${tv4.error.message}`,
+          'Error in validation'
+        ])
+      }
+      countSchema++
+      grunt.log.writeln()
+      grunt.log.ok(`${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`)
     }
 
     const processSchemaFileDone = () => {
-      // Process the scan of all the schema files at once
-      if (testSchemaPath.length === 0) {
-        // tv4 task can never be empty. It will give error. Work around just rescan schema-catalog.json
-        testSchemaPath.push(pt.resolve('.', schemaDir, 'schema-catalog.json'))
+      grunt.log.writeln()
+      grunt.log.writeln(`Total schemas validated with tv4: ${countSchema}`)
+      countSchema = 0
+    }
+
+    const processPositiveTestFile = (callbackParameter) => {
+      const testFile = JSON.parse(callbackParameter.rawFile)
+      const validated = tv4.validate(testFile, schemaToBeValidated)
+      if (tv4.missing.length > 0) {
+        throwWithErrorText([`${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
+          `Missing URL: ${tv4.missing[0]}`,
+          'Must add URL and schema file in schema-validation.json (tv4ExternalRef list)'
+        ])
       }
-      const valid = 'Schemas'
-      grunt.config.set(`tv4.${valid}`, {
-        options: {
-          root: schemaV4JSON,
-          banUnknown: false
-        },
-        src: [testSchemaPath]
-      })
+      if (validated) {
+        grunt.log.ok(`${textPositivePassTest}${callbackParameter.urlOrFilePath}`)
+      } else {
+        throwWithErrorText([
+          `${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
+          `(Schema file) keywordLocation: ${tv4.error.schemaPath}`,
+          `(Test file) instanceLocation:  ${tv4.error.dataPath}`,
+          `(Message)  ${tv4.error.message}`,
+          'Error in positive test.'
+        ])
+      }
     }
 
-    const processTestFile = (callbackParameter) => {
-      // Add all the test list path of one test group together.
-      //  this will be process later at processTestFileDone()
-      testListPath.push(callbackParameter.urlOrFilePath)
+    const loadExternalSchema = () => {
+      for (const property in schemaValidation.tv4ExternalRef) {
+        try {
+          const schema = require(pt.resolve('.', schemaDir, schemaValidation.tv4ExternalRef[property]))
+          tv4.addSchema(property, schema)
+        } catch (e) {
+          throwWithErrorText([`Error in processing tv4ExternalRef ${property} : ${schemaValidation.tv4ExternalRef[property]}`, e])
+        }
+      }
     }
 
-    const processTestFileDone = () => {
-      // Process one test group 'in a folder' at once
-      const findAllTheDotInString = /\./g
-      const dotWithEscape = '\\.'
-      const valid = schemaName.replace(findAllTheDotInString, dotWithEscape)
-      grunt.config.set(`tv4.${valid}`, {
-        options: {
-          root: grunt.file.readJSON(schemaPath),
-          banUnknown: false
-        },
-        src: [testListPath]
-      })
-    }
-
+    loadExternalSchema()
     return {
       testSchemaFile: processSchemaFile,
       testSchemaFileDone: processSchemaFileDone,
-      testTestFile: processTestFile,
-      testTestFileDone: processTestFileDone
+      positiveTestFile: processPositiveTestFile
     }
   }
 
@@ -574,16 +586,13 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask('local_tv4_only_for_non_compliance_schema', 'Dynamically load local schema file for validation with /test/', function () {
-    const x = tv4()
+    const x = tv4Validator()
     // tv4 is an outdated/unreliable validator. Do not add a negative test scan here.
     localSchemaFileAndTestFile({
-      schemaOnlyScan: x.testSchemaFile,
       schemaForTestScan: x.testSchemaFile,
-      schemaOnlyScanDone: x.testSchemaFileDone,
-      positiveTestScan: x.testTestFile,
-      positiveTestScanDone: x.testTestFileDone
+      positiveTestScan: x.positiveTestFile,
+      schemaForTestScanDone: x.testSchemaFileDone
     }, { calledByTV4Validator: true, skipReadFile: false })
-    // The tv4 task is actually run after this registerTask()
   })
 
   grunt.registerTask('local_ajv_test', 'Dynamically load local schema file for validation with /test/', function () {
@@ -1218,6 +1227,62 @@ module.exports = function (grunt) {
     grunt.log.ok('OK')
   })
 
+  grunt.registerTask('local_check_if_schema_is_already_in_strict_mode', 'Check if schema need to be added to strict mode', function () {
+    // this is only for AJV schemas
+    const schemaVersion = showSchemaVersions()
+    let countSchemaTotal = 0
+    let countSchemaNeedToPutInFullStrictModeListTotal = 0
+    const checkIfThisSchemaIsAlreadyInStrictMode = (callbackParameter) => {
+      if (schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)) {
+        // It is already in the strict mode list
+        return
+      }
+      countSchemaTotal++
+      const {
+        unknownFormatsList,
+        unknownKeywordsList,
+        externalSchemaWithPathList
+      } = getOption(callbackParameter.jsonName)
+
+      // select the correct AJV object for this schema
+      const mainSchema = JSON.parse(callbackParameter.rawFile)
+      const versionObj = schemaVersion.getObj(mainSchema)
+
+      // Get the correct AJV version
+      const ajvSelected = factoryAJV({
+        schemaName: versionObj?.schemaName,
+        unknownFormatsList: unknownFormatsList,
+        fullStrictMode: true
+      })
+
+      // AJV must ignore these keywords
+      unknownKeywordsList?.forEach((x) => {
+        ajvSelected.addKeyword(x)
+      })
+
+      // Add external schema to AJV
+      externalSchemaWithPathList.forEach((x) => {
+        ajvSelected.addSchema(require(x.toString()))
+      })
+
+      try {
+        ajvSelected.compile(mainSchema)
+      } catch (e) {
+        // failed to compile in strict mode.
+        return
+      }
+      countSchemaNeedToPutInFullStrictModeListTotal++
+      grunt.log.writeln(`${callbackParameter.jsonName}`)
+    }
+
+    localSchemaFileAndTestFile({
+      schemaOnlyScan: checkIfThisSchemaIsAlreadyInStrictMode
+    }, { skipReadFile: false })
+    grunt.log.writeln()
+    grunt.log.ok(`Schemas that need to be put in full strict mode list : ${countSchemaNeedToPutInFullStrictModeListTotal}`)
+    grunt.log.ok(`Total schemas check: ${countSchemaTotal}`)
+  })
+
   grunt.registerTask('local_test',
     [
       'local_check_duplicate_list_in_schema-validation.json',
@@ -1238,12 +1303,9 @@ module.exports = function (grunt) {
       'local_search_for_schema_without_positive_test_files',
       'local_count_schema_tested_in_full_strict_mode',
       'local_ajv_test',
-      'local_tv4_only_for_non_compliance_schema',
-      'tv4'
+      'local_tv4_only_for_non_compliance_schema'
     ])
   grunt.registerTask('remote_test', ['remote_count_schema_versions', 'remote_bom', 'remote_ajv_test'])
   grunt.registerTask('default', ['local_test'])
-  grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version'])
-
-  grunt.loadNpmTasks('grunt-tv4')
+  grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version', 'local_check_if_schema_is_already_in_strict_mode'])
 }
