@@ -1227,6 +1227,62 @@ module.exports = function (grunt) {
     grunt.log.ok('OK')
   })
 
+  grunt.registerTask('local_check_if_schema_is_already_in_strict_mode', 'Check if schema need to be added to strict mode', function () {
+    // this is only for AJV schemas
+    const schemaVersion = showSchemaVersions()
+    let countSchemaTotal = 0
+    let countSchemaNeedToPutInFullStrictModeListTotal = 0
+    const checkIfThisSchemaIsAlreadyInStrictMode = (callbackParameter) => {
+      if (schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)) {
+        // It is already in the strict mode list
+        return
+      }
+      countSchemaTotal++
+      const {
+        unknownFormatsList,
+        unknownKeywordsList,
+        externalSchemaWithPathList
+      } = getOption(callbackParameter.jsonName)
+
+      // select the correct AJV object for this schema
+      const mainSchema = JSON.parse(callbackParameter.rawFile)
+      const versionObj = schemaVersion.getObj(mainSchema)
+
+      // Get the correct AJV version
+      const ajvSelected = factoryAJV({
+        schemaName: versionObj?.schemaName,
+        unknownFormatsList: unknownFormatsList,
+        fullStrictMode: true
+      })
+
+      // AJV must ignore these keywords
+      unknownKeywordsList?.forEach((x) => {
+        ajvSelected.addKeyword(x)
+      })
+
+      // Add external schema to AJV
+      externalSchemaWithPathList.forEach((x) => {
+        ajvSelected.addSchema(require(x.toString()))
+      })
+
+      try {
+        ajvSelected.compile(mainSchema)
+      } catch (e) {
+        // failed to compile in strict mode.
+        return
+      }
+      countSchemaNeedToPutInFullStrictModeListTotal++
+      grunt.log.writeln(`${callbackParameter.jsonName}`)
+    }
+
+    localSchemaFileAndTestFile({
+      schemaOnlyScan: checkIfThisSchemaIsAlreadyInStrictMode
+    }, { skipReadFile: false })
+    grunt.log.writeln()
+    grunt.log.ok(`Schemas that need to be put in full strict mode list : ${countSchemaNeedToPutInFullStrictModeListTotal}`)
+    grunt.log.ok(`Total schemas check: ${countSchemaTotal}`)
+  })
+
   grunt.registerTask('local_test',
     [
       'local_check_duplicate_list_in_schema-validation.json',
@@ -1251,6 +1307,5 @@ module.exports = function (grunt) {
     ])
   grunt.registerTask('remote_test', ['remote_count_schema_versions', 'remote_bom', 'remote_ajv_test'])
   grunt.registerTask('default', ['local_test'])
-  grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version'])
-
+  grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version', 'local_check_if_schema_is_already_in_strict_mode'])
 }
