@@ -55,9 +55,7 @@ module.exports = function (grunt) {
       catalogUrl(schema.url)
       const versions = schema.versions
       if (versions) {
-        for (const prop in versions) {
-          catalogUrl(versions[prop])
-        }
+        Object.values(versions).forEach(url => catalogUrl(url))
       }
     }
   }
@@ -571,7 +569,13 @@ module.exports = function (grunt) {
   grunt.registerTask('remote_ajv_test', 'Dynamically load external schema file for validation', async function () {
     const done = this.async()
     const x = ajv()
-    await remoteSchemaFile(x.testSchemaFile)
+    let countScan = 0
+    await remoteSchemaFile(testSchemaFile => {
+      x.testSchemaFile(testSchemaFile)
+      countScan++
+    })
+    grunt.log.writeln()
+    grunt.log.writeln(`Total schemas validated with AJV: ${countScan}`)
     done()
   })
 
@@ -879,16 +883,8 @@ module.exports = function (grunt) {
     let countSchemaVersionUnknown = 0
 
     const getObj_ = (schemaJson) => {
-      if ('$schema' in schemaJson) {
-        const schemaVersion = schemaJson.$schema
-        for (const obj of countSchemas) {
-          if (schemaVersion.includes(obj.schemaStr)) {
-            return obj
-          }
-        }
-      }
-      // Can not find the $schema version.
-      return undefined
+      const schemaVersion = schemaJson?.$schema
+      return countSchemas.find(obj => schemaVersion?.includes(obj.schemaStr))
     }
 
     return {
@@ -1043,11 +1039,41 @@ module.exports = function (grunt) {
     grunt.log.ok('OK')
   })
 
+  grunt.registerTask('local_check_in_schema-validation.json_for_missing_schema_files', 'Check if all schema JSON files are present', function () {
+    let countSchemaValidationItems = 0
+    const x = (list) => {
+      list.forEach((schemaName) => {
+        if (schemaName.endsWith('.json')) {
+          countSchemaValidationItems++
+          if (!schemasToBeTested.includes(schemaName)) {
+            throwWithErrorText([`No schema ${schemaName} found in schema folder => ${schemaDir}`])
+          }
+        }
+      })
+    }
+    x(schemaValidation.tv4test)
+    x(schemaValidation.ajvFullStrictMode)
+    x(schemaValidation.skiptest)
+    x(schemaValidation.missingcatalogurl)
+
+    for (const item of schemaValidation.options) {
+      const schemaName = Object.keys(item).pop()
+      if (schemaName !== 'readme_example.json') {
+        countSchemaValidationItems++
+        if (!schemasToBeTested.includes(schemaName)) {
+          throwWithErrorText([`No schema ${schemaName} found in schema folder => ${schemaDir}`])
+        }
+      }
+    }
+    grunt.log.ok(`Total schema-validation.json items check: ${countSchemaValidationItems}`)
+  })
+
   grunt.registerTask('local_test',
     [
       'local_check_duplicate_list_in_schema-validation.json',
       'local_validate_directory_structure',
       'local_filename_with_json_extension',
+      'local_check_in_schema-validation.json_for_missing_schema_files',
       'local_check_for_test_folders_without_schema_to_be_tested',
       'local_tv4_validator_cannot_have_negative_test',
       'local_catalog',
