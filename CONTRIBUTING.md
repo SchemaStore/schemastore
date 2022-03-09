@@ -36,7 +36,6 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 - Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
 - Add test files.
 - Add "additionalProperties": true/false to each "properties": {}
-- Validate in [full strict mode](https://ajv.js.org/strict-mode.html) by adding the JSON schema filename to the "ajvFullStrictMode" list in [`src/schema-validation.json`](src/schema-validation.json)
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
@@ -59,3 +58,9 @@ If you wish to retain full control over your schema definition, simply register 
 ### JSON formatter
 This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
 If your IDE or code editor doesn't natively support it, please install the [EditorConfig](https://editorconfig.org) plugin.
+
+### Validation mode
+SchemaStore supports three types of schema validation mode.
+- [Full strict mode](https://ajv.js.org/strict-mode.html) via AJV validator (SchemaStore default mode)
+- Not fully strict mode via AJV validator. (The json filename is present in the `ajvNotStrictMode` list in [schema-validation.json](src/schema-validation.json))
+- Validation via [tv4](https://github.com/geraintluff/tv4) (The json filename is present in the `tv4test` list in [schema-validation.json](src/schema-validation.json))
