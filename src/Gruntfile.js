@@ -486,8 +486,10 @@ module.exports = function (grunt) {
       let schemaJson
       let versionObj
       let schemaVersionStr = 'unknown'
-      const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)
-      const fullStrictModeStr = fullStrictMode ? '(FullStrictMode)' : ''
+      // const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)
+      // The SchemaStore default mode is full Strict Mode. Not in the list => full strict mode
+      const fullStrictMode = !schemaValidation.ajvNotStrictMode.includes(callbackParameter.jsonName)
+      const fullStrictModeStr = fullStrictMode ? '(FullStrictMode)' : '(NotStrictMode)'
       try {
         // select the correct AJV object for this schema
         schemaJson = JSON.parse(callbackParameter.rawFile)
@@ -1012,7 +1014,7 @@ module.exports = function (grunt) {
       }
     }
     checkForDuplicateInList(schemaValidation.tv4test, 'tv4test[]')
-    checkForDuplicateInList(schemaValidation.ajvFullStrictMode, 'ajvFullStrictMode[]')
+    checkForDuplicateInList(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode[]')
     checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
     checkForDuplicateInList(schemaValidation.missingcatalogurl, 'missingcatalogurl[]')
     checkForDuplicateInList(schemaValidation.fileMatchConflict, 'fileMatchConflict[]')
@@ -1072,7 +1074,7 @@ module.exports = function (grunt) {
         countSchemaScanViaAJV++
       }
     })
-    const countFullStrictSchema = schemaValidation.ajvFullStrictMode.length
+    const countFullStrictSchema = countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
     const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
     grunt.log.ok('Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.')
     grunt.log.ok(`${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(percent)}%)`)
@@ -1099,7 +1101,7 @@ module.exports = function (grunt) {
       })
     }
     x(schemaValidation.tv4test)
-    x(schemaValidation.ajvFullStrictMode)
+    x(schemaValidation.ajvNotStrictMode)
     x(schemaValidation.skiptest)
     x(schemaValidation.missingcatalogurl)
 
@@ -1163,7 +1165,7 @@ module.exports = function (grunt) {
         const ajvSelected = factoryAJV({
           schemaName: versionObj?.schemaName,
           unknownFormatsList: unknownFormatsList,
-          fullStrictMode: schemaValidation.ajvFullStrictMode.includes(jsonName),
+          fullStrictMode: !schemaValidation.ajvNotStrictMode.includes(jsonName),
           standAloneCode: true,
           standAloneCodeWithMultipleSchema: multipleSchema
         })
