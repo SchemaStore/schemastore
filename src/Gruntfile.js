@@ -1227,22 +1227,18 @@ module.exports = function (grunt) {
     grunt.log.ok('OK')
   })
 
-  grunt.registerTask('local_check_if_schema_is_already_in_strict_mode', 'Check if schema need to be added to strict mode', function () {
+  grunt.registerTask('local_show_two_list_of_full_strict_and_not_strict_AJV_schemas', 'Show two list of AJV', function () {
     // this is only for AJV schemas
     const schemaVersion = showSchemaVersions()
-    let countSchemaTotal = 0
-    let countSchemaNeedToPutInFullStrictModeListTotal = 0
+    const schemaInFullStrictMode = []
+    const schemaInNotStrictMode = []
     const checkIfThisSchemaIsAlreadyInStrictMode = (callbackParameter) => {
-      if (schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)) {
-        // It is already in the strict mode list
-        return
-      }
-      countSchemaTotal++
+      const schemaJsonName = callbackParameter.jsonName
       const {
         unknownFormatsList,
         unknownKeywordsList,
         externalSchemaWithPathList
-      } = getOption(callbackParameter.jsonName)
+      } = getOption(schemaJsonName)
 
       // select the correct AJV object for this schema
       const mainSchema = JSON.parse(callbackParameter.rawFile)
@@ -1269,18 +1265,31 @@ module.exports = function (grunt) {
         ajvSelected.compile(mainSchema)
       } catch (e) {
         // failed to compile in strict mode.
+        schemaInNotStrictMode.push(schemaJsonName)
         return
       }
-      countSchemaNeedToPutInFullStrictModeListTotal++
-      grunt.log.writeln(`${callbackParameter.jsonName}`)
+      schemaInFullStrictMode.push(schemaJsonName)
+    }
+
+    const listSchema = (mode, list) => {
+      grunt.log.writeln('------------------------------------')
+      grunt.log.writeln(`Schemas in ${mode} strict mode:`)
+      list.forEach(schemaName => {
+        // Write it is JSON list format. For easy copy to schema-validation.json
+        grunt.log.writeln(`"${schemaName}",`)
+      })
+      grunt.log.ok(`Total schemas check ${mode} strict mode: ${list.length}`)
     }
 
     localSchemaFileAndTestFile({
       schemaOnlyScan: checkIfThisSchemaIsAlreadyInStrictMode
     }, { skipReadFile: false })
+
+    listSchema('Full', schemaInFullStrictMode)
+    listSchema('Not', schemaInNotStrictMode)
     grunt.log.writeln()
-    grunt.log.ok(`Schemas that need to be put in full strict mode list : ${countSchemaNeedToPutInFullStrictModeListTotal}`)
-    grunt.log.ok(`Total schemas check: ${countSchemaTotal}`)
+    grunt.log.writeln('------------------------------------')
+    grunt.log.ok(`Total all schemas check: ${schemaInFullStrictMode.length + schemaInNotStrictMode.length}`)
   })
 
   grunt.registerTask('local_test',
@@ -1307,5 +1316,5 @@ module.exports = function (grunt) {
     ])
   grunt.registerTask('remote_test', ['remote_count_schema_versions', 'remote_bom', 'remote_ajv_test'])
   grunt.registerTask('default', ['local_test'])
-  grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version', 'local_check_if_schema_is_already_in_strict_mode'])
+  grunt.registerTask('local_maintenance', ['local_test_downgrade_schema_version', 'local_show_two_list_of_full_strict_and_not_strict_AJV_schemas'])
 }
