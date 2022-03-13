@@ -44,7 +44,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
   - `other properties`
   - `additionalProperties`
 - Add `"additionalProperties": true/false` to each `"properties": {}`
-- Don't end `title`/`description` properties with colon
+- Don't end `title`/`description` values with colon
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
