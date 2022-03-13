@@ -35,6 +35,14 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 
 - Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
 - Add test files.
+- Order properties as follows:
+  - $comment
+  - title
+  - description
+  - type
+  - default
+  - other properties
+  - additionalProperties
 - Add "additionalProperties": true/false to each "properties": {}
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
