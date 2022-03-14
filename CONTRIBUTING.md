@@ -33,18 +33,17 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 
 ### Best practices
 
-- Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
-- Add test files.
-- Order properties as follows:
-  - `$comment`
-  - `title` - provide it just when documentation mentions title explicitly
-  - `description`
-  - `type`
-  - `default`
-  - `other properties`
-  - `additionalProperties`
-- Add `"additionalProperties": true/false` to each `"properties": {}`
-- Don't end `title`/`description` values with colon
+✔️ **Use** the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+
+:x: **Don't forget** add test files.
+
+- Be consistent across your schema: order properties and describe in the one style.
+- Use `$comment` to note about something to developers. You can refer to some issues here.
+- Use `title` when documentation mentions title explicitly.
+- Always use `description`, `type`, `additionalProperties`.
+  - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
+- Use `minLength`/`maxLength`/`pattern`/etc for property values.
+- Don't end `title`/`description` values with colon.
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
