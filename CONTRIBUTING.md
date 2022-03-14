@@ -45,6 +45,7 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
   - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
 - Use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
+- Don't refer to other schemas to use their definitions. Make all schemas independent.
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
