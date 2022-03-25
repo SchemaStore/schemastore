@@ -1,4 +1,5 @@
 ## JSON Schema
+
 You can contribute in a variety of ways. For a detailed tutorial, read [Scott Addie](https://twitter.com/Scott_Addie)'s [**Community-Driven JSON Schemas in Visual Studio 2015**](https://scottaddie.com/2016/08/02/community-driven-json-schemas-in-visual-studio-2015/) blog post.
 
 1. Submit new JSON schema files
@@ -12,7 +13,7 @@ When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
-```Shell
+```sh
 make
 ```
 
@@ -20,7 +21,7 @@ make
 
 After adding schema files, register them in [schema catalog](src/api/json/catalog.json) by adding an entry corresponding to your schema:
 
-```JSON
+```json
 {
     "name": "Friendly schema name",
     "description": "Schema description",
@@ -33,9 +34,17 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 
 ### Best practices
 
-- Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
-- Add test files.
-- Add "additionalProperties": true/false to each "properties": {}
+✔️ **Use** the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+
+:x: **Don't forget** add test files.
+
+- Be consistent across your schema: order properties and describe in the one style.
+- Use `$comment` to note about something to developers. You can refer to some issues here.
+- Use `title` when documentation mentions title explicitly.
+- Always use `description`, `type`, `additionalProperties`.
+  - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
+- Use `minLength`/`maxLength`/`pattern`/etc for property values.
+- Don't end `title`/`description` values with colon.
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
@@ -56,10 +65,12 @@ To make sure that invalid files fail to validate against your schema, use a subf
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog). Example on how to handle [multiple schema versions.](https://github.com/SchemaStore/schemastore/pull/2057#issuecomment-1024470105)
 
 ### JSON formatter
+
 This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
 If your IDE or code editor doesn't natively support it, please install the [EditorConfig](https://editorconfig.org) plugin.
 
 ### Validation mode
+
 SchemaStore supports three types of schema validation mode.
 - [Full strict mode](https://ajv.js.org/strict-mode.html) via AJV validator (SchemaStore default mode)
 - Not fully strict mode via AJV validator. (The json filename is present in the `ajvNotStrictMode` list in [schema-validation.json](src/schema-validation.json))
