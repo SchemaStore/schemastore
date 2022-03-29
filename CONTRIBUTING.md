@@ -36,6 +36,8 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 
 ✔️ **Use** the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
 
+✔️ **Use** [`base.json`][base] schema with some common types for all schemas.
+
 :x: **Don't forget** add test files.
 
 - Be consistent across your schema: order properties and describe in the one style.
@@ -45,6 +47,8 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
   - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
 - Use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
+
+[base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
