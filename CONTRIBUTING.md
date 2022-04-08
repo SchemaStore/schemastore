@@ -36,19 +36,16 @@ After adding schema files, register them in [schema catalog](src/api/json/catalo
 - Use the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
 - Add test files.
 - Add "additionalProperties": true/false to each "properties": {}
-- Validate in [full strict mode](https://ajv.js.org/strict-mode.html) by adding the JSON schema filename to the "ajvFullStrictMode" list in [`src/schema-validation.json`](src/schema-validation.json)
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
 1. Create a subfolder in [`src/test`](src/test) named as your schema file
-2. Create one or more `.json` files in that folder
+2. Create one or more `.json, .yml or .yaml` files in that folder
 3. Run `npm run build`
 
 If the build succeeds, your changes are valid and you can safely create a PR.
-
-A valid YAML file can be [translated to JSON](https://www.json2yaml.com/convert-yaml-to-json) file and used as a test file.
 
 #### Adding negative tests
 
@@ -56,37 +53,14 @@ To make sure that invalid files fail to validate against your schema, use a subf
 
 ### Self-hosting schemas
 
-If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog).
+If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog). Example on how to handle [multiple schema versions.](https://github.com/SchemaStore/schemastore/pull/2057#issuecomment-1024470105)
 
 ### JSON formatter
 This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
 If your IDE or code editor doesn't natively support it, please install the [EditorConfig](https://editorconfig.org) plugin.
 
-## CSS spec
-The CSS specification is divided into multiple XML documents
-> one for each CSS module as specified by the W3C.
-
-Each XML document can contain properties, @-directives and
-pseudo elements/classes with descriptions, example usage
-and allowed values.
-
-Here are some ways to contribute:
-
-1. Add missing descriptions
-2. Add missing properties and values
-3. Update the supported browsers attribute
-4. Add new CSS modules by creating a new file
-
-The easiest way to contribute is to use Visual Studio 2012
-or newer, since it has native support for this XML format.
-
-After cloning this project to your local machine, copy
-the [XML schema files](/src/schemas/css) to this folder:
-
-**C:\Users\[username]\AppData\Roaming\Microsoft\VisualStudio\14.0\schemas\css** where **14.0** refers to the version of Visual Studio.
-
-If the last part of the path (_schemas\css_) doesn't exist, 
-you should create it manually. 
-
-Visual Studio will now use these schema files instead of
-the ones it ships with.
+### Validation mode
+SchemaStore supports three types of schema validation mode.
+- [Full strict mode](https://ajv.js.org/strict-mode.html) via AJV validator (SchemaStore default mode)
+- Not fully strict mode via AJV validator. (The json filename is present in the `ajvNotStrictMode` list in [schema-validation.json](src/schema-validation.json))
+- Validation via [tv4](https://github.com/geraintluff/tv4) (The json filename is present in the `tv4test` list in [schema-validation.json](src/schema-validation.json))
