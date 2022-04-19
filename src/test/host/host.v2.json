@@ -5,48 +5,126 @@
     "flushTimeout": "00:00:30"
   },
   "extensions": {
-    "cosmosDB": {
-      "connectionMode": "Direct"
+    "blobs": {
+      "maxDegreeOfParallelism": 4
     },
-    "durableTask": { "hubName": "test" },
-    "eventHubs": {
-      "eventProcessorOptions": {
-        "maxBatchSize": 32
+    "cosmosDB": {
+      "connectionMode": "Gateway",
+      "protocol": "Https",
+      "leaseOptions": {
+        "leasePrefix": "prefix1"
       }
     },
-    "http": { "routePrefix": "api" },
+    "durableTask": {
+      "hubName": "MyTaskHub",
+      "storageProvider": {
+        "connectionStringName": "AzureWebJobsStorage",
+        "controlQueueBatchSize": 32,
+        "controlQueueBufferThreshold": 256,
+        "controlQueueVisibilityTimeout": "00:05:00",
+        "maxQueuePollingInterval": "00:00:30",
+        "partitionCount": 4,
+        "trackingStoreConnectionStringName": "TrackingStorage",
+        "trackingStoreNamePrefix": "DurableTask",
+        "useLegacyPartitionManagement": true,
+        "workItemQueueVisibilityTimeout": "00:05:00"
+      },
+      "tracing": {
+        "traceInputsAndOutputs": false,
+        "traceReplayEvents": false
+      },
+      "notifications": {
+        "eventGrid": {
+          "topicEndpoint": "https://topic_name.westus2-1.eventgrid.azure.net/api/events",
+          "keySettingName": "EventGridKey",
+          "publishRetryCount": 3,
+          "publishRetryInterval": "00:00:30",
+          "publishEventTypes": ["Started", "Pending", "Failed", "Terminated"]
+        }
+      },
+      "maxConcurrentActivityFunctions": 10,
+      "maxConcurrentOrchestratorFunctions": 10,
+      "extendedSessionsEnabled": false,
+      "extendedSessionIdleTimeoutInSeconds": 30,
+      "useAppLease": true,
+      "useGracefulShutdown": false,
+      "maxEntityOperationBatchSize": 50
+    },
+    "eventHubs": {
+      "maxEventBatchSize": 10,
+      "batchCheckpointFrequency": 5,
+      "prefetchCount": 300,
+      "transportType": "amqpWebSockets",
+      "webProxy": "https://proxyserver:8080",
+      "customEndpointAddress": "amqps://company.gateway.local",
+      "initialOffsetOptions": {
+        "type": "fromStart",
+        "enqueuedTimeUtc": ""
+      },
+      "clientRetryOptions": {
+        "mode": "exponential",
+        "tryTimeout": "00:01:00",
+        "delay": "00:00:00.80",
+        "maxDelay": "00:01:00",
+        "maxRetries": 3
+      }
+    },
+    "http": {
+      "routePrefix": "api",
+      "maxOutstandingRequests": 200,
+      "maxConcurrentRequests": 100,
+      "dynamicThrottlesEnabled": true,
+      "hsts": {
+        "isEnabled": true,
+        "maxAge": "10"
+      },
+      "customHeaders": {
+        "X-Content-Type-Options": "nosniff"
+      }
+    },
     "queues": {
-      "batchSize": 5,
-      "maxPollingInterval": "00:00:10"
+      "maxPollingInterval": "00:00:02",
+      "visibilityTimeout": "00:00:30",
+      "batchSize": 16,
+      "maxDequeueCount": 5,
+      "newBatchThreshold": 8,
+      "messageEncoding": "base64"
+    },
+    "sendGrid": {
+      "from": "Azure Functions <samples@functions.com>"
     },
     "serviceBus": {
-      "prefetchCount": 32,
+      "prefetchCount": 100,
       "messageHandlerOptions": {
         "autoComplete": true,
-        "maxAutoRenewDuration":  "00:00:05"
+        "maxConcurrentCalls": 32,
+        "maxAutoRenewDuration": "00:05:00"
+      },
+      "sessionHandlerOptions": {
+        "autoComplete": false,
+        "messageWaitTimeout": "00:00:30",
+        "maxAutoRenewDuration": "00:55:00",
+        "maxConcurrentSessions": 16
+      },
+      "batchOptions": {
+        "maxMessageCount": 1000,
+        "operationTimeout": "00:01:00",
+        "autoComplete": true
       }
-    },
-    "unknownExtension": {}
+    }
   },
-  "functions": [ "QueueProcessor", "GitHubWebHook" ],
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[1.*, 2.0.0)"
+  },
+  "functions": ["QueueProcessor", "GitHubWebHook"],
   "functionTimeout": "00:05:00",
-  "retry": {
-    "strategy": "fixedDelay",
-    "maxRetryCount": 2,
-    "delayInterval": "00:00:03"
-  },
-  "customHandler": {
-    "description": {
-      "defaultExecutablePath": "GoCustomHandlers.exe"
-    },
-    "enableForwardingHttpRequest":false
-  },
   "healthMonitor": {
     "enabled": true,
     "healthCheckInterval": "00:00:10",
     "healthCheckWindow": "00:02:00",
     "healthCheckThreshold": 6,
-    "counterThreshold": 0.80
+    "counterThreshold": 0.8
   },
   "logging": {
     "fileLoggingMode": "debugOnly",
@@ -57,9 +135,58 @@
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": true,
-        "maxTelemetryItemsPerSecond": 5
+        "maxTelemetryItemsPerSecond": 20,
+        "evaluationInterval": "01:00:00",
+        "initialSamplingPercentage": 100.0,
+        "samplingPercentageIncreaseTimeout": "00:00:01",
+        "samplingPercentageDecreaseTimeout": "00:00:01",
+        "minSamplingPercentage": 0.1,
+        "maxSamplingPercentage": 100.0,
+        "movingAverageRatio": 1.0,
+        "excludedTypes": "Dependency;Event",
+        "includedTypes": "PageView;Trace"
+      },
+      "enableLiveMetrics": true,
+      "enableDependencyTracking": true,
+      "enablePerformanceCountersCollection": true,
+      "httpAutoCollectionOptions": {
+        "enableHttpTriggerExtendedInfoCollection": true,
+        "enableW3CDistributedTracing": true,
+        "enableResponseHeaderInjection": true
+      },
+      "snapshotConfiguration": {
+        "agentEndpoint": null,
+        "captureSnapshotMemoryWeight": 0.5,
+        "failedRequestLimit": 3,
+        "handleUntrackedExceptions": true,
+        "isEnabled": true,
+        "isEnabledInDeveloperMode": false,
+        "isEnabledWhenProfiling": true,
+        "isExceptionSnappointsEnabled": false,
+        "isLowPrioritySnapshotUploader": true,
+        "maximumCollectionPlanSize": 50,
+        "maximumSnapshotsRequired": 3,
+        "problemCounterResetInterval": "24:00:00",
+        "provideAnonymousTelemetry": true,
+        "reconnectInterval": "00:15:00",
+        "shadowCopyFolder": null,
+        "shareUploaderProcess": true,
+        "snapshotInLowPriorityThread": true,
+        "snapshotsPerDayLimit": 30,
+        "snapshotsPerTenMinutesLimit": 1,
+        "tempFolder": null,
+        "thresholdForSnapshotting": 1,
+        "uploaderProxy": null
       }
     }
+  },
+  "managedDependency": {
+    "enabled": true
+  },
+  "retry": {
+    "strategy": "fixedDelay",
+    "maxRetryCount": 5,
+    "delayInterval": "00:00:05"
   },
   "singleton": {
     "lockPeriod": "00:00:15",
@@ -68,5 +195,6 @@
     "lockAcquisitionTimeout": "00:01:00",
     "lockAcquisitionPollingInterval": "00:00:03"
   },
-  "watchDirectories": [ "Shared", "Test" ]
+  "watchDirectories": ["Shared", "Test"],
+  "watchFiles": ["myFile.txt"]
 }
