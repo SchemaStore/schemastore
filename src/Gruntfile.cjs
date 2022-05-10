@@ -498,8 +498,8 @@ module.exports = function (grunt) {
         // Get the correct AJV version
         ajvSelected = factoryAJV({
           schemaName: versionObj?.schemaName,
-          unknownFormatsList: unknownFormatsList,
-          fullStrictMode: fullStrictMode
+          unknownFormatsList,
+          fullStrictMode
         })
 
         // AJV must ignore these keywords
@@ -836,7 +836,7 @@ module.exports = function (grunt) {
     const validateViaAjv = (schemaJson, schemaName, option) => {
       try {
         const ajvSelected = factoryAJV({
-          schemaName: schemaName,
+          schemaName,
           unknownFormatsList: option.unknownFormatsList,
           fullStrictMode: false
         })
@@ -985,7 +985,7 @@ module.exports = function (grunt) {
   grunt.registerTask('local_check_for_schema_version_present', 'Dynamically load schema file for $schema present check', function () {
     let countScan = 0
     localSchemaFileAndTestFile({
-      schemaOnlyScan: function (callbackParameter) {
+      schemaOnlyScan (callbackParameter) {
         countScan++
         let schemaJson
         try {
@@ -1070,7 +1070,7 @@ module.exports = function (grunt) {
   grunt.registerTask('local_count_schema_tested_in_full_strict_mode', 'Show statistic how many full strict schema there are', function () {
     let countSchemaScanViaAJV = 0
     localSchemaFileAndTestFile({
-      schemaOnlyScan: function (callbackParameter) {
+      schemaOnlyScan () {
         countSchemaScanViaAJV++
       }
     })
@@ -1164,7 +1164,7 @@ module.exports = function (grunt) {
         // Get the correct AJV version
         const ajvSelected = factoryAJV({
           schemaName: versionObj?.schemaName,
-          unknownFormatsList: unknownFormatsList,
+          unknownFormatsList,
           fullStrictMode: !schemaValidation.ajvNotStrictMode.includes(jsonName),
           standAloneCode: true,
           standAloneCodeWithMultipleSchema: multipleSchema
@@ -1213,7 +1213,7 @@ module.exports = function (grunt) {
         schemaForTestScan: processSchemaFile,
         positiveTestScan: processTestFile,
         negativeTestScan: processTestFile
-      }, { skipReadFile: false, processOnlyThisOneSchemaFile: processOnlyThisOneSchemaFile })
+      }, { skipReadFile: false, processOnlyThisOneSchemaFile })
     }
 
     // Generate the schema via option parameter 'SchemaName'
@@ -1249,7 +1249,7 @@ module.exports = function (grunt) {
       // Get the correct AJV version
       const ajvSelected = factoryAJV({
         schemaName: versionObj?.schemaName,
-        unknownFormatsList: unknownFormatsList,
+        unknownFormatsList,
         fullStrictMode: true
       })
 
