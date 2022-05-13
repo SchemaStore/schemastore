@@ -26,6 +26,6 @@ maintenance: # Run the maintenance check
 coverage: # generate HTML coverage report
 	cd src && \
 	npm ci && \
-	npx c8 --temp-directory temp/coverage -x 'Gruntfile.js' grunt local_coverage --SchemaName=$(schema) && \
-	npx c8 --temp-directory temp/coverage report -r html -o temp/coverage/report -x 'Gruntfile.js' && \
+	npx c8 --temp-directory temp/coverage -x 'Gruntfile.cjs' grunt local_coverage --SchemaName=$(schema) && \
+	npx c8 --temp-directory temp/coverage report -r html -o temp/coverage/report -x 'Gruntfile.cjs' && \
 	echo "Full HTML report files stored in 'src/temp/coverage/report/index.html'"
