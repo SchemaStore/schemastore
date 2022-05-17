@@ -1,15 +1,154 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://example.com/mta.schema.json",
-  "title": "com.sap.mta.mta-schema_3.3",
-  "description": "MTA DESCRIPTOR SCHEMA",
   "$comment": "Based on https://github.wdf.sap.corp/mta/spec/blob/master/schemas/v3/v3.3/mta-schema.yaml",
-  "type": "object",
-  "required": [
-    "_schema-version",
-    "ID",
-    "version"
-  ],
+  "$id": "http://example.com/mta.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "generic-memory": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(M|MB|G|GB|m|mb|g|gb)$"
+    },
+    "properties": {
+      "type": "object"
+    },
+    "properties-metadata": {
+      "type": "object",
+      "properties": {
+        "overwritable": {
+          "type": "boolean",
+          "default": true
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false
+        },
+        "datatype": {
+          "enum": ["str", "int", "float", "bool"],
+          "type": "string",
+          "default": "str"
+        }
+      }
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "parameters-metadata": {
+      "type": "object",
+      "properties": {
+        "overwritable": {
+          "type": "boolean",
+          "default": true
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "includes": {
+      "type": "array",
+      "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
+      "items": {
+        "type": "object",
+        "required": ["name", "path"],
+        "properties": {
+          "name": {
+            "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
+            "type": "string"
+          },
+          "path": {
+            "description": "A path pointing to a file that contains a map of parameters, either in JSON or in YAML format.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "hooks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "description": "An internal name which can be used for documentation purposes and shown by the deployer.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_\\-\\.]+$"
+          },
+          "type": {
+            "description": "Defines the type of action that should be executed by the deployer.",
+            "type": "string",
+            "enum": ["task"]
+          },
+          "phases": {
+            "description": "A list of strings that define the points at which the hook must be executed.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "application.before-stop.live",
+                "application.before-stop.idle",
+                "application.after-stop.live",
+                "application.after-stop.idle"
+              ]
+            }
+          },
+          "parameters": {
+            "description": "Configuration parameters that are used when executing the hook to the target runtime environment.",
+            "$ref": "#/definitions/hooks-parameters"
+          },
+          "parameters-metadata": {
+            "description": "Additional information about the hook's parameters.",
+            "$ref": "#/definitions/properties-metadata"
+          },
+          "requires": {
+            "description": "List of names either matching a resource name or a provided dependency name provided within the same MTA that are required by this hook.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": {
+                  "description": "An MTA internal name which must match either a provided name, or a resource name within the same MTA.",
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_\\-\\.]+$"
+                },
+                "parameters": {
+                  "description": "Parameters can be used to influence the behavior of tools which interpret this descriptor. Parameters are not made available to the hook at runtime. Provided property values can be accessed by \"~{<provided-property-name>}\". Such expressions can be part of an arbitrary string",
+                  "type": "object"
+                },
+                "parameters-metadata": {
+                  "description": "Additional information about the hook's parameters.",
+                  "$ref": "#/definitions/properties-metadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hooks-parameters": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "name": {
+          "description": "Defines the name of the Cloud Foundry task that should be executed.",
+          "type": "string"
+        },
+        "command": {
+          "description": "Defines the actual command that is executed as a Cloud Foundry task.",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Defines the memory that is available to the Cloud Foundry task.",
+          "$ref": "#/definitions/generic-memory"
+        },
+        "disk-quota": {
+          "description": "Defines the disk space that is available to the Cloud Foundry task.",
+          "$ref": "#/definitions/generic-memory"
+        }
+      }
+    }
+  },
+  "description": "MTA DESCRIPTOR SCHEMA",
   "properties": {
     "_schema-version": {
       "description": "The schema version that is being used for authoring a descriptor. The schema version should comply with the semantic versioning standard.",
@@ -42,10 +181,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "type"
-        ],
+        "required": ["name", "type"],
         "properties": {
           "name": {
             "description": "The MTA module name which must be unique and cannot be the same as any provided property set or resource name.",
@@ -100,10 +236,7 @@
             "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
             "items": {
               "type": "object",
-              "required": [
-                "name",
-                "path"
-              ],
+              "required": ["name", "path"],
               "properties": {
                 "name": {
                   "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
@@ -121,9 +254,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "properties": {
                 "name": {
                   "description": "The name of the property set that the module provides. The provided name must be unique and cannot be the same as any resource or module name.",
@@ -151,9 +282,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "properties": {
                 "name": {
                   "description": "The name of a provided property set or resource (provider) that this module requires.",
@@ -189,10 +318,7 @@
                   "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "name",
-                      "path"
-                    ],
+                    "required": ["name", "path"],
                     "properties": {
                       "name": {
                         "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
@@ -216,9 +342,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "properties": {
           "name": {
             "description": "The resource name which must be unique and cannot be the same as any provided property set or module name.",
@@ -254,10 +378,7 @@
             "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
             "items": {
               "type": "object",
-              "required": [
-                "name",
-                "path"
-              ],
+              "required": ["name", "path"],
               "properties": {
                 "name": {
                   "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
@@ -292,9 +413,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "properties": {
                 "name": {
                   "description": "The name of a provided property set or resource (provider) that this resource requires.",
@@ -322,10 +441,7 @@
                   "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "name",
-                      "path"
-                    ],
+                    "required": ["name", "path"],
                     "properties": {
                       "name": {
                         "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
@@ -357,10 +473,7 @@
       "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "path"
-        ],
+        "required": ["name", "path"],
         "properties": {
           "name": {
             "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
@@ -374,166 +487,7 @@
       }
     }
   },
-  "definitions": {
-    "generic-memory": {
-      "type": "string",
-      "pattern": "^[1-9][0-9]*(M|MB|G|GB|m|mb|g|gb)$"
-    },
-    "properties": {
-      "type": "object"
-    },
-    "properties-metadata": {
-      "type": "object",
-      "properties": {
-        "overwritable": {
-          "type": "boolean",
-          "default": true
-        },
-        "optional": {
-          "type": "boolean",
-          "default": false
-        },
-        "datatype": {
-          "enum": [
-            "str",
-            "int",
-            "float",
-            "bool"
-          ],
-          "type": "string",
-          "default": "str"
-        }
-      }
-    },
-    "parameters": {
-      "type": "object"
-    },
-    "parameters-metadata": {
-      "type": "object",
-      "properties": {
-        "overwritable": {
-          "type": "boolean",
-          "default": true
-        },
-        "optional": {
-          "type": "boolean",
-          "default": false
-        }
-      }
-    },
-    "includes": {
-      "type": "array",
-      "description": "It is possible to define parameters in external files. The \"includes\" section is used to point to those files.",
-      "items": {
-        "type": "object",
-        "required": [
-          "name",
-          "path"
-        ],
-        "properties": {
-          "name": {
-            "description": "The name of an \"includes\" section. This name is used by a builder to generate a parameter section in the deployment descriptor.",
-            "type": "string"
-          },
-          "path": {
-            "description": "A path pointing to a file that contains a map of parameters, either in JSON or in YAML format.",
-            "type": "string"
-          }
-        }
-      }
-    },
-    "hooks": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "description": "An internal name which can be used for documentation purposes and shown by the deployer.",
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_\\-\\.]+$"
-          },
-          "type": {
-            "description": "Defines the type of action that should be executed by the deployer.",
-            "type": "string",
-            "enum": [
-              "task"
-            ]
-          },
-          "phases": {
-            "description": "A list of strings that define the points at which the hook must be executed.",
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "application.before-stop.live",
-                "application.before-stop.idle",
-                "application.after-stop.live",
-                "application.after-stop.idle"
-              ]
-            }
-          },
-          "parameters": {
-            "description": "Configuration parameters that are used when executing the hook to the target runtime environment.",
-            "$ref": "#/definitions/hooks-parameters"
-          },
-          "parameters-metadata": {
-            "description": "Additional information about the hook's parameters.",
-            "$ref": "#/definitions/properties-metadata"
-          },
-          "requires": {
-            "description": "List of names either matching a resource name or a provided dependency name provided within the same MTA that are required by this hook.",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "name"
-              ],
-              "properties": {
-                "name": {
-                  "description": "An MTA internal name which must match either a provided name, or a resource name within the same MTA.",
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9_\\-\\.]+$"
-                },
-                "parameters": {
-                  "description": "Parameters can be used to influence the behavior of tools which interpret this descriptor. Parameters are not made available to the hook at runtime. Provided property values can be accessed by \"~{<provided-property-name>}\". Such expressions can be part of an arbitrary string",
-                  "type": "object"
-                },
-                "parameters-metadata": {
-                  "description": "Additional information about the hook's parameters.",
-                  "$ref": "#/definitions/properties-metadata"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "hooks-parameters": {
-      "type": "object",
-      "required": [
-        "command"
-      ],
-      "properties": {
-        "name": {
-          "description": "Defines the name of the Cloud Foundry task that should be executed.",
-          "type": "string"
-        },
-        "command": {
-          "description": "Defines the actual command that is executed as a Cloud Foundry task.",
-          "type": "string"
-        },
-        "memory": {
-          "description": "Defines the memory that is available to the Cloud Foundry task.",
-          "$ref": "#/definitions/generic-memory"
-        },
-        "disk-quota": {
-          "description": "Defines the disk space that is available to the Cloud Foundry task.",
-          "$ref": "#/definitions/generic-memory"
-        }
-      }
-    }
-  }
+  "required": ["_schema-version", "ID", "version"],
+  "title": "com.sap.mta.mta-schema_3.3",
+  "type": "object"
 }
