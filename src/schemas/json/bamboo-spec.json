@@ -1,8 +1,570 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema",
-  "title": "Bamboo CI Specification",
+  "additionalProperties": {
+    "$ref": "#/definitions/job"
+  },
+  "definitions": {
+    "deployment": {
+      "type": "object",
+      "title": "Deployment projects",
+      "description": "A deployment project in Bamboo is a container for holding the software project you are deploying: releases that have been built and tested, and the environments to which releases are deployed",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source-plan": {
+          "type": "string"
+        }
+      }
+    },
+    "docker": {
+      "title": "Docker",
+      "description": "Builds and deployments are normally run on the Bamboo agent’s native operating system",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "string"
+            },
+            "volumes": {
+              "type": "object",
+              "default": {}
+            },
+            "use-default-volumes": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": ["image"]
+        }
+      ]
+    },
+    "events": {
+      "type": "string",
+      "enum": [
+        "plan-failed",
+        "plan-completed",
+        "plan-status-changed",
+        "plan-comment-added",
+        "plan-responsibility-changed",
+        "job-completed",
+        "job-status-changed",
+        "job-failed",
+        "job-error",
+        "job-first-failed",
+        "job-hung",
+        "job-queue-timeout",
+        "job-queued-without-capable-agents"
+      ]
+    },
+    "job": {
+      "title": "Job",
+      "description": "A job is a single build unit within a plan and is made up of one or more tasks.",
+      "definitions": {
+        "artifact": {
+          "type": "object",
+          "title": "Artifact",
+          "description": "Artifacts are files created by a job build (e.g. JAR files)",
+          "properties": {
+            "location": {
+              "description": "The relative path to find your artifact; it’s a path relative to the workspace directory; do not use absolute paths.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name of the artifact; in case artifact is shared, name must be unique within the plan.",
+              "type": "string"
+            },
+            "pattern": {
+              "description": "Name or Ant pattern of file(s) to keep.",
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "shared": {
+              "type": "boolean",
+              "description": "You can share an artifact among other jobs or plans.",
+              "default": false
+            }
+          }
+        },
+        "task": {
+          "description": "A task is a small unit of work, such as source code checkout, or running a script",
+          "type": "object",
+          "properties": {
+            "interpreter": {
+              "type": "string"
+            },
+            "clean": {
+              "type": "object"
+            },
+            "checkout": {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "force-clean-build": {
+                  "type": "string",
+                  "default": false
+                }
+              }
+            },
+            "inject-variables": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            },
+            "test-parser": {
+              "description": "The Test Results Parser task in Bamboo parses test data",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/testParser"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "$ref": "#/definitions/testParser"
+                    },
+                    "ignore-time": {
+                      "type": "boolean"
+                    },
+                    "test-results": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["type"]
+                }
+              ]
+            },
+            "scripts": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/script"
+              }
+            }
+          }
+        }
+      },
+      "type": "object",
+      "properties": {
+        "docker": {
+          "$ref": "#/definitions/docker"
+        },
+        "final-tasks": {
+          "type": "array"
+        },
+        "key": {
+          "type": "string"
+        },
+        "other": {
+          "type": "object",
+          "properties": {
+            "clean-working-dir": {
+              "type": "boolean"
+            }
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "patternProperties": {
+                  ".": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/predefinedTask"
+              },
+              {
+                "$ref": "#/definitions/script"
+              },
+              {
+                "$ref": "#/definitions/job/definitions/task"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "keyValue": {
+      "description": "Variables specific to a deployment environment",
+      "type": "object",
+      "patternProperties": {
+        "[a-zA-Z0-9_]": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        }
+      }
+    },
+    "notification": {
+      "type": "object",
+      "properties": {
+        "recipients": {
+          "type": "array",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "minLength": 1,
+          "items": {
+            "$ref": "#/definitions/events"
+          }
+        }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "description": "Plan permissions allow a user to control access to the functions of the build plan.",
+      "definitions": {
+        "permission": {
+          "description": "Plan permissions allow a user to control access to the functions of the build plan",
+          "type": "string",
+          "enum": ["view", "edit", "build", "admin", "clone", "deploy"]
+        }
+      },
+      "properties": {
+        "groups": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "permissions": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/permission/definitions/permission"
+              }
+            },
+            {
+              "$ref": "#/definitions/permission/definitions/permission"
+            }
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "plan": {
+      "description": "A plan defines everything about your continuous integration build process in Bamboo.",
+      "type": "object",
+      "properties": {
+        "project-key": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "predefinedTask": {
+      "type": "string",
+      "enum": ["inject-variables", "clean", "checkout", "artifact-download"]
+    },
+    "releaseNaming": {
+      "type": "object",
+      "properties": {
+        "next-version-name": {
+          "type": "string"
+        },
+        "applies-to-branches": {
+          "type": "boolean"
+        },
+        "auto-increment": {
+          "type": "boolean"
+        },
+        "auto-increment-variables": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "script": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "script": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "stage": {
+      "title": "Stage",
+      "description": "Stages group jobs to individual steps within a plan’s build process.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "manual": {
+          "description": "Will await for execution by user",
+          "type": "boolean"
+        },
+        "final": {
+          "description": "Will be executed regardless of other stages state (pass or fail)",
+          "type": "boolean"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "task": {
+      "description": "A task is a small unit of work, such as source code checkout, or running a script.",
+      "type": "object",
+      "definitions": {
+        "trigger": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string"
+                },
+                "branch": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "[a-zA-Z0-9\\s+_-]": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "properties": {
+        "source-plan": {
+          "type": "string"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/job/definitions/artifact"
+          }
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "patternProperties": {
+              "(build|stage|environment)-success": {
+                "$ref": "#/definitions/task/definitions/trigger"
+              }
+            }
+          }
+        },
+        "notifications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/notification"
+          }
+        }
+      }
+    },
+    "testParser": {
+      "type": "string",
+      "enum": ["junit", "mstest", "nunit", "mocha", "testng"]
+    },
+    "triggers": {
+      "type": "array",
+      "definitions": {
+        "polling": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer"
+                }
+              }
+            }
+          ]
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "const": "remote"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "remote": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "remote": {
+                  "type": "object",
+                  "properties": {
+                    "ip": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "cron": {
+          "description": "Execute deployment by schedule.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/triggers/definitions/polling"
+          },
+          {
+            "$ref": "#/definitions/triggers/definitions/cron"
+          },
+          {
+            "$ref": "#/definitions/triggers/definitions/remote"
+          }
+        ]
+      }
+    }
+  },
   "description": "Full spec reference: https://docs.atlassian.com/bamboo-specs-docs/7.2.4/specs.html",
-  "type": "object",
   "properties": {
     "default-environment-permissions": {
       "title": "Default Environment Permissions",
@@ -161,590 +723,6 @@
       "default": 2
     }
   },
-  "additionalProperties": {
-    "$ref": "#/definitions/job"
-  },
-  "definitions": {
-    "deployment": {
-      "type": "object",
-      "title": "Deployment projects",
-      "description": "A deployment project in Bamboo is a container for holding the software project you are deploying: releases that have been built and tested, and the environments to which releases are deployed",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "source-plan": {
-          "type": "string"
-        }
-      }
-    },
-    "docker": {
-      "title": "Docker",
-      "description": "Builds and deployments are normally run on the Bamboo agent’s native operating system",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "image": {
-              "type": "string"
-            },
-            "volumes": {
-              "type": "object",
-              "default": {}
-            },
-            "use-default-volumes": {
-              "type": "boolean",
-              "default": false
-            }
-          },
-          "required": [
-            "image"
-          ]
-        }
-      ]
-    },
-    "events": {
-      "type": "string",
-      "enum": [
-        "plan-failed",
-        "plan-completed",
-        "plan-status-changed",
-        "plan-comment-added",
-        "plan-responsibility-changed",
-        "job-completed",
-        "job-status-changed",
-        "job-failed",
-        "job-error",
-        "job-first-failed",
-        "job-hung",
-        "job-queue-timeout",
-        "job-queued-without-capable-agents"
-      ]
-    },
-    "job": {
-      "title": "Job",
-      "description": "A job is a single build unit within a plan and is made up of one or more tasks.",
-      "definitions": {
-        "artifact": {
-          "type": "object",
-          "title": "Artifact",
-          "description": "Artifacts are files created by a job build (e.g. JAR files)",
-          "properties": {
-            "location": {
-              "description": "The relative path to find your artifact; it’s a path relative to the workspace directory; do not use absolute paths.",
-              "type": "string"
-            },
-            "name": {
-              "description": "Name of the artifact; in case artifact is shared, name must be unique within the plan.",
-              "type": "string"
-            },
-            "pattern": {
-              "description": "Name or Ant pattern of file(s) to keep.",
-              "type": "string"
-            },
-            "required": {
-              "type": "boolean"
-            },
-            "shared": {
-              "type": "boolean",
-              "description": "You can share an artifact among other jobs or plans.",
-              "default": false
-            }
-          }
-        },
-        "task": {
-          "description": "A task is a small unit of work, such as source code checkout, or running a script",
-          "type": "object",
-          "properties": {
-            "interpreter": {
-              "type": "string"
-            },
-            "clean": {
-              "type": "object"
-            },
-            "checkout": {
-              "type": "object",
-              "properties": {
-                "repository": {
-                  "type": "string"
-                },
-                "path": {
-                  "type": "string"
-                },
-                "force-clean-build": {
-                  "type": "string",
-                  "default": false
-                }
-              }
-            },
-            "inject-variables": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "file": {
-                      "type": "string"
-                    },
-                    "scope": {
-                      "type": "string"
-                    },
-                    "namespace": {
-                      "type": "string"
-                    }
-                  }
-                }
-              ]
-            },
-            "test-parser": {
-              "description": "The Test Results Parser task in Bamboo parses test data",
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/testParser"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "$ref": "#/definitions/testParser"
-                    },
-                    "ignore-time": {
-                      "type": "boolean"
-                    },
-                    "test-results": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ]
-                }
-              ]
-            },
-            "scripts": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "$ref": "#/definitions/script"
-              }
-            }
-          }
-        }
-      },
-      "type": "object",
-      "properties": {
-        "docker": {
-          "$ref": "#/definitions/docker"
-        },
-        "final-tasks": {
-          "type": "array"
-        },
-        "key": {
-          "type": "string"
-        },
-        "other": {
-          "type": "object",
-          "properties": {
-            "clean-working-dir": {
-              "type": "boolean"
-            }
-          }
-        },
-        "requirements": {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "patternProperties": {
-                  ".": {
-                    "type": "string"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        "tasks": {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/predefinedTask"
-              },
-              {
-                "$ref": "#/definitions/script"
-              },
-              {
-                "$ref": "#/definitions/job/definitions/task"
-              }
-            ]
-          }
-        }
-      }
-    },
-    "keyValue": {
-      "description": "Variables specific to a deployment environment",
-      "type": "object",
-      "patternProperties": {
-        "[a-zA-Z0-9_]": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "integer"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "number"
-            }
-          ]
-        }
-      }
-    },
-    "notification": {
-      "type": "object",
-      "properties": {
-        "recipients": {
-          "type": "array",
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "users": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            {
-              "type": "object",
-              "properties": {
-                "groups": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          ]
-        },
-        "events": {
-          "type": "array",
-          "minLength": 1,
-          "items": {
-            "$ref": "#/definitions/events"
-          }
-        }
-      }
-    },
-    "permission": {
-      "type": "object",
-      "description": "Plan permissions allow a user to control access to the functions of the build plan.",
-      "definitions": {
-        "permission": {
-          "description": "Plan permissions allow a user to control access to the functions of the build plan",
-          "type": "string",
-          "enum": [
-            "view",
-            "edit",
-            "build",
-            "admin",
-            "clone",
-            "deploy"
-          ]
-        }
-      },
-      "properties": {
-        "groups": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          ]
-        },
-        "permissions": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/permission/definitions/permission"
-              }
-            },
-            {
-              "$ref": "#/definitions/permission/definitions/permission"
-            }
-          ]
-        },
-        "roles": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "users": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "plan": {
-      "description": "A plan defines everything about your continuous integration build process in Bamboo.",
-      "type": "object",
-      "properties": {
-        "project-key": {
-          "type": "string"
-        },
-        "key": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
-    "predefinedTask": {
-      "type": "string",
-      "enum": [
-        "inject-variables",
-        "clean",
-        "checkout",
-        "artifact-download"
-      ]
-    },
-    "releaseNaming": {
-      "type": "object",
-      "properties": {
-        "next-version-name": {
-          "type": "string"
-        },
-        "applies-to-branches": {
-          "type": "boolean"
-        },
-        "auto-increment": {
-          "type": "boolean"
-        },
-        "auto-increment-variables": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          ]
-        }
-      }
-    },
-    "script": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "script": {
-              "type": "string"
-            }
-          }
-        }
-      ]
-    },
-    "stage": {
-      "title": "Stage",
-      "description": "Stages group jobs to individual steps within a plan’s build process.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "manual": {
-          "description": "Will await for execution by user",
-          "type": "boolean"
-        },
-        "final": {
-          "description": "Will be executed regardless of other stages state (pass or fail)",
-          "type": "boolean"
-        },
-        "jobs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "task": {
-      "description": "A task is a small unit of work, such as source code checkout, or running a script.",
-      "type": "object",
-      "definitions": {
-        "trigger": {
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "stage": {
-                  "type": "string"
-                },
-                "branch": {
-                  "type": "string"
-                }
-              }
-            },
-            {
-              "type": "object",
-              "patternProperties": {
-                "[a-zA-Z0-9\\s+_-]": {
-                  "type": "string"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "properties": {
-        "source-plan": {
-          "type": "string"
-        },
-        "artifacts": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/job/definitions/artifact"
-          }
-        },
-        "triggers": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "patternProperties": {
-              "(build|stage|environment)-success": {
-                "$ref": "#/definitions/task/definitions/trigger"
-              }
-            }
-          }
-        },
-        "notifications": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/notification"
-          }
-        }
-      }
-    },
-    "testParser": {
-      "type": "string",
-      "enum": [
-        "junit",
-        "mstest",
-        "nunit",
-        "mocha",
-        "testng"
-      ]
-    },
-    "triggers": {
-      "type": "array",
-      "definitions": {
-        "polling": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "period": {
-                  "type": "integer"
-                }
-              }
-            }
-          ]
-        },
-        "remote": {
-          "anyOf": [
-            {
-              "const": "remote"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "remote": {
-                  "type": "string"
-                }
-              }
-            },
-            {
-              "type": "object",
-              "properties": {
-                "remote": {
-                  "type": "object",
-                  "properties": {
-                    "ip": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          ]
-        },
-        "cron": {
-          "description": "Execute deployment by schedule.",
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "expression": {
-                  "type": "string"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "items": {
-        "anyOf": [
-          {
-            "$ref": "#/definitions/triggers/definitions/polling"
-          },
-          {
-            "$ref": "#/definitions/triggers/definitions/cron"
-          },
-          {
-            "$ref": "#/definitions/triggers/definitions/remote"
-          }
-        ]
-      }
-    }
-  }
+  "title": "Bamboo CI Specification",
+  "type": "object"
 }
