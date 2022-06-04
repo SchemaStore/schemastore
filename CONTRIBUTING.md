@@ -68,6 +68,15 @@ To make sure that invalid files fail to validate against your schema, use a subf
 
 If you wish to retain full control over your schema definition, simply register it in the [schema catalog](src/api/json/catalog.json) by providing a `url` pointing to the self-hosted schema file to the [entry](#catalog). Example on how to handle [multiple schema versions.](https://github.com/SchemaStore/schemastore/pull/2057#issuecomment-1024470105)
 
+### Ref from schema x.json to schema y.json
+
+- Both schemas must exist [locally](src/schemas/json) in SchemaStore.
+- Both schemas must have the same draft (example draft-04)
+- Schema y.json must have `id` or `$id` with this value `"https://json.schemastore.org/y.json"`
+- In schema x.json add ref to schema y.json `"$ref": "https://json.schemastore.org/y.json#..."`
+- [schema-validation.json](src/schema-validation.json) in "options": [] list add
+ `"x.json": {"externalSchema": ["y.json"]}`
+
 ### JSON formatter
 
 This project contains an [`.editorconfig`](https://github.com/SchemaStore/schemastore/blob/master/.editorconfig) file.
