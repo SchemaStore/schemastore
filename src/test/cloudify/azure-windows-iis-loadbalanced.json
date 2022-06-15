@@ -1,6 +1,26 @@
 {
-  "tosca_definitions_version": "cloudify_dsl_1_3",
   "description": "This blueprint defines two Azure VMs (within an Availability Set) connected to a Load Balancer and running an IIS web server + Cloudify example web app. \nIn order to allow for deployments to communicate to an existing manager, the deployment must use the manager's Virtual Network and Subnet.  This will allow the deployment to be mostly isolated (it will have its own Resource Group, Storage Account, etc...) while still being on the same network as the existing manager.\nThis deployment may take up to 30-45 minutes to complete.  Azure is not the fastest cloud when it comes to provisioning resources such as the Storage Account and Virtual Machines.  Also, Windows VMs requires a long time to process and execute the Virtual Machine Extensions (Desired State Configuration).\n",
+  "dsl_definitions": {
+    "azure_config": {
+      "subscription_id": {
+        "get_input": "subscription_id"
+      },
+      "tenant_id": {
+        "get_input": "tenant_id"
+      },
+      "client_id": {
+        "get_input": "client_id"
+      },
+      "client_secret": {
+        "get_input": "client_secret"
+      }
+    }
+  },
+  "groups": {
+    "frontend": {
+      "members": ["vm", "vm_nic", "vm_nic_ip_cfg", "vm_webserver", "vm_webapp"]
+    }
+  },
   "imports": [
     "http://www.getcloudify.org/spec/cloudify/3.4/types.yaml",
     "https://raw.githubusercontent.com/cloudify-cosmo/cloudify-azure-plugin/master/plugin.yaml"
@@ -101,22 +121,6 @@
     },
     "webserver_ps1_url": {
       "default": "https://github.com/01000101/cloudify-azure-plugin/raw/data-disks/examples/resources/windows-iis-webapp.ps1.zip"
-    }
-  },
-  "dsl_definitions": {
-    "azure_config": {
-      "subscription_id": {
-        "get_input": "subscription_id"
-      },
-      "tenant_id": {
-        "get_input": "tenant_id"
-      },
-      "client_id": {
-        "get_input": "client_id"
-      },
-      "client_secret": {
-        "get_input": "client_secret"
-      }
     }
   },
   "node_templates": {
@@ -596,10 +600,7 @@
                       "get_input": "webserver_port"
                     },
                     "MachineName": {
-                      "get_attribute": [
-                        "vm",
-                        "name"
-                      ]
+                      "get_attribute": ["vm", "name"]
                     }
                   }
                 }
@@ -862,35 +863,10 @@
       ]
     }
   },
-  "groups": {
-    "frontend": {
-      "members": [
-        "vm",
-        "vm_nic",
-        "vm_nic_ip_cfg",
-        "vm_webserver",
-        "vm_webapp"
-      ]
-    }
-  },
-  "policies": {
-    "scale_policy1": {
-      "type": "cloudify.policies.scaling",
-      "properties": {
-        "default_instances": 1
-      },
-      "targets": [
-        "frontend"
-      ]
-    }
-  },
   "outputs": {
     "webapp_ip": {
       "value": {
-        "get_attribute": [
-          "load_balancer",
-          "public_ip"
-        ]
+        "get_attribute": ["load_balancer", "public_ip"]
       }
     },
     "webapp_port": {
@@ -903,10 +879,7 @@
         "concat": [
           "http://",
           {
-            "get_attribute": [
-              "load_balancer",
-              "public_ip"
-            ]
+            "get_attribute": ["load_balancer", "public_ip"]
           },
           ":",
           {
@@ -915,5 +888,15 @@
         ]
       }
     }
-  }
+  },
+  "policies": {
+    "scale_policy1": {
+      "type": "cloudify.policies.scaling",
+      "properties": {
+        "default_instances": 1
+      },
+      "targets": ["frontend"]
+    }
+  },
+  "tosca_definitions_version": "cloudify_dsl_1_3"
 }
