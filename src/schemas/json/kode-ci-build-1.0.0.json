@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "additionalProperties": false,
+  "definitions": {
+    "env": {
+      "type": "object",
+      "required": ["name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "variable name",
+          "pattern": "[a-zA-Z_][a-zA-Z_0-9]*"
+        },
+        "value": {
+          "type": "string",
+          "description": "variable value"
+        },
+        "branch": {
+          "type": "string",
+          "default": "*",
+          "description": "branch for variable",
+          "pattern": "^(\\*)|([a-zA-Z/_-]+\\*)|([a-zA-Z/_-]+)$"
+        }
+      }
+    },
+    "build-condition": {
+      "type": "object",
+      "description": "build condition",
+      "default": {
+        "push": {
+          "branches": ["*"]
+        }
+      },
+      "additionalProperties": true,
+      "properties": {
+        "push": {
+          "type": "object",
+          "default": {
+            "branches": ["*"]
+          },
+          "description": "push event trigger",
+          "properties": {
+            "branches": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(\\*)|([a-zA-Z/_-]+\\*)|([a-zA-Z/_-]+)$"
+              },
+              "default": ["*"],
+              "description": "branch for push trigger",
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "job": {
+      "type": "object",
+      "required": ["name", "execute"],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "job name",
+          "pattern": "[a-zA-Z0-9_-]{1,40}"
+        },
+        "execute": {
+          "type": "array",
+          "description": "commands to execute",
+          "items": {
+            "type": "string",
+            "default": "echo \"hello world\""
+          },
+          "minItems": 1
+        },
+        "set-proxy": {
+          "type": "array",
+          "description": "configure in-house proxy",
+          "default": ["shell"],
+          "items": {
+            "type": "string",
+            "enum": ["shell", "gradle", "npm", "docker", "yarn", "maven"]
+          }
+        },
+        "run-on": {
+          "$ref": "#/definitions/run-on"
+        },
+        "artifacts": {
+          "type": "array",
+          "description": "file or directory as artifacts",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "caches": {
+          "type": "array",
+          "description": "caches for next build",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "cache key",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "path": {
+                "type": "string",
+                "description": "file or directory to cache"
+              }
+            }
+          }
+        },
+        "max-execution-time": {
+          "type": "string",
+          "description": "max execution time",
+          "default": "1h",
+          "pattern": "^([0-9]+)(h|m)$"
+        },
+        "post-process": {
+          "type": "object",
+          "description": "post build process",
+          "additionalProperties": true,
+          "properties": {
+            "app-center-release": {
+              "$ref": "#/definitions/app-center-release"
+            },
+            "git-ops": {
+              "$ref": "#/definitions/git-ops"
+            }
+          }
+        }
+      }
+    },
+    "run-on": {
+      "type": "object",
+      "description": "configure execution environment",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "docker image",
+          "default": "+@basebox",
+          "pattern": "^(\\+@[a-z0-9-]+|\\+\\/[a-z0-9-]+|[a-z0-9/.-]+)(:[a-z0-9\\-]+)?$"
+        },
+        "resources": {
+          "description": "resources for execution",
+          "anyOf": [
+            {
+              "type": "string",
+              "default": "small",
+              "enum": [
+                "small",
+                "medium",
+                "large",
+                "xlarge",
+                "xxlarge",
+                "xxxlarge"
+              ]
+            },
+            {
+              "type": "object",
+              "required": ["cpu", "memory"],
+              "properties": {
+                "cpu": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "default": "1.0",
+                      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                    },
+                    {
+                      "type": "number",
+                      "default": 1
+                    }
+                  ],
+                  "description": "cpu (e.g. '1.0')",
+                  "default": "1.0"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "memory (e.g. '500Mi').",
+                  "default": "1Gi",
+                  "pattern": "^([0-9]+)(Mi|Gi)$"
+                }
+              }
+            }
+          ]
+        },
+        "use": {
+          "type": "array",
+          "description": "features to use",
+          "default": [],
+          "items": {
+            "type": "string",
+            "enum": ["docker", "mobil-keystore"]
+          }
+        }
+      }
+    },
+    "app-center-release": {
+      "type": "object",
+      "description": "release apk/ipa to appcenter",
+      "required": ["app-id", "release-group-tag"],
+      "additionalProperties": true,
+      "properties": {
+        "app-id": {
+          "type": "string",
+          "description": "app id on appcenter",
+          "pattern": "[a-zA-Z0-9_-]+"
+        },
+        "release-group-tag": {
+          "type": "string",
+          "description": "tag for release group",
+          "pattern": "[a-zA-Z0-9_-]+"
+        },
+        "testers": {
+          "type": "array",
+          "description": "specify testers(@<user>, @@<group>, corp@@<corpcode>)",
+          "items": {
+            "type": "string",
+            "description": "@<user>, @@<group>, corp@@<corpcode>",
+            "pattern": "^(@[a-zA-Z0-9_-]+|@@[a-zA-Z0-9_-]+|corp@@[a-zA-Z0-9_-]+)$"
+          }
+        }
+      }
+    },
+    "git-ops": {
+      "type": "object",
+      "description": "deploy to k8s by git-ops",
+      "required": ["manifest", "update"],
+      "additionalProperties": false,
+      "properties": {
+        "manifest": {
+          "type": "object",
+          "description": "k8s manifest info",
+          "required": ["repo", "branch"],
+          "additionalProperties": false,
+          "properties": {
+            "repo": {
+              "type": "string",
+              "description": "manifest repo('owner/repo')",
+              "pattern": "[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+"
+            },
+            "branch": {
+              "type": "string",
+              "description": "branch of manifest repo",
+              "pattern": "[a-zA-Z0-9_-]+"
+            }
+          }
+        },
+        "update": {
+          "type": "array",
+          "description": "commands to update manifest repo",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "with-artifacts": {
+          "type": "array",
+          "description": "artifact to pass to manifest repo",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "on": {
+      "$ref": "#/definitions/build-condition"
+    },
+    "jobs": {
+      "type": "array",
+      "description": "job specs",
+      "items": {
+        "$ref": "#/definitions/job"
+      }
+    },
+    "environment": {
+      "type": "array",
+      "description": "define environment variables",
+      "items": {
+        "$ref": "#/definitions/env"
+      }
+    }
+  },
+  "required": ["jobs"],
+  "title": "kode/ci build spec",
+  "type": "object"
+}
