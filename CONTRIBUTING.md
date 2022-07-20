@@ -19,7 +19,7 @@ make
 
 ### <a name="catalog"></a>Adding to catalog
 
-After adding schema files, register them in [schema catalog](src/api/json/catalog.json) by adding an entry corresponding to your schema:
+After adding schema files, register them in alphabetical order in [schema catalog](src/api/json/catalog.json) by adding an entry corresponding to your schema:
 
 ```json
 {
@@ -88,3 +88,7 @@ SchemaStore supports three types of schema validation mode.
 - [Full strict mode](https://ajv.js.org/strict-mode.html) via AJV validator (SchemaStore default mode)
 - Not fully strict mode via AJV validator. (The json filename is present in the `ajvNotStrictMode` list in [schema-validation.json](src/schema-validation.json))
 - Validation via [tv4](https://github.com/geraintluff/tv4) (The json filename is present in the `tv4test` list in [schema-validation.json](src/schema-validation.json))
+
+### Avoid common PR problem:
+- git merge conflict in catalog.json because you added the item to the end of the list instead of alphabetically.
+- Prettier build server failed because the PR was created/push from an organization and not from your own account.
