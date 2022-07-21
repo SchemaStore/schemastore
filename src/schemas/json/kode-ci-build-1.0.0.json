@@ -2,6 +2,11 @@
   "$schema": "http://json-schema.org/draft-04/schema",
   "additionalProperties": false,
   "definitions": {
+    "branch-matcher": {
+      "type": "string",
+      "default": "*",
+      "pattern": "^[a-zA-Z0-9/_.@-]*(\\*)?$"
+    },
     "env": {
       "type": "object",
       "required": ["name", "value"],
@@ -9,46 +14,35 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "variable name",
+          "description": "환경변수 이름",
           "pattern": "[a-zA-Z_][a-zA-Z_0-9]*"
         },
         "value": {
           "type": "string",
-          "description": "variable value"
+          "description": "환경변수 값"
         },
         "branch": {
-          "type": "string",
-          "default": "*",
-          "description": "branch for variable",
-          "pattern": "^(\\*)|([a-zA-Z/_-]+\\*)|([a-zA-Z/_-]+)$"
+          "$ref": "#/definitions/branch-matcher",
+          "description": "환경변수를 적용할 브랜치"
         }
       }
     },
     "build-condition": {
       "type": "object",
-      "description": "build condition",
-      "default": {
-        "push": {
-          "branches": ["*"]
-        }
-      },
+      "description": "빌드 실행 조건",
       "additionalProperties": true,
       "properties": {
         "push": {
           "type": "object",
-          "default": {
-            "branches": ["*"]
-          },
-          "description": "push event trigger",
+          "description": "Push 이벤트에 의한 조건",
           "properties": {
             "branches": {
               "type": "array",
               "items": {
-                "type": "string",
-                "pattern": "^(\\*)|([a-zA-Z/_-]+\\*)|([a-zA-Z/_-]+)$"
+                "$ref": "#/definitions/branch-matcher"
               },
               "default": ["*"],
-              "description": "branch for push trigger",
+              "description": "Push로 빌드를 실행할 브랜치",
               "minItems": 1
             }
           },
@@ -63,12 +57,12 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "job name",
+          "description": "작업 이름",
           "pattern": "[a-zA-Z0-9_-]{1,40}"
         },
         "execute": {
           "type": "array",
-          "description": "commands to execute",
+          "description": "실행할 명령 목록(순차실행)",
           "items": {
             "type": "string",
             "default": "echo \"hello world\""
@@ -77,7 +71,7 @@
         },
         "set-proxy": {
           "type": "array",
-          "description": "configure in-house proxy",
+          "description": "사내 Proxy 설정",
           "default": ["shell"],
           "items": {
             "type": "string",
@@ -89,7 +83,7 @@
         },
         "artifacts": {
           "type": "array",
-          "description": "file or directory as artifacts",
+          "description": "artifact로 지정할 파일 혹은 디렉토리 경로",
           "default": [],
           "items": {
             "type": "string"
@@ -97,7 +91,7 @@
         },
         "caches": {
           "type": "array",
-          "description": "caches for next build",
+          "description": "다음 빌드의 속도 향상을 위한 캐시 설정",
           "default": [],
           "items": {
             "type": "object",
@@ -105,25 +99,25 @@
             "properties": {
               "key": {
                 "type": "string",
-                "description": "cache key",
+                "description": "캐시 식별키 (repo scope)",
                 "pattern": "^[a-zA-Z0-9_-]{1,40}$"
               },
               "path": {
                 "type": "string",
-                "description": "file or directory to cache"
+                "description": "캐시할 파일 혹은 디렉토리 경로"
               }
             }
           }
         },
         "max-execution-time": {
           "type": "string",
-          "description": "max execution time",
+          "description": "최대 실행시간 (e.g. '1h', '100m')",
           "default": "1h",
           "pattern": "^([0-9]+)(h|m)$"
         },
         "post-process": {
           "type": "object",
-          "description": "post build process",
+          "description": "빌드 후처리기 설정",
           "additionalProperties": true,
           "properties": {
             "app-center-release": {
@@ -138,7 +132,7 @@
     },
     "run-on": {
       "type": "object",
-      "description": "configure execution environment",
+      "description": "실행환경 설정",
       "additionalProperties": false,
       "properties": {
         "image": {
@@ -148,7 +142,7 @@
           "pattern": "^(\\+@[a-z0-9-]+|\\+\\/[a-z0-9-]+|[a-z0-9/.-]+)(:[a-z0-9\\-]+)?$"
         },
         "resources": {
-          "description": "resources for execution",
+          "description": "실행에 사용할 리소스 크기 설정",
           "anyOf": [
             {
               "type": "string",
@@ -183,7 +177,7 @@
                 },
                 "memory": {
                   "type": "string",
-                  "description": "memory (e.g. '500Mi').",
+                  "description": "memory (e.g. '500Mi', '2Gi').",
                   "default": "1Gi",
                   "pattern": "^([0-9]+)(Mi|Gi)$"
                 }
@@ -193,7 +187,7 @@
         },
         "use": {
           "type": "array",
-          "description": "features to use",
+          "description": "실행환경에서 사용할 기능 설정",
           "default": [],
           "items": {
             "type": "string",
@@ -204,58 +198,58 @@
     },
     "app-center-release": {
       "type": "object",
-      "description": "release apk/ipa to appcenter",
+      "description": "artifact로 지정된 .apk/.ipa 파일을 appcenter로 릴리즈",
       "required": ["app-id", "release-group-tag"],
       "additionalProperties": true,
       "properties": {
         "app-id": {
           "type": "string",
-          "description": "app id on appcenter",
+          "description": "App ID",
           "pattern": "[a-zA-Z0-9_-]+"
         },
         "release-group-tag": {
           "type": "string",
-          "description": "tag for release group",
+          "description": "릴리즈 그룹에 대한 Tag 지정",
           "pattern": "[a-zA-Z0-9_-]+"
         },
         "testers": {
           "type": "array",
-          "description": "specify testers(@<user>, @@<group>, corp@@<corpcode>)",
+          "description": "테스터 지정(@<user>, @@<group>, corp@@<corpcode>)",
           "items": {
             "type": "string",
             "description": "@<user>, @@<group>, corp@@<corpcode>",
-            "pattern": "^(@[a-zA-Z0-9_-]+|@@[a-zA-Z0-9_-]+|corp@@[a-zA-Z0-9_-]+)$"
+            "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$"
           }
         }
       }
     },
     "git-ops": {
       "type": "object",
-      "description": "deploy to k8s by git-ops",
+      "description": "GitOps 방식의 K8S Deploy를 위한 manifest repo 업데이트",
       "required": ["manifest", "update"],
       "additionalProperties": false,
       "properties": {
         "manifest": {
           "type": "object",
-          "description": "k8s manifest info",
+          "description": "K8S manifest repo 정보",
           "required": ["repo", "branch"],
           "additionalProperties": false,
           "properties": {
             "repo": {
               "type": "string",
-              "description": "manifest repo('owner/repo')",
-              "pattern": "[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+"
+              "description": "repo('owner/repo')",
+              "pattern": "[.a-zA-Z0-9_-]+/[.a-zA-Z0-9_-]+"
             },
             "branch": {
               "type": "string",
-              "description": "branch of manifest repo",
-              "pattern": "[a-zA-Z0-9_-]+"
+              "description": "branch",
+              "pattern": "[a-zA-Z0-9/_.@-]+"
             }
           }
         },
         "update": {
           "type": "array",
-          "description": "commands to update manifest repo",
+          "description": "manifest repo를 업데이트하기 위한 명령",
           "items": {
             "type": "string"
           },
@@ -263,7 +257,7 @@
         },
         "with-artifacts": {
           "type": "array",
-          "description": "artifact to pass to manifest repo",
+          "description": "빌드 작업에서 manifest reop로 전달할 artifacts",
           "items": {
             "type": "string"
           }
@@ -273,24 +267,25 @@
   },
   "properties": {
     "on": {
-      "$ref": "#/definitions/build-condition"
+      "$ref": "#/definitions/build-condition",
+      "description": "실행 조건"
     },
     "jobs": {
       "type": "array",
-      "description": "job specs",
+      "description": "실행할 작업들: 독립적으로 병렬 실행됨",
       "items": {
         "$ref": "#/definitions/job"
       }
     },
     "environment": {
       "type": "array",
-      "description": "define environment variables",
+      "description": "환경변수",
       "items": {
         "$ref": "#/definitions/env"
       }
     }
   },
   "required": ["jobs"],
-  "title": "kode/ci build spec",
+  "title": "KoDE/CI Build Spec",
   "type": "object"
 }
