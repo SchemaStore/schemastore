@@ -6,6 +6,7 @@ const AjvDraft06And07 = require('ajv')
 const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
 const tv4 = require('tv4')
+const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
 const pt = require('path')
 const fs = require('fs')
@@ -182,16 +183,36 @@ module.exports = function (grunt) {
 
     // Scan one test folder for all the files inside it
     const scanOneTestFolder = (schemaName, testDir, testPassScan, testPassScanDone) => {
-      const loadTestFile = (testFileNameWithPath) => {
+      const loadTestFile = (testFileNameWithPath, buffer) => {
         // Test files have extension '.json' or else it must be a YAML file
-        if (testFileNameWithPath.endsWith('.json')) {
-          return grunt.file.read(testFileNameWithPath)
-        } else { // YAML file
-          try {
-            return JSON.stringify(YAML.parse(fs.readFileSync(testFileNameWithPath, 'utf8')))
-          } catch (e) {
-            throwWithErrorText([`Can't read/decode yaml file: ${testFileNameWithPath}`, e])
-          }
+        const fileExtension = testFileNameWithPath.split('.').pop()
+        switch (fileExtension) {
+          case 'json':
+            try {
+              return JSON.parse(buffer.toString())
+            } catch (err) {
+              throwWithErrorText([`JSON file ${testFileNameWithPath} did not parse correctly.`, err])
+            }
+            break
+          case 'yaml':
+          case 'yml':
+            try {
+              return YAML.parse(buffer.toString())
+            } catch (e) {
+              throwWithErrorText([`Can't read/decode yaml file: ${testFileNameWithPath}`, e])
+            }
+            break
+          case 'toml':
+            try {
+              // { bigint: false } or else toml variable like 'a = 3' will return as 'a = 3n'
+              // This creates an error because the schema expect an integer 3 and not 3n
+              return TOML.parse(buffer.toString(), { bigint: false })
+            } catch (e) {
+              throwWithErrorText([`Can't read/decode toml file: ${testFileNameWithPath}`, e])
+            }
+            break
+          default:
+            throwWithErrorText([`Unknown file extension: ${fileExtension}`])
         }
       }
 
@@ -223,8 +244,10 @@ module.exports = function (grunt) {
           throwWithErrorText([`Found non test file inside test folder: ${testFileFullPathName}`])
         }
         if (!skipThisFileName(pt.basename(testFileFullPathName))) {
+          const buffer = skipReadFile ? undefined : fs.readFileSync(testFileFullPathName)
           const callbackParameter = {
-            rawFile: skipReadFile ? undefined : loadTestFile(testFileFullPathName),
+            rawFile: buffer,
+            jsonObj: skipReadFile ? undefined : loadTestFile(testFileFullPathName, buffer),
             jsonName: pt.basename(testFileFullPathName),
             urlOrFilePath: testFileFullPathName,
             // This is a test folder scan process, not schema scan process
@@ -772,7 +795,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('local_check_filename_extension', 'Dynamically check local schema/test file for filename extension', function () {
     const schemaFileExtension = ['.json']
-    const testFileExtension = ['.json', '.yml', '.yaml']
+    const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
     let countScan = 0
     const x = (data, fileExtensionList) => {
       countScan++
