@@ -67,6 +67,7 @@ module.exports = function (grunt) {
   async function remoteSchemaFile (schemaOnlyScan, showLog = true) {
     const axios = require('axios').default
     const schemas = catalog.schemas
+    const responseType = 'arraybuffer'
 
     for (const { url } of schemas) {
       if (url.startsWith(urlSchemaStore)) {
@@ -74,12 +75,13 @@ module.exports = function (grunt) {
         continue
       }
       try {
-        const response = await axios(url)
+        const response = await axios.get(url, { responseType })
         if (response.status === 200) {
           const parsed = new URL(url)
           const callbackParameter = {
             jsonName: pt.basename(parsed.pathname),
-            rawFile: JSON.stringify(response.data),
+            jsonObj: JSON.parse(response.data.toString()),
+            rawFile: response.data,
             urlOrFilePath: url,
             schemaScan: true
           }
