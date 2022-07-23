@@ -119,6 +119,11 @@ module.exports = function (grunt) {
       skipReadFile = true,
       processOnlyThisOneSchemaFile = undefined
     } = {}) {
+    const schemaNameOption = grunt.option('SchemaName')
+    if (processOnlyThisOneSchemaFile === undefined && schemaNameOption) {
+      processOnlyThisOneSchemaFile = schemaNameOption
+    }
+
     /**
      * @summary Check if the present json schema file must be tested or not
      * @param {string} jsonFilename

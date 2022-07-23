@@ -56,7 +56,7 @@ To make sure that files are validated against your schema correctly (we strongly
 
 1. Create a subfolder in [`src/test`](src/test) named as your schema file
 2. Create one or more `.json, .yml or .yaml` files in that folder
-3. Run `npm run build`
+3. Run `npm run build` (to test a single schema, use `npm run build -- --SchemaName=<jsonFileName.json> default`)
 
 If the build succeeds, your changes are valid and you can safely create a PR.
 
