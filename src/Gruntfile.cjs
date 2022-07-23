@@ -158,9 +158,17 @@ module.exports = function (grunt) {
         // Some schema files must be ignored.
         if (canThisTestBeRun(schemaFileName) &&
             !skipThisFileName(schemaFileName)) {
+          const buffer = skipReadFile ? undefined : fs.readFileSync(schemaFullPathName)
+          let jsonObj_
+          try {
+            jsonObj_ = buffer ? JSON.parse(buffer.toString()) : undefined
+          } catch (err) {
+            throwWithErrorText([`JSON file ${schemaFullPathName} did not parse correctly.`, err])
+          }
           const callbackParameter = {
             // Return the real Raw file for BOM file test rejection
-            rawFile: skipReadFile ? undefined : fs.readFileSync(schemaFullPathName),
+            rawFile: buffer,
+            jsonObj: jsonObj_,
             jsonName: pt.basename(schemaFullPathName),
             urlOrFilePath: schemaFullPathName,
             schemaScan: onlySchemaScan
@@ -284,7 +292,7 @@ module.exports = function (grunt) {
       let schemaVersionStr = 'unknown'
       try {
         // select the correct AJV object for this schema
-        schemaToBeValidated = JSON.parse(callbackParameter.rawFile)
+        schemaToBeValidated = callbackParameter.jsonObj
         versionObj = schemaVersion.getObj(schemaToBeValidated)
 
         // What schema draft version is it?
@@ -316,7 +324,7 @@ module.exports = function (grunt) {
     }
 
     const processPositiveTestFile = (callbackParameter) => {
-      const testFile = JSON.parse(callbackParameter.rawFile)
+      const testFile = callbackParameter.jsonObj
       const validated = tv4.validate(testFile, schemaToBeValidated)
       if (tv4.missing.length > 0) {
         throwWithErrorText([`${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
@@ -492,7 +500,7 @@ module.exports = function (grunt) {
       const fullStrictModeStr = fullStrictMode ? '(FullStrictMode)' : '(NotStrictMode)'
       try {
         // select the correct AJV object for this schema
-        schemaJson = JSON.parse(callbackParameter.rawFile)
+        schemaJson = callbackParameter.jsonObj
         versionObj = schemaVersion.getObj(schemaJson)
 
         // Get the correct AJV version
@@ -526,13 +534,7 @@ module.exports = function (grunt) {
     }
 
     const processTestFile = (callbackParameter, success, failure) => {
-      let json
-      try {
-        json = JSON.parse(callbackParameter.rawFile)
-      } catch (e) {
-        throwWithErrorText([`Error in parse test: ${callbackParameter.urlOrFilePath}`, e])
-      }
-      validate(json) ? success() : failure()
+      validate(callbackParameter.jsonObj) ? success() : failure()
     }
 
     const processPositiveTestFile = (callbackParameter) => {
@@ -659,7 +661,7 @@ module.exports = function (grunt) {
       countScan++
       let result
       try {
-        result = findDuplicatedPropertyKeys(callbackParameter.rawFile)
+        result = findDuplicatedPropertyKeys(JSON.stringify(callbackParameter.jsonObj))
       } catch (e) {
         throwWithErrorText([`Test file: ${callbackParameter.urlOrFilePath}`, e])
       }
@@ -941,7 +943,7 @@ module.exports = function (grunt) {
       process_data: (callbackParameter) => {
         let obj
         try {
-          obj = getObj_(JSON.parse(callbackParameter.rawFile))
+          obj = getObj_(callbackParameter.jsonObj)
         } catch (e) {
           // suppress possible JSON.parse exception. It will be processed as obj = undefined
         }
@@ -987,13 +989,7 @@ module.exports = function (grunt) {
     localSchemaFileAndTestFile({
       schemaOnlyScan (callbackParameter) {
         countScan++
-        let schemaJson
-        try {
-          schemaJson = JSON.parse(callbackParameter.rawFile)
-        } catch (err) {
-          throwWithErrorText([`Schema file ${callbackParameter.jsonName} did not parse correctly.`, err])
-        }
-        if (!('$schema' in schemaJson)) {
+        if (!('$schema' in callbackParameter.jsonObj)) {
           throwWithErrorText([`Schema file is missing '$schema' keyword => ${callbackParameter.jsonName}`])
         }
       }
@@ -1146,7 +1142,7 @@ module.exports = function (grunt) {
         } = getOption(callbackParameter.jsonName)
 
         // select the correct AJV object for this schema
-        mainSchema = JSON.parse(callbackParameter.rawFile)
+        mainSchema = callbackParameter.jsonObj
         const versionObj = schemaVersion.getObj(mainSchema)
 
         // External schema present to be included?
@@ -1202,10 +1198,10 @@ module.exports = function (grunt) {
         if (isThisWithExternalSchema) {
           // Must use the root $id/id to call the correct schema JavaScript code
           const validateRootSchema = validations[mainSchemaJsonId]
-          validateRootSchema?.(JSON.parse(callbackParameter.rawFile))
+          validateRootSchema?.(callbackParameter.jsonObj)
         } else {
           // Single schema does not need $id
-          validations(JSON.parse(callbackParameter.rawFile))
+          validations(callbackParameter.jsonObj)
         }
       }
 
@@ -1243,7 +1239,7 @@ module.exports = function (grunt) {
       } = getOption(schemaJsonName)
 
       // select the correct AJV object for this schema
-      const mainSchema = JSON.parse(callbackParameter.rawFile)
+      const mainSchema = callbackParameter.jsonObj
       const versionObj = schemaVersion.getObj(mainSchema)
 
       // Get the correct AJV version
