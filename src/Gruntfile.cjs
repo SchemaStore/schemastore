@@ -890,7 +890,7 @@ module.exports = function (grunt) {
     const testLowerSchemaVersion = (callbackParameter) => {
       countScan++
       let versionIndexOriginal = 0
-      const schemaJson = JSON.parse(callbackParameter.rawFile)
+      const schemaJson = callbackParameter.jsonObj
 
       if (!('$schema' in schemaJson)) {
         // There is no $schema present in the file.
@@ -1095,10 +1095,13 @@ module.exports = function (grunt) {
         countSchemaScanViaAJV++
       }
     })
-    const countFullStrictSchema = countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
-    const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
-    grunt.log.ok('Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.')
-    grunt.log.ok(`${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(percent)}%)`)
+    // If only ONE AJV schema test is run then this calculation does not work.
+    if (countSchemaScanViaAJV !== 1) {
+      const countFullStrictSchema = countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
+      const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
+      grunt.log.ok('Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.')
+      grunt.log.ok(`${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(percent)}%)`)
+    }
   })
 
   grunt.registerTask('local_tv4_validator_cannot_have_negative_test', 'Check for forbidden negative test folder', function () {
