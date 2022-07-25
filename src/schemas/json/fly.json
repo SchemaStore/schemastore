@@ -1,0 +1,396 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "definitions": {
+    "statics": {
+      "type": "object",
+      "required": ["guest_path", "url_prefix"],
+      "additionalProperties": false,
+      "properties": {
+        "guest_path": {
+          "description": "The path inside your container where the assets to serve are located.",
+          "type": "string"
+        },
+        "url_prefix": {
+          "description": "The URL prefix that should serve the static assets.",
+          "type": "string"
+        }
+      }
+    },
+    "services": {
+      "description": "Configure the mapping of ports from the public Fly proxy to your application.\n\nYou can have:\n* **No services section**: The application has no mappings to the external internet - typically apps like databases or background job workers that talk over 6PN private networking to other apps.\n* **One services section**: One internal port mapped to one external port on the internet.\n* **Multiple services sections**: Map multiple internal ports to multiple external ports.",
+      "type": "object",
+      "properties": {
+        "script_checks": {
+          "deprecated": true,
+          "description": "Health checks that run as one-off commands directly on the VM.\n\nThis type of check is **deprecated**. See `tcp_checks` or `http_checks` for alternatives."
+        },
+        "protocol": {
+          "description": "The protocol used to communicate with your application. Can be: `tcp` or `udp`.",
+          "type": "string",
+          "enum": ["tcp", "udp"]
+        },
+        "internal_port": {
+          "description": "The port this application listens on to communicate with clients. The default is 8080. We recommend applications use the default.",
+          "type": "integer",
+          "default": 8080
+        },
+        "concurrency": {
+          "type": "object",
+          "description": "Control autoscaling metrics (connections or requests) and limits (hard and soft).",
+          "properties": {
+            "type": {
+              "type": "string",
+              "default": "connections",
+              "x-taplo": {
+                "docs": {
+                  "enumValues": [
+                    "Autoscale based on number of concurrent connections",
+                    "Autoscale based on number of concurrent requests"
+                  ]
+                }
+              },
+              "enum": ["connections", "requests"]
+            },
+            "hard_limit": {
+              "default": 25,
+              "type": "integer",
+              "description": "When an application instance is __at__ or __over__ this number, the system will bring up another instance."
+            },
+            "soft_limit": {
+              "default": 20,
+              "type": "integer",
+              "description": "When an application instance is __at__ or __over__ this number, the system is likely to bring up another instance."
+            }
+          }
+        },
+        "ports": {
+          "description": "For each external port you want to accept connections on, add a `ports` section.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "handlers": {
+                "x-taplo": {
+                  "links": {
+                    "key": "https://fly.io/docs/reference/services/#connection-handlers"
+                  }
+                },
+                "description": "An array of strings that select handlers to terminate the connection at the edge.\n\nValid options: http, tls, proxy_proto.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "enum": ["http", "tls", "proxy_proto"]
+                }
+              },
+              "port": {
+                "default": 8080,
+                "type": "integer",
+                "description": "The port to accept traffic on. Valid ports: 1-65535"
+              },
+              "force_https": {
+                "type": "boolean",
+                "description": "Force HTTP connections to HTTPS. `force_https` requires the `http` handler in the `handlers` section."
+              }
+            }
+          }
+        },
+        "tcp_checks": {
+          "description": "Basic TCP connection health checks. This is the default check that runs against the configured `internal_port`.",
+          "type": "array",
+          "x-taplo": {
+            "links": {
+              "key": "https://fly.io/docs/reference/configuration/#services-tcp_checks"
+            }
+          },
+          "items": {
+            "type": "object",
+            "properties": {
+              "grace_period": {
+                "description": "The time to wait after a VM starts before checking its health. Units are milliseconds unless you specify them like `10s` or `1m`.",
+                "type": "string"
+              },
+              "interval": {
+                "description": "Length of the pause between connectivity checks. Units are milliseconds unless you specify them like `10s` or `1m`.",
+                "type": "string"
+              },
+              "restart_limit": {
+                "default": 0,
+                "description": "The number of consecutive TCP check failures to allow before attempting to restart the VM. The default is `0`, which disables restarts based on failed TCP health checks.",
+                "type": "integer"
+              },
+              "timeout": {
+                "description": "The maximum time a connection can take before being reported as failing its healthcheck. Units are milliseconds unless you specify them like `10s` or `1m`.",
+                "type": "string"
+              }
+            }
+          }
+        },
+        "http_checks": {
+          "description": "HTTP-based health checks run against the `internal_port`. These checks will pass when receiving a 2xx response. Any other response is considered a failure.",
+          "type": "array",
+          "x-taplo": {
+            "links": {
+              "key": "https://fly.io/docs/reference/configuration/#services-http_checks"
+            }
+          },
+          "items": {
+            "type": "object",
+            "properties": {
+              "grace_period": {
+                "description": "The time to wait after a VM starts before checking its health. Units are milliseconds unless you specify them like `10s` or `1m`.",
+                "type": "string"
+              },
+              "interval": {
+                "description": "Length of the pause between connectivity checks. Units are milliseconds unless you specify them like `10s` or `1m`.",
+                "type": "string"
+              },
+              "restart_limit": {
+                "default": 0,
+                "description": "The number of consecutive check failures to allow before attempting to restart the VM. The default is `0`, which disables restarts based on failed health checks.",
+                "type": "integer"
+              },
+              "timeout": {
+                "description": "The maximum time a connection can take before being reported as failing its healthcheck. Units are milliseconds unless you specify them like `10s` or `1m`.",
+                "type": "string"
+              },
+              "method": {
+                "description": "The HTTP method to be used for the check.",
+                "type": "string"
+              },
+              "path": {
+                "description": "The path of the URL to be requested.",
+                "type": "string"
+              },
+              "protocol": {
+                "description": "The protocol to be used (`http` or `https`)",
+                "type": "string",
+                "enum": ["http", "https"]
+              },
+              "tls_skip_verify": {
+                "type": "boolean",
+                "default": false,
+                "description": "When set to `true` (and `protocol` is set to `https`), skip verifying the certificates sent by the server."
+              },
+              "headers": {
+                "type": "object",
+                "description": "Set key/value pairs of HTTP headers to pass along with the check request."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "description": "https://fly.io/docs/reference/configuration",
+  "properties": {
+    "app": {
+      "description": "Fly.io application name",
+      "type": "string"
+    },
+    "kill_timeout": {
+      "description": "Seconds to wait before forcing a VM process to exit. Default is 5 seconds.",
+      "type": "integer"
+    },
+    "kill_signal": {
+      "description": "Signal to send to a process to shut it down gracefully. Default is SIGINT.",
+      "type": "string",
+      "enum": [
+        "SIGINT",
+        "SIGTERM",
+        "SIGQUIT",
+        "SIGUSR1",
+        "SIGUSR2",
+        "SIGKILL",
+        "SIGSTOP"
+      ]
+    },
+    "statics": {
+      "description": "The `statics` sections expose static assets built into your application's container to Fly's Anycast network. You can serve HTML files, Javascript, and images without needing to run a web server inside your container.",
+      "x-taplo": {
+        "links": {
+          "key": "https://fly.io/docs/reference/configuration/#the-statics-sections"
+        }
+      },
+      "anyOf": [
+        {
+          "$ref": "#/definitions/statics"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/statics"
+          }
+        }
+      ]
+    },
+    "services": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/services"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/services"
+          }
+        }
+      ]
+    },
+    "deploy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "release_command": {
+          "x-taplo": {
+            "links": {
+              "key": "https://fly.io/docs/reference/configuration/#release_command"
+            },
+            "initKeys": ["importantKey"]
+          },
+          "description": "Command to run after a build, with access to the production environment, but before deployment. Non-zero exit status will abort the deployment.\n\n```toml\n[deploy]\n  release_command =\"bundle exec rails db:migrate\"\n```",
+          "type": "string"
+        },
+        "strategy": {
+          "description": "Strategy for replacing VMs during a deployment.",
+          "type": "string",
+          "default": "canary",
+          "enum": ["canary", "rolling", "bluegreen", "immediate"],
+          "x-taplo": {
+            "docs": {
+              "main": "Strategy for replacing VMs during a deployment.",
+              "enumValues": [
+                "This default strategy - for apps without volumes - will boot a single, new VM with the new release, verify its health, then proceed with a rolling restart strategy.",
+                "One by one, each running VM is taken down and replaced by a new release VM. This is the default strategy for apps with volumes.",
+                "For every running VM, a new one is booted alongside it. All new VMs must pass health checks to complete deployment, when traffic gets migrated to new VMs. If your app has multiple VMs, this strategy may reduce deploy time and downtime, assuming your app is scaled to 2 or more VMs.",
+                "Replace all VMs with new releases immediately without waiting for health checks to pass. This is useful in emergency situations where you're confident a release will be healthy."
+              ],
+              "defaultValue": "Default is 'canary': boot a single, new VM with the new release, verify its health, then proceed with a rolling restart strategy."
+            },
+            "links": {
+              "key": "https://fly.io/docs/reference/configuration/#strategy"
+            }
+          }
+        }
+      }
+    },
+    "mounts": {
+      "type": "object",
+      "x-taplo": {
+        "links": {
+          "key": "https://fly.io/docs/reference/configuration/#the-mounts-section"
+        }
+      },
+      "description": "Mount [persistent storage volumes](https://fly.io/docs/reference/volumes) previously setup via `flyctl`. Both settings are required. Example:\n\n```toml\n[mounts]\n  source = \"myapp_data\"\n  destination = \"/data\"\n```",
+      "required": ["source", "destination"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "The name of the volume to mount as shown in `fly volumes list`.\n\nA volume of this name *must exist* in each of the app regions. If there's more than one volume in the target region with the same one, one will be picked randomly.",
+          "type": "string"
+        },
+        "destination": {
+          "description": "The path at which the `source` volume should be mounted in the running app VM.",
+          "type": "string"
+        }
+      }
+    },
+    "experimental": {
+      "description": "Flags and features that are subject to change, deprecation or promotion to the main configuration.",
+      "type": "object",
+      "properties": {
+        "cmd": {
+          "description": "Override the server command (CMD) set by the Dockerfile. Specify as an array of strings:\n\n```toml\ncmd = [\"path/to/command\", \"arg1\", \"arg2\"]\n```",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "entrypoint": {
+          "description": "Override the ENTRYPOINT set by the Dockerfile. Specify as an array of strings:\n\n```toml\nentrypoint = [\"path/to/command\", \"arg1\", \"arg2\"]\n```",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "auto_rollback": {
+          "description": "Failed deployments should roll back automatically to the previous successfully deployed release. Defaults to `true`",
+          "type": "boolean"
+        },
+        "private_network": {
+          "description": "Enables private network access to the Fly organization. Defaults to `true`.",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "env": {
+      "description": "Set non-sensitive information as environment variables in the application's [runtime environment](https://fly.io/docs/reference/runtime-environment/).\nFor sensitive information, such as credentials or passwords, use the [secrets command](https://fly.io/docs/reference/secrets). For anything else though, the `env` section provides a simple way to set environment variables. Here's an example:\n```toml\n[env]\n  LOG_LEVEL = \"debug\"\n  S3_BUCKET = \"my-bucket\"\n```",
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "build": {
+      "description": "Build configuration options. See docs at https://fly.io/docs/reference/builders.",
+      "type": "object",
+      "properties": {
+        "builder": {
+          "description": "Builder Docker image to be used with the 'buildpacks' option",
+          "type": "string"
+        },
+        "buildpacks": {
+          "description": "Buildpacks to be run by the 'builder' Docker image",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "args": {
+          "description": "Build arguments passed to both Dockerfile and Buildpack builds. These arguments are **not available** on VMs at runtime.\n```toml\n[build.args]\n  USER = \"julieta\"\n  MODE = \"production\"\n```",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "build-target": {
+          "description": "Specify the target stage for [multistage Dockerfile builds](https://docs.docker.com/develop/develop-images/multistage-build/).",
+          "type": "string"
+        },
+        "image": {
+          "description": "Docker image to be deployed (skips the build process)",
+          "type": "string"
+        },
+        "dockerfile": {
+          "description": "Dockerfile used for builds. Defaults to './Dockerfile'",
+          "type": "string"
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": true
+  },
+  "title": "Fly.io config schema (fly.toml)",
+  "type": "object",
+  "x-taplo-info": {
+    "authors": ["Joshua Sierles (https://github.com/jsierles)"],
+    "patterns": ["\\.*fly(.*)?\\.toml?$"]
+  }
+}
