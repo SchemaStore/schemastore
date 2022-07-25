@@ -17,37 +17,59 @@
           "description": "Current working directory to start the process with. Defaults to CWD of the current environment (from your shell)"
         },
         "args": {
-          "type": ["array", "string"],
           "description": "Arguments to pass to the script",
-          "items": {
-            "type": "string"
-          }
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         "interpreter": {
           "type": "string",
           "description": "Interpreter absolute path. Defaults to node"
         },
-        "node_args": {
-          "type": ["array", "string"],
-          "description": "Arguments to pass to the interpreter",
-          "items": {
-            "type": "string"
-          }
+        "interpreter_args": {
+          "description": "Options to pass to the interpreter",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
-        "output": {
-          "type": "string",
-          "description": "File path for stdout (each line is appended to this file)",
-          "default": "~/.pm2/logs/-out.log"
-        },
-        "error": {
+        "error_file": {
           "type": "string",
           "description": "File path for stderr (each line is appended to this file)",
-          "default": "~/.pm2/logs/-error.err"
+          "default": "~/.pm2/logs/<app_name>-error.err"
         },
-        "log": {
-          "type": ["boolean", "string"],
-          "description": "File path for combined stdout and stderr (each line is appended to this file)",
+        "out_file": {
+          "type": "string",
+          "description": "File path for stdout (each line is appended to this file)",
+          "default": "~/.pm2/logs/<app_name>-out.log"
+        },
+        "combine_logs": {
+          "type": "boolean",
+          "description": "If set to true, avoid to suffix logs file with the process id",
           "default": "/dev/null"
+        },
+        "merge_logs": {
+          "type": "boolean",
+          "description": "Alias to combine_logs"
+        },
+        "pid_file": {
+          "type": "string",
+          "description": "File path where the pid of the started process is written by pm2. Defaults to ~/.pm2/pids/app_name-id.pid"
         },
         "disable_logs": {
           "type": "boolean",
@@ -63,19 +85,22 @@
           "description": "Format for log timestamps in moment.js format (eg YYYY-MM-DD HH:mm Z)"
         },
         "env": {
-          "type": ["object", "string"],
+          "type": "object",
           "description": "Specify environment variables to be injected",
           "additionalProperties": {
             "type": "string"
           }
         },
-        "max_memory_restart": {
-          "type": ["string", "number"],
-          "description": "Restart the app if an amount of memory is exceeded (format: /0-9?/ K for KB, ‘M’ for MB, ‘G’ for GB, default to B)"
+        "env_": {
+          "type": "object",
+          "description": "Specify environment variables to be injected (when passing --env)",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "pid_file": {
-          "type": "string",
-          "description": "File path where the pid of the started process is written by pm2. Defaults to ~/.pm2/pids/app_name-id.pid"
+        "max_memory_restart": {
+          "type": "number",
+          "description": "Restart the app if an amount of memory is exceeded (format: /0-9?/ K for KB, 'M' for MB, 'G' for GB, default to B)"
         },
         "restart_delay": {
           "type": "number",
@@ -92,7 +117,7 @@
         },
         "wait_ready": {
           "type": "boolean",
-          "description": "Make the process wait for a process.send(‘ready’)"
+          "description": "Make the process wait for a process.send('ready')"
         },
         "instances": {
           "type": "number",
@@ -112,10 +137,6 @@
           "type": "string",
           "description": "A cron pattern to restart your app"
         },
-        "merge_logs": {
-          "type": "boolean",
-          "description": "In cluster mode, merge each type of logs into a single file (instead of having one for each cluster)"
-        },
         "vizion": {
           "type": "boolean",
           "description": "Enable or disable the versioning metadatas (vizion library)",
@@ -127,19 +148,29 @@
           "default": true
         },
         "watch": {
-          "type": ["boolean", "array", "string"],
+          "type": "boolean",
           "description": "Enable or disable the watch mode"
         },
         "ignore_watch": {
-          "type": ["array", "string"],
-          "description": "List of paths to ignore (regex)"
+          "description": "List of paths to ignore (regex)",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         "watch_options": {
           "type": "object",
           "description": "Object that will be used as an options with chokidar (refer to chokidar documentation)"
         },
         "min_uptime": {
-          "type": ["number", "string"],
+          "type": "number",
           "description": "Minimum uptime of the app to be considered started (format is /[0-9]+(h|m|s)?/, for hours, minutes, seconds, default to ms)",
           "default": 1000
         },
@@ -169,6 +200,10 @@
             "type": "string"
           }
         },
+        "shutdown_with_message": {
+          "type": "boolean",
+          "description": "Shutdown an application with process.send('shutdown') instead of process.kill(pid, SIGINT)"
+        },
         "trace": {
           "type": "boolean",
           "description": "Enable or disable the transaction tracing"
@@ -185,6 +220,13 @@
         "instance_var": {
           "type": "string",
           "description": "Rename the NODE_APP_INSTANCE environment variable. Defaults to NODE_APP_INSTANCE"
+        },
+        "filter_env": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Excludes global variables starting with “REACT_” and will not allow their penetration into the cluster"
         },
         "pmx": {
           "type": "boolean",
@@ -215,9 +257,9 @@
         }
       },
       "patternProperties": {
-        "^env_\\S*$": {
-          "type": ["object", "string"],
-          "description": "Specify environment variables to be injected when using –env",
+        "^env_\\S+$": {
+          "type": "object",
+          "description": "Specify environment variables to be injected when using --env",
           "additionalProperties": {
             "type": "string"
           }
@@ -237,18 +279,32 @@
           "description": "SSH user"
         },
         "host": {
-          "type": ["array", "string"],
           "description": "SSH host",
-          "items": {
-            "type": "string"
-          }
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         "ssh_options": {
-          "type": ["string", "array"],
-          "description": "SSH options with no command-line flag, see ‘man ssh’",
-          "items": {
-            "type": "string"
-          }
+          "description": "SSH options with no command-line flag, see 'man ssh'",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         "ref": {
           "type": "string",
@@ -305,6 +361,6 @@
       }
     }
   },
-  "title": "pm2 ecosystem config file",
+  "title": "PM2 ecosystem config file",
   "type": "object"
 }
