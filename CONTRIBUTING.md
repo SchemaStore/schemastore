@@ -12,6 +12,8 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
+Keep single source of truth. Do not copy an external schema here, but point the catalog to the external schema.
+
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```sh
 make
@@ -55,7 +57,7 @@ After adding schema files, register them in alphabetical order in [schema catalo
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
 1. Create a subfolder in [`src/test`](src/test) named as your schema file
-2. Create one or more `.json, .yml or .yaml` files in that folder
+2. Create one or more `.json, .yml, .yaml or toml` files in that folder
 3. Run `npm run build` (to test a single schema, use `npm run build -- --SchemaName=<jsonFileName.json> default`)
 
 If the build succeeds, your changes are valid and you can safely create a PR.
