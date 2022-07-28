@@ -12,6 +12,8 @@ the version number: *myschema-1.2.json*
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
 
+Keep single source of truth. Do not copy an external schema here, but point the catalog to the external schema.
+
 If you don't have Visual Studio (using macOS or Linux?), you can check your modifications are fine by running:
 ```sh
 make
