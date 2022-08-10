@@ -1,0 +1,404 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "definitions": {
+    "branchPattern": {
+      "description": "Regular expression for validating branch names",
+      "type": "string"
+    },
+    "timeout": {
+      "description": "Timeout in seconds",
+      "type": "integer"
+    },
+    "credentials": {
+      "description": "Jenkins credentials ID",
+      "type": "string"
+    },
+    "checkmarx": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "groupId": {
+          "type": "string",
+          "default": "55"
+        },
+        "preset": {
+          "type": "string",
+          "default": "36"
+        },
+        "projectName": {
+          "type": "string",
+          "default": "BSS_BB_Hybrid"
+        },
+        "branch_pattern": {
+          "$ref": "#/definitions/branchPattern",
+          "default": "^master$|.*[cC]heck[mM]arx.*"
+        },
+        "useOwnServerCredentials": {
+          "type": "boolean",
+          "default": true
+        },
+        "serverUrl": {
+          "type": "string",
+          "default": "http://cxpbgmgmtserver/"
+        },
+        "credentialsId": {
+          "type": "string",
+          "default": "BB-Checkmarx"
+        },
+        "generatePdfReport": {
+          "type": "boolean",
+          "default": true
+        },
+        "sourceEncoding": {
+          "type": "string",
+          "default": "5"
+        },
+        "isProxy": {
+          "type": "boolean",
+          "default": false
+        },
+        "waitForResultsEnabled": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "sonar": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "breaks_build": {
+          "type": "boolean",
+          "description": "Waits for analysis result and breaks the build when the project fails for some quality gates.",
+          "default": false
+        },
+        "timeout": {
+          "$ref": "#/definitions/timeout",
+          "description": "Seconds to wait for the result of the quality gate. Only applies when breaks_build is set to true",
+          "default": 120
+        }
+      },
+      "additionalProperties": false
+    },
+    "stage": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "List of steps to run"
+        },
+        "when": {
+          "type": "object",
+          "description": "Condition that should be met to run this step",
+          "properties": {
+            "branch": {
+              "$ref": "#/definitions/branchPattern",
+              "description": "Specifies in which branches this stage will be executed"
+            }
+          }
+        }
+      },
+      "required": ["steps"],
+      "additionalProperties": false
+    },
+    "dockerfile": {
+      "description": "Dockerfile path",
+      "type": "string"
+    },
+    "outputDocker": {
+      "type": "object",
+      "properties": {
+        "dockerfile": {
+          "$ref": "#/definitions/dockerfile",
+          "description": "Path to Dockerfile used to generate the docker image"
+        },
+        "image_name": {
+          "type": "string",
+          "description": "Image name for the generated docker image. Cannot include tag. Tag will be automatically generated based on project version."
+        },
+        "publish": {
+          "$ref": "#/definitions/outputDockerPublish",
+          "description": "Docker publishing information. If not present, the image won't be published"
+        }
+      },
+      "required": ["dockerfile", "image_name"]
+    },
+    "outputDockerPublish": {
+      "type": "object",
+      "properties": {
+        "branch": {
+          "$ref": "#/definitions/branchPattern",
+          "description": "Indicates on what branches publishing is enabled. Typically, master and release branches"
+        },
+        "registry": {
+          "type": "string",
+          "description": "Docker registry. Must include protocol (http|https) and port",
+          "format": "uri"
+        },
+        "credentials": {
+          "$ref": "#/definitions/credentials",
+          "description": "Jenkins credentials ID for publishing into the specified Docker registry"
+        }
+      },
+      "required": ["branch", "registry", "credentials"]
+    },
+    "outputHelm": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the folder with all required chart config files"
+        },
+        "updates": {
+          "type": "array",
+          "description": "Updates that must be done before packing Helm chart. It's a list of objects that specifies which updates must be done on which files",
+          "items": {
+            "$ref": "#/definitions/outputHelmUpdates"
+          }
+        },
+        "publish": {
+          "$ref": "#/definitions/outputHelmPublish"
+        }
+      },
+      "required": ["path", "publish", "updates"],
+      "additionalProperties": false
+    },
+    "outputHelmUpdates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Name (including path from Helm object path) of the file to be updated. Only supports yaml files"
+        },
+        "properties": {
+          "type": "array",
+          "description": "A list of properties to update. It can be updated with a fixed value or environment variable",
+          "items": {
+            "$ref": "#/definitions/outputHelmUpdatesProperties"
+          }
+        }
+      },
+      "required": ["file", "properties"]
+    },
+    "outputHelmUpdatesProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Yaml property (full path) to be updated"
+        },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "Environment variable whose value will be used to update the property"
+        },
+        "value": {
+          "type": "string",
+          "description": "Value to update the given property"
+        }
+      },
+      "required": ["key"],
+      "oneOf": [
+        {
+          "required": ["env"],
+          "not": {
+            "required": ["value"]
+          }
+        },
+        {
+          "required": ["value"],
+          "not": {
+            "required": ["env"]
+          }
+        }
+      ]
+    },
+    "outputHelmPublish": {
+      "type": "object",
+      "description": "Allows to publish the Helm chart",
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "$ref": "#/definitions/branchPattern",
+          "description": "Indicates on which branches publishing is enabled. Typically, master and release branches"
+        },
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "description": "Helm chart repository. Must include protocol, host, port (if needed) and path"
+        },
+        "credentials": {
+          "$ref": "#/definitions/credentials",
+          "description": "Jenkins credentials Id for this repository for uploading the chart"
+        }
+      },
+      "required": ["branch", "credentials", "repository"]
+    }
+  },
+  "description": "CI configuration for Amdocs Bill Experience projects",
+  "properties": {
+    "project": {
+      "description": "Project properties",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Project's name (used by Jenkins, Docker and Sonar)",
+          "type": "string"
+        },
+        "type": {
+          "description": "Project type",
+          "enum": ["npm", "maven", "mvn"],
+          "default": "mvn"
+        },
+        "settings": {
+          "description": "ID of a managed maven or npm Jenkins file",
+          "type": "string",
+          "examples": ["bx-maven-settings", "bx-npm-settings"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "jenkins_runtime": {
+          "type": "object",
+          "properties": {
+            "docker": {
+              "type": "object",
+              "description": "Specifies how to build the Docker container (from an existing image or from a local Dockerfile)",
+              "properties": {
+                "image": {
+                  "description": "Prebuilt Docker image (has precedence over dockerfile)",
+                  "type": "string",
+                  "examples": ["remote-host.com/image-name:tag"]
+                },
+                "dockerfile": {
+                  "description": "Path to a local Dockerfile",
+                  "$ref": "#/definitions/dockerfile",
+                  "examples": [".ci/Dockerfile"]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "required": ["docker"]
+        },
+        "branch": {
+          "type": "object",
+          "description": "Describes on which branch names a build will be run",
+          "properties": {
+            "branch_pattern": {
+              "$ref": "#/definitions/branchPattern"
+            },
+            "disable_validation": {
+              "description": "Disables branch name validation",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "build": {
+          "type": "object",
+          "properties": {
+            "clean_workspace_after_run": {
+              "type": "boolean",
+              "description": "Whether Jenkins workspace should be cleaned after the build",
+              "default": true
+            },
+            "checkmarx": {
+              "$ref": "#/definitions/checkmarx",
+              "description": "Adds a Static Analysis stage for CheckMarx. See https://www.jenkins.io/doc/pipeline/steps/checkmarx/ for all the configuration options."
+            },
+            "static_analysis": {
+              "$ref": "#/definitions/sonar",
+              "description": "Adds a Static Analysis stage for Sonar."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "services": {
+      "type": "array",
+      "description": "Additional services required by the project or application.",
+      "items": {
+        "enum": [
+          "Postgres",
+          "Postgis",
+          "Redis",
+          "Mssql",
+          "Mysql",
+          "Mongodb",
+          "Elasticsearch"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "environment": {
+      "type": "object",
+      "description": "Custom environment variables to be added to the pipeline",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      }
+    },
+    "jenkinsEnvironment": {
+      "type": "array",
+      "description": "Jenkins environment variables that are passed to the Docker container",
+      "uniqueItems": true,
+      "items": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+        "type": "string"
+      }
+    },
+    "stages": {
+      "type": "object",
+      "description": "Defines the stages and steps required to build the project.",
+      "patternProperties": {
+        "^\\w+( \\w+)*$": {
+          "$ref": "#/definitions/stage",
+          "description": "Stage name in the Jenkins pipeline"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "description": "Describes artifacts generated after all the stages have been run",
+      "properties": {
+        "docker": {
+          "$ref": "#/definitions/outputDocker",
+          "description": "Configuration for generating a Docker image"
+        },
+        "helm": {
+          "$ref": "#/definitions/outputHelm",
+          "description": "Configuration for generating a Helm chart"
+        }
+      },
+      "additionalProperties": false
+    },
+    "archive": {
+      "type": "array",
+      "description": "List of artifacts to archive (wildcards allowed). Check out https://www.jenkins.io/doc/pipeline/steps/core/#archiveartifacts-archive-the-artifacts",
+      "examples": ["target/*.jar", "**/*.jar", "target/out.txt"]
+    },
+    "timeout": {
+      "$ref": "#/definitions/timeout",
+      "description": "Build timeout in seconds",
+      "default": 600
+    }
+  },
+  "required": ["project", "stages"],
+  "type": "object"
+}

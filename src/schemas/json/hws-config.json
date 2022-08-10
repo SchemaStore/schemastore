@@ -1,0 +1,481 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "duration": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+\\s*[years|yrs|y|weeks|wks|w|days|d|hours|hrs|h|minutes|mins|m!seconds|secs|s|milliseconds|ms]*$"
+        }
+      ]
+    },
+    "loggerLevel": {
+      "type": "string",
+      "enum": [
+        "all",
+        "trace",
+        "debug",
+        "info",
+        "warn",
+        "error",
+        "fatal",
+        "off"
+      ],
+      "default": "off"
+    },
+    "transportProtocols": {
+      "type": "string",
+      "enum": ["http", "https"]
+    },
+    "namespace": {
+      "description": "Forces a specific namespace for connectors that perform namespace auto-detection (Advanced).",
+      "type": "string"
+    },
+    "outputDirectory": {
+      "type": "string",
+      "default": "logs"
+    },
+    "sequential": {
+      "type": "boolean",
+      "default": false
+    },
+    "hardwareProblemTemplate": {
+      "type": "string",
+      "default": "Hardware problem on \\${FQDN\\} with \\${MONITOR_NAME\\}.\\${NEWLINE\\}\\${NEWLINE\\}\\${ALERT_DETAILS\\}\\${NEWLINE\\}\\${NEWLINE\\}\\${FULLREPORT\\}"
+    }
+  },
+  "id": "https://json.schemastore.org/hws-config.json",
+  "properties": {
+    "collectPeriod": {
+      "description": "Sets the collect period that Hardware Sentry uses to collects metrics from the monitored hosts (Default: 2m).",
+      "$ref": "#/definitions/duration",
+      "default": "2m"
+    },
+    "disableAlerts": {
+      "description": "Disables Hardware Sentry's alerts for all the monitored hosts (Default: false).",
+      "type": "boolean",
+      "default": false
+    },
+    "discoveryCycle": {
+      "description": "Sets the cycle that Hardware Sentry uses to perform discoveries and detect new components in your monitored environment. By default, Hardware Sentry runs a discovery after 30 collects.",
+      "type": "integer",
+      "default": "30"
+    },
+    "exporter": {
+      "description": "Sets Hardware Sentry's internal Exporter configuration.",
+      "type": "object",
+      "properties": {
+        "otlp": {
+          "description": "Overrides Hardware Sentry's internal OTLP Exporter configuration.",
+          "type": ["object", "null"],
+          "properties": {
+            "headers": {
+              "description": "Sets Hardware Sentry's OTLP Exporter headers, such as the `Authorization` header used to authenticate the Exporter with the OTLP gRPC Receiver.",
+              "type": "object"
+            },
+            "trustedCertificatesFile": {
+              "description": "Sets Hardware Sentry's OTLP Exporter trusted certificates file (Default: security/otel.crt).",
+              "type": "string",
+              "default": "security/otel.crt"
+            }
+          }
+        }
+      }
+    },
+    "extraLabels": {
+      "description": "Adds or overrides the attributes for all the monitored hosts. It is recommended to specify a different `site` label value for each OpenTelemetry Collector running the Hardware Sentry Agent.",
+      "type": "object"
+    },
+    "extraMetrics": {
+      "description": "Adds additional static metrics to be exposed by Hardware Sentry.",
+      "type": "object"
+    },
+    "hardwareProblemTemplate": {
+      "description": "Overrides the default hardware problem template used to build the alert body for all the monitored hosts.",
+      "$ref": "#/definitions/hardwareProblemTemplate"
+    },
+    "hosts": {
+      "description": "Configures the hosts to monitor.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "collectPeriod": {
+            "description": "Sets the default collect period that Hardware Sentry uses to collects metrics from the monitored host (Default: 2m).",
+            "$ref": "#/definitions/duration",
+            "default": "2m"
+          },
+          "disableAlerts": {
+            "description": "Disables Hardware Sentry's alerts for the monitored host (Default: false).",
+            "type": "boolean",
+            "default": false
+          },
+          "discoveryCycle": {
+            "description": "Sets the cycle that Hardware Sentry uses to perform discoveries and detect new components for the specific host. By default, Hardware Sentry runs a discovery after 30 collects.",
+            "type": "integer",
+            "default": "30"
+          },
+          "excludedConnectors": {
+            "description": "Sets the Connector(s) that must be excluded from the automatic detection.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extraLabels": {
+            "description": "Adds or overrides the attributes of the monitored host.",
+            "type": "object"
+          },
+          "hardwareProblemTemplate": {
+            "description": "Overrides the default hardware problem template used to build the alert body for the monitored host.",
+            "$ref": "#/definitions/hardwareProblemTemplate"
+          },
+          "host": {
+            "description": "Configures a new host to be monitored.",
+            "type": "object",
+            "properties": {
+              "hostname": {
+                "description": "Configures the hostname of the host to be monitored.",
+                "type": "string"
+              },
+              "id": {
+                "description": "Configures the identifier of the host to be monitored (Optional). By default, the host identifier is the hostname property value.",
+                "type": "string"
+              },
+              "type": {
+                "description": "Configures the type of the host to be monitored.",
+                "type": "string",
+                "anyOf": [
+                  {
+                    "pattern": "^lin|^lnx$|^win|^ms.*win|^microsoft.*w|^oob$|^out|^vmware|^mgmt|^management|^esx|^blade|^net|^switch|^sto|^san|vms|tru64|osf|hp.*ux|aix|rs6000|^sun|^ora|sol"
+                  },
+                  {
+                    "enum": [
+                      "win",
+                      "linux",
+                      "network",
+                      "oob",
+                      "storage",
+                      "aix",
+                      "hpux",
+                      "solaris",
+                      "tru64",
+                      "vmx"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": ["hostname", "type"]
+          },
+          "http": {
+            "description": "Configures the HTTP protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "https": {
+                "description": "Enables HTTPS to access the host (Default: true).",
+                "type": "boolean",
+                "default": true
+              },
+              "password": {
+                "description": "Sets the password used to establish the connection with the host through the HTTP protocol.",
+                "type": "string"
+              },
+              "port": {
+                "description": "Sets the HTTPS port number used to perform HTTP requests (Default: 443).",
+                "type": "integer",
+                "default": 443
+              },
+              "timeout": {
+                "description": "Sets how long until the HTTP request times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "username": {
+                "description": "Sets the username used to establish the connection with the host through the HTTP protocol.",
+                "type": "string"
+              }
+            }
+          },
+          "ipmi": {
+            "description": "Configures the IPMI protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "password": {
+                "description": "Sets the password used to establish the connection with the host through the IPMI protocol.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Sets how long until the IPMI request times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "username": {
+                "description": "Sets the username used to establish the connection with the host through the IPMI protocol.",
+                "type": "string"
+              }
+            }
+          },
+          "loggerLevel": {
+            "description": "Enables the debug mode of the core engine on the specific host (Default: off).",
+            "$ref": "#/definitions/loggerLevel"
+          },
+          "operationTimeout": {
+            "description": "Sets how long until the engine's discovery and collect operations time out.",
+            "type": "integer"
+          },
+          "osCommand": {
+            "description": "Configures the OS Command protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "sudoCommand": {
+                "description": "Sets the sudo command to be used for the host to be monitored (Default: sudo).",
+                "type": "string",
+                "default": "sudo"
+              },
+              "timeout": {
+                "description": "Sets how long until the local OS Command times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "useSudo": {
+                "description": "Sets if sudo needs to be used for the local OS Command (Default: false).",
+                "type": "boolean",
+                "default": false
+              },
+              "useSudoCommands": {
+                "description": "Sets the list of commands for which sudo is required.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "outputDirectory": {
+            "description": "Sets the debug output directory for the monitored host. By default, the debug output file is saved in the `logs` directory under the Hardware Sentry's home directory.",
+            "$ref": "#/definitions/outputDirectory"
+          },
+          "selectedConnectors": {
+            "description": "Sets the Connector(s) to use to monitor the host. No automatic detection will be performed.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sequential": {
+            "description": "Forces all the network calls to be executed in sequential order for the monitored host - NOT RECOMMENDED (Default: false).",
+            "$ref": "#/definitions/sequential"
+          },
+          "snmp": {
+            "description": "Configures the SNMP protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "community": {
+                "description": "Sets the SNMP Community string to use to perform SNMP v1 queries (Default: public).",
+                "type": "string",
+                "default": "public"
+              },
+              "password": {
+                "description": "SNMP v3 only - Sets the password to use for performing the SNMP query.",
+                "type": "string"
+              },
+              "port": {
+                "description": "Sets the SNMP port number used to perform SNMP queries (Default: 161).",
+                "type": "integer",
+                "default": 161
+              },
+              "privacy": {
+                "description": "SNMP v3 only - Sets the type of encryption protocol.",
+                "type": "string",
+                "enum": ["none", "aes", "des"]
+              },
+              "privacyPassword": {
+                "description": "SNMP v3 only - Sets the password associated to the privacy protocol.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Sets how long until the SNMP request times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "username": {
+                "description": "SNMP v3 only - Sets the username to use for performing the SNMP query.",
+                "type": "string"
+              },
+              "version": {
+                "description": "Sets the version of the SNMP protocol (Default: v1).",
+                "type": "string",
+                "enum": ["v1", "v2c", "v3-no-auth", "v3-md5", "v3-sha"],
+                "default": "v1"
+              }
+            }
+          },
+          "ssh": {
+            "description": "Configures the SSH protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "password": {
+                "description": "Sets the password to use for performing the SSH query.",
+                "type": "string"
+              },
+              "privateKey": {
+                "description": "Sets the private Key File to use to establish the connection to the host through the SSH protocol.",
+                "type": "string"
+              },
+              "sudoCommand": {
+                "description": "Sets the sudo command to be used.",
+                "type": "string",
+                "default": "sudo"
+              },
+              "timeout": {
+                "description": "Sets how long until the command times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "useSudo": {
+                "description": "Sets if sudo needs to be used for the SSH Command (Default: false).",
+                "type": "boolean",
+                "default": false
+              },
+              "useSudoCommands": {
+                "description": "Sets the list of commands for which sudo is required.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "username": {
+                "description": "Sets the username to use for performing the SSH query.",
+                "type": "string"
+              }
+            }
+          },
+          "wbem": {
+            "description": "Configures the WBEM protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "namespace": {
+                "$ref": "#/definitions/namespace"
+              },
+              "password": {
+                "description": "Sets the password used to establish the connection with the host through the WBEM protocol.",
+                "type": "string"
+              },
+              "port": {
+                "description": "Sets the HTTPS port number used to perform WBEM queries (Default: 5989 for HTTPS or 5988 for HTTP).",
+                "type": "integer",
+                "default": 5989
+              },
+              "protocol": {
+                "description": "Sets the protocol used to access the host (Default: https).",
+                "$ref": "#/definitions/transportProtocols",
+                "default": "https"
+              },
+              "timeout": {
+                "description": "Sets how long until the WBEM request times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "username": {
+                "description": "Sets the username used to establish the connection with the host through the WBEM protocol.",
+                "type": "string"
+              }
+            }
+          },
+          "winrm": {
+            "description": "Configures the WinRM protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "authentications": {
+                "description": "Sets an ordered list of authentication schemes (Default: [\"ntlm\"]).",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["ntlm", "kerberos"]
+                },
+                "default": ["ntlm"]
+              },
+              "namespace": {
+                "$ref": "#/definitions/namespace"
+              },
+              "password": {
+                "description": "Sets the password used to establish the connection with the host through the WinRM protocol.",
+                "type": "string"
+              },
+              "port": {
+                "description": "Sets the port number used to perform WQL queries and commands (Default: 5985 for HTTP or 5986 for HTTPS).",
+                "type": "integer"
+              },
+              "protocol": {
+                "description": "Sets the protocol used to access the host (Default: http).",
+                "$ref": "#/definitions/transportProtocols",
+                "default": "http"
+              },
+              "timeout": {
+                "description": "Sets how long until the WinRM request times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "username": {
+                "description": "Sets the username used to establish the connection with the host through the WinRM protocol.",
+                "type": "string"
+              }
+            }
+          },
+          "wmi": {
+            "description": "Configures the WMI protocol to access the host.",
+            "type": "object",
+            "properties": {
+              "namespace": {
+                "$ref": "#/definitions/namespace"
+              },
+              "password": {
+                "description": "Sets the password used to establish the connection with the host through the WMI protocol.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Sets how long until the WMI request times out (Default: 120s).",
+                "$ref": "#/definitions/duration",
+                "default": "120s"
+              },
+              "username": {
+                "description": "Sets the username used to establish the connection with the host through the WMI protocol.",
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": ["host"]
+      }
+    },
+    "jobPoolSize": {
+      "description": "Sets the number of jobs that Hardware Sentry can run simultaneously (Default: 20).",
+      "type": "integer",
+      "default": "20"
+    },
+    "loggerLevel": {
+      "description": "Enables the debug mode of the core engine (Default: off).",
+      "$ref": "#/definitions/loggerLevel"
+    },
+    "outputDirectory": {
+      "description": "Sets the debug output directory for all the monitored hosts. By default, the debug output files are saved in the `logs` directory under the Hardware Sentry's home directory.",
+      "$ref": "#/definitions/outputDirectory"
+    },
+    "resolveHostnameToFqdn": {
+      "description": "Displays the configured hostname in the Host Resource `host.name` attribute instead of the resolved FQDN (Default: false).",
+      "type": "boolean",
+      "default": false
+    },
+    "sequential": {
+      "description": "Forces all the network calls to be executed in sequential order for all the monitored hosts - NOT RECOMMENDED (Default: false).",
+      "$ref": "#/definitions/sequential"
+    }
+  },
+  "title": "Hardware Sentry configuration file",
+  "type": "object"
+}
