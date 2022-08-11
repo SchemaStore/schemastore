@@ -125,6 +125,10 @@ module.exports = function (grunt) {
     const schemaNameOption = grunt.option('SchemaName')
     if (processOnlyThisOneSchemaFile === undefined && schemaNameOption) {
       processOnlyThisOneSchemaFile = schemaNameOption
+      const file = pt.join(schemaDir, processOnlyThisOneSchemaFile)
+      if (!fs.existsSync(file)) {
+        throwWithErrorText([`Schema file ${processOnlyThisOneSchemaFile} does not exist`])
+      }
     }
 
     /**
