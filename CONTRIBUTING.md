@@ -6,7 +6,7 @@ You can contribute in a variety of ways. For a detailed tutorial, read [Scott Ad
 2. Add a JSON schema file to the [catalog](#catalog)
 3. Modify/update existing schema files
 
-Versioning of schema files are handled by modifying the file name to include
+[Versioning of schema](https://github.com/SchemaStore/schemastore/issues/197#issuecomment-229690162) files are handled by modifying the file name to include
 the version number: *myschema-1.2.json*
 
 When uploading a new schema file, make sure it targets a file that is commonly
