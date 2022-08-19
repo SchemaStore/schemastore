@@ -1150,6 +1150,46 @@ module.exports = function (grunt) {
     grunt.log.ok(`Total schema-validation.json items check: ${countSchemaValidationItems}`)
   })
 
+  grunt.registerTask('local_check_in_schema-validation.json_for_skiptest', 'schemas in skiptest[] list must not be present anywhere else', function () {
+    let countSchemaValidationItems = 0
+    const x = (list, listName) => {
+      list.forEach((schemaName) => {
+        if (schemaName.endsWith('.json')) {
+          countSchemaValidationItems++
+          if (schemaValidation.skiptest.includes(schemaName)) {
+            throwWithErrorText([`Disabled/skiptest[] schema: ${schemaName} found in => ${listName}[]`])
+          }
+        }
+      })
+    }
+    x(schemaValidation.tv4test, 'tv4test')
+    x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
+    x(schemaValidation.missingcatalogurl, 'missingcatalogurl')
+
+    for (const item of schemaValidation.options) {
+      const schemaName = Object.keys(item).pop()
+      if (schemaName !== 'readme_example.json') {
+        countSchemaValidationItems++
+        if (schemaValidation.skiptest.includes(schemaName)) {
+          throwWithErrorText([`Disabled/skiptest[] schema: ${schemaName} found in => options[]`])
+        }
+      }
+    }
+
+    // Test folder must not exist if defined in skiptest[]
+    schemaValidation.skiptest.forEach((schemaName) => {
+      countSchemaValidationItems++
+      const folderName = schemaName.replace('.json', '')
+      if (foldersPositiveTest.includes(folderName)) {
+        throwWithErrorText([`Disabled/skiptest[] schema: ${schemaName} cannot have positive test folder`])
+      }
+      if (foldersNegativeTest.includes(folderName)) {
+        throwWithErrorText([`Disabled/skiptest[] schema: ${schemaName} cannot have  negative test folder`])
+      }
+    })
+    grunt.log.ok(`Total schema-validation.json items check: ${countSchemaValidationItems}`)
+  })
+
   grunt.registerTask('local_coverage', 'Run one selected schema in coverage mode', function () {
     const javaScriptCoverageName = 'schema.json.translated.to.js'
     const javaScriptCoverageNameWithPath = pt.join(__dirname, `${temporaryCoverageDir}/${javaScriptCoverageName}`)
@@ -1333,6 +1373,7 @@ module.exports = function (grunt) {
       'local_validate_directory_structure',
       'local_check_filename_extension',
       'local_check_in_schema-validation.json_for_missing_schema_files',
+      'local_check_in_schema-validation.json_for_skiptest',
       'local_check_for_test_folders_without_schema_to_be_tested',
       'local_tv4_validator_cannot_have_negative_test',
       'local_catalog',
