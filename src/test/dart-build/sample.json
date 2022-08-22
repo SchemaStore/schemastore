@@ -1,66 +1,66 @@
 {
   "builders": {
-    "sdk_js_copy": {
-      "import": "package:build_web_compilers/builders.dart",
-      "builder_factories": ["sdkJsCopyBuilder"],
-      "build_extensions": {
-        "$lib$": ["src/dev_compiler/dart_sdk.js", "src/dev_compiler/require.js"]
-      },
-      "is_optional": false,
+    "_stack_trace_mapper_copy": {
       "auto_apply": "none",
-      "applies_builders": ["build_web_compilers:sdk_js_cleanup"],
-      "runs_before": ["build_web_compilers:entrypoint"]
+      "build_extensions": {
+        "web/stack_trace_mapper.dart.js": [
+          "lib/src/dev_compiler_stack_trace/stack_trace_mapper.dart.js"
+        ]
+      },
+      "build_to": "source",
+      "builder_factories": ["copyBuilder"],
+      "import": "tool/copy_builder.dart"
     },
     "dart2js_modules": {
-      "import": "package:build_web_compilers/builders.dart",
+      "applies_builders": ["build_modules:module_cleanup"],
+      "auto_apply": "none",
+      "build_extensions": {
+        "$lib$": [".dart2js.meta_module.raw", ".dart2js.meta_module.clean"],
+        ".dart": [".dart2js.module"]
+      },
       "builder_factories": [
         "dart2jsMetaModuleBuilder",
         "dart2jsMetaModuleCleanBuilder",
         "dart2jsModuleBuilder"
       ],
-      "build_extensions": {
-        "$lib$": [".dart2js.meta_module.raw", ".dart2js.meta_module.clean"],
-        ".dart": [".dart2js.module"]
-      },
+      "import": "package:build_web_compilers/builders.dart",
       "is_optional": true,
-      "auto_apply": "none",
-      "required_inputs": [".dart", ".module.library"],
-      "applies_builders": ["build_modules:module_cleanup"]
+      "required_inputs": [".dart", ".module.library"]
+    },
+    "ddc": {
+      "applies_builders": [
+        "build_web_compilers:ddc_modules",
+        "build_web_compilers:dart2js_modules",
+        "build_web_compilers:dart_source_cleanup"
+      ],
+      "auto_apply": "all_packages",
+      "build_extensions": {
+        ".ddc.module": [".ddc.dill", ".ddc.js.errors", ".ddc.js", ".ddc.js.map"]
+      },
+      "builder_factories": ["ddcKernelBuilder", "ddcBuilder"],
+      "import": "package:build_web_compilers/builders.dart",
+      "is_optional": true,
+      "required_inputs": [".ddc.module"]
     },
     "ddc_modules": {
-      "import": "package:build_web_compilers/builders.dart",
+      "applies_builders": ["build_modules:module_cleanup"],
+      "auto_apply": "none",
+      "build_extensions": {
+        "$lib$": [".ddc.meta_module.raw", ".ddc.meta_module.clean"],
+        ".dart": [".ddc.module"]
+      },
       "builder_factories": [
         "ddcMetaModuleBuilder",
         "ddcMetaModuleCleanBuilder",
         "ddcModuleBuilder"
       ],
-      "build_extensions": {
-        "$lib$": [".ddc.meta_module.raw", ".ddc.meta_module.clean"],
-        ".dart": [".ddc.module"]
-      },
-      "is_optional": true,
-      "auto_apply": "none",
-      "required_inputs": [".dart", ".module.library"],
-      "applies_builders": ["build_modules:module_cleanup"]
-    },
-    "ddc": {
       "import": "package:build_web_compilers/builders.dart",
-      "builder_factories": ["ddcKernelBuilder", "ddcBuilder"],
-      "build_extensions": {
-        ".ddc.module": [".ddc.dill", ".ddc.js.errors", ".ddc.js", ".ddc.js.map"]
-      },
       "is_optional": true,
-      "auto_apply": "all_packages",
-      "required_inputs": [".ddc.module"],
-      "applies_builders": [
-        "build_web_compilers:ddc_modules",
-        "build_web_compilers:dart2js_modules",
-        "build_web_compilers:dart_source_cleanup"
-      ]
+      "required_inputs": [".dart", ".module.library"]
     },
     "entrypoint": {
-      "import": "package:build_web_compilers/builders.dart",
-      "builder_factories": ["webEntrypointBuilder"],
+      "applies_builders": ["build_web_compilers:dart2js_archive_extractor"],
+      "auto_apply": "root_package",
       "build_extensions": {
         ".dart": [
           ".dart.bootstrap.js",
@@ -70,94 +70,94 @@
           ".digests"
         ]
       },
-      "required_inputs": [".dart", ".ddc.js", ".ddc.module", ".dart2js.module"],
       "build_to": "cache",
-      "auto_apply": "root_package",
+      "builder_factories": ["webEntrypointBuilder"],
       "defaults": {
+        "dev_options": {
+          "dart2js_args": ["--enable-asserts"]
+        },
         "generate_for": {
+          "exclude": ["test/**.node_test.dart", "test/**.vm_test.dart"],
           "include": [
             "web/**",
             "test/**.dart.browser_test.dart",
             "example/**",
             "benchmark/**"
-          ],
-          "exclude": ["test/**.node_test.dart", "test/**.vm_test.dart"]
+          ]
         },
         "options": {
           "dart2js_args": ["--minify"]
-        },
-        "dev_options": {
-          "dart2js_args": ["--enable-asserts"]
         },
         "release_options": {
           "compiler": "dart2js"
         }
       },
-      "applies_builders": ["build_web_compilers:dart2js_archive_extractor"]
+      "import": "package:build_web_compilers/builders.dart",
+      "required_inputs": [".dart", ".ddc.js", ".ddc.module", ".dart2js.module"]
     },
-    "_stack_trace_mapper_copy": {
-      "import": "tool/copy_builder.dart",
-      "builder_factories": ["copyBuilder"],
-      "build_extensions": {
-        "web/stack_trace_mapper.dart.js": [
-          "lib/src/dev_compiler_stack_trace/stack_trace_mapper.dart.js"
-        ]
-      },
+    "sdk_js_copy": {
+      "applies_builders": ["build_web_compilers:sdk_js_cleanup"],
       "auto_apply": "none",
-      "build_to": "source"
+      "build_extensions": {
+        "$lib$": ["src/dev_compiler/dart_sdk.js", "src/dev_compiler/require.js"]
+      },
+      "builder_factories": ["sdkJsCopyBuilder"],
+      "import": "package:build_web_compilers/builders.dart",
+      "is_optional": false,
+      "runs_before": ["build_web_compilers:entrypoint"]
     }
   },
   "post_process_builders": {
     "dart2js_archive_extractor": {
-      "import": "package:build_web_compilers/builders.dart",
       "builder_factory": "dart2jsArchiveExtractor",
       "defaults": {
         "release_options": {
           "filter_outputs": true
         }
-      }
+      },
+      "import": "package:build_web_compilers/builders.dart"
     },
     "dart_source_cleanup": {
-      "import": "package:build_web_compilers/builders.dart",
       "builder_factory": "dartSourceCleanup",
       "defaults": {
         "release_options": {
           "enabled": true
         }
-      }
+      },
+      "import": "package:build_web_compilers/builders.dart"
     },
     "sdk_js_cleanup": {
-      "import": "package:build_web_compilers/builders.dart",
       "builder_factory": "sdkJsCleanupBuilder",
       "defaults": {
         "release_options": {
           "enabled": true
         }
-      }
+      },
+      "import": "package:build_web_compilers/builders.dart"
     }
   },
   "targets": {
     "$default": {
-      "dependencies": ["foo:bar", "foo", "$default"],
       "builders": {
+        "build_web_compilers:_stack_trace_mapper_copy": {
+          "enabled": true
+        },
         "build_web_compilers:entrypoint": {
+          "enabled": true,
+          "generate_for": ["web/stack_trace_mapper.dart"],
           "options": {
             "compiler": "dart2js",
             "dart2js_args": ["-O4"]
-          },
-          "enabled": true,
-          "generate_for": ["web/stack_trace_mapper.dart"]
+          }
         },
-        "build_web_compilers:_stack_trace_mapper_copy": {
+        "build_web_compilers:sdk_js_cleanup": {
           "enabled": true
         },
         "build_web_compilers:sdk_js_copy": {
           "enabled": true
-        },
-        "build_web_compilers:sdk_js_cleanup": {
-          "enabled": true
         }
-      }
+      },
+      "dependencies": ["foo:bar", "foo", "$default"]
     }
   }
 }

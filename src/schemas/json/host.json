@@ -2,157 +2,305 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "definitions": {
     "aggregator": {
+      "additionalProperties": false,
       "description": "Configuration settings for the function result aggregator.",
-      "type": "object",
       "properties": {
         "batchSize": {
+          "default": 1000,
           "description": "The maximum batch size for aggregations. If this value is reached before the 'flushTimeout', all values will be flushed.",
-          "type": "integer",
-          "default": 1000
+          "type": "integer"
         },
         "flushTimeout": {
+          "default": "00:00:30",
           "description": "The aggregation duration. The aggregator will flush periodically based on this value.",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:00:30"
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
         }
       },
-      "additionalProperties": false
+      "type": "object"
     },
-    "functions": {
-      "description": "The list of functions the host should load.",
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "type": "string"
-      }
+    "cosmosDB-extension": {
+      "additionalProperties": false,
+      "description": "Configuration settings for Azure Cosmos DB bindings and triggers.",
+      "properties": {
+        "connectionMode": {
+          "default": "Gateway",
+          "description": "ConnectionMode to be used on the DocumentClients.",
+          "enum": ["Gateway", "Direct"]
+        },
+        "protocol": {
+          "default": "Https",
+          "description": "Protocol to be used on the DocumentClients.",
+          "enum": ["Https", "Tcp"]
+        }
+      },
+      "type": "object"
+    },
+    "cosmosDB-extension-v2": {
+      "additionalProperties": false,
+      "description": "Configuration settings for Azure Cosmos DB bindings and triggers.",
+      "properties": {
+        "connectionMode": {
+          "default": "Gateway",
+          "description": "ConnectionMode to be used on the DocumentClients.",
+          "enum": ["Gateway", "Direct"]
+        },
+        "leaseOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "leasePrefix": {
+              "description": "Lease prefix to use across all functions in an app.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "protocol": {
+          "default": "Https",
+          "description": "Protocol to be used on the DocumentClients.",
+          "enum": ["Https", "Tcp"]
+        }
+      },
+      "type": "object"
+    },
+    "durableTask-extension": {
+      "additionalProperties": false,
+      "description": "Configuration settings for 'orchestration'/'activity' triggers.",
+      "properties": {
+        "extendedSessionIdleTimeoutInSeconds": {
+          "type": "integer"
+        },
+        "extendedSessionsEnabled": {
+          "type": "boolean"
+        },
+        "hubName": {
+          "default": "DurableFunctionsHub",
+          "description": "Alternate task hub names can be used to isolate multiple Durable Functions applications from each other, even if they're using the same storage backend.",
+          "type": "string"
+        },
+        "maxConcurrentActivityFunctions": {
+          "default": 10,
+          "description": "The maximum number of activity functions that can be processed concurrently on a single host instance.",
+          "type": "integer"
+        },
+        "maxConcurrentOrchestratorFunctions": {
+          "default": 10,
+          "description": "The maximum number of orchestrator functions that can be processed concurrently on a single host instance.",
+          "type": "integer"
+        },
+        "maxEntityOperationBatchSize": {
+          "default": 50,
+          "description": "The maximum number of entity operations that are processed as a batch. If set to 1, batching is disabled, and each operation message is processed by a separate function invocation.",
+          "type": "integer"
+        },
+        "notifications": {
+          "additionalProperties": false,
+          "properties": {
+            "eventGrid": {
+              "additionalProperties": false,
+              "properties": {
+                "keySettingName": {
+                  "description": "The name of the app setting containing the key used for authenticating with the Azure Event Grid custom topic at EventGridTopicEndpoint.",
+                  "type": "string"
+                },
+                "publishEventTypes": {
+                  "description": "A list of event types to publish to Event Grid. If not specified, all event types will be published.",
+                  "items": {
+                    "enum": [
+                      "Started",
+                      "Pending",
+                      "Completed",
+                      "Failed",
+                      "Terminated"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                },
+                "publishRetryCount": {
+                  "default": 0,
+                  "description": "The number of times to retry if publishing to the Event Grid Topic fails.",
+                  "type": "integer"
+                },
+                "publishRetryInterval": {
+                  "default": "00:05:00",
+                  "description": "The Event Grid publishes retry interval in the hh:mm:ss format.",
+                  "type": "string"
+                },
+                "topicEndpoint": {
+                  "description": "The URL of an Azure Event Grid custom topic endpoint. When this property is set, orchestration life-cycle notification events are published to this endpoint. This property supports App Settings resolution.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "storageProvider": {
+          "additionalProperties": false,
+          "properties": {
+            "connectionStringName": {
+              "type": "string"
+            },
+            "controlQueueBatchSize": {
+              "default": 32,
+              "description": "The number of messages to pull from the control queue at a time.",
+              "type": "integer"
+            },
+            "controlQueueBufferThreshold": {
+              "default": 256,
+              "description": "The number of control queue messages that can be buffered in memory at a time, at which point the dispatcher will wait before dequeuing any additional messages.",
+              "type": "integer"
+            },
+            "controlQueueVisibilityTimeout": {
+              "default": "00:05:00",
+              "description": "The visibility timeout of dequeued control queue messages.",
+              "type": "string"
+            },
+            "maxQueuePollingInterval": {
+              "default": "00:00:30",
+              "description": "The maximum control and work-item queue polling interval in the hh:mm:ss format. Higher values can result in higher message processing latencies. Lower values can result in higher storage costs because of increased storage transactions.",
+              "type": "string"
+            },
+            "partitionCount": {
+              "default": 4,
+              "description": "The partition count for the control queue. May be a positive integer between 1 and 16.",
+              "type": "integer"
+            },
+            "trackingStoreConnectionStringName": {
+              "description": "The name of a connection string to use for the History and Instances tables. If not specified, the azureStorageConnectionStringName connection is used.",
+              "type": "string"
+            },
+            "trackingStoreNamePrefix": {
+              "description": "The prefix to use for the History and Instances tables when trackingStoreConnectionStringName is specified. If not set, the default prefix value will be DurableTask. If trackingStoreConnectionStringName is not specified, then the History and Instances tables will use the hubName value as their prefix, and any setting for trackingStoreNamePrefix will be ignored.",
+              "type": "string"
+            },
+            "useLegacyPartitionManagement": {
+              "default": false,
+              "description": "When set to false, uses a partition management algorithm that reduces the possibility of duplicate function execution when scaling out.",
+              "type": "boolean"
+            },
+            "workItemQueueVisibilityTimeout": {
+              "default": "00:05:00",
+              "description": "The visibility timeout of dequeued work item queue messages.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "tracing": {
+          "additionalProperties": false,
+          "properties": {
+            "traceInputsAndOutputs": {
+              "default": false,
+              "description": "A value indicating whether to trace the inputs and outputs of function calls. The default behavior when tracing function execution events is to include the number of bytes in the serialized inputs and outputs for function calls. This behavior provides minimal information about what the inputs and outputs look like without bloating the logs or inadvertently exposing sensitive information. Setting this property to true causes the default function logging to log the entire contents of function inputs and outputs.",
+              "type": "boolean"
+            },
+            "traceReplayEvents": {
+              "default": false,
+              "description": "A value indicating whether to write orchestration replay events to Application Insights.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "useAppLease": {
+          "default": true,
+          "description": "When set to true, apps will require acquiring an app-level blob lease before processing task hub messages.",
+          "type": "boolean"
+        },
+        "useGracefulShutdown": {
+          "default": false,
+          "description": "Enable gracefully shutting down to reduce the chance of host shutdowns failing in-process function executions.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
     },
     "functionTimeout": {
       "description": "Value indicating the timeout duration for all functions.",
       "oneOf": [
         {
-          "type": "string",
-          "pattern": "^(-1|(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d)$"
+          "pattern": "^(-1|(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d)$",
+          "type": "string"
         },
         {
           "enum": [null]
         }
       ]
     },
-    "watchDirectories": {
-      "description": "Set of shared code directories that should be monitored for changes to ensure that when code in these directories is changed, it is picked up by your functions",
-      "type": "array",
-      "uniqueItems": true,
+    "functions": {
+      "description": "The list of functions the host should load.",
       "items": {
-        "type": "string",
-        "minLength": 1
-      }
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
     },
-    "singleton": {
-      "description": "Configuration settings for Singleton lock behavior.",
-      "type": "object",
+    "healthMonitor": {
+      "additionalProperties": false,
+      "description": "Configuration settings for the Functions host health monitor",
       "properties": {
-        "lockPeriod": {
-          "description": "The period that function level locks are taken for (they will auto renew).",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:00:15"
+        "counterThreshold": {
+          "default": 0.8,
+          "description": "The threshold at which a performance counter will be considered unhealthy.",
+          "type": "number"
         },
-        "listenerLockPeriod": {
-          "description": "The period that listener locks are taken for.",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:01:00"
+        "enabled": {
+          "default": true,
+          "description": "Specifies whether the feature is enabled.",
+          "type": "boolean"
         },
-        "listenerLockRecoveryPollingInterval": {
-          "description": "The time interval used for listener lock recovery if a listener lock couldn't be acquired on startup.",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:01:00"
+        "healthCheckInterval": {
+          "default": "00:00:10",
+          "description": "The time interval between the periodic background health checks",
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
         },
-        "lockAcquisitionTimeout": {
-          "description": "The maximum amount of time the runtime will try to acquire a lock.",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:01:00"
+        "healthCheckThreshold": {
+          "default": 6,
+          "description": "Maximum number of times the health check can fail before a host recycle is initiated.",
+          "type": "integer"
         },
-        "lockAcquisitionPollingInterval": {
-          "description": "The interval between lock acquisition attempts.",
+        "healthCheckWindow": {
+          "default": "00:02:00",
+          "description": "A sliding time window used in conjunction with the healthCheckThreshold setting.",
           "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
         }
       },
-      "additionalProperties": false
-    },
-    "healthMonitor": {
-      "description": "Configuration settings for the Functions host health monitor",
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Specifies whether the feature is enabled.",
-          "type": "boolean",
-          "default": true
-        },
-        "healthCheckInterval": {
-          "description": "The time interval between the periodic background health checks",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:00:10"
-        },
-        "healthCheckWindow": {
-          "description": "A sliding time window used in conjunction with the healthCheckThreshold setting.",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:02:00"
-        },
-        "healthCheckThreshold": {
-          "description": "Maximum number of times the health check can fail before a host recycle is initiated.",
-          "type": "integer",
-          "default": 6
-        },
-        "counterThreshold": {
-          "description": "The threshold at which a performance counter will be considered unhealthy.",
-          "type": "number",
-          "default": 0.8
-        }
-      },
-      "additionalProperties": false
+      "type": "object"
     },
     "http-extension": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Configuration settings for 'http' triggers.",
-      "required": ["routePrefix"],
       "properties": {
-        "routePrefix": {
-          "description": "Defines the default route prefix that applies to all routes. Use an empty string to remove the prefix.",
-          "type": "string",
-          "default": "api"
-        },
-        "maxConcurrentRequests": {
-          "description": "Defines the the maximum number of http functions that will execute in parallel.",
-          "type": "integer",
-          "default": -1
-        },
-        "maxOutstandingRequests": {
-          "description": "Defines the maximum number of outstanding requests that will be held at any given time.",
-          "type": "integer",
-          "default": -1
+        "customHeaders": {
+          "description": "Allows you to set custom headers in the HTTP response, ex. X-Content-Type-Options.",
+          "type": "object"
         },
         "dynamicThrottlesEnabled": {
+          "default": false,
           "description": "Indicates whether dynamic host counter checks should be enabled.",
-          "type": "boolean",
-          "default": false
+          "type": "boolean"
         },
         "hsts": {
+          "additionalProperties": false,
           "description": "Configuration settings for Strict-Transport-Security",
-          "type": "object",
           "properties": {
-            "isEnabled": {
-              "description": "Indicates whether the hsts configuration should be applied",
-              "type": "boolean"
-            },
             "excludedHosts": {
               "description": "Defines the list of host names that will not add the HSTS header.",
-              "type": "array",
-              "uniqueItems": true,
               "items": {
                 "type": "string"
-              }
+              },
+              "type": "array",
+              "uniqueItems": true
             },
             "includeSubDomains": {
               "description": "Indicates whether the includeSubDomain parameter of the Strict-Transport-Security header should be enabled.",
+              "type": "boolean"
+            },
+            "isEnabled": {
+              "description": "Indicates whether the hsts configuration should be applied",
               "type": "boolean"
             },
             "maxAge": {
@@ -164,336 +312,223 @@
               "type": "boolean"
             }
           },
-          "additionalProperties": false
-        },
-        "customHeaders": {
-          "description": "Allows you to set custom headers in the HTTP response, ex. X-Content-Type-Options.",
           "type": "object"
+        },
+        "maxConcurrentRequests": {
+          "default": -1,
+          "description": "Defines the the maximum number of http functions that will execute in parallel.",
+          "type": "integer"
+        },
+        "maxOutstandingRequests": {
+          "default": -1,
+          "description": "Defines the maximum number of outstanding requests that will be held at any given time.",
+          "type": "integer"
+        },
+        "routePrefix": {
+          "default": "api",
+          "description": "Defines the default route prefix that applies to all routes. Use an empty string to remove the prefix.",
+          "type": "string"
         }
       },
-      "additionalProperties": false
+      "required": ["routePrefix"],
+      "type": "object"
     },
     "queues-extension": {
+      "additionalProperties": false,
       "description": "Configuration settings for 'queue' triggers.",
-      "type": "object",
       "properties": {
-        "maxPollingInterval": {
-          "description": "The maximum interval in milliseconds between queue polls.",
-          "type": "integer",
-          "default": 1000
-        },
         "batchSize": {
+          "default": 16,
           "description": "The number of queue messages to retrieve and process in parallel (per job function).",
-          "type": "integer",
           "maximum": 32,
           "minimum": 1,
-          "default": 16
+          "type": "integer"
         },
         "maxDequeueCount": {
+          "default": 5,
           "description": "The number of times to try processing a message before moving it to the poison queue",
-          "type": "integer",
-          "default": 5
+          "type": "integer"
+        },
+        "maxPollingInterval": {
+          "default": 1000,
+          "description": "The maximum interval in milliseconds between queue polls.",
+          "type": "integer"
         },
         "newBatchThreshold": {
           "description": "The threshold at which a new batch of messages will be fetched. The default is batchSize/2.",
           "type": "integer"
         },
         "visibilityTimeout": {
+          "default": "00:00:00",
           "description": "The visibility timeout that will be applied to messages that fail processing.",
-          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-          "default": "00:00:00"
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
         }
       },
-      "additionalProperties": false
+      "type": "object"
     },
     "queues-extension-v2": {
+      "additionalProperties": false,
       "description": "Configuration settings for 'queue' triggers.",
-      "type": "object",
       "properties": {
-        "maxPollingInterval": {
-          "type": "string",
-          "pattern": "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9](?:\\.[0-9]+)?$",
-          "default": "00:00:02",
-          "description": "The maximum interval between queue polls. Minimum is 00:00:00.100 (100 ms)."
-        },
-        "visibilityTimeout": {
-          "type": "string",
-          "pattern": "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9](?:\\.[0-9]+)?$",
-          "default": "00:00:00",
-          "description": "The time interval between retries when processing of a message fails."
-        },
         "batchSize": {
+          "default": 16,
           "description": "The number of queue messages that the Functions runtime retrieves simultaneously and processes in parallel. When the number being processed gets down to the `newBatchThreshold`, the runtime gets another batch and starts processing those messages. So the maximum number of concurrent messages being processed per function is `batchSize` plus `newBatchThreshold`. This limit applies separately to each queue-triggered function. ",
-          "type": "integer",
           "maximum": 32,
           "minimum": 1,
-          "default": 16
+          "type": "integer"
         },
         "maxDequeueCount": {
+          "default": 5,
           "description": "The number of times to try processing a message before moving it to the poison queue",
-          "type": "integer",
-          "default": 5
-        },
-        "newBatchThreshold": {
-          "description": "The threshold at which a new batch of messages will be fetched. The default is batchSize/2.",
           "type": "integer"
+        },
+        "maxPollingInterval": {
+          "default": "00:00:02",
+          "description": "The maximum interval between queue polls. Minimum is 00:00:00.100 (100 ms).",
+          "pattern": "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9](?:\\.[0-9]+)?$",
+          "type": "string"
         },
         "messageEncoding": {
           "description": "This setting is only available in extension version 5.0.0 and higher. It represents the encoding format for messages.",
-          "type": "string",
-          "enum": ["base64", "none"]
-        }
-      },
-      "additionalProperties": false
-    },
-    "durableTask-extension": {
-      "description": "Configuration settings for 'orchestration'/'activity' triggers.",
-      "type": "object",
-      "properties": {
-        "hubName": {
-          "description": "Alternate task hub names can be used to isolate multiple Durable Functions applications from each other, even if they're using the same storage backend.",
-          "type": "string",
-          "default": "DurableFunctionsHub"
+          "enum": ["base64", "none"],
+          "type": "string"
         },
-        "storageProvider": {
-          "type": "object",
-          "properties": {
-            "connectionStringName": {
-              "type": "string"
-            },
-            "controlQueueBatchSize": {
-              "description": "The number of messages to pull from the control queue at a time.",
-              "type": "integer",
-              "default": 32
-            },
-            "controlQueueBufferThreshold": {
-              "description": "The number of control queue messages that can be buffered in memory at a time, at which point the dispatcher will wait before dequeuing any additional messages.",
-              "type": "integer",
-              "default": 256
-            },
-            "controlQueueVisibilityTimeout": {
-              "description": "The visibility timeout of dequeued control queue messages.",
-              "type": "string",
-              "default": "00:05:00"
-            },
-            "maxQueuePollingInterval": {
-              "description": "The maximum control and work-item queue polling interval in the hh:mm:ss format. Higher values can result in higher message processing latencies. Lower values can result in higher storage costs because of increased storage transactions.",
-              "type": "string",
-              "default": "00:00:30"
-            },
-            "partitionCount": {
-              "description": "The partition count for the control queue. May be a positive integer between 1 and 16.",
-              "type": "integer",
-              "default": 4
-            },
-            "trackingStoreConnectionStringName": {
-              "description": "The name of a connection string to use for the History and Instances tables. If not specified, the azureStorageConnectionStringName connection is used.",
-              "type": "string"
-            },
-            "trackingStoreNamePrefix": {
-              "description": "The prefix to use for the History and Instances tables when trackingStoreConnectionStringName is specified. If not set, the default prefix value will be DurableTask. If trackingStoreConnectionStringName is not specified, then the History and Instances tables will use the hubName value as their prefix, and any setting for trackingStoreNamePrefix will be ignored.",
-              "type": "string"
-            },
-            "useLegacyPartitionManagement": {
-              "description": "When set to false, uses a partition management algorithm that reduces the possibility of duplicate function execution when scaling out.",
-              "type": "boolean",
-              "default": false
-            },
-            "workItemQueueVisibilityTimeout": {
-              "description": "The visibility timeout of dequeued work item queue messages.",
-              "type": "string",
-              "default": "00:05:00"
-            }
-          },
-          "additionalProperties": false
-        },
-        "tracing": {
-          "type": "object",
-          "properties": {
-            "traceInputsAndOutputs": {
-              "description": "A value indicating whether to trace the inputs and outputs of function calls. The default behavior when tracing function execution events is to include the number of bytes in the serialized inputs and outputs for function calls. This behavior provides minimal information about what the inputs and outputs look like without bloating the logs or inadvertently exposing sensitive information. Setting this property to true causes the default function logging to log the entire contents of function inputs and outputs.",
-              "type": "boolean",
-              "default": false
-            },
-            "traceReplayEvents": {
-              "description": "A value indicating whether to write orchestration replay events to Application Insights.",
-              "type": "boolean",
-              "default": false
-            }
-          },
-          "additionalProperties": false
-        },
-        "notifications": {
-          "type": "object",
-          "properties": {
-            "eventGrid": {
-              "type": "object",
-              "properties": {
-                "topicEndpoint": {
-                  "description": "The URL of an Azure Event Grid custom topic endpoint. When this property is set, orchestration life-cycle notification events are published to this endpoint. This property supports App Settings resolution.",
-                  "type": "string"
-                },
-                "keySettingName": {
-                  "description": "The name of the app setting containing the key used for authenticating with the Azure Event Grid custom topic at EventGridTopicEndpoint.",
-                  "type": "string"
-                },
-                "publishRetryCount": {
-                  "description": "The number of times to retry if publishing to the Event Grid Topic fails.",
-                  "type": "integer",
-                  "default": 0
-                },
-                "publishRetryInterval": {
-                  "description": "The Event Grid publishes retry interval in the hh:mm:ss format.",
-                  "type": "string",
-                  "default": "00:05:00"
-                },
-                "publishEventTypes": {
-                  "description": "A list of event types to publish to Event Grid. If not specified, all event types will be published.",
-                  "type": "array",
-                  "uniqueItems": true,
-                  "items": {
-                    "type": "string",
-                    "enum": [
-                      "Started",
-                      "Pending",
-                      "Completed",
-                      "Failed",
-                      "Terminated"
-                    ]
-                  }
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
-        "maxConcurrentActivityFunctions": {
-          "description": "The maximum number of activity functions that can be processed concurrently on a single host instance.",
-          "type": "integer",
-          "default": 10
-        },
-        "maxConcurrentOrchestratorFunctions": {
-          "description": "The maximum number of orchestrator functions that can be processed concurrently on a single host instance.",
-          "type": "integer",
-          "default": 10
-        },
-        "extendedSessionsEnabled": {
-          "type": "boolean"
-        },
-        "extendedSessionIdleTimeoutInSeconds": {
+        "newBatchThreshold": {
+          "description": "The threshold at which a new batch of messages will be fetched. The default is batchSize/2.",
           "type": "integer"
         },
-        "useAppLease": {
-          "description": "When set to true, apps will require acquiring an app-level blob lease before processing task hub messages.",
-          "type": "boolean",
-          "default": true
-        },
-        "useGracefulShutdown": {
-          "description": "Enable gracefully shutting down to reduce the chance of host shutdowns failing in-process function executions.",
-          "type": "boolean",
-          "default": false
-        },
-        "maxEntityOperationBatchSize": {
-          "description": "The maximum number of entity operations that are processed as a batch. If set to 1, batching is disabled, and each operation message is processed by a separate function invocation.",
-          "type": "integer",
-          "default": 50
+        "visibilityTimeout": {
+          "default": "00:00:00",
+          "description": "The time interval between retries when processing of a message fails.",
+          "pattern": "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9](?:\\.[0-9]+)?$",
+          "type": "string"
         }
       },
-      "additionalProperties": false
+      "type": "object"
     },
-    "cosmosDB-extension": {
-      "description": "Configuration settings for Azure Cosmos DB bindings and triggers.",
-      "type": "object",
+    "singleton": {
+      "additionalProperties": false,
+      "description": "Configuration settings for Singleton lock behavior.",
       "properties": {
-        "connectionMode": {
-          "description": "ConnectionMode to be used on the DocumentClients.",
-          "enum": ["Gateway", "Direct"],
-          "default": "Gateway"
+        "listenerLockPeriod": {
+          "default": "00:01:00",
+          "description": "The period that listener locks are taken for.",
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
         },
-        "protocol": {
-          "description": "Protocol to be used on the DocumentClients.",
-          "enum": ["Https", "Tcp"],
-          "default": "Https"
+        "listenerLockRecoveryPollingInterval": {
+          "default": "00:01:00",
+          "description": "The time interval used for listener lock recovery if a listener lock couldn't be acquired on startup.",
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+        },
+        "lockAcquisitionPollingInterval": {
+          "description": "The interval between lock acquisition attempts.",
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+        },
+        "lockAcquisitionTimeout": {
+          "default": "00:01:00",
+          "description": "The maximum amount of time the runtime will try to acquire a lock.",
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+        },
+        "lockPeriod": {
+          "default": "00:00:15",
+          "description": "The period that function level locks are taken for (they will auto renew).",
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
         }
       },
-      "additionalProperties": false
-    },
-    "cosmosDB-extension-v2": {
-      "description": "Configuration settings for Azure Cosmos DB bindings and triggers.",
-      "type": "object",
-      "properties": {
-        "connectionMode": {
-          "description": "ConnectionMode to be used on the DocumentClients.",
-          "enum": ["Gateway", "Direct"],
-          "default": "Gateway"
-        },
-        "protocol": {
-          "description": "Protocol to be used on the DocumentClients.",
-          "enum": ["Https", "Tcp"],
-          "default": "Https"
-        },
-        "leaseOptions": {
-          "type": "object",
-          "properties": {
-            "leasePrefix": {
-              "description": "Lease prefix to use across all functions in an app.",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
+      "type": "object"
     },
     "version-1": {
-      "type": "object",
+      "additionalProperties": false,
       "properties": {
         "aggregator": {
           "$ref": "#/definitions/aggregator"
         },
         "applicationInsights": {
+          "additionalProperties": false,
           "description": "Configuration settings for Application Insights logging.",
-          "type": "object",
           "properties": {
             "sampling": {
               "description": "Configuration settings for Application Insights client-side adaptive sampling.",
-              "type": "object",
               "properties": {
                 "isEnabled": {
+                  "default": true,
                   "description": "If true, client-side adaptive sampling is enabled.",
-                  "type": "boolean",
-                  "default": true
+                  "type": "boolean"
                 },
                 "maxTelemetryItemsPerSecond": {
+                  "default": 5,
                   "description": "The target rate that the adaptive algorithm aims for on each instance",
-                  "type": "integer",
-                  "default": 5
+                  "type": "integer"
                 }
-              }
+              },
+              "type": "object"
             }
           },
-          "additionalProperties": false
+          "type": "object"
         },
-        "functions": {
-          "$ref": "#/definitions/functions"
+        "documentDB": {
+          "$ref": "#/definitions/cosmosDB-extension"
+        },
+        "durableTask": {
+          "$ref": "#/definitions/durableTask-extension"
+        },
+        "eventHub": {
+          "additionalProperties": false,
+          "description": "Configuration settings for 'eventHub' triggers.",
+          "properties": {
+            "batchCheckpointFrequency": {
+              "default": 1,
+              "description": "The number of batches to process before creating an EventHub cursor checkpoint",
+              "type": "integer"
+            },
+            "maxBatchSize": {
+              "description": "The maximum event count received per receive loop.",
+              "type": "integer"
+            },
+            "prefetchCount": {
+              "description": "The default PrefetchCount that will be used by the underlying EventProcessorHost.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
         },
         "functionTimeout": {
           "$ref": "#/definitions/functionTimeout"
         },
+        "functions": {
+          "$ref": "#/definitions/functions"
+        },
         "healthMonitor": {
           "$ref": "#/definitions/healthMonitor"
         },
+        "http": {
+          "$ref": "#/definitions/http-extension"
+        },
         "id": {
           "description": "The unique ID for this job host. Can be a lower case GUID with dashes removed",
-          "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "type": "string"
         },
         "logger": {
           "description": "Configuration settings for logging.",
-          "type": "object",
           "properties": {
+            "categoryLevels": {
+              "additionalProperties": {
+                "enum": [
+                  "Critical",
+                  "Debug",
+                  "Error",
+                  "Information",
+                  "None",
+                  "Trace",
+                  "Warning"
+                ]
+              },
+              "description": "Log levels for specific categories.",
+              "type": "object"
+            },
             "defaultLevel": {
+              "default": "Information",
               "description": "The default level for logging. If a category level is not specified, this value is used.",
               "enum": [
                 "Critical",
@@ -503,534 +538,104 @@
                 "None",
                 "Trace",
                 "Warning"
-              ],
-              "default": "Information"
-            },
-            "categoryLevels": {
-              "description": "Log levels for specific categories.",
-              "type": "object",
-              "additionalProperties": {
-                "enum": [
-                  "Critical",
-                  "Debug",
-                  "Error",
-                  "Information",
-                  "None",
-                  "Trace",
-                  "Warning"
-                ]
-              }
-            }
-          }
-        },
-        "singleton": {
-          "$ref": "#/definitions/singleton"
-        },
-        "watchDirectories": {
-          "$ref": "#/definitions/watchDirectories"
-        },
-        "tracing": {
-          "description": "Configuration settings for logging/tracing behavior.",
-          "type": "object",
-          "properties": {
-            "consoleLevel": {
-              "description": "The tracing level used for console logging.",
-              "enum": ["off", "error", "warning", "info", "verbose"],
-              "default": "verbose"
-            },
-            "fileLoggingMode": {
-              "description": "Value determining what level of file logging is enabled.",
-              "enum": ["never", "always", "debugOnly"],
-              "default": "debugOnly"
+              ]
             }
           },
-          "additionalProperties": false
-        },
-        "http": {
-          "$ref": "#/definitions/http-extension"
+          "type": "object"
         },
         "queues": {
           "$ref": "#/definitions/queues-extension"
         },
         "serviceBus": {
+          "additionalProperties": false,
           "description": "Configuration settings for 'serviceBus' triggers.",
-          "type": "object",
           "properties": {
+            "autoComplete": {
+              "default": true,
+              "description": "Specifies whether messages should be automatically completed after successful processing.",
+              "type": "boolean"
+            },
+            "autoRenewTimeout": {
+              "default": "00:05:00",
+              "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
+              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+              "type": "string"
+            },
             "maxConcurrentCalls": {
+              "default": 16,
               "description": "The maximum number of concurrent calls to the callback the message pump should initiate.",
-              "type": "integer",
-              "default": 16
+              "type": "integer"
             },
             "prefetchCount": {
               "description": "The default PrefetchCount that will be used by the underlying MessageReceiver.",
               "type": "integer"
-            },
-            "autoRenewTimeout": {
-              "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
-              "type": "string",
-              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-              "default": "00:05:00"
-            },
-            "autoComplete": {
-              "description": "Specifies whether messages should be automatically completed after successful processing.",
-              "type": "boolean",
-              "default": true
             }
           },
-          "additionalProperties": false
+          "type": "object"
         },
-        "eventHub": {
-          "description": "Configuration settings for 'eventHub' triggers.",
-          "type": "object",
+        "singleton": {
+          "$ref": "#/definitions/singleton"
+        },
+        "tracing": {
+          "additionalProperties": false,
+          "description": "Configuration settings for logging/tracing behavior.",
           "properties": {
-            "maxBatchSize": {
-              "description": "The maximum event count received per receive loop.",
-              "type": "integer"
+            "consoleLevel": {
+              "default": "verbose",
+              "description": "The tracing level used for console logging.",
+              "enum": ["off", "error", "warning", "info", "verbose"]
             },
-            "prefetchCount": {
-              "description": "The default PrefetchCount that will be used by the underlying EventProcessorHost.",
-              "type": "integer"
-            },
-            "batchCheckpointFrequency": {
-              "description": "The number of batches to process before creating an EventHub cursor checkpoint",
-              "type": "integer",
-              "default": 1
+            "fileLoggingMode": {
+              "default": "debugOnly",
+              "description": "Value determining what level of file logging is enabled.",
+              "enum": ["never", "always", "debugOnly"]
             }
           },
-          "additionalProperties": false
+          "type": "object"
         },
-        "durableTask": {
-          "$ref": "#/definitions/durableTask-extension"
-        },
-        "documentDB": {
-          "$ref": "#/definitions/cosmosDB-extension"
+        "watchDirectories": {
+          "$ref": "#/definitions/watchDirectories"
         }
       },
-      "additionalProperties": false
+      "type": "object"
     },
     "version-2": {
-      "type": "object",
-      "properties": {
-        "extensionBundle": {
-          "description": "Configuration settings for extension bundle",
-          "type": "object",
-          "properties": {
-            "id": {
-              "description": "The id of the extension bundle",
-              "type": "string",
-              "default": "Microsoft.Azure.Functions.ExtensionBundle"
-            },
-            "version": {
-              "description": "The version of the extension bundle.",
-              "type": "string",
-              "examples": ["[1.*, 2.0.0)", "[2.*, 3.0.0)"],
-              "default": "[2.*, 3.0.0)"
+      "additionalProperties": false,
+      "examples": [
+        {
+          "extensionBundle": {
+            "id": "Microsoft.Azure.Functions.ExtensionBundle",
+            "version": "[2.*, 3.0.0)"
+          },
+          "logging": {
+            "applicationInsights": {
+              "samplingSettings": {
+                "excludedTypes": "Request",
+                "isEnabled": true
+              }
             }
           },
-          "examples": [
-            {
-              "id": "Microsoft.Azure.Functions.ExtensionBundle",
-              "version": "[2.*, 3.0.0)"
-            }
-          ],
-          "additionalProperties": false
-        },
+          "version": "2.0"
+        }
+      ],
+      "properties": {
         "aggregator": {
           "$ref": "#/definitions/aggregator"
         },
-        "functions": {
-          "$ref": "#/definitions/functions"
-        },
-        "functionTimeout": {
-          "$ref": "#/definitions/functionTimeout"
-        },
-        "healthMonitor": {
-          "$ref": "#/definitions/healthMonitor"
-        },
-        "languageWorker": {
-          "description": "Configuration settings for Language Workers.",
-          "type": "object",
-          "properties": {
-            "workersDirectory": {
-              "description": "Specifies full path of the directory for language workers",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        "logging": {
-          "description": "Configuration settings for logging.",
-          "type": "object",
-          "properties": {
-            "logLevel": {
-              "description": "Log levels for specific categories.",
-              "type": "object",
-              "properties": {
-                "default": {
-                  "description": "The default level for logging. If a category level is not specified, this value is used.",
-                  "enum": [
-                    "Critical",
-                    "Debug",
-                    "Error",
-                    "Information",
-                    "None",
-                    "Trace",
-                    "Warning"
-                  ],
-                  "default": "Information"
-                }
-              },
-              "additionalProperties": {
-                "enum": [
-                  "Critical",
-                  "Debug",
-                  "Error",
-                  "Information",
-                  "None",
-                  "Trace",
-                  "Warning"
-                ]
-              }
-            },
-            "applicationInsights": {
-              "description": "Configuration settings for Application Insights logging.",
-              "type": "object",
-              "properties": {
-                "samplingSettings": {
-                  "description": "Configuration settings for Application Insights client-side adaptive sampling.",
-                  "type": "object",
-                  "properties": {
-                    "isEnabled": {
-                      "description": "If true, client-side adaptive sampling is enabled.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "maxTelemetryItemsPerSecond": {
-                      "description": "The target rate that the adaptive algorithm aims for on each instance",
-                      "type": "integer",
-                      "default": 20
-                    },
-                    "evaluationInterval": {
-                      "description": "The interval at which the current rate of telemetry is reevaluated.",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "01:00:00"
-                    },
-                    "initialSamplingPercentage": {
-                      "description": "The initial sampling percentage applied at the start of the sampling process to dynamically vary the percentage.",
-                      "type": "number",
-                      "default": 100
-                    },
-                    "samplingPercentageIncreaseTimeout": {
-                      "description": "When the sampling percentage value changes, this property determines how soon afterwards Application Insights is allowed to raise sampling percentage again to capture more data.",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:00:01"
-                    },
-                    "samplingPercentageDecreaseTimeout": {
-                      "description": "When the sampling percentage value changes, this property determines how soon afterwards Application Insights is allowed to lower sampling percentage again to capture less data.",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:00:01"
-                    },
-                    "minSamplingPercentage": {
-                      "description": "As sampling percentage varies, this property determines the minimum allowed sampling percentage.",
-                      "type": "number",
-                      "default": 0.1
-                    },
-                    "maxSamplingPercentage": {
-                      "description": "As sampling percentage varies, this property determines the maximum allowed sampling percentage.",
-                      "type": "number",
-                      "default": 100
-                    },
-                    "movingAverageRatio": {
-                      "description": "In the calculation of the moving average, the weight assigned to the most recent value. Use a value equal to or less than 1. Smaller values make the algorithm less reactive to sudden changes.",
-                      "type": "number",
-                      "default": 1
-                    },
-                    "excludedTypes": {
-                      "description": "A semi-colon delimited list of types excluded from sampling. Recognized: Dependency, Event, Exception, PageView, Request, Trace.",
-                      "type": "string",
-                      "default": "Request"
-                    },
-                    "includedTypes": {
-                      "description": "A semi-colon delimited list of types that you want to be sampled. Recognized: Dependency, Event, Exception, PageView, Request, and Trace.",
-                      "type": "string",
-                      "default": "Request"
-                    }
-                  }
-                },
-                "enableLiveMetrics": {
-                  "description": "Enables live metrics collection.",
-                  "type": "boolean",
-                  "default": true
-                },
-                "enableDependencyTracking": {
-                  "description": "Enables dependency tracking",
-                  "type": "boolean",
-                  "default": true
-                },
-                "enablePerformanceCountersCollection": {
-                  "description": "Enables Kudu performance counters collection.",
-                  "type": "boolean",
-                  "default": true
-                },
-                "httpAutoCollectionOptions": {
-                  "type": "object",
-                  "properties": {
-                    "enableHttpTriggerExtendedInfoCollection": {
-                      "description": "Enables or disables extended HTTP request information for HTTP triggers.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "enableW3CDistributedTracing": {
-                      "description": "Enables or disables support of W3C distributed tracing protocol (and turns on legacy correlation schema). Enabled by default if enableHttpTriggerExtendedInfoCollection is true. If enableHttpTriggerExtendedInfoCollection is false, this flag applies to outgoing requests only, not incoming requests",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "enableResponseHeaderInjection": {
-                      "description": "Enables or disables injection of multi-component correlation headers into responses. Enabling injection allows Application Insights to construct an Application Map to when several instrumentation keys are used.",
-                      "type": "boolean",
-                      "default": true
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "snapshotConfiguration": {
-                  "type": "object",
-                  "properties": {
-                    "agentEndpoint": {
-                      "description": "The endpoint used to connect to the Application Insights Snapshot Debugger service.",
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "enum": [null]
-                        }
-                      ],
-                      "default": null
-                    },
-                    "captureSnapshotMemoryWeight": {
-                      "description": "The weight given to the current process memory size when checking if there's enough memory to take a snapshot.",
-                      "type": "number",
-                      "default": 0.5
-                    },
-                    "failedRequestLimit": {
-                      "description": "The limit on the number of failed requests to request snapshots before the telemetry processor is disabled.",
-                      "type": "integer",
-                      "default": 3
-                    },
-                    "handleUntrackedExceptions": {
-                      "description": "Enables or disables tracking of exceptions that aren't tracked by Application Insights telemetry.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "isEnabled": {
-                      "description": "Enables or disables snapshot collection.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "isEnabledInDeveloperMode": {
-                      "description": "Enables or disables snapshot collection is enabled in developer mode.",
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "isEnabledWhenProfiling": {
-                      "description": "Enables or disables snapshot creation even if the Application Insights Profiler is collecting a detailed profiling session.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "isExceptionSnappointsEnabled": {
-                      "description": "Enables or disables filtering of exceptions.",
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "isLowPrioritySnapshotUploader": {
-                      "description": "Determines whether to run the SnapshotUploader process at below normal priority.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "maximumCollectionPlanSize": {
-                      "description": "The maximum number of problems that we can track at any time.",
-                      "type": "integer",
-                      "default": 50,
-                      "minimum": 1,
-                      "maximum": 9999
-                    },
-                    "maximumSnapshotsRequired": {
-                      "description": "The maximum number of snapshots collected for a single problem.",
-                      "type": "integer",
-                      "default": 3,
-                      "minimum": 1,
-                      "maximum": 999
-                    },
-                    "problemCounterResetInterval": {
-                      "description": "How often to reset the problem counters in a range from one minute to seven days.",
-                      "type": "string",
-                      "pattern": "^(?:[01]\\d|2[0-4]):[0-5]\\d:[0-5]\\d$",
-                      "default": "24:00:00"
-                    },
-                    "provideAnonymousTelemetry": {
-                      "description": "Determines whether to send anonymous usage and error telemetry to Microsoft. This telemetry may be used if you contact Microsoft to help troubleshoot problems with the Snapshot Debugger",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "reconnectInterval": {
-                      "description": "How often we reconnect to the Snapshot Debugger endpoint. Allowable range is one minute to one day.",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:15:00"
-                    },
-                    "shadowCopyFolder": {
-                      "description": "Specifies the folder to use for shadow copying binaries. If not set, the folders specified by the following environment variables are tried in order: Fabric_Folder_App_Temp, LOCALAPPDATA, APPDATA, TEMP.",
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "enum": [null]
-                        }
-                      ],
-                      "default": null
-                    },
-                    "shareUploaderProcess": {
-                      "description": "If true, only one instance of SnapshotUploader will collect and upload snapshots for multiple apps that share the InstrumentationKey. If set to false, the SnapshotUploader will be unique for each (ProcessName, InstrumentationKey) tuple.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "snapshotInLowPriorityThread": {
-                      "description": "Determines whether or not to process snapshots in a low IO priority thread.",
-                      "type": "boolean",
-                      "default": true
-                    },
-                    "snapshotsPerDayLimit": {
-                      "description": "The maximum number of snapshots allowed in one day (24 hours). This limit is also enforced on the Application Insights service side.",
-                      "type": "integer",
-                      "default": 30
-                    },
-                    "snapshotsPerTenMinutesLimit": {
-                      "description": "The maximum number of snapshots allowed in 10 minutes. Although there is no upper bound on this value, exercise caution increasing it on production workloads because it could impact the performance of your application.",
-                      "type": "integer",
-                      "default": 1
-                    },
-                    "tempFolder": {
-                      "description": "Specifies the folder to write minidumps and uploader log files. If not set, then %TEMP%\\Dumps is used.",
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "enum": [null]
-                        }
-                      ],
-                      "default": null
-                    },
-                    "thresholdForSnapshotting": {
-                      "description": "How many times Application Insights needs to see an exception before it asks for snapshots.",
-                      "type": "integer",
-                      "default": 1
-                    },
-                    "uploaderProxy": {
-                      "description": "Overrides the proxy server used in the Snapshot Uploader process. You may need to use this setting if your application connects to the internet via a proxy server. The Snapshot Collector runs within your application's process and will use the same proxy settings.",
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "enum": [null]
-                        }
-                      ],
-                      "default": null
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "examples": [
-                {
-                  "samplingSettings": {
-                    "isEnabled": true,
-                    "excludedTypes": "Request"
-                  }
-                }
-              ],
-              "additionalProperties": false
-            },
-            "fileLoggingMode": {
-              "description": "Value determining what level of file logging is enabled.",
-              "enum": ["never", "always", "debugOnly"],
-              "default": "debugOnly"
-            }
-          }
-        },
-        "managedDependency": {
-          "description": "Managed dependency is a feature that is currently only supported with PowerShell based functions. It enables dependencies to be automatically managed by the service.",
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "description": "If true, the requirements.psd1 file is processed",
-              "type": "boolean",
-              "default": true
-            }
-          },
-          "additionalProperties": false
-        },
-        "retry": {
-          "description": "Retry policy of function execution failures at the app level. Retry policy applies to all the functions in the function app.",
-          "type": "object",
-          "properties": {
-            "strategy": {
-              "description": "Retry strategy to use for retrying function executions",
-              "enum": ["exponentialBackoff", "fixedDelay"],
-              "default": "exponentialBackoff"
-            },
-            "maxRetryCount": {
-              "description": "The maximum number of retries allowed per function execution. -1 means to retry indefinitely.",
-              "type": "integer"
-            },
-            "delayInterval": {
-              "description": "Value indicating the delayInterval for function execution retries when using FixedDelay strategy.",
-              "oneOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
-                },
-                {
-                  "enum": [null]
-                }
-              ]
-            },
-            "minimumInterval": {
-              "description": "Value indicating the minimumInterval for function execution retries when using ExponentialBackoff strategy.",
-              "oneOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
-                },
-                {
-                  "enum": [null]
-                }
-              ]
-            },
-            "maximumInterval": {
-              "description": "Value indicating the maximumInterval for function execution retries when using ExponentialBackoff strategy.",
-              "oneOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
-                },
-                {
-                  "enum": [null]
-                }
-              ]
-            }
-          }
-        },
         "customHandler": {
+          "additionalProperties": false,
           "description": "Configuration settings for Custom Handler.",
-          "type": "object",
           "properties": {
             "description": {
               "description": "Configuration settings for Custom Handler process",
-              "type": "object",
               "properties": {
+                "arguments": {
+                  "description": "Arguments to be passed to the Custom Handler process. Can use environment variables following pattern %envVarName%",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "defaultExecutablePath": {
                   "description": "Name or path to the Custom Handler process",
                   "type": "string"
@@ -1038,244 +643,161 @@
                 "workingDirectory": {
                   "description": "WorkingDirectory to be used by the Custom Handler process. If not set, defaults to function app root folder.",
                   "type": "string"
-                },
-                "arguments": {
-                  "description": "Arguments to be passed to the Custom Handler process. Can use environment variables following pattern %envVarName%",
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
                 }
-              }
+              },
+              "type": "object"
             },
             "enableForwardingHttpRequest": {
+              "default": false,
               "description": "Forward HttpTrigger request to the custom handler",
-              "type": "boolean",
-              "default": false
+              "type": "boolean"
             }
           },
-          "additionalProperties": false
+          "type": "object"
         },
-        "singleton": {
-          "$ref": "#/definitions/singleton"
-        },
-        "watchDirectories": {
-          "$ref": "#/definitions/watchDirectories"
-        },
-        "watchFiles": {
-          "description": "An array of one or more names of files that are monitored for changes that require your app to restart. This guarantees that when code in these files are changed, the updates are picked up by your functions",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
+        "extensionBundle": {
+          "additionalProperties": false,
+          "description": "Configuration settings for extension bundle",
+          "examples": [
+            {
+              "id": "Microsoft.Azure.Functions.ExtensionBundle",
+              "version": "[2.*, 3.0.0)"
+            }
+          ],
+          "properties": {
+            "id": {
+              "default": "Microsoft.Azure.Functions.ExtensionBundle",
+              "description": "The id of the extension bundle",
+              "type": "string"
+            },
+            "version": {
+              "default": "[2.*, 3.0.0)",
+              "description": "The version of the extension bundle.",
+              "examples": ["[1.*, 2.0.0)", "[2.*, 3.0.0)"],
+              "type": "string"
+            }
           },
-          "additionalProperties": false
-        },
-        "version": {
-          "description": "The version of the Azure Functions host.json schema. This is NOT the version of the Azure Functions host.",
-          "enum": ["2.0"]
+          "type": "object"
         },
         "extensions": {
-          "type": "object",
           "properties": {
-            "http": {
-              "$ref": "#/definitions/http-extension"
-            },
-            "queues": {
-              "$ref": "#/definitions/queues-extension-v2"
-            },
-            "sendGrid": {
-              "type": "object",
+            "blobs": {
+              "additionalProperties": false,
               "properties": {
-                "from": {
-                  "description": "The sender's email address across all functions.",
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
-            },
-            "serviceBus": {
-              "description": "Configuration settings for 'serviceBus' triggers.",
-              "type": "object",
-              "properties": {
-                "prefetchCount": {
-                  "description": "The default PrefetchCount that will be used by the underlying MessageReceiver.",
+                "maxDegreeOfParallelism": {
+                  "description": "The number of concurrent invocations allowed for each blob-triggered function.",
+                  "minimum": 1,
                   "type": "integer"
-                },
-                "messageHandlerOptions": {
-                  "description": "The options that will be used for the message handler registered with the MessageReceiver.",
-                  "type": "object",
-                  "properties": {
-                    "maxConcurrentCalls": {
-                      "description": "The maximum number of concurrent calls to the callback the message pump should initiate.",
-                      "type": "integer",
-                      "default": 32
-                    },
-                    "maxAutoRenewDuration": {
-                      "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
-                      "type": "string",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:05:00"
-                    },
-                    "autoComplete": {
-                      "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
-                      "type": "boolean",
-                      "default": true
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "sessionHandlerOptions": {
-                  "type": "object",
-                  "properties": {
-                    "maxAutoRenewDuration": {
-                      "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
-                      "type": "string",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:55:00"
-                    },
-                    "autoComplete": {
-                      "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "maxConcurrentSessions": {
-                      "description": "The maximum number of sessions that can be handled concurrently per scaled instance.",
-                      "type": "integer",
-                      "default": 16
-                    },
-                    "messageWaitTimeout": {
-                      "type": "string",
-                      "default": "00:00:30"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "batchOptions": {
-                  "type": "object",
-                  "properties": {
-                    "maxMessageCount": {
-                      "description": "The maximum number of messages sent to the function when triggered.",
-                      "type": "integer",
-                      "default": 1000
-                    },
-                    "operationTimeout": {
-                      "description": "A time span value expressed in hh:mm:ss.",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:01:00"
-                    },
-                    "autoComplete": {
-                      "description": "Whether the trigger should automatically call complete after processing, or if the function code will manually call complete.",
-                      "type": "boolean",
-                      "default": true
-                    }
-                  },
-                  "additionalProperties": false
                 }
               },
-              "additionalProperties": false
+              "type": "object"
+            },
+            "cosmosDB": {
+              "$ref": "#/definitions/cosmosDB-extension-v2"
+            },
+            "durableTask": {
+              "$ref": "#/definitions/durableTask-extension"
             },
             "eventHubs": {
               "description": "Configuration settings for 'eventHub' triggers.",
               "oneOf": [
                 {
-                  "type": "object",
+                  "additionalProperties": false,
                   "properties": {
-                    "maxEventBatchSize": {
-                      "description": "The maximum number of events that will be included in a batch for a single invocation.",
-                      "type": "integer",
-                      "default": 10,
-                      "minimum": 1
-                    },
                     "batchCheckpointFrequency": {
+                      "default": 1,
                       "description": "The number of batches to process before creating a checkpoint for the Event Hub.",
-                      "type": "integer",
-                      "default": 1
+                      "type": "integer"
                     },
-                    "prefetchCount": {
-                      "description": "The number of events that will be eagerly requested from Event Hubs and held in a local cache to allow reads to avoid waiting on a network operation.",
-                      "type": "integer",
-                      "default": 300
-                    },
-                    "transportType": {
-                      "description": "The protocol and transport that is used for communicating with Event Hubs.",
-                      "type": "string",
-                      "enum": ["amqpTcp", "amqpWebSockets"],
-                      "default": "amqpTcp"
-                    },
-                    "webProxy": {
-                      "description": "The proxy to use for communicating with Event Hubs over web sockets. A proxy cannot be used with the amqpTcp transport.",
-                      "type": "string"
+                    "clientRetryOptions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "delay": {
+                          "default": "00:00:00.80",
+                          "description": "The maximum duration to wait for an Event Hubs operation to complete, per attempt.",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d\\d$",
+                          "type": "string"
+                        },
+                        "maxDelay": {
+                          "default": "00:00:01",
+                          "description": "The maximum delay to allow between retry attempts.",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "type": "string"
+                        },
+                        "maxRetries": {
+                          "default": 3,
+                          "description": "The maximum number of retry attempts before considering the associated operation to have failed.",
+                          "type": "integer"
+                        },
+                        "mode": {
+                          "default": "exponential",
+                          "description": "The approach to use for calculating retry delays. Exponential mode will retry attempts with a delay based on a back-off strategy where each attempt will increase the duration that it waits before retrying.",
+                          "enum": ["exponential", "fixed"],
+                          "type": "string"
+                        },
+                        "tryTimeout": {
+                          "default": "00:01:00",
+                          "description": "The maximum duration to wait for an Event Hubs operation to complete, per attempt.",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
                     },
                     "customEndpointAddress": {
                       "description": "The address to use when establishing a connection to Event Hubs, allowing network requests to be routed through an application gateway or other path needed for the host environment.",
                       "type": "string"
                     },
                     "initialOffsetOptions": {
-                      "type": "object",
+                      "additionalProperties": false,
                       "properties": {
-                        "type": {
-                          "description": "The location in the event stream to start processing when a checkpoint does not exist in storage. Applies to all partitions.",
-                          "type": "string",
-                          "enum": ["fromStart", "fromEnd", "fromEnqueuedTime"],
-                          "default": "fromStart"
-                        },
                         "enqueuedTimeUtc": {
                           "description": "Specifies the enqueued time of the event in the stream from which to start processing. When initialOffsetOptions/type is configured as fromEnqueuedTime, this setting is mandatory. Supports time in any format supported by DateTime.Parse(), such as 2020-10-26T20:31Z.",
                           "type": "string"
+                        },
+                        "type": {
+                          "default": "fromStart",
+                          "description": "The location in the event stream to start processing when a checkpoint does not exist in storage. Applies to all partitions.",
+                          "enum": ["fromStart", "fromEnd", "fromEnqueuedTime"],
+                          "type": "string"
                         }
                       },
-                      "additionalProperties": false
+                      "type": "object"
                     },
-                    "clientRetryOptions": {
-                      "type": "object",
-                      "properties": {
-                        "mode": {
-                          "description": "The approach to use for calculating retry delays. Exponential mode will retry attempts with a delay based on a back-off strategy where each attempt will increase the duration that it waits before retrying.",
-                          "type": "string",
-                          "enum": ["exponential", "fixed"],
-                          "default": "exponential"
-                        },
-                        "tryTimeout": {
-                          "description": "The maximum duration to wait for an Event Hubs operation to complete, per attempt.",
-                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                          "type": "string",
-                          "default": "00:01:00"
-                        },
-                        "delay": {
-                          "description": "The maximum duration to wait for an Event Hubs operation to complete, per attempt.",
-                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d\\d$",
-                          "type": "string",
-                          "default": "00:00:00.80"
-                        },
-                        "maxDelay": {
-                          "description": "The maximum delay to allow between retry attempts.",
-                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                          "type": "string",
-                          "default": "00:00:01"
-                        },
-                        "maxRetries": {
-                          "description": "The maximum number of retry attempts before considering the associated operation to have failed.",
-                          "type": "integer",
-                          "default": 3
-                        }
-                      },
-                      "additionalProperties": false
+                    "maxEventBatchSize": {
+                      "default": 10,
+                      "description": "The maximum number of events that will be included in a batch for a single invocation.",
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "prefetchCount": {
+                      "default": 300,
+                      "description": "The number of events that will be eagerly requested from Event Hubs and held in a local cache to allow reads to avoid waiting on a network operation.",
+                      "type": "integer"
+                    },
+                    "transportType": {
+                      "default": "amqpTcp",
+                      "description": "The protocol and transport that is used for communicating with Event Hubs.",
+                      "enum": ["amqpTcp", "amqpWebSockets"],
+                      "type": "string"
+                    },
+                    "webProxy": {
+                      "description": "The proxy to use for communicating with Event Hubs over web sockets. A proxy cannot be used with the amqpTcp transport.",
+                      "type": "string"
                     }
                   },
-                  "additionalProperties": false
+                  "type": "object"
                 },
                 {
-                  "type": "object",
+                  "additionalProperties": false,
                   "properties": {
                     "batchCheckpointFrequency": {
+                      "default": 1,
                       "description": "The number of batches to process before creating an EventHub cursor checkpoint.",
-                      "type": "integer",
-                      "default": 1
+                      "type": "integer"
                     },
                     "eventProcessorOptions": {
-                      "type": "object",
+                      "additionalProperties": false,
                       "description": "Configuration on processing event hub events.",
                       "properties": {
                         "maxBatchSize": {
@@ -1287,85 +809,563 @@
                           "type": "integer"
                         }
                       },
-                      "additionalProperties": false
+                      "type": "object"
                     },
                     "initialOffsetOptions": {
-                      "type": "object",
+                      "additionalProperties": false,
                       "properties": {
                         "type": {
+                          "default": "fromStart",
                           "description": "The location in the event stream from which to start processing when a checkpoint doesn't exist in storage.",
-                          "type": "string",
                           "enum": ["fromStart", "fromEnd", "fromEnqueuedTime"],
-                          "default": "fromStart"
+                          "type": "string"
                         }
                       },
-                      "additionalProperties": false
+                      "type": "object"
                     }
                   },
-                  "additionalProperties": false
+                  "type": "object"
                 },
                 {
-                  "type": "object",
+                  "additionalProperties": false,
                   "properties": {
+                    "batchCheckpointFrequency": {
+                      "default": 1,
+                      "description": "The number of event batches to process before creating an EventHub cursor checkpoint.",
+                      "type": "integer"
+                    },
                     "maxBatchSize": {
+                      "default": 64,
                       "description": "The maximum event count received per receive loop.",
-                      "type": "integer",
-                      "default": 64
+                      "type": "integer"
                     },
                     "prefetchCount": {
+                      "default": 255,
                       "description": "The default prefetch that will be used by the underlying EventProcessorHost.",
-                      "type": "integer",
-                      "default": 255
-                    },
-                    "batchCheckpointFrequency": {
-                      "description": "The number of event batches to process before creating an EventHub cursor checkpoint.",
-                      "type": "integer",
-                      "default": 1
+                      "type": "integer"
                     }
                   },
-                  "additionalProperties": false
+                  "type": "object"
                 }
               ]
             },
-            "durableTask": {
-              "$ref": "#/definitions/durableTask-extension"
+            "http": {
+              "$ref": "#/definitions/http-extension"
             },
-            "cosmosDB": {
-              "$ref": "#/definitions/cosmosDB-extension-v2"
+            "queues": {
+              "$ref": "#/definitions/queues-extension-v2"
             },
-            "blobs": {
-              "type": "object",
+            "sendGrid": {
+              "additionalProperties": false,
               "properties": {
-                "maxDegreeOfParallelism": {
-                  "description": "The number of concurrent invocations allowed for each blob-triggered function.",
-                  "type": "integer",
-                  "minimum": 1
+                "from": {
+                  "description": "The sender's email address across all functions.",
+                  "type": "string"
                 }
               },
-              "additionalProperties": false
+              "type": "object"
+            },
+            "serviceBus": {
+              "additionalProperties": false,
+              "description": "Configuration settings for 'serviceBus' triggers.",
+              "properties": {
+                "batchOptions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "autoComplete": {
+                      "default": true,
+                      "description": "Whether the trigger should automatically call complete after processing, or if the function code will manually call complete.",
+                      "type": "boolean"
+                    },
+                    "maxMessageCount": {
+                      "default": 1000,
+                      "description": "The maximum number of messages sent to the function when triggered.",
+                      "type": "integer"
+                    },
+                    "operationTimeout": {
+                      "default": "00:01:00",
+                      "description": "A time span value expressed in hh:mm:ss.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                    }
+                  },
+                  "type": "object"
+                },
+                "messageHandlerOptions": {
+                  "additionalProperties": false,
+                  "description": "The options that will be used for the message handler registered with the MessageReceiver.",
+                  "properties": {
+                    "autoComplete": {
+                      "default": true,
+                      "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
+                      "type": "boolean"
+                    },
+                    "maxAutoRenewDuration": {
+                      "default": "00:05:00",
+                      "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "maxConcurrentCalls": {
+                      "default": 32,
+                      "description": "The maximum number of concurrent calls to the callback the message pump should initiate.",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "prefetchCount": {
+                  "description": "The default PrefetchCount that will be used by the underlying MessageReceiver.",
+                  "type": "integer"
+                },
+                "sessionHandlerOptions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "autoComplete": {
+                      "default": false,
+                      "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
+                      "type": "boolean"
+                    },
+                    "maxAutoRenewDuration": {
+                      "default": "00:55:00",
+                      "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "maxConcurrentSessions": {
+                      "default": 16,
+                      "description": "The maximum number of sessions that can be handled concurrently per scaled instance.",
+                      "type": "integer"
+                    },
+                    "messageWaitTimeout": {
+                      "default": "00:00:30",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
             }
-          }
+          },
+          "type": "object"
+        },
+        "functionTimeout": {
+          "$ref": "#/definitions/functionTimeout"
+        },
+        "functions": {
+          "$ref": "#/definitions/functions"
+        },
+        "healthMonitor": {
+          "$ref": "#/definitions/healthMonitor"
+        },
+        "languageWorker": {
+          "additionalProperties": false,
+          "description": "Configuration settings for Language Workers.",
+          "properties": {
+            "workersDirectory": {
+              "description": "Specifies full path of the directory for language workers",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "logging": {
+          "description": "Configuration settings for logging.",
+          "properties": {
+            "applicationInsights": {
+              "additionalProperties": false,
+              "description": "Configuration settings for Application Insights logging.",
+              "examples": [
+                {
+                  "samplingSettings": {
+                    "excludedTypes": "Request",
+                    "isEnabled": true
+                  }
+                }
+              ],
+              "properties": {
+                "enableDependencyTracking": {
+                  "default": true,
+                  "description": "Enables dependency tracking",
+                  "type": "boolean"
+                },
+                "enableLiveMetrics": {
+                  "default": true,
+                  "description": "Enables live metrics collection.",
+                  "type": "boolean"
+                },
+                "enablePerformanceCountersCollection": {
+                  "default": true,
+                  "description": "Enables Kudu performance counters collection.",
+                  "type": "boolean"
+                },
+                "httpAutoCollectionOptions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "enableHttpTriggerExtendedInfoCollection": {
+                      "default": true,
+                      "description": "Enables or disables extended HTTP request information for HTTP triggers.",
+                      "type": "boolean"
+                    },
+                    "enableResponseHeaderInjection": {
+                      "default": true,
+                      "description": "Enables or disables injection of multi-component correlation headers into responses. Enabling injection allows Application Insights to construct an Application Map to when several instrumentation keys are used.",
+                      "type": "boolean"
+                    },
+                    "enableW3CDistributedTracing": {
+                      "default": true,
+                      "description": "Enables or disables support of W3C distributed tracing protocol (and turns on legacy correlation schema). Enabled by default if enableHttpTriggerExtendedInfoCollection is true. If enableHttpTriggerExtendedInfoCollection is false, this flag applies to outgoing requests only, not incoming requests",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "samplingSettings": {
+                  "description": "Configuration settings for Application Insights client-side adaptive sampling.",
+                  "properties": {
+                    "evaluationInterval": {
+                      "default": "01:00:00",
+                      "description": "The interval at which the current rate of telemetry is reevaluated.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                    },
+                    "excludedTypes": {
+                      "default": "Request",
+                      "description": "A semi-colon delimited list of types excluded from sampling. Recognized: Dependency, Event, Exception, PageView, Request, Trace.",
+                      "type": "string"
+                    },
+                    "includedTypes": {
+                      "default": "Request",
+                      "description": "A semi-colon delimited list of types that you want to be sampled. Recognized: Dependency, Event, Exception, PageView, Request, and Trace.",
+                      "type": "string"
+                    },
+                    "initialSamplingPercentage": {
+                      "default": 100,
+                      "description": "The initial sampling percentage applied at the start of the sampling process to dynamically vary the percentage.",
+                      "type": "number"
+                    },
+                    "isEnabled": {
+                      "default": true,
+                      "description": "If true, client-side adaptive sampling is enabled.",
+                      "type": "boolean"
+                    },
+                    "maxSamplingPercentage": {
+                      "default": 100,
+                      "description": "As sampling percentage varies, this property determines the maximum allowed sampling percentage.",
+                      "type": "number"
+                    },
+                    "maxTelemetryItemsPerSecond": {
+                      "default": 20,
+                      "description": "The target rate that the adaptive algorithm aims for on each instance",
+                      "type": "integer"
+                    },
+                    "minSamplingPercentage": {
+                      "default": 0.1,
+                      "description": "As sampling percentage varies, this property determines the minimum allowed sampling percentage.",
+                      "type": "number"
+                    },
+                    "movingAverageRatio": {
+                      "default": 1,
+                      "description": "In the calculation of the moving average, the weight assigned to the most recent value. Use a value equal to or less than 1. Smaller values make the algorithm less reactive to sudden changes.",
+                      "type": "number"
+                    },
+                    "samplingPercentageDecreaseTimeout": {
+                      "default": "00:00:01",
+                      "description": "When the sampling percentage value changes, this property determines how soon afterwards Application Insights is allowed to lower sampling percentage again to capture less data.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                    },
+                    "samplingPercentageIncreaseTimeout": {
+                      "default": "00:00:01",
+                      "description": "When the sampling percentage value changes, this property determines how soon afterwards Application Insights is allowed to raise sampling percentage again to capture more data.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                    }
+                  },
+                  "type": "object"
+                },
+                "snapshotConfiguration": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "agentEndpoint": {
+                      "default": null,
+                      "description": "The endpoint used to connect to the Application Insights Snapshot Debugger service.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "enum": [null]
+                        }
+                      ]
+                    },
+                    "captureSnapshotMemoryWeight": {
+                      "default": 0.5,
+                      "description": "The weight given to the current process memory size when checking if there's enough memory to take a snapshot.",
+                      "type": "number"
+                    },
+                    "failedRequestLimit": {
+                      "default": 3,
+                      "description": "The limit on the number of failed requests to request snapshots before the telemetry processor is disabled.",
+                      "type": "integer"
+                    },
+                    "handleUntrackedExceptions": {
+                      "default": true,
+                      "description": "Enables or disables tracking of exceptions that aren't tracked by Application Insights telemetry.",
+                      "type": "boolean"
+                    },
+                    "isEnabled": {
+                      "default": true,
+                      "description": "Enables or disables snapshot collection.",
+                      "type": "boolean"
+                    },
+                    "isEnabledInDeveloperMode": {
+                      "default": false,
+                      "description": "Enables or disables snapshot collection is enabled in developer mode.",
+                      "type": "boolean"
+                    },
+                    "isEnabledWhenProfiling": {
+                      "default": true,
+                      "description": "Enables or disables snapshot creation even if the Application Insights Profiler is collecting a detailed profiling session.",
+                      "type": "boolean"
+                    },
+                    "isExceptionSnappointsEnabled": {
+                      "default": false,
+                      "description": "Enables or disables filtering of exceptions.",
+                      "type": "boolean"
+                    },
+                    "isLowPrioritySnapshotUploader": {
+                      "default": true,
+                      "description": "Determines whether to run the SnapshotUploader process at below normal priority.",
+                      "type": "boolean"
+                    },
+                    "maximumCollectionPlanSize": {
+                      "default": 50,
+                      "description": "The maximum number of problems that we can track at any time.",
+                      "maximum": 9999,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "maximumSnapshotsRequired": {
+                      "default": 3,
+                      "description": "The maximum number of snapshots collected for a single problem.",
+                      "maximum": 999,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "problemCounterResetInterval": {
+                      "default": "24:00:00",
+                      "description": "How often to reset the problem counters in a range from one minute to seven days.",
+                      "pattern": "^(?:[01]\\d|2[0-4]):[0-5]\\d:[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "provideAnonymousTelemetry": {
+                      "default": true,
+                      "description": "Determines whether to send anonymous usage and error telemetry to Microsoft. This telemetry may be used if you contact Microsoft to help troubleshoot problems with the Snapshot Debugger",
+                      "type": "boolean"
+                    },
+                    "reconnectInterval": {
+                      "default": "00:15:00",
+                      "description": "How often we reconnect to the Snapshot Debugger endpoint. Allowable range is one minute to one day.",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                    },
+                    "shadowCopyFolder": {
+                      "default": null,
+                      "description": "Specifies the folder to use for shadow copying binaries. If not set, the folders specified by the following environment variables are tried in order: Fabric_Folder_App_Temp, LOCALAPPDATA, APPDATA, TEMP.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "enum": [null]
+                        }
+                      ]
+                    },
+                    "shareUploaderProcess": {
+                      "default": true,
+                      "description": "If true, only one instance of SnapshotUploader will collect and upload snapshots for multiple apps that share the InstrumentationKey. If set to false, the SnapshotUploader will be unique for each (ProcessName, InstrumentationKey) tuple.",
+                      "type": "boolean"
+                    },
+                    "snapshotInLowPriorityThread": {
+                      "default": true,
+                      "description": "Determines whether or not to process snapshots in a low IO priority thread.",
+                      "type": "boolean"
+                    },
+                    "snapshotsPerDayLimit": {
+                      "default": 30,
+                      "description": "The maximum number of snapshots allowed in one day (24 hours). This limit is also enforced on the Application Insights service side.",
+                      "type": "integer"
+                    },
+                    "snapshotsPerTenMinutesLimit": {
+                      "default": 1,
+                      "description": "The maximum number of snapshots allowed in 10 minutes. Although there is no upper bound on this value, exercise caution increasing it on production workloads because it could impact the performance of your application.",
+                      "type": "integer"
+                    },
+                    "tempFolder": {
+                      "default": null,
+                      "description": "Specifies the folder to write minidumps and uploader log files. If not set, then %TEMP%\\Dumps is used.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "enum": [null]
+                        }
+                      ]
+                    },
+                    "thresholdForSnapshotting": {
+                      "default": 1,
+                      "description": "How many times Application Insights needs to see an exception before it asks for snapshots.",
+                      "type": "integer"
+                    },
+                    "uploaderProxy": {
+                      "default": null,
+                      "description": "Overrides the proxy server used in the Snapshot Uploader process. You may need to use this setting if your application connects to the internet via a proxy server. The Snapshot Collector runs within your application's process and will use the same proxy settings.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "enum": [null]
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
+            "fileLoggingMode": {
+              "default": "debugOnly",
+              "description": "Value determining what level of file logging is enabled.",
+              "enum": ["never", "always", "debugOnly"]
+            },
+            "logLevel": {
+              "additionalProperties": {
+                "enum": [
+                  "Critical",
+                  "Debug",
+                  "Error",
+                  "Information",
+                  "None",
+                  "Trace",
+                  "Warning"
+                ]
+              },
+              "description": "Log levels for specific categories.",
+              "properties": {
+                "default": {
+                  "default": "Information",
+                  "description": "The default level for logging. If a category level is not specified, this value is used.",
+                  "enum": [
+                    "Critical",
+                    "Debug",
+                    "Error",
+                    "Information",
+                    "None",
+                    "Trace",
+                    "Warning"
+                  ]
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "managedDependency": {
+          "additionalProperties": false,
+          "description": "Managed dependency is a feature that is currently only supported with PowerShell based functions. It enables dependencies to be automatically managed by the service.",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "If true, the requirements.psd1 file is processed",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "retry": {
+          "description": "Retry policy of function execution failures at the app level. Retry policy applies to all the functions in the function app.",
+          "properties": {
+            "delayInterval": {
+              "description": "Value indicating the delayInterval for function execution retries when using FixedDelay strategy.",
+              "oneOf": [
+                {
+                  "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                  "type": "string"
+                },
+                {
+                  "enum": [null]
+                }
+              ]
+            },
+            "maxRetryCount": {
+              "description": "The maximum number of retries allowed per function execution. -1 means to retry indefinitely.",
+              "type": "integer"
+            },
+            "maximumInterval": {
+              "description": "Value indicating the maximumInterval for function execution retries when using ExponentialBackoff strategy.",
+              "oneOf": [
+                {
+                  "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                  "type": "string"
+                },
+                {
+                  "enum": [null]
+                }
+              ]
+            },
+            "minimumInterval": {
+              "description": "Value indicating the minimumInterval for function execution retries when using ExponentialBackoff strategy.",
+              "oneOf": [
+                {
+                  "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                  "type": "string"
+                },
+                {
+                  "enum": [null]
+                }
+              ]
+            },
+            "strategy": {
+              "default": "exponentialBackoff",
+              "description": "Retry strategy to use for retrying function executions",
+              "enum": ["exponentialBackoff", "fixedDelay"]
+            }
+          },
+          "type": "object"
+        },
+        "singleton": {
+          "$ref": "#/definitions/singleton"
+        },
+        "version": {
+          "description": "The version of the Azure Functions host.json schema. This is NOT the version of the Azure Functions host.",
+          "enum": ["2.0"]
+        },
+        "watchDirectories": {
+          "$ref": "#/definitions/watchDirectories"
+        },
+        "watchFiles": {
+          "additionalProperties": false,
+          "description": "An array of one or more names of files that are monitored for changes that require your app to restart. This guarantees that when code in these files are changed, the updates are picked up by your functions",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "required": ["version"],
-      "examples": [
-        {
-          "version": "2.0",
-          "logging": {
-            "applicationInsights": {
-              "samplingSettings": {
-                "isEnabled": true,
-                "excludedTypes": "Request"
-              }
-            }
-          },
-          "extensionBundle": {
-            "id": "Microsoft.Azure.Functions.ExtensionBundle",
-            "version": "[2.*, 3.0.0)"
-          }
-        }
-      ],
-      "additionalProperties": false
+      "type": "object"
+    },
+    "watchDirectories": {
+      "description": "Set of shared code directories that should be monitored for changes to ensure that when code in these directories is changed, it is picked up by your functions",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
     }
   },
   "oneOf": [

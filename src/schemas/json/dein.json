@@ -2,32 +2,59 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
-    "Plugin": {
-      "title": "Pattern for a definition of vim plugin",
-      "type": "object",
-      "required": ["repo"],
+    "ArrayOrString": {
+      "oneOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "Boolean": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "enum": [0, 1],
+          "type": "number"
+        }
+      ]
+    },
+    "MultiplePlugins": {
       "additionalProperties": false,
       "properties": {
-        "repo": {
-          "title": "repository. ",
+        "plugins": {
           "description": "The repository URI or local repository directory path.",
-          "oneOf": [
-            {
-              "$ref": "#/definitions/Url"
-            },
-            {
-              "$ref": "#/definitions/Path"
-            },
-            {
-              "$ref": "#/definitions/repo-string-pattern"
-            }
-          ],
+          "items": {
+            "$ref": "#/definitions/repo-string-pattern"
+          },
+          "title": "plugins",
+          "type": "array",
           "x-taplo": {
             "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L118"
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1073"
             }
           }
-        },
+        }
+      },
+      "required": ["plugins"],
+      "title": "Pattern for multiple definition of vim plugin",
+      "type": "object"
+    },
+    "Path": {
+      "pattern": "^[~|/][a-zA-Z-_0-9/\\.~]+$",
+      "title": "path",
+      "type": "string"
+    },
+    "Plugin": {
+      "additionalProperties": false,
+      "properties": {
         "augroup": {
           "description": "An augroup name that the plugin uses for |VimEnter| or |GUIEnter| autocmd events.",
           "type": "string",
@@ -47,8 +74,8 @@
           }
         },
         "depends": {
-          "description": "Specify a list of plugins a plugin depends on. List items are '{plugin-name}'. Those specified in the list are NOT installed automatically. Note: The loading order is not guaranteed in non lazy plugins.",
           "$ref": "#/definitions/ArrayOrString",
+          "description": "Specify a list of plugins a plugin depends on. List items are '{plugin-name}'. Those specified in the list are NOT installed automatically. Note: The loading order is not guaranteed in non lazy plugins.",
           "x-taplo": {
             "links": {
               "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L719"
@@ -56,8 +83,8 @@
           }
         },
         "frozen": {
-          "description": "If set to v:true, dein doesn't update it automatically. It is useful for outdated plugins that can no longer be updated.",
           "$ref": "#/definitions/Boolean",
+          "description": "If set to v:true, dein doesn't update it automatically. It is useful for outdated plugins that can no longer be updated.",
           "x-taplo": {
             "links": {
               "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L726"
@@ -65,13 +92,19 @@
           }
         },
         "ftplugin": {
-          "description": "'_' key is executed after all ftplugin. '{filetype}' key is executed {filetype} ftplugin.",
-          "type": "object",
           "additionalProperties": false,
+          "description": "'_' key is executed after all ftplugin. '{filetype}' key is executed {filetype} ftplugin.",
+          "patternProperties": {
+            "^[0-9a-zA-Z].+$": {
+              "description": "'{filetype}' key is executed {filetype} ftplugin.\nYou can define multiple filetypes by '{filetype1}_{filetype2}' key.\n'b:undo_ftplugin' is defined automatically.",
+              "title": "filetype",
+              "type": "string"
+            }
+          },
           "properties": {
             "_": {
-              "title": "all filetypes",
               "description": "'_' key is executed after all ftplugin.",
+              "title": "all filetypes",
               "type": "string",
               "x-taplo": {
                 "links": {
@@ -80,274 +113,10 @@
               }
             }
           },
-          "patternProperties": {
-            "^[0-9a-zA-Z].+$": {
-              "title": "filetype",
-              "description": "'{filetype}' key is executed {filetype} ftplugin.\nYou can define multiple filetypes by '{filetype1}_{filetype2}' key.\n'b:undo_ftplugin' is defined automatically.",
-              "type": "string"
-            }
-          },
+          "type": "object",
           "x-taplo": {
             "links": {
               "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L731"
-            }
-          }
-        },
-        "if": {
-          "description": "If set to v:false, dein doesn't register the plugin, i.e. the plugin will be disabled. If it is String, dein will eval it. If you don't set it, dein will register (enable) the plugin",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "integer"
-            },
-            {
-              "type": "string"
-            }
-          ],
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L738"
-            }
-          }
-        },
-        "lazy": {
-          "description": "If set to v:true, dein doesn't add the path to 'runtimepath' automatically. If you don't set it, dein will set it automatically when the conditions are met. Note: You should not specify the plugins which have no 'plugin/' directory as lazy load plugins.  It is meaningless and just increases the overhead.  You can get the no meaning lazy plugins by |dein#check_lazy_plugins()|.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "integer"
-            }
-          ],
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L746"
-            }
-          }
-        },
-        "merged": {
-          "description": "If set to v:false, dein doesn't merge the plugin directory. It is useful for the plugin files conflicts.",
-          "$ref": "#/definitions/Boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L757"
-            }
-          }
-        },
-        "merge_ftdetect": {
-          "description": "If set to v:true, dein merge the plugin \"ftdetect\" directory. It is useful to enable file detection when lazy loaded plugin. Note: It does not work if ftdetect script depends on lazy plugin functions.",
-          "$ref": "#/definitions/Boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L764"
-            }
-          }
-        },
-        "name": {
-          "description": "Specify the name of the plugin. This is used for dein management and other functions. If it is omitted, the tail of the repository name will be used. Note: Must be unique across the all plugin. If the plugin name conflicts with another plugin, dein will overwrite the previous settings with the new one. If the repo tail is bound to conflict, you can set the 'name' option manually to prevent overwriting an existing plugin setting.",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L771"
-            }
-          }
-        },
-        "normalized_name": {
-          "description": "Specify the normalized name of the plugin.  If omitted, dein will normalize the tail of the repository name. Note: Must be unique across all plugins.",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L782"
-            }
-          }
-        },
-        "on_cmd": {
-          "description": "If it is matched to the executed command, dein will call |dein#source()|.",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L796"
-            }
-          }
-        },
-        "on_event": {
-          "description": "dein will call |dein#source()| on the events.",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L801"
-            }
-          }
-        },
-        "on_func": {
-          "description": "If it is matched to the called function, dein will call |dein#source()|.",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L805"
-            }
-          }
-        },
-        "on_ft": {
-          "description": "If it is matched to 'filetype', dein will call |dein#source()|.",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L811"
-            }
-          }
-        },
-        "on_if": {
-          "description": "If it is evaluated and it is non-zero, dein will call|dein#source()|.The default evaluate timings are 'BufRead', 'BufNewFile','VimEnter' and 'FileType'.If |dein-options-on_event| exists, it is evaluated when|dein-options-on_event|.",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L816"
-            }
-          }
-        },
-        "on_lua": {
-          "description": "If it is matched to the required lua module root, dein will call |dein#source()|. Note: It is for neovim only. Note: It does not work for neovim standard modules.",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L829"
-            }
-          }
-        },
-        "on_map": {
-          "description": "If it is the Dictionary, the key is {mode} and the items are{mapping} or [{mapping1}, {mapping2}, ...].If it is the List, the items are {mapping} or [{mode},{mapping1}, [{mapping2}, ...]].If {mode} is omitted, 'nx' is used.",
-          "oneOf": [
-            {
-              "$ref": "#/definitions/on_map-dict"
-            },
-            {
-              "$ref": "#/definitions/on_map-array"
-            },
-            {
-              "$ref": "#/definitions/on_map-string"
-            }
-          ],
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L836"
-            }
-          }
-        },
-        "on_path": {
-          "description": "If set to '.*', dein will call |dein#source()| on editing allfiles.  Otherwise, dein will call |dein#source()| if thebuffer name is matched to the string pattern.Note: It is useful for explorer behavior plugins.",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L874"
-            }
-          }
-        },
-        "on_source": {
-          "description": "If set to '.*', dein will call |dein#source()| on editing allfiles.  Otherwise, dein will call |dein#source()| if thebuffer name is matched to the string pattern.Note: It is useful for explorer behavior plugins. ",
-          "$ref": "#/definitions/ArrayOrString",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L881"
-            }
-          }
-        },
-        "overwrite": {
-          "description": "If set to v:true, dein overwrite existing plugin config when |dein#add()|.",
-          "$ref": "#/definitions/Boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L886"
-            }
-          }
-        },
-        "path": {
-          "description": "Specify the plugin downloaded path.",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L891"
-            }
-          }
-        },
-        "rev": {
-          "description": "Specify a revision number or branch/tag name. If it is '*' in 'git' type, dein will use latest released tag.You can specify the wildcards like '0.*'.Note: If the type is 'raw', rev must be hash number.",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L895"
-            }
-          }
-        },
-        "rtp": {
-          "description": "Specify the runtime path. You can use it when the repository has the Vim plugin in a subdirectory.For example: https://github.com/rstacruz/sparkup If it is empty string, dein will not add the path to'runtimepath'",
-          "type": "string",
-          "default": "vim",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L906"
-            }
-          }
-        },
-        "script_type": {
-          "description": "Specify the script type. It is useful for non-official categorized plugins. For example: 'indent', 'plugin', 'ftplugin', ... Note: You must not specify it for categorized plugins.",
-          "type": "string",
-          "enum": ["indent", "plugin", "colors", "ftplugin"],
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L919"
-            }
-          }
-        },
-        "timeout": {
-          "description": "The time of timeout seconds when updating/installing plugins. If omit it, |g:dein#install_process_timeout| will be used.",
-          "type": "integer",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L935"
-            }
-          }
-        },
-        "trusted": {
-          "description": "If set to v:true, dein will load the plugin in 'sudo' mode. If you don't set it, dein won't load it.",
-          "$ref": "#/definitions/Boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L940"
-            }
-          }
-        },
-        "type": {
-          "description": "Specify the repository type. If it is omitted, a guess is made based on {repository}.",
-          "type": "string",
-          "enum": ["none", "raw", "git"],
-          "x-taplo": {
-            "docs": {
-              "enumValues": [
-                "None repository",
-                "Raw plugin file ('script_type' attribute is needed)",
-                "git"
-              ]
-            },
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L945",
-              "enumValues": [
-                "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L951",
-                "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L952",
-                "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L954"
-              ]
-            }
-          }
-        },
-        "type__depth": {
-          "description": "The history depth for 'git clone'.\n If omitted, |g:dein#types#git#clone_depth| is used. If it is than 0, dein clones the repository by shallow clone. Shallow clone feature saves your repository clone time. But it has problems in some repository.\n Note: This attribute is available in git type only.\n\n https://github.com/Shougo/neobundle.vim/issues/81 https://github.com/Homebrew/homebrew/issues/12024",
-          "type": "integer",
-          "x-taplo": {
-            "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L956"
             }
           }
         },
@@ -395,81 +164,300 @@
               "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1021"
             }
           }
-        }
-      },
-      "x-taplo": {
-        "links": {
-          "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L115"
         },
-        "initKeys": ["repo"]
-      }
-    },
-    "MultiplePlugins": {
-      "title": "Pattern for multiple definition of vim plugin",
-      "type": "object",
-      "required": ["plugins"],
-      "additionalProperties": false,
-      "properties": {
-        "plugins": {
-          "title": "plugins",
-          "type": "array",
-          "description": "The repository URI or local repository directory path.",
-          "items": {
-            "$ref": "#/definitions/repo-string-pattern"
-          },
+        "if": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "If set to v:false, dein doesn't register the plugin, i.e. the plugin will be disabled. If it is String, dein will eval it. If you don't set it, dein will register (enable) the plugin",
           "x-taplo": {
             "links": {
-              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1073"
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L738"
             }
           }
+        },
+        "lazy": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "If set to v:true, dein doesn't add the path to 'runtimepath' automatically. If you don't set it, dein will set it automatically when the conditions are met. Note: You should not specify the plugins which have no 'plugin/' directory as lazy load plugins.  It is meaningless and just increases the overhead.  You can get the no meaning lazy plugins by |dein#check_lazy_plugins()|.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L746"
+            }
+          }
+        },
+        "merge_ftdetect": {
+          "$ref": "#/definitions/Boolean",
+          "description": "If set to v:true, dein merge the plugin \"ftdetect\" directory. It is useful to enable file detection when lazy loaded plugin. Note: It does not work if ftdetect script depends on lazy plugin functions.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L764"
+            }
+          }
+        },
+        "merged": {
+          "$ref": "#/definitions/Boolean",
+          "description": "If set to v:false, dein doesn't merge the plugin directory. It is useful for the plugin files conflicts.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L757"
+            }
+          }
+        },
+        "name": {
+          "description": "Specify the name of the plugin. This is used for dein management and other functions. If it is omitted, the tail of the repository name will be used. Note: Must be unique across the all plugin. If the plugin name conflicts with another plugin, dein will overwrite the previous settings with the new one. If the repo tail is bound to conflict, you can set the 'name' option manually to prevent overwriting an existing plugin setting.",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L771"
+            }
+          }
+        },
+        "normalized_name": {
+          "description": "Specify the normalized name of the plugin.  If omitted, dein will normalize the tail of the repository name. Note: Must be unique across all plugins.",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L782"
+            }
+          }
+        },
+        "on_cmd": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "If it is matched to the executed command, dein will call |dein#source()|.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L796"
+            }
+          }
+        },
+        "on_event": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "dein will call |dein#source()| on the events.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L801"
+            }
+          }
+        },
+        "on_ft": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "If it is matched to 'filetype', dein will call |dein#source()|.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L811"
+            }
+          }
+        },
+        "on_func": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "If it is matched to the called function, dein will call |dein#source()|.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L805"
+            }
+          }
+        },
+        "on_if": {
+          "description": "If it is evaluated and it is non-zero, dein will call|dein#source()|.The default evaluate timings are 'BufRead', 'BufNewFile','VimEnter' and 'FileType'.If |dein-options-on_event| exists, it is evaluated when|dein-options-on_event|.",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L816"
+            }
+          }
+        },
+        "on_lua": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "If it is matched to the required lua module root, dein will call |dein#source()|. Note: It is for neovim only. Note: It does not work for neovim standard modules.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L829"
+            }
+          }
+        },
+        "on_map": {
+          "description": "If it is the Dictionary, the key is {mode} and the items are{mapping} or [{mapping1}, {mapping2}, ...].If it is the List, the items are {mapping} or [{mode},{mapping1}, [{mapping2}, ...]].If {mode} is omitted, 'nx' is used.",
+          "oneOf": [
+            {
+              "$ref": "#/definitions/on_map-dict"
+            },
+            {
+              "$ref": "#/definitions/on_map-array"
+            },
+            {
+              "$ref": "#/definitions/on_map-string"
+            }
+          ],
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L836"
+            }
+          }
+        },
+        "on_path": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "If set to '.*', dein will call |dein#source()| on editing allfiles.  Otherwise, dein will call |dein#source()| if thebuffer name is matched to the string pattern.Note: It is useful for explorer behavior plugins.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L874"
+            }
+          }
+        },
+        "on_source": {
+          "$ref": "#/definitions/ArrayOrString",
+          "description": "If set to '.*', dein will call |dein#source()| on editing allfiles.  Otherwise, dein will call |dein#source()| if thebuffer name is matched to the string pattern.Note: It is useful for explorer behavior plugins. ",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L881"
+            }
+          }
+        },
+        "overwrite": {
+          "$ref": "#/definitions/Boolean",
+          "description": "If set to v:true, dein overwrite existing plugin config when |dein#add()|.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L886"
+            }
+          }
+        },
+        "path": {
+          "description": "Specify the plugin downloaded path.",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L891"
+            }
+          }
+        },
+        "repo": {
+          "description": "The repository URI or local repository directory path.",
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Url"
+            },
+            {
+              "$ref": "#/definitions/Path"
+            },
+            {
+              "$ref": "#/definitions/repo-string-pattern"
+            }
+          ],
+          "title": "repository. ",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L118"
+            }
+          }
+        },
+        "rev": {
+          "description": "Specify a revision number or branch/tag name. If it is '*' in 'git' type, dein will use latest released tag.You can specify the wildcards like '0.*'.Note: If the type is 'raw', rev must be hash number.",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L895"
+            }
+          }
+        },
+        "rtp": {
+          "default": "vim",
+          "description": "Specify the runtime path. You can use it when the repository has the Vim plugin in a subdirectory.For example: https://github.com/rstacruz/sparkup If it is empty string, dein will not add the path to'runtimepath'",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L906"
+            }
+          }
+        },
+        "script_type": {
+          "description": "Specify the script type. It is useful for non-official categorized plugins. For example: 'indent', 'plugin', 'ftplugin', ... Note: You must not specify it for categorized plugins.",
+          "enum": ["indent", "plugin", "colors", "ftplugin"],
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L919"
+            }
+          }
+        },
+        "timeout": {
+          "description": "The time of timeout seconds when updating/installing plugins. If omit it, |g:dein#install_process_timeout| will be used.",
+          "type": "integer",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L935"
+            }
+          }
+        },
+        "trusted": {
+          "$ref": "#/definitions/Boolean",
+          "description": "If set to v:true, dein will load the plugin in 'sudo' mode. If you don't set it, dein won't load it.",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L940"
+            }
+          }
+        },
+        "type": {
+          "description": "Specify the repository type. If it is omitted, a guess is made based on {repository}.",
+          "enum": ["none", "raw", "git"],
+          "type": "string",
+          "x-taplo": {
+            "docs": {
+              "enumValues": [
+                "None repository",
+                "Raw plugin file ('script_type' attribute is needed)",
+                "git"
+              ]
+            },
+            "links": {
+              "enumValues": [
+                "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L951",
+                "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L952",
+                "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L954"
+              ],
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L945"
+            }
+          }
+        },
+        "type__depth": {
+          "description": "The history depth for 'git clone'.\n If omitted, |g:dein#types#git#clone_depth| is used. If it is than 0, dein clones the repository by shallow clone. Shallow clone feature saves your repository clone time. But it has problems in some repository.\n Note: This attribute is available in git type only.\n\n https://github.com/Shougo/neobundle.vim/issues/81 https://github.com/Homebrew/homebrew/issues/12024",
+          "type": "integer",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L956"
+            }
+          }
+        }
+      },
+      "required": ["repo"],
+      "title": "Pattern for a definition of vim plugin",
+      "type": "object",
+      "x-taplo": {
+        "initKeys": ["repo"],
+        "links": {
+          "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L115"
         }
       }
     },
     "Url": {
+      "pattern": "^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)$",
       "title": "path",
-      "type": "string",
-      "pattern": "^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)$"
-    },
-    "repo-string-pattern": {
-      "title": "repo name pattern",
-      "description": "If {repo} starts with github user name (ex:'Shougo/dein.vim'), dein will install github plugins.",
-      "type": "string",
-      "pattern": "^[a-zA-Z-_0-9]+/[a-zA-Z-_0-9\\.]+$"
-    },
-    "Path": {
-      "title": "path",
-      "type": "string",
-      "pattern": "^[~|/][a-zA-Z-_0-9/\\.~]+$"
-    },
-    "vim-mode-key-pattern-string": {
-      "type": "string",
-      "pattern": "^[nvxsomilct]+$"
-    },
-    "vim-mode-key-mapping-string": {
       "type": "string"
-    },
-    "on_map-string": {
-      "type": "string",
-      "oneOf": [
-        {
-          "$ref": "#/definitions/vim-mode-key-pattern-string"
-        },
-        {
-          "$ref": "#/definitions/vim-mode-key-mapping-string"
-        }
-      ]
-    },
-    "on_map-array1": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/on_map-string"
-      }
-    },
-    "on_map-array2": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/vim-mode-key-mapping-string"
-      }
     },
     "on_map-array": {
       "oneOf": [
@@ -481,8 +469,19 @@
         }
       ]
     },
+    "on_map-array1": {
+      "items": {
+        "$ref": "#/definitions/on_map-string"
+      },
+      "type": "array"
+    },
+    "on_map-array2": {
+      "items": {
+        "$ref": "#/definitions/vim-mode-key-mapping-string"
+      },
+      "type": "array"
+    },
     "on_map-dict": {
-      "type": "object",
       "additionalProperties": false,
       "patternProperties": {
         "^[nvxsomilct]+$": {
@@ -496,57 +495,50 @@
             }
           ]
         }
-      }
+      },
+      "type": "object"
     },
-    "ArrayOrString": {
+    "on_map-string": {
       "oneOf": [
         {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "$ref": "#/definitions/vim-mode-key-pattern-string"
         },
         {
-          "type": "string"
+          "$ref": "#/definitions/vim-mode-key-mapping-string"
         }
-      ]
+      ],
+      "type": "string"
     },
-    "Boolean": {
-      "oneOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "enum": [0, 1],
-          "type": "number"
-        }
-      ]
+    "repo-string-pattern": {
+      "description": "If {repo} starts with github user name (ex:'Shougo/dein.vim'), dein will install github plugins.",
+      "pattern": "^[a-zA-Z-_0-9]+/[a-zA-Z-_0-9\\.]+$",
+      "title": "repo name pattern",
+      "type": "string"
+    },
+    "vim-mode-key-mapping-string": {
+      "type": "string"
+    },
+    "vim-mode-key-pattern-string": {
+      "pattern": "^[nvxsomilct]+$",
+      "type": "string"
     }
   },
   "description": "A schema for config of dein.vim (https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L963)",
   "properties": {
-    "plugins": {
-      "title": "Definition properties table for installing a vim plugin",
-      "description": "Definition properties table for installing a vim plugin.\nIt is converted to |dein#add()|.",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Plugin"
-      },
-      "x-taplo": {
-        "links": {
-          "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1068"
-        }
-      }
-    },
     "ftplugin": {
-      "title": "ftplugin definition",
-      "description": "'_' key is executed after all ftplugin.\n'{filetype}' key is executed {filetype} ftplugin.\n You can define multiple filetypes by '{filetype1}_{filetype2}' key.",
-      "type": "object",
       "additionalProperties": false,
+      "description": "'_' key is executed after all ftplugin.\n'{filetype}' key is executed {filetype} ftplugin.\n You can define multiple filetypes by '{filetype1}_{filetype2}' key.",
+      "patternProperties": {
+        "^[0-9a-zA-Z].+$": {
+          "description": "'{filetype}' key is executed {filetype} ftplugin.\nYou can define multiple filetypes by '{filetype1}_{filetype2}' key.\n'b:undo_ftplugin' is defined automatically.",
+          "title": "filetype",
+          "type": "string"
+        }
+      },
       "properties": {
         "_": {
-          "title": "all filetypes",
           "description": "'_' key is executed after all ftplugin.",
+          "title": "all filetypes",
           "type": "string",
           "x-taplo": {
             "links": {
@@ -555,13 +547,8 @@
           }
         }
       },
-      "patternProperties": {
-        "^[0-9a-zA-Z].+$": {
-          "title": "filetype",
-          "description": "'{filetype}' key is executed {filetype} ftplugin.\nYou can define multiple filetypes by '{filetype1}_{filetype2}' key.\n'b:undo_ftplugin' is defined automatically.",
-          "type": "string"
-        }
-      },
+      "title": "ftplugin definition",
+      "type": "object",
       "x-taplo": {
         "links": {
           "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1054"
@@ -569,8 +556,8 @@
       }
     },
     "hook_add": {
-      "title": "hook_add definition",
       "description": "It is the global |dein-options-hook_add|.\nIt is executed in |dein#end()|.",
+      "title": "hook_add definition",
       "type": "string",
       "x-taplo": {
         "links": {
@@ -579,15 +566,28 @@
       }
     },
     "multiple_plugins": {
-      "title": "It is converted to |dein-toml-hook_add|",
       "description": "It is converted to |dein-toml-hook_add|\n\"plugins\" key is needed.",
-      "type": "array",
       "items": {
         "$ref": "#/definitions/MultiplePlugins"
       },
+      "title": "It is converted to |dein-toml-hook_add|",
+      "type": "array",
       "x-taplo": {
         "links": {
           "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1073"
+        }
+      }
+    },
+    "plugins": {
+      "description": "Definition properties table for installing a vim plugin.\nIt is converted to |dein#add()|.",
+      "items": {
+        "$ref": "#/definitions/Plugin"
+      },
+      "title": "Definition properties table for installing a vim plugin",
+      "type": "array",
+      "x-taplo": {
+        "links": {
+          "key": "https://github.com/Shougo/dein.vim/blob/f93be8c/doc/dein.txt#L1068"
         }
       }
     }
@@ -601,7 +601,7 @@
       "raa0121 (https://github.com/raa0121)",
       "Hibiki (https://github.com/4513ECHO)"
     ],
-    "version": "0.1.0",
-    "patterns": ["^(.*(/|\\\\)\\.*dein.*\\.toml|\\.*dein.*\\.toml)$"]
+    "patterns": ["^(.*(/|\\\\)\\.*dein.*\\.toml|\\.*dein.*\\.toml)$"],
+    "version": "0.1.0"
   }
 }
