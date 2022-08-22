@@ -1,5 +1,11 @@
 {
   "create": {
+    "andClean": [
+      "app/src/config.ts",
+      "app/src/modes/rest/healthz.controller.ts",
+      "app/config/topics.yaml",
+      "docker/docker-compose.yml"
+    ],
     "files": [
       "app/ci-install.sh",
       "app/plagiarize-install.sh",
@@ -23,17 +29,17 @@
       "docker/Dockerfile",
       "docker/docker-compose.override.example.yml",
       "k8s/$project/templates/env-from-secret.yaml"
-    ],
-    "andClean": [
-      "app/src/config.ts",
-      "app/src/modes/rest/healthz.controller.ts",
-      "app/config/topics.yaml",
-      "docker/docker-compose.yml"
     ]
   },
   "merge": [
     {
-      "type": "jq",
+      "create": [
+        ".name",
+        ".version",
+        ".description",
+        ".author",
+        ".contributors"
+      ],
       "path": "app/package.json",
       "replace": [
         ".scripts.build",
@@ -104,13 +110,6 @@
         ".i18n",
         ".license"
       ],
-      "create": [
-        ".name",
-        ".version",
-        ".description",
-        ".author",
-        ".contributors"
-      ],
       "replaceIf": [
         {
           "condition": "$elasticsearch-enabled",
@@ -120,72 +119,72 @@
           "condition": "$elasticsearch-enabled",
           "pattern": ".dependencies[\"@nestjs/elasticsearch\"]"
         }
-      ]
+      ],
+      "type": "jq"
     },
     {
-      "type": "yq",
       "path": "k8s/$project/Chart.yaml",
       "replace": [
         "dependencies.(name==microservice)",
         "dependencies.(name==elasticsearch)"
-      ]
+      ],
+      "type": "yq"
     },
     {
-      "type": "yq",
+      "create": [
+        "microservice.deployments.rest.autoscaling",
+        "microservice.deployments.websocket.autoscaling",
+        "microservice.deployments.consumer.autoscaling",
+        "microservice.deployments.neural-network-consumer.autoscaling"
+      ],
       "path": "k8s/$project/values.yaml",
       "replace": [""],
       "set": {
-        "microservice.image.repository": "$gitlabDockerRegistry()",
-        "microservice.deployments.rest.enabled": "$rest-enabled",
-        "microservice.deployments.websocket.enabled": "$websocket-enabled",
+        "elasticsearch.enabled": "$elasticsearch-enabled",
         "microservice.deployments.consumer.enabled": "$consumer-enabled",
         "microservice.deployments.gpu-consumer.enabled": "$gpu-enabled",
         "microservice.deployments.neural-network-consumer.enabled": "$neural-network-enabled",
+        "microservice.deployments.rest.enabled": "$rest-enabled",
+        "microservice.deployments.websocket.enabled": "$websocket-enabled",
+        "microservice.image.repository": "$gitlabDockerRegistry()",
         "microservice.services.rest.enabled": "$rest-enabled",
-        "microservice.services.websocket.enabled": "$websocket-enabled",
-        "elasticsearch.enabled": "$elasticsearch-enabled"
+        "microservice.services.websocket.enabled": "$websocket-enabled"
       },
       "skip": [
         "microservice.image.tag",
         "microservice.deployments.gpu-consumer.env",
         "microservice.deployments.neural-network-consumer.env"
       ],
-      "create": [
-        "microservice.deployments.rest.autoscaling",
-        "microservice.deployments.websocket.autoscaling",
-        "microservice.deployments.consumer.autoscaling",
-        "microservice.deployments.neural-network-consumer.autoscaling"
-      ]
+      "type": "yq"
     },
     {
-      "type": "git",
-      "path": "app/src/modes/rest/rest.module.ts"
+      "path": "app/src/modes/rest/rest.module.ts",
+      "type": "git"
     },
     {
-      "type": "git",
-      "path": "app/src/modes/consumer/consumer.module.ts"
+      "path": "app/src/modes/consumer/consumer.module.ts",
+      "type": "git"
     },
     {
-      "type": "git",
-      "path": "app/README.md"
+      "path": "app/README.md",
+      "type": "git"
     },
     {
-      "type": "git",
-      "path": "app/src/domains/internal/internal-domain.module.ts"
+      "path": "app/src/domains/internal/internal-domain.module.ts",
+      "type": "git"
     },
     {
-      "type": "git",
-      "path": "app/src/domains/external/external-domain.module.ts"
+      "path": "app/src/domains/external/external-domain.module.ts",
+      "type": "git"
     },
     {
-      "type": "git",
-      "path": "app/.gitignore"
+      "path": "app/.gitignore",
+      "type": "git"
     }
   ],
   "move": {
     "directories": [
       {
-        "to": "app",
         "names": [
           "src",
           "test",
@@ -195,16 +194,16 @@
           "dist",
           "example",
           "reports"
-        ]
+        ],
+        "to": "app"
       }
     ],
     "files": [
       {
-        "to": "app/src/shared",
-        "names": ["app/src/setup.ts"]
+        "names": ["app/src/setup.ts"],
+        "to": "app/src/shared"
       },
       {
-        "to": "app",
         "names": [
           ".dockerignore",
           ".prettierrc",
@@ -215,32 +214,62 @@
           "tsconfig.build.json",
           "tslint.json",
           "yarn.lock"
-        ]
+        ],
+        "to": "app"
       },
       {
-        "to": "docker",
         "names": [
           "docker-compose.yml",
           "docker-compose.override.yml",
           "docker-compose.yml",
           "Dockerfile"
-        ]
+        ],
+        "to": "docker"
       },
       {
-        "to": "env",
-        "names": ["*.env"]
+        "names": ["*.env"],
+        "to": "env"
       },
       {
-        "to": "bin",
-        "names": ["*.sh"]
+        "names": ["*.sh"],
+        "to": "bin"
       }
     ]
   },
   "push": [
     {
-      "values": {
-        "local-base-dir": "~/Projects/TimeRocket/Assistant/Service",
-        "remote-base-url": "git@gitlab.com:timerocket/assistant/private/service"
+      "git": {
+        "branch": "plagiarize",
+        "commit": {
+          "create": true,
+          "message": "Plagiarize copy"
+        },
+        "hooks": {
+          "post-push": [
+            {
+              "api": "gitlab",
+              "envVars": {
+                "apiKey": "SHARED_CI_ACCESS_TOKEN"
+              },
+              "remote": "origin",
+              "removeSourceBranch": true,
+              "targetBranch": "master",
+              "type": "create-merge-request"
+            }
+          ]
+        },
+        "push": true,
+        "remotes": ["origin"],
+        "repos": [
+          {
+            "local": "$local-base-dir/$project",
+            "remote": {
+              "checkout": "master",
+              "defaultName": "origin",
+              "url": "$remote-base-url/$project.git"
+            }
+          }
+        ]
       },
       "instances": [
         {
@@ -263,59 +292,13 @@
           "project": "pii-service"
         }
       ],
-      "git": {
-        "repos": [
-          {
-            "local": "$local-base-dir/$project",
-            "remote": {
-              "url": "$remote-base-url/$project.git",
-              "checkout": "master",
-              "defaultName": "origin"
-            }
-          }
-        ],
-        "commit": {
-          "create": true,
-          "message": "Plagiarize copy"
-        },
-        "branch": "plagiarize",
-        "push": true,
-        "remotes": ["origin"],
-        "hooks": {
-          "post-push": [
-            {
-              "type": "create-merge-request",
-              "api": "gitlab",
-              "envVars": {
-                "apiKey": "SHARED_CI_ACCESS_TOKEN"
-              },
-              "remote": "origin",
-              "targetBranch": "master",
-              "removeSourceBranch": true
-            }
-          ]
-        }
+      "values": {
+        "local-base-dir": "~/Projects/TimeRocket/Assistant/Service",
+        "remote-base-url": "git@gitlab.com:timerocket/assistant/private/service"
       }
     }
   ],
   "replace": {
-    "strings": {
-      "description": "Backend for TimeRocket user support portal",
-      "short-description": "User Support Service",
-      "project": "support-user-service",
-      "project-short-name": "support-user",
-      "company": "TimeRocket Inc.",
-      "author": "Josh Woodcock <josh.woodcock@timerocket.com>"
-    },
-    "vars": {
-      "rest-enabled": true,
-      "websocket-enabled": true,
-      "consumer-enabled": true,
-      "elasticsearch-enabled": true,
-      "data-volume": false,
-      "gpu-enabled": false,
-      "neural-network-enabled": false
-    },
     "files": [
       "known_hosts",
       "app/src/domains/external/example.event.handler.ts",
@@ -357,11 +340,28 @@
       ".gitignore",
       ".gitlab-ci.yml",
       "bin/setup-gitlab-project.sh"
-    ]
+    ],
+    "strings": {
+      "author": "Josh Woodcock <josh.woodcock@timerocket.com>",
+      "company": "TimeRocket Inc.",
+      "description": "Backend for TimeRocket user support portal",
+      "project": "support-user-service",
+      "project-short-name": "support-user",
+      "short-description": "User Support Service"
+    },
+    "vars": {
+      "consumer-enabled": true,
+      "data-volume": false,
+      "elasticsearch-enabled": true,
+      "gpu-enabled": false,
+      "neural-network-enabled": false,
+      "rest-enabled": true,
+      "websocket-enabled": true
+    }
   },
   "repo": {
-    "url": "git@gitlab.com:timerocket/assistant/private/service/support-user-service.git",
-    "checkout": "master"
+    "checkout": "master",
+    "url": "git@gitlab.com:timerocket/assistant/private/service/support-user-service.git"
   },
   "run": [
     {
@@ -376,29 +376,29 @@
       "command": "cd app && yarn build > output.txt",
       "onerror": "cd app && cat output.txt && yarn clean",
       "when": {
-        "type": "if-missing",
         "options": {
           "path": "app/dist"
-        }
+        },
+        "type": "if-missing"
       }
     },
     {
       "command": "cp docker/docker-compose.override.example.yml docker/docker-compose.override.yml",
+      "parallel": true,
       "when": {
-        "type": "if-missing",
         "options": {
           "path": "docker/docker-compose.override.yml"
-        }
-      },
-      "parallel": true
+        },
+        "type": "if-missing"
+      }
     },
     {
       "command": "cd k8s/$project && ln -s ../../env env",
       "when": {
-        "type": "if-missing",
         "options": {
           "path": "k8s/$project/env"
-        }
+        },
+        "type": "if-missing"
       }
     },
     {
@@ -411,10 +411,10 @@
     {
       "command": "chmod +x ./bin/setup-gitlab-project.sh\n./bin/setup-gitlab-project.sh\n",
       "when": {
-        "type": "if-missing",
         "options": {
           "path": ".cache/gitlab-project-configured"
-        }
+        },
+        "type": "if-missing"
       }
     },
     {
@@ -427,70 +427,23 @@
   ],
   "templates": [
     {
-      "name": "environment",
-      "replace": {
-        "strings": {
-          "env-name": "localhost",
-          "env-group": "localhost"
-        },
-        "values": {
-          "kubernetes-elasticsearch-url": "http://elasticsearch-master:9200",
-          "graphite-port-enabled": 2003
-        },
-        "vars": {
-          "kafka-host": "kafka",
-          "graphite-host": null,
-          "graphite-port": null,
-          "elasticsearch-url": "http://127.0.0.1:9200",
-          "metrics-enabled": false,
-          "jwt-verify": false,
-          "log-levels": "info,debug,error,warn",
-          "docs-enabled": true,
-          "docs-path": "",
-          "kafka-topics-config-path": ""
-        }
-      },
-      "merge": [
-        {
-          "type": "env",
-          "path": "env/localhost.env",
-          "set": {
-            "*": "*",
-            "CLIENT_ID": "$uuidv4()",
-            "KAFKA_HOST": "$kafka-host",
-            "METRICS_ENABLED": "$metrics-enabled",
-            "GRAPHITE_HOST": "$graphite-host",
-            "GRAPHITE_PORT": "$graphite-port",
-            "JWT_VERIFY": "$jwt-verify",
-            "LOG_LEVELS": "$log-levels",
-            "DOCS_ENABLED": "$docs-enabled",
-            "DOCS_PATH": "$docs-path",
-            "ELASTICSEARCH_URL": "$elasticsearch-url",
-            "KAFKA_TOPICS_CONFIG_PATH": "$kafka-topics-config-path"
-          },
-          "create": ["SQL_CLIENT"]
-        }
-      ],
-      "create": {
-        "files": ["env/localhost.secrets.env"]
-      },
       "configs": [
         {
           "strings": {
-            "env-name": "ci",
-            "env-group": "ci"
+            "env-group": "ci",
+            "env-name": "ci"
           },
           "vars": {
-            "kafka-host": "kafka",
+            "docs-enabled": false,
             "graphite-host": null,
             "graphite-port": null,
-            "docs-enabled": false
+            "kafka-host": "kafka"
           }
         },
         {
           "strings": {
-            "env-name": "docker",
-            "env-group": "docker"
+            "env-group": "docker",
+            "env-name": "docker"
           },
           "vars": {
             "elasticsearch-url": "http://elasticsearch:9200",
@@ -499,129 +452,176 @@
         },
         {
           "strings": {
-            "env-name": "e2e-test",
-            "env-group": "e2e-test"
+            "env-group": "e2e-test",
+            "env-name": "e2e-test"
           },
           "vars": {
-            "jwt-verify": true,
-            "docs-enabled": false
+            "docs-enabled": false,
+            "jwt-verify": true
           }
         },
         {
           "strings": {
-            "env-name": "minikube",
-            "env-group": "minikube"
+            "env-group": "minikube",
+            "env-name": "minikube"
           },
           "vars": {
-            "kafka-host": "infrastructure-kafka.minikube-infrastructure.svc.cluster.local",
+            "docs-path": "/support-user",
             "elasticsearch-url": "$kubernetes-elasticsearch-url",
-            "kafka-topics-config-path": "/var/app/config/topics.yaml",
-            "docs-path": "/support-user"
+            "kafka-host": "infrastructure-kafka.minikube-infrastructure.svc.cluster.local",
+            "kafka-topics-config-path": "/var/app/config/topics.yaml"
           }
         },
         {
           "strings": {
-            "env-name": "development.1",
-            "env-group": "development"
+            "env-group": "development",
+            "env-name": "development.1"
           },
           "vars": {
-            "kafka-host": "infrastructure-kafka.development-1-infrastructure.svc.cluster.local",
+            "docs-path": "/support-user",
+            "elasticsearch-url": "$kubernetes-elasticsearch-url",
             "graphite-host": "infrastructure-graphite.development-1-infrastructure.svc.cluster.local",
             "graphite-port": "$graphite-port-enabled",
-            "metrics-enabled": true,
-            "elasticsearch-url": "$kubernetes-elasticsearch-url",
             "jwt-verify": true,
-            "log-levels": "info,error,debug,warn",
+            "kafka-host": "infrastructure-kafka.development-1-infrastructure.svc.cluster.local",
             "kafka-topics-config-path": "/var/app/config/topics.yaml",
-            "docs-path": "/support-user"
+            "log-levels": "info,error,debug,warn",
+            "metrics-enabled": true
           }
         },
         {
           "strings": {
-            "env-name": "production.1",
-            "env-group": "production"
+            "env-group": "production",
+            "env-name": "production.1"
           },
           "vars": {
-            "kafka-host": "infrastructure-kafka.production-1-infrastructure.svc.cluster.local",
+            "docs-path": "/support-user",
+            "elasticsearch-url": "$kubernetes-elasticsearch-url",
             "graphite-host": "infrastructure-graphite.production-1-infrastructure.svc.cluster.local",
             "graphite-port": "$graphite-port-enabled",
-            "metrics-enabled": true,
-            "elasticsearch-url": "$kubernetes-elasticsearch-url",
             "jwt-verify": true,
-            "log-levels": "info,error",
+            "kafka-host": "infrastructure-kafka.production-1-infrastructure.svc.cluster.local",
             "kafka-topics-config-path": "/var/app/config/topics.yaml",
-            "docs-path": "/support-user"
+            "log-levels": "info,error",
+            "metrics-enabled": true
           }
         }
-      ]
-    },
-    {
-      "name": "kubernetes-environment",
-      "replace": {
-        "strings": {
-          "env-name": "development.1",
-          "env-number": 1,
-          "base-domain": "1.development",
-          "env-group": "development"
-        },
-        "vars": {
-          "rest-min-replicas": 1,
-          "rest-max-replicas": 20,
-          "websocket-min-replicas": 1,
-          "websocket-max-replicas": 20,
-          "consumer-min-replicas": 1,
-          "consumer-max-replicas": 20,
-          "gpu-consumer-min-replicas": 1,
-          "gpu-consumer-max-replicas": 1,
-          "neural-network-consumer-min-replicas": 1,
-          "neural-network-consumer-max-replicas": 20
-        }
+      ],
+      "create": {
+        "files": ["env/localhost.secrets.env"]
       },
       "merge": [
         {
-          "type": "yq",
-          "path": "k8s/$project/$env-name.values.yaml",
-          "skipIfNotSameFileName": [
-            "elasticsearch",
-            "microservice.persistentVolumes[0].storage"
-          ],
+          "create": ["SQL_CLIENT"],
+          "path": "env/localhost.env",
           "set": {
-            "microservice.deployments.rest.autoscaling.replicas.max": "$rest-max-replicas",
-            "microservice.deployments.rest.autoscaling.replicas.min": "$rest-min-replicas",
-            "microservice.deployments.websocket.autoscaling.replicas.max": "$websocket-max-replicas",
-            "microservice.deployments.websocket.autoscaling.replicas.min": "$websocket-min-replicas",
+            "*": "*",
+            "CLIENT_ID": "$uuidv4()",
+            "DOCS_ENABLED": "$docs-enabled",
+            "DOCS_PATH": "$docs-path",
+            "ELASTICSEARCH_URL": "$elasticsearch-url",
+            "GRAPHITE_HOST": "$graphite-host",
+            "GRAPHITE_PORT": "$graphite-port",
+            "JWT_VERIFY": "$jwt-verify",
+            "KAFKA_HOST": "$kafka-host",
+            "KAFKA_TOPICS_CONFIG_PATH": "$kafka-topics-config-path",
+            "LOG_LEVELS": "$log-levels",
+            "METRICS_ENABLED": "$metrics-enabled"
+          },
+          "type": "env"
+        }
+      ],
+      "name": "environment",
+      "replace": {
+        "strings": {
+          "env-group": "localhost",
+          "env-name": "localhost"
+        },
+        "values": {
+          "graphite-port-enabled": 2003,
+          "kubernetes-elasticsearch-url": "http://elasticsearch-master:9200"
+        },
+        "vars": {
+          "docs-enabled": true,
+          "docs-path": "",
+          "elasticsearch-url": "http://127.0.0.1:9200",
+          "graphite-host": null,
+          "graphite-port": null,
+          "jwt-verify": false,
+          "kafka-host": "kafka",
+          "kafka-topics-config-path": "",
+          "log-levels": "info,debug,error,warn",
+          "metrics-enabled": false
+        }
+      }
+    },
+    {
+      "configs": [
+        {
+          "strings": {
+            "base-domain": "1.production",
+            "env-group": "production",
+            "env-name": "production.1",
+            "env-number": 1
+          },
+          "vars": {
+            "consumer-max-replicas": 20,
+            "consumer-min-replicas": 1,
+            "gpu-consumer-max-replicas": 1,
+            "gpu-consumer-min-replicas": 1,
+            "neural-network-consumer-max-replicas": 20,
+            "neural-network-consumer-min-replicas": 1,
+            "rest-max-replicas": 20,
+            "rest-min-replicas": 1,
+            "websocket-max-replicas": 20,
+            "websocket-min-replicas": 1
+          }
+        }
+      ],
+      "merge": [
+        {
+          "path": "k8s/$project/$env-name.values.yaml",
+          "set": {
             "microservice.deployments.consumer.autoscaling.replicas.max": "$consumer-max-replicas",
             "microservice.deployments.consumer.autoscaling.replicas.min": "$consumer-min-replicas",
             "microservice.deployments.gpu-consumer.autoscaling.replicas.max": "$gpu-consumer-max-replicas",
             "microservice.deployments.gpu-consumer.autoscaling.replicas.min": "$gpu-consumer-min-replicas",
             "microservice.deployments.neural-network-consumer.autoscaling.replicas.max": "$neural-network-consumer-max-replicas",
             "microservice.deployments.neural-network-consumer.autoscaling.replicas.min": "$neural-network-consumer-min-replicas",
+            "microservice.deployments.rest.autoscaling.replicas.max": "$rest-max-replicas",
+            "microservice.deployments.rest.autoscaling.replicas.min": "$rest-min-replicas",
+            "microservice.deployments.websocket.autoscaling.replicas.max": "$websocket-max-replicas",
+            "microservice.deployments.websocket.autoscaling.replicas.min": "$websocket-min-replicas",
             "microservice.persistentVolumes[0].enabled": "$data-volume"
-          }
+          },
+          "skipIfNotSameFileName": [
+            "elasticsearch",
+            "microservice.persistentVolumes[0].storage"
+          ],
+          "type": "yq"
         }
       ],
-      "configs": [
-        {
-          "strings": {
-            "env-name": "production.1",
-            "env-number": 1,
-            "base-domain": "1.production",
-            "env-group": "production"
-          },
-          "vars": {
-            "rest-min-replicas": 1,
-            "rest-max-replicas": 20,
-            "websocket-min-replicas": 1,
-            "websocket-max-replicas": 20,
-            "consumer-min-replicas": 1,
-            "consumer-max-replicas": 20,
-            "gpu-consumer-min-replicas": 1,
-            "gpu-consumer-max-replicas": 1,
-            "neural-network-consumer-min-replicas": 1,
-            "neural-network-consumer-max-replicas": 20
-          }
+      "name": "kubernetes-environment",
+      "replace": {
+        "strings": {
+          "base-domain": "1.development",
+          "env-group": "development",
+          "env-name": "development.1",
+          "env-number": 1
+        },
+        "vars": {
+          "consumer-max-replicas": 20,
+          "consumer-min-replicas": 1,
+          "gpu-consumer-max-replicas": 1,
+          "gpu-consumer-min-replicas": 1,
+          "neural-network-consumer-max-replicas": 20,
+          "neural-network-consumer-min-replicas": 1,
+          "rest-max-replicas": 20,
+          "rest-min-replicas": 1,
+          "websocket-max-replicas": 20,
+          "websocket-min-replicas": 1
         }
-      ]
+      }
     }
   ]
 }

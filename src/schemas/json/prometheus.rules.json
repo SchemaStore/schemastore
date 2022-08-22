@@ -3,109 +3,107 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
-    "duration": {
-      "type": ["string", "null"],
-      "pattern": "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$",
-      "minLength": 1
-    },
-    "label_name": {
-      "type": "string",
-      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-    },
-    "label_value": {
-      "type": "string"
-    },
-    "labels": {
-      "type": ["object", "null"],
-      "patternProperties": {
-        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
-          "$ref": "#/definitions/label_value"
-        }
-      },
-      "additionalProperties": false
-    },
-    "tmpl_string": {
-      "description": "A string which is template-expanded before usage.",
-      "type": "string"
-    },
-    "annotations": {
-      "type": ["object", "null"],
-      "patternProperties": {
-        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
-          "$ref": "#/definitions/tmpl_string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "recording_rule": {
-      "type": "object",
-      "properties": {
-        "record": {
-          "description": "The name of the time series to output to. Must be a valid metric name.",
-          "type": "string"
-        },
-        "expr": {
-          "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and the result recorded as a new set of time series with the metric name as given by 'record'.",
-          "type": "string"
-        },
-        "labels": {
-          "description": "Labels to add or overwrite before storing the result.",
-          "$ref": "#/definitions/labels"
-        }
-      },
-      "required": ["record", "expr"],
-      "additionalProperties": false
-    },
     "alerting_rule": {
-      "type": "object",
+      "additionalProperties": false,
       "properties": {
         "alert": {
           "description": "The name of the alert. Must be a valid metric name.",
           "type": "string"
+        },
+        "annotations": {
+          "$ref": "#/definitions/annotations",
+          "description": "Annotations to add to each alert."
         },
         "expr": {
           "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and all resultant time series become pending/firing alerts.",
           "type": "string"
         },
         "for": {
-          "description": "Alerts are considered firing once they have been returned for this long. Alerts which have not yet fired for long enough are considered pending.",
-          "$ref": "#/definitions/duration"
+          "$ref": "#/definitions/duration",
+          "description": "Alerts are considered firing once they have been returned for this long. Alerts which have not yet fired for long enough are considered pending."
         },
         "labels": {
-          "description": "Labels to add or overwrite for each alert.",
-          "$ref": "#/definitions/labels"
-        },
-        "annotations": {
-          "description": "Annotations to add to each alert.",
-          "$ref": "#/definitions/annotations"
+          "$ref": "#/definitions/labels",
+          "description": "Labels to add or overwrite for each alert."
         }
       },
       "required": ["alert", "expr"],
-      "additionalProperties": false
+      "type": "object"
+    },
+    "annotations": {
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/tmpl_string"
+        }
+      },
+      "type": ["object", "null"]
+    },
+    "duration": {
+      "minLength": 1,
+      "pattern": "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$",
+      "type": ["string", "null"]
+    },
+    "label_name": {
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+      "type": "string"
+    },
+    "label_value": {
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/label_value"
+        }
+      },
+      "type": ["object", "null"]
+    },
+    "recording_rule": {
+      "additionalProperties": false,
+      "properties": {
+        "expr": {
+          "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and the result recorded as a new set of time series with the metric name as given by 'record'.",
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/definitions/labels",
+          "description": "Labels to add or overwrite before storing the result."
+        },
+        "record": {
+          "description": "The name of the time series to output to. Must be a valid metric name.",
+          "type": "string"
+        }
+      },
+      "required": ["record", "expr"],
+      "type": "object"
+    },
+    "tmpl_string": {
+      "description": "A string which is template-expanded before usage.",
+      "type": "string"
     }
   },
   "description": "Prometheus rules file",
   "properties": {
     "groups": {
-      "type": ["array", "null"],
       "items": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
+          "interval": {
+            "$ref": "#/definitions/duration",
+            "description": "How often rules in the group are evaluated."
+          },
+          "limit": {
+            "default": 0,
+            "description": "Limit the number of alerts an alerting rule and series a recording rule can produce. 0 is no limit.",
+            "type": ["integer", "null"]
+          },
           "name": {
             "description": "The name of the group. Must be unique within a file.",
             "type": "string"
           },
-          "interval": {
-            "description": "How often rules in the group are evaluated.",
-            "$ref": "#/definitions/duration"
-          },
-          "limit": {
-            "description": "Limit the number of alerts an alerting rule and series a recording rule can produce. 0 is no limit.",
-            "type": ["integer", "null"],
-            "default": 0
-          },
           "rules": {
-            "type": ["array", "null"],
             "items": {
               "oneOf": [
                 {
@@ -115,12 +113,14 @@
                   "$ref": "#/definitions/alerting_rule"
                 }
               ]
-            }
+            },
+            "type": ["array", "null"]
           }
         },
         "required": ["name"],
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "type": ["array", "null"]
     }
   },
   "title": "Prometheus Rules",

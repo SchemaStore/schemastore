@@ -2,123 +2,176 @@
   "$schema": "http://json-schema.org/draft-04/schema",
   "additionalProperties": false,
   "definitions": {
-    "branch-matcher": {
-      "type": "string",
-      "default": "*",
-      "pattern": "^[a-zA-Z0-9/_.@-]*(\\*)?$"
-    },
-    "env": {
-      "type": "object",
-      "required": ["name", "value"],
-      "additionalProperties": false,
+    "app-center-release": {
+      "additionalProperties": true,
+      "description": "artifact로 지정된 .apk/.ipa 파일을 appcenter로 릴리즈",
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "환경변수 이름",
-          "pattern": "[a-zA-Z_][a-zA-Z_0-9]*"
+        "app-id": {
+          "description": "App ID",
+          "pattern": "[a-zA-Z0-9_-]+",
+          "type": "string"
         },
-        "value": {
-          "type": "string",
-          "description": "환경변수 값"
+        "release-group-tag": {
+          "description": "릴리즈 그룹에 대한 Tag 지정",
+          "pattern": "[a-zA-Z0-9_-]+",
+          "type": "string"
         },
-        "branch": {
-          "$ref": "#/definitions/branch-matcher",
-          "description": "환경변수를 적용할 브랜치"
+        "testers": {
+          "description": "테스터 지정(@<user>, @@<group>, corp@@<corpcode>)",
+          "items": {
+            "description": "@<user>, @@<group>, corp@@<corpcode>",
+            "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$",
+            "type": "string"
+          },
+          "type": "array"
         }
-      }
+      },
+      "required": ["app-id", "release-group-tag"],
+      "type": "object"
+    },
+    "branch-matcher": {
+      "default": "*",
+      "pattern": "^[a-zA-Z0-9/_.@-]*(\\*)?$",
+      "type": "string"
     },
     "build-condition": {
-      "type": "object",
-      "description": "빌드 실행 조건",
       "additionalProperties": true,
+      "description": "빌드 실행 조건",
       "properties": {
         "push": {
-          "type": "object",
+          "additionalProperties": false,
           "description": "Push 이벤트에 의한 조건",
           "properties": {
             "branches": {
-              "type": "array",
+              "default": ["*"],
+              "description": "Push로 빌드를 실행할 브랜치",
               "items": {
                 "$ref": "#/definitions/branch-matcher"
               },
-              "default": ["*"],
-              "description": "Push로 빌드를 실행할 브랜치",
-              "minItems": 1
+              "minItems": 1,
+              "type": "array"
             }
           },
-          "additionalProperties": false
+          "type": "object"
         }
-      }
+      },
+      "type": "object"
     },
-    "job": {
-      "type": "object",
-      "required": ["name", "execute"],
-      "additionalProperties": true,
+    "env": {
+      "additionalProperties": false,
       "properties": {
+        "branch": {
+          "$ref": "#/definitions/branch-matcher",
+          "description": "환경변수를 적용할 브랜치"
+        },
         "name": {
-          "type": "string",
-          "description": "작업 이름",
-          "pattern": "[a-zA-Z0-9_-]{1,40}"
+          "description": "환경변수 이름",
+          "pattern": "[a-zA-Z_][a-zA-Z_0-9]*",
+          "type": "string"
         },
-        "execute": {
-          "type": "array",
-          "description": "실행할 명령 목록(순차실행)",
-          "items": {
-            "type": "string",
-            "default": "echo \"hello world\""
+        "value": {
+          "description": "환경변수 값",
+          "type": "string"
+        }
+      },
+      "required": ["name", "value"],
+      "type": "object"
+    },
+    "git-ops": {
+      "additionalProperties": false,
+      "description": "GitOps 방식의 K8S Deploy를 위한 manifest repo 업데이트",
+      "properties": {
+        "manifest": {
+          "additionalProperties": false,
+          "description": "K8S manifest repo 정보",
+          "properties": {
+            "branch": {
+              "description": "branch",
+              "pattern": "[a-zA-Z0-9/_.@-]+",
+              "type": "string"
+            },
+            "repo": {
+              "description": "repo('owner/repo')",
+              "pattern": "[.a-zA-Z0-9_-]+/[.a-zA-Z0-9_-]+",
+              "type": "string"
+            }
           },
-          "minItems": 1
+          "required": ["repo", "branch"],
+          "type": "object"
         },
-        "set-proxy": {
-          "type": "array",
-          "description": "사내 Proxy 설정",
-          "default": ["shell"],
-          "items": {
-            "type": "string",
-            "enum": ["shell", "gradle", "npm", "docker", "yarn", "maven"]
-          }
-        },
-        "run-on": {
-          "$ref": "#/definitions/run-on"
-        },
-        "artifacts": {
-          "type": "array",
-          "description": "artifact로 지정할 파일 혹은 디렉토리 경로",
-          "default": [],
+        "update": {
+          "description": "manifest repo를 업데이트하기 위한 명령",
           "items": {
             "type": "string"
-          }
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "with-artifacts": {
+          "description": "빌드 작업에서 manifest reop로 전달할 artifacts",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["manifest", "update"],
+      "type": "object"
+    },
+    "job": {
+      "additionalProperties": true,
+      "properties": {
+        "artifacts": {
+          "default": [],
+          "description": "artifact로 지정할 파일 혹은 디렉토리 경로",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "caches": {
-          "type": "array",
-          "description": "다음 빌드의 속도 향상을 위한 캐시 설정",
           "default": [],
+          "description": "다음 빌드의 속도 향상을 위한 캐시 설정",
           "items": {
-            "type": "object",
             "additionalProperties": false,
             "properties": {
               "key": {
-                "type": "string",
                 "description": "캐시 식별키 (repo scope)",
-                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$",
+                "type": "string"
               },
               "path": {
-                "type": "string",
-                "description": "캐시할 파일 혹은 디렉토리 경로"
+                "description": "캐시할 파일 혹은 디렉토리 경로",
+                "type": "string"
               }
-            }
-          }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "execute": {
+          "description": "실행할 명령 목록(순차실행)",
+          "items": {
+            "default": "echo \"hello world\"",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
         },
         "max-execution-time": {
-          "type": "string",
-          "description": "최대 실행시간 (e.g. '1h', '100m')",
           "default": "1h",
-          "pattern": "^([0-9]+)(h|m)$"
+          "description": "최대 실행시간 (e.g. '1h', '100m')",
+          "pattern": "^([0-9]+)(h|m)$",
+          "type": "string"
+        },
+        "name": {
+          "description": "작업 이름",
+          "pattern": "[a-zA-Z0-9_-]{1,40}",
+          "type": "string"
         },
         "post-process": {
-          "type": "object",
-          "description": "빌드 후처리기 설정",
           "additionalProperties": true,
+          "description": "빌드 후처리기 설정",
           "properties": {
             "app-center-release": {
               "$ref": "#/definitions/app-center-release"
@@ -126,26 +179,38 @@
             "git-ops": {
               "$ref": "#/definitions/git-ops"
             }
-          }
+          },
+          "type": "object"
+        },
+        "run-on": {
+          "$ref": "#/definitions/run-on"
+        },
+        "set-proxy": {
+          "default": ["shell"],
+          "description": "사내 Proxy 설정",
+          "items": {
+            "enum": ["shell", "gradle", "npm", "docker", "yarn", "maven"],
+            "type": "string"
+          },
+          "type": "array"
         }
-      }
+      },
+      "required": ["name", "execute"],
+      "type": "object"
     },
     "run-on": {
-      "type": "object",
-      "description": "실행환경 설정",
       "additionalProperties": false,
+      "description": "실행환경 설정",
       "properties": {
         "image": {
-          "type": "string",
-          "description": "docker image",
           "default": "+@basebox",
-          "pattern": "^(\\+@[a-z0-9-]+|\\+\\/[a-z0-9-]+|[a-z0-9/.-]+)(:[a-z0-9\\-]+)?$"
+          "description": "docker image",
+          "pattern": "^(\\+@[a-z0-9-]+|\\+\\/[a-z0-9-]+|[a-z0-9/.-]+)(:[a-z0-9\\-]+)?$",
+          "type": "string"
         },
         "resources": {
-          "description": "실행에 사용할 리소스 크기 설정",
           "anyOf": [
             {
-              "type": "string",
               "default": "small",
               "enum": [
                 "small",
@@ -154,135 +219,70 @@
                 "xlarge",
                 "xxlarge",
                 "xxxlarge"
-              ]
+              ],
+              "type": "string"
             },
             {
-              "type": "object",
-              "required": ["cpu", "memory"],
               "properties": {
                 "cpu": {
                   "anyOf": [
                     {
-                      "type": "string",
                       "default": "1.0",
-                      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+                      "type": "string"
                     },
                     {
-                      "type": "number",
-                      "default": 1
+                      "default": 1,
+                      "type": "number"
                     }
                   ],
-                  "description": "cpu (e.g. '1.0')",
-                  "default": "1.0"
+                  "default": "1.0",
+                  "description": "cpu (e.g. '1.0')"
                 },
                 "memory": {
-                  "type": "string",
-                  "description": "memory (e.g. '500Mi', '2Gi').",
                   "default": "1Gi",
-                  "pattern": "^([0-9]+)(Mi|Gi)$"
+                  "description": "memory (e.g. '500Mi', '2Gi').",
+                  "pattern": "^([0-9]+)(Mi|Gi)$",
+                  "type": "string"
                 }
-              }
+              },
+              "required": ["cpu", "memory"],
+              "type": "object"
             }
-          ]
+          ],
+          "description": "실행에 사용할 리소스 크기 설정"
         },
         "use": {
-          "type": "array",
-          "description": "실행환경에서 사용할 기능 설정",
           "default": [],
+          "description": "실행환경에서 사용할 기능 설정",
           "items": {
-            "type": "string",
-            "enum": ["docker", "mobil-keystore"]
-          }
-        }
-      }
-    },
-    "app-center-release": {
-      "type": "object",
-      "description": "artifact로 지정된 .apk/.ipa 파일을 appcenter로 릴리즈",
-      "required": ["app-id", "release-group-tag"],
-      "additionalProperties": true,
-      "properties": {
-        "app-id": {
-          "type": "string",
-          "description": "App ID",
-          "pattern": "[a-zA-Z0-9_-]+"
-        },
-        "release-group-tag": {
-          "type": "string",
-          "description": "릴리즈 그룹에 대한 Tag 지정",
-          "pattern": "[a-zA-Z0-9_-]+"
-        },
-        "testers": {
-          "type": "array",
-          "description": "테스터 지정(@<user>, @@<group>, corp@@<corpcode>)",
-          "items": {
-            "type": "string",
-            "description": "@<user>, @@<group>, corp@@<corpcode>",
-            "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$"
-          }
-        }
-      }
-    },
-    "git-ops": {
-      "type": "object",
-      "description": "GitOps 방식의 K8S Deploy를 위한 manifest repo 업데이트",
-      "required": ["manifest", "update"],
-      "additionalProperties": false,
-      "properties": {
-        "manifest": {
-          "type": "object",
-          "description": "K8S manifest repo 정보",
-          "required": ["repo", "branch"],
-          "additionalProperties": false,
-          "properties": {
-            "repo": {
-              "type": "string",
-              "description": "repo('owner/repo')",
-              "pattern": "[.a-zA-Z0-9_-]+/[.a-zA-Z0-9_-]+"
-            },
-            "branch": {
-              "type": "string",
-              "description": "branch",
-              "pattern": "[a-zA-Z0-9/_.@-]+"
-            }
-          }
-        },
-        "update": {
-          "type": "array",
-          "description": "manifest repo를 업데이트하기 위한 명령",
-          "items": {
+            "enum": ["docker", "mobil-keystore"],
             "type": "string"
           },
-          "minItems": 1
-        },
-        "with-artifacts": {
-          "type": "array",
-          "description": "빌드 작업에서 manifest reop로 전달할 artifacts",
-          "items": {
-            "type": "string"
-          }
+          "type": "array"
         }
-      }
+      },
+      "type": "object"
     }
   },
   "properties": {
-    "on": {
-      "$ref": "#/definitions/build-condition",
-      "description": "실행 조건"
-    },
-    "jobs": {
-      "type": "array",
-      "description": "실행할 작업들: 독립적으로 병렬 실행됨",
-      "items": {
-        "$ref": "#/definitions/job"
-      }
-    },
     "environment": {
-      "type": "array",
       "description": "환경변수",
       "items": {
         "$ref": "#/definitions/env"
-      }
+      },
+      "type": "array"
+    },
+    "jobs": {
+      "description": "실행할 작업들: 독립적으로 병렬 실행됨",
+      "items": {
+        "$ref": "#/definitions/job"
+      },
+      "type": "array"
+    },
+    "on": {
+      "$ref": "#/definitions/build-condition",
+      "description": "실행 조건"
     }
   },
   "required": ["jobs"],

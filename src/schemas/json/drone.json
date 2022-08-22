@@ -2,94 +2,7 @@
   "$id": "https://json.schemastore.org/drone.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
-    "nonEmptyString": {
-      "type": "string",
-      "minLength": 1
-    },
-    "platform": {
-      "type": "object",
-      "properties": {
-        "os": {
-          "type": "string",
-          "enum": [
-            "linux",
-            "windows",
-            "darwin",
-            "freebsd",
-            "netbsd",
-            "openbsd",
-            "dragonfly",
-            "solaris"
-          ]
-        },
-        "arсh": {
-          "type": "string",
-          "enum": ["arm", "arm64", "amd64", "386"]
-        },
-        "variant": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        }
-      }
-    },
-    "commands": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/nonEmptyString"
-      }
-    },
-    "environment": {
-      "type": "object",
-      "additionalProperties": {
-        "oneOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "number"
-          },
-          {
-            "type": "boolean"
-          },
-          {
-            "$ref": "#/definitions/secret"
-          }
-        ]
-      }
-    },
-    "condition": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "conditions": {
-      "anyOf": [
-        {
-          "$ref": "#/definitions/condition"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "include": {
-              "$ref": "#/definitions/condition"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "properties": {
-            "exclude": {
-              "$ref": "#/definitions/condition"
-            }
-          }
-        }
-      ]
-    },
     "allConditions": {
-      "type": "object",
       "properties": {
         "branch": {
           "$ref": "#/definitions/conditions"
@@ -109,60 +22,451 @@
         "target": {
           "$ref": "#/definitions/conditions"
         }
-      }
+      },
+      "type": "object"
     },
-    "volumes": {
-      "type": "array",
+    "commands": {
       "items": {
-        "type": "object",
+        "$ref": "#/definitions/nonEmptyString"
+      },
+      "type": "array"
+    },
+    "concurrency": {
+      "properties": {
+        "limit": {
+          "type": "number"
+        }
+      },
+      "required": ["limit"],
+      "type": "object"
+    },
+    "condition": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "conditions": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/condition"
+        },
+        {
+          "properties": {
+            "include": {
+              "$ref": "#/definitions/condition"
+            }
+          },
+          "type": "object"
+        },
+        {
+          "properties": {
+            "exclude": {
+              "$ref": "#/definitions/condition"
+            }
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "environment": {
+      "additionalProperties": {
         "oneOf": [
           {
-            "required": ["name", "host"]
+            "type": "string"
           },
           {
-            "required": ["name", "path"]
+            "type": "number"
           },
           {
-            "required": ["name", "temp"]
+            "type": "boolean"
+          },
+          {
+            "$ref": "#/definitions/secret"
           }
-        ],
-        "properties": {
-          "name": {
+        ]
+      },
+      "type": "object"
+    },
+    "kind_pipeline": {
+      "properties": {
+        "clone": {
+          "properties": {
+            "depth": {
+              "type": "integer"
+            },
+            "disable": {
+              "const": true
+            }
+          },
+          "type": "object"
+        },
+        "depends_on": {
+          "items": {
             "$ref": "#/definitions/nonEmptyString"
           },
-          "host": {
-            "type": "object",
-            "properties": {
-              "path": {
-                "$ref": "#/definitions/nonEmptyString"
-              }
+          "type": "array"
+        },
+        "kind": {
+          "const": "pipeline"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "platform": {
+          "$ref": "#/definitions/platform"
+        },
+        "steps": {
+          "minLength": 1,
+          "type": "array"
+        },
+        "trigger": {
+          "$ref": "#/definitions/allConditions"
+        },
+        "type": {
+          "enum": [
+            "docker",
+            "kubernetes",
+            "ssh",
+            "exec",
+            "digitalocean",
+            "macstadium"
+          ]
+        },
+        "workspace": {
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/nonEmptyString"
             }
           },
-          "temp": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "medium": {
-                "type": "string",
-                "enum": ["memory"]
-              }
-            }
-          }
+          "required": ["path"],
+          "type": "object"
         }
-      }
+      },
+      "required": ["type", "name", "steps"],
+      "type": "object"
+    },
+    "kind_secret": {
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "get": {
+          "properties": {
+            "name": {
+              "$ref": "#/definitions/nonEmptyString"
+            },
+            "path": {
+              "$ref": "#/definitions/nonEmptyString"
+            }
+          },
+          "required": ["path", "name"],
+          "type": "object"
+        },
+        "kind": {
+          "const": "secret"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
+    "kind_signature": {
+      "properties": {
+        "hmac": {
+          "maxLength": 64,
+          "minLength": 40,
+          "type": "string"
+        },
+        "kind": {
+          "const": "signature"
+        }
+      },
+      "required": ["hmac"],
+      "type": "object"
+    },
+    "kind_template": {
+      "properties": {
+        "data": {
+          "type": "object"
+        },
+        "load": {
+          "type": "string"
+        }
+      },
+      "required": ["load"],
+      "type": "object"
+    },
+    "node": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "nonEmptyString": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "pipeline_digitalocean": {
+      "additionalProperties": false,
+      "properties": {
+        "clone": {},
+        "depends_on": {},
+        "kind": {},
+        "name": {},
+        "platform": {},
+        "steps": {
+          "items": {
+            "$ref": "#/definitions/step_digitalocean"
+          }
+        },
+        "token": {
+          "$ref": "#/definitions/stringOrSecret"
+        },
+        "trigger": {},
+        "type": {
+          "const": "digitalocean"
+        },
+        "workspace": {}
+      },
+      "required": ["token"],
+      "type": "object"
+    },
+    "pipeline_docker": {
+      "additionalProperties": false,
+      "properties": {
+        "clone": {},
+        "concurrency": {
+          "$ref": "#/definitions/concurrency"
+        },
+        "depends_on": {},
+        "environment": {
+          "$ref": "#/definitions/environment"
+        },
+        "image_pull_secrets": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {},
+        "name": {},
+        "node": {
+          "$ref": "#/definitions/node"
+        },
+        "platform": {},
+        "services": {
+          "$ref": "#/definitions/services"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/definitions/step_docker"
+          }
+        },
+        "trigger": {},
+        "type": {
+          "const": "docker"
+        },
+        "volumes": {
+          "$ref": "#/definitions/volumes"
+        },
+        "workspace": {}
+      },
+      "type": "object"
+    },
+    "pipeline_exec": {
+      "additionalProperties": false,
+      "properties": {
+        "clone": {},
+        "depends_on": {},
+        "kind": {},
+        "name": {},
+        "node": {
+          "$ref": "#/definitions/node"
+        },
+        "platform": {},
+        "steps": {
+          "items": {
+            "$ref": "#/definitions/step_exec"
+          }
+        },
+        "trigger": {},
+        "type": {
+          "const": "exec"
+        },
+        "workspace": {}
+      },
+      "type": "object"
+    },
+    "pipeline_kubernetes": {
+      "additionalProperties": false,
+      "properties": {
+        "clone": {},
+        "depends_on": {},
+        "dns_config": {
+          "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.PodDNSConfig",
+          "description": "Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy."
+        },
+        "host_aliases": {
+          "description": "HostAliases is an optional list of hosts and IPs that will be injected into the pod's hosts file if specified. This is only valid for non-hostNetwork pods.",
+          "items": {
+            "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.HostAlias"
+          },
+          "type": "array"
+        },
+        "image_pull_secrets": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {},
+        "metadata": {
+          "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "name": {},
+        "node": {
+          "$ref": "#/definitions/node"
+        },
+        "node_selector": {
+          "description": "A list of node selector terms.",
+          "items": {
+            "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.NodeSelectorTerm"
+          }
+        },
+        "platform": {},
+        "service_account_name": {
+          "description": "The name of the service account to use when running the kubernetes pipeline",
+          "type": "string"
+        },
+        "services": {
+          "$ref": "#/definitions/services"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/definitions/step_kubernetes"
+          }
+        },
+        "tolerations": {
+          "description": "If specified, the pod's tolerations.",
+          "items": {
+            "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.Toleration"
+          },
+          "type": "array"
+        },
+        "trigger": {},
+        "type": {
+          "const": "kubernetes"
+        },
+        "volumes": {
+          "$ref": "#/definitions/volumes"
+        },
+        "workspace": {}
+      },
+      "type": "object"
+    },
+    "pipeline_macstadium": {
+      "additionalProperties": false,
+      "properties": {
+        "clone": {},
+        "depends_on": {},
+        "kind": {},
+        "name": {},
+        "platform": {},
+        "steps": {
+          "items": {
+            "$ref": "#/definitions/step_macstadium"
+          }
+        },
+        "trigger": {},
+        "type": {
+          "const": "macstadium"
+        },
+        "workspace": {}
+      },
+      "type": "object"
+    },
+    "pipeline_ssh": {
+      "additionalProperties": false,
+      "properties": {
+        "clone": {},
+        "depends_on": {},
+        "kind": {},
+        "name": {},
+        "platform": {},
+        "server": {
+          "properties": {
+            "host": {
+              "$ref": "#/definitions/stringOrSecret"
+            },
+            "password": {
+              "$ref": "#/definitions/stringOrSecret"
+            },
+            "ssh_key": {
+              "$ref": "#/definitions/stringOrSecret"
+            },
+            "user": {
+              "$ref": "#/definitions/stringOrSecret"
+            }
+          },
+          "required": ["host", "user"]
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/definitions/step_ssh"
+          }
+        },
+        "trigger": {},
+        "type": {
+          "const": "ssh"
+        },
+        "workspace": {}
+      },
+      "required": ["server"],
+      "type": "object"
+    },
+    "platform": {
+      "properties": {
+        "arсh": {
+          "enum": ["arm", "arm64", "amd64", "386"],
+          "type": "string"
+        },
+        "os": {
+          "enum": [
+            "linux",
+            "windows",
+            "darwin",
+            "freebsd",
+            "netbsd",
+            "openbsd",
+            "dragonfly",
+            "solaris"
+          ],
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "secret": {
+      "properties": {
+        "from_secret": {
+          "type": "string"
+        }
+      },
+      "required": ["from_secret"],
+      "type": "object"
     },
     "services": {
-      "type": "array",
       "items": {
-        "type": "object",
-        "required": ["name", "image"],
         "properties": {
-          "name": {
-            "$ref": "#/definitions/nonEmptyString"
-          },
-          "image": {
-            "$ref": "#/definitions/nonEmptyString"
-          },
           "command": {
             "$ref": "#/definitions/commands"
           },
@@ -171,6 +475,12 @@
           },
           "environment": {
             "$ref": "#/definitions/environment"
+          },
+          "image": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "name": {
+            "$ref": "#/definitions/nonEmptyString"
           },
           "privileged": {
             "type": "boolean"
@@ -184,17 +494,216 @@
           "working_dir": {
             "$ref": "#/definitions/nonEmptyString"
           }
-        }
-      }
+        },
+        "required": ["name", "image"],
+        "type": "object"
+      },
+      "type": "array"
     },
-    "secret": {
-      "type": "object",
-      "required": ["from_secret"],
+    "step": {
       "properties": {
-        "from_secret": {
+        "commands": {
+          "$ref": "#/definitions/commands"
+        },
+        "depends_on": {
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "type": "array"
+        },
+        "detach": {
+          "type": "boolean"
+        },
+        "environment": {
+          "$ref": "#/definitions/environment"
+        },
+        "failure": {
+          "enum": ["always", "ignore"],
           "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "when": {
+          "$ref": "#/definitions/allConditions"
         }
-      }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
+    "step_digitalocean": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/step"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commands": {},
+            "depends_on": {},
+            "environment": {},
+            "failure": {},
+            "name": {},
+            "when": {}
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "step_docker": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/step"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commands": {},
+            "depends_on": {},
+            "detach": {
+              "type": "boolean"
+            },
+            "environment": {},
+            "failure": {},
+            "image": {
+              "$ref": "#/definitions/nonEmptyString"
+            },
+            "name": {},
+            "network_mode": {
+              "enum": ["bridge", "host"],
+              "type": "string"
+            },
+            "privileged": {
+              "type": "boolean"
+            },
+            "pull": {
+              "enum": ["always", "never", "if-not-exists"],
+              "type": "string"
+            },
+            "settings": {
+              "type": "object"
+            },
+            "user": {},
+            "volumes": {
+              "$ref": "#/definitions/steps_volumes"
+            },
+            "when": {}
+          },
+          "required": ["image"],
+          "type": "object"
+        }
+      ]
+    },
+    "step_exec": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/step"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commands": {},
+            "depends_on": {},
+            "environment": {},
+            "failure": {},
+            "name": {},
+            "when": {}
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "step_kubernetes": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/step"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commands": {},
+            "depends_on": {},
+            "environment": {},
+            "failure": {},
+            "image": {
+              "$ref": "#/definitions/nonEmptyString"
+            },
+            "name": {},
+            "privileged": {
+              "type": "boolean"
+            },
+            "pull": {
+              "enum": ["always", "never", "if-not-exists"],
+              "type": "string"
+            },
+            "resources": {
+              "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+            },
+            "settings": {
+              "type": "object"
+            },
+            "volumes": {
+              "$ref": "#/definitions/steps_volumes"
+            },
+            "when": {}
+          },
+          "required": ["image"],
+          "type": "object"
+        }
+      ]
+    },
+    "step_macstadium": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/step"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commands": {},
+            "depends_on": {},
+            "environment": {},
+            "failure": {},
+            "name": {},
+            "when": {}
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "step_ssh": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/step"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commands": {},
+            "depends_on": {},
+            "environment": {},
+            "failure": {},
+            "name": {},
+            "when": {}
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "steps_volumes": {
+      "items": {
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "path": {
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        },
+        "required": ["name", "path"],
+        "type": "object"
+      },
+      "type": "array"
     },
     "stringOrSecret": {
       "oneOf": [
@@ -206,554 +715,45 @@
         }
       ]
     },
-    "node": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "concurrency": {
-      "type": "object",
-      "required": ["limit"],
-      "properties": {
-        "limit": {
-          "type": "number"
-        }
-      }
-    },
-    "kind_signature": {
-      "type": "object",
-      "required": ["hmac"],
-      "properties": {
-        "kind": {
-          "const": "signature"
-        },
-        "hmac": {
-          "type": "string",
-          "minLength": 40,
-          "maxLength": 64
-        }
-      }
-    },
-    "kind_secret": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "kind": {
-          "const": "secret"
-        },
-        "name": {
-          "$ref": "#/definitions/nonEmptyString"
-        },
-        "data": {
-          "type": "string"
-        },
-        "get": {
-          "type": "object",
-          "required": ["path", "name"],
-          "properties": {
-            "path": {
-              "$ref": "#/definitions/nonEmptyString"
-            },
-            "name": {
-              "$ref": "#/definitions/nonEmptyString"
-            }
-          }
-        }
-      }
-    },
-    "kind_template": {
-      "type": "object",
-      "required": ["load"],
-      "properties": {
-        "load": {
-          "type": "string"
-        },
-        "data": {
-          "type": "object"
-        }
-      }
-    },
-    "kind_pipeline": {
-      "type": "object",
-      "required": ["type", "name", "steps"],
-      "properties": {
-        "kind": {
-          "const": "pipeline"
-        },
-        "name": {
-          "$ref": "#/definitions/nonEmptyString"
-        },
-        "type": {
-          "enum": [
-            "docker",
-            "kubernetes",
-            "ssh",
-            "exec",
-            "digitalocean",
-            "macstadium"
-          ]
-        },
-        "platform": {
-          "$ref": "#/definitions/platform"
-        },
-        "workspace": {
-          "type": "object",
-          "required": ["path"],
-          "properties": {
-            "path": {
-              "$ref": "#/definitions/nonEmptyString"
-            }
-          }
-        },
-        "clone": {
-          "type": "object",
-          "properties": {
-            "depth": {
-              "type": "integer"
-            },
-            "disable": {
-              "const": true
-            }
-          }
-        },
-        "steps": {
-          "type": "array",
-          "minLength": 1
-        },
-        "trigger": {
-          "$ref": "#/definitions/allConditions"
-        },
-        "depends_on": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/nonEmptyString"
-          }
-        }
-      }
-    },
-    "pipeline_docker": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "const": "docker"
-        },
-        "environment": {
-          "$ref": "#/definitions/environment"
-        },
-        "steps": {
-          "items": {
-            "$ref": "#/definitions/step_docker"
-          }
-        },
-        "volumes": {
-          "$ref": "#/definitions/volumes"
-        },
-        "services": {
-          "$ref": "#/definitions/services"
-        },
-        "image_pull_secrets": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "node": {
-          "$ref": "#/definitions/node"
-        },
-        "concurrency": {
-          "$ref": "#/definitions/concurrency"
-        },
-        "kind": {},
-        "name": {},
-        "platform": {},
-        "workspace": {},
-        "clone": {},
-        "trigger": {},
-        "depends_on": {}
-      }
-    },
-    "pipeline_kubernetes": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "const": "kubernetes"
-        },
-        "metadata": {
-          "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "node": {
-          "$ref": "#/definitions/node"
-        },
-        "tolerations": {
-          "description": "If specified, the pod's tolerations.",
-          "items": {
-            "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.Toleration"
-          },
-          "type": "array"
-        },
-        "dns_config": {
-          "description": "Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy.",
-          "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.PodDNSConfig"
-        },
-        "host_aliases": {
-          "description": "HostAliases is an optional list of hosts and IPs that will be injected into the pod's hosts file if specified. This is only valid for non-hostNetwork pods.",
-          "items": {
-            "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.HostAlias"
-          },
-          "type": "array"
-        },
-        "node_selector": {
-          "description": "A list of node selector terms.",
-          "items": {
-            "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.NodeSelectorTerm"
-          }
-        },
-        "steps": {
-          "items": {
-            "$ref": "#/definitions/step_kubernetes"
-          }
-        },
-        "volumes": {
-          "$ref": "#/definitions/volumes"
-        },
-        "services": {
-          "$ref": "#/definitions/services"
-        },
-        "image_pull_secrets": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "service_account_name": {
-          "description": "The name of the service account to use when running the kubernetes pipeline",
-          "type": "string"
-        },
-        "kind": {},
-        "name": {},
-        "platform": {},
-        "workspace": {},
-        "clone": {},
-        "trigger": {},
-        "depends_on": {}
-      }
-    },
-    "pipeline_exec": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "const": "exec"
-        },
-        "steps": {
-          "items": {
-            "$ref": "#/definitions/step_exec"
-          }
-        },
-        "node": {
-          "$ref": "#/definitions/node"
-        },
-        "kind": {},
-        "name": {},
-        "platform": {},
-        "workspace": {},
-        "clone": {},
-        "trigger": {},
-        "depends_on": {}
-      }
-    },
-    "pipeline_ssh": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["server"],
-      "properties": {
-        "type": {
-          "const": "ssh"
-        },
-        "steps": {
-          "items": {
-            "$ref": "#/definitions/step_ssh"
-          }
-        },
-        "server": {
-          "required": ["host", "user"],
-          "properties": {
-            "host": {
-              "$ref": "#/definitions/stringOrSecret"
-            },
-            "user": {
-              "$ref": "#/definitions/stringOrSecret"
-            },
-            "password": {
-              "$ref": "#/definitions/stringOrSecret"
-            },
-            "ssh_key": {
-              "$ref": "#/definitions/stringOrSecret"
-            }
-          }
-        },
-        "kind": {},
-        "name": {},
-        "platform": {},
-        "workspace": {},
-        "clone": {},
-        "trigger": {},
-        "depends_on": {}
-      }
-    },
-    "pipeline_digitalocean": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["token"],
-      "properties": {
-        "type": {
-          "const": "digitalocean"
-        },
-        "token": {
-          "$ref": "#/definitions/stringOrSecret"
-        },
-        "steps": {
-          "items": {
-            "$ref": "#/definitions/step_digitalocean"
-          }
-        },
-        "kind": {},
-        "name": {},
-        "platform": {},
-        "workspace": {},
-        "clone": {},
-        "trigger": {},
-        "depends_on": {}
-      }
-    },
-    "pipeline_macstadium": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "const": "macstadium"
-        },
-        "steps": {
-          "items": {
-            "$ref": "#/definitions/step_macstadium"
-          }
-        },
-        "kind": {},
-        "name": {},
-        "platform": {},
-        "workspace": {},
-        "clone": {},
-        "trigger": {},
-        "depends_on": {}
-      }
-    },
-    "step": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": {
-          "$ref": "#/definitions/nonEmptyString"
-        },
-        "failure": {
-          "type": "string",
-          "enum": ["always", "ignore"]
-        },
-        "commands": {
-          "$ref": "#/definitions/commands"
-        },
-        "detach": {
-          "type": "boolean"
-        },
-        "environment": {
-          "$ref": "#/definitions/environment"
-        },
-        "when": {
-          "$ref": "#/definitions/allConditions"
-        },
-        "depends_on": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/nonEmptyString"
-          }
-        }
-      }
-    },
-    "step_docker": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/step"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["image"],
-          "properties": {
-            "image": {
-              "$ref": "#/definitions/nonEmptyString"
-            },
-            "network_mode": {
-              "type": "string",
-              "enum": ["bridge", "host"]
-            },
-            "privileged": {
-              "type": "boolean"
-            },
-            "pull": {
-              "type": "string",
-              "enum": ["always", "never", "if-not-exists"]
-            },
-            "volumes": {
-              "$ref": "#/definitions/steps_volumes"
-            },
-            "settings": {
-              "type": "object"
-            },
-            "name": {},
-            "detach": {
-              "type": "boolean"
-            },
-            "failure": {},
-            "commands": {},
-            "environment": {},
-            "when": {},
-            "depends_on": {},
-            "user": {}
-          }
-        }
-      ]
-    },
-    "step_kubernetes": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/step"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["image"],
-          "properties": {
-            "image": {
-              "$ref": "#/definitions/nonEmptyString"
-            },
-            "privileged": {
-              "type": "boolean"
-            },
-            "pull": {
-              "type": "string",
-              "enum": ["always", "never", "if-not-exists"]
-            },
-            "resources": {
-              "$ref": "https://json.schemastore.org/kubernetes-definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-            },
-            "volumes": {
-              "$ref": "#/definitions/steps_volumes"
-            },
-            "settings": {
-              "type": "object"
-            },
-            "name": {},
-            "failure": {},
-            "commands": {},
-            "environment": {},
-            "when": {},
-            "depends_on": {}
-          }
-        }
-      ]
-    },
-    "step_exec": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/step"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "name": {},
-            "failure": {},
-            "commands": {},
-            "environment": {},
-            "when": {},
-            "depends_on": {}
-          }
-        }
-      ]
-    },
-    "step_ssh": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/step"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "name": {},
-            "failure": {},
-            "commands": {},
-            "environment": {},
-            "when": {},
-            "depends_on": {}
-          }
-        }
-      ]
-    },
-    "step_digitalocean": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/step"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "name": {},
-            "failure": {},
-            "commands": {},
-            "environment": {},
-            "when": {},
-            "depends_on": {}
-          }
-        }
-      ]
-    },
-    "step_macstadium": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/step"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "name": {},
-            "failure": {},
-            "commands": {},
-            "environment": {},
-            "when": {},
-            "depends_on": {}
-          }
-        }
-      ]
-    },
-    "steps_volumes": {
-      "type": "array",
+    "volumes": {
       "items": {
-        "type": "object",
-        "required": ["name", "path"],
+        "oneOf": [
+          {
+            "required": ["name", "host"]
+          },
+          {
+            "required": ["name", "path"]
+          },
+          {
+            "required": ["name", "temp"]
+          }
+        ],
         "properties": {
+          "host": {
+            "properties": {
+              "path": {
+                "$ref": "#/definitions/nonEmptyString"
+              }
+            },
+            "type": "object"
+          },
           "name": {
             "$ref": "#/definitions/nonEmptyString"
           },
-          "path": {
-            "$ref": "#/definitions/nonEmptyString"
+          "temp": {
+            "additionalProperties": false,
+            "properties": {
+              "medium": {
+                "enum": ["memory"],
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "type": "array"
     }
   },
   "oneOf": [

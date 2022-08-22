@@ -4,32 +4,23 @@
     "https://raw.githubusercontent.com/cloudify-incubator/cloudify-terraform-plugin/master/plugin.yaml"
   ],
   "inputs": {
-    "terraform_path": {
-      "type": "string",
-      "default": "/usr/bin/terraform"
-    },
     "AWS_ACCESS_KEY_ID": {
-      "type": "string",
       "default": {
         "get_secret": "aws_access_key_id"
-      }
-    },
-    "AWS_SECRET_ACCESS_KEY": {
-      "type": "string",
-      "default": {
-        "get_secret": "aws_secret_access_key"
-      }
+      },
+      "type": "string"
     },
     "AWS_DEFAULT_REGION": {
-      "type": "string",
       "default": {
         "get_secret": "ec2_region_name"
-      }
+      },
+      "type": "string"
     },
-    "public_key": {
+    "AWS_SECRET_ACCESS_KEY": {
       "default": {
-        "get_secret": "agent_key_public"
-      }
+        "get_secret": "aws_secret_access_key"
+      },
+      "type": "string"
     },
     "backend_options": {
       "default": {
@@ -39,28 +30,28 @@
           "get_input": "AWS_DEFAULT_REGION"
         }
       }
+    },
+    "public_key": {
+      "default": {
+        "get_secret": "agent_key_public"
+      }
+    },
+    "terraform_path": {
+      "default": "/usr/bin/terraform",
+      "type": "string"
     }
   },
   "node_templates": {
-    "wordpress": {
-      "type": "cloudify.nodes.ApplicationModule",
-      "interfaces": {
-        "cloudify.interfaces.lifecycle": {
-          "create": {
-            "implementation": "resources/scripts/install.sh"
-          }
-        }
-      },
-      "relationships": [
-        {
-          "type": "cloudify.relationships.contained_in",
-          "target": "aws_instance.web"
-        }
-      ]
-    },
     "aws_instance.web": {
-      "type": "cloudify.nodes.Compute",
       "properties": {
+        "agent_config": {
+          "install_method": "remote",
+          "key": {
+            "get_secret": "agent_key_private"
+          },
+          "network": "external",
+          "user": "ubuntu"
+        },
         "ip": {
           "get_attribute": [
             "aws_two_tier_example",
@@ -70,25 +61,17 @@
             "attributes",
             "public_ip"
           ]
-        },
-        "agent_config": {
-          "install_method": "remote",
-          "user": "ubuntu",
-          "key": {
-            "get_secret": "agent_key_private"
-          },
-          "network": "external"
         }
       },
       "relationships": [
         {
-          "type": "cloudify.relationships.contained_in",
-          "target": "aws_two_tier_example"
+          "target": "aws_two_tier_example",
+          "type": "cloudify.relationships.contained_in"
         }
-      ]
+      ],
+      "type": "cloudify.nodes.Compute"
     },
     "aws_two_tier_example": {
-      "type": "cloudify.nodes.terraform.Module",
       "properties": {
         "executable_path": {
           "get_input": "terraform_path"
@@ -108,13 +91,14 @@
             "AWS_ACCESS_KEY_ID": {
               "get_input": "AWS_ACCESS_KEY_ID"
             },
-            "AWS_SECRET_ACCESS_KEY": {
-              "get_input": "AWS_SECRET_ACCESS_KEY"
-            },
             "AWS_DEFAULT_REGION": {
               "get_input": "AWS_DEFAULT_REGION"
+            },
+            "AWS_SECRET_ACCESS_KEY": {
+              "get_input": "AWS_SECRET_ACCESS_KEY"
             }
           },
+          "source": "resources/aws-two-tier.zip",
           "variables": {
             "aws_region": {
               "get_input": "AWS_DEFAULT_REGION"
@@ -123,10 +107,26 @@
             "public_key": {
               "get_input": "public_key"
             }
-          },
-          "source": "resources/aws-two-tier.zip"
+          }
         }
-      }
+      },
+      "type": "cloudify.nodes.terraform.Module"
+    },
+    "wordpress": {
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "resources/scripts/install.sh"
+          }
+        }
+      },
+      "relationships": [
+        {
+          "target": "aws_instance.web",
+          "type": "cloudify.relationships.contained_in"
+        }
+      ],
+      "type": "cloudify.nodes.ApplicationModule"
     }
   },
   "outputs": {

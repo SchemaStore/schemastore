@@ -3,55 +3,39 @@
   "$ref": "#/definitions/runnerConfiguration",
   "$schema": "http://json-schema.org/draft-07/schema",
   "definitions": {
-    "timeout": {
-      "$comment": "Based on https://github.com/dart-lang/test/blob/3b8d3b90efd24f55f7316cd414716d1cb031761c/pkgs/test_api/lib/src/frontend/timeout.dart#L55-L68",
-      "oneOf": [
+    "_testConfigurationInner": {
+      "$comment": "presets and on_os can have different properties when used in a test vs runner configuration. We make runnerConfiguration extend from testConfiguration, so this configuration is used when we're definitely in a non-runner configuration context.",
+      "allOf": [
         {
-          "enum": ["none"],
-          "title": "No timeout",
-          "description": "Indicates that tests should never time out."
+          "$ref": "#/definitions/testConfiguration"
         },
         {
-          "type": "string",
-          "title": "Exact timeout",
-          "description": "Exact timeout duration for a test.",
-          "pattern": "^(?:[^a-df-zA-DF-Z\\s]+(?:[umUM][sS]|[dhmsDHMS])\\s?)+$",
-          "examples": ["1m", "30s", "1m 30s"]
-        },
-        {
-          "type": "string",
-          "title": "Multiplicative timeout",
-          "description": "Timeout is applied as a multiple of the default value (30 seconds)",
-          "pattern": "^[^a-df-zA-DF-Z\\s]+[xX]$",
-          "examples": ["12x", "1.5X"]
+          "properties": {
+            "on_os": {
+              "additionalProperties": {
+                "$ref": "#/definitions/testConfiguration"
+              },
+              "description": "Applies test options when a specific operating system is used",
+              "type": "object"
+            },
+            "presets": {
+              "additionalProperties": {
+                "$ref": "#/definitions/testConfiguration"
+              },
+              "description": "A preset used in a test configuration can contain test configuration.",
+              "type": "object"
+            }
+          }
         }
       ]
-    },
-    "skip": {
-      "oneOf": [
-        {
-          "type": "boolean",
-          "title": "Skip the test if true"
-        },
-        {
-          "type": "string",
-          "title": "Reason for skipping the test"
-        }
-      ]
-    },
-    "executable": {
-      "type": "string",
-      "description": "The executable to run. Can be a plain basename, an absolute path or a relative path on Windows."
     },
     "browserAndNodeSettings": {
-      "type": "object",
-      "title": "Settings for browsers and Node.js",
       "additionalProperties": false,
       "properties": {
         "arguments": {
-          "type": "string",
+          "description": "The arguments are parsed in the same way as the POSIX shell",
           "title": "Extra arguments to the executable",
-          "description": "The arguments are parsed in the same way as the POSIX shell"
+          "type": "string"
         },
         "executable": {
           "oneOf": [
@@ -59,7 +43,6 @@
               "$ref": "#/definitions/executable"
             },
             {
-              "type": "object",
               "additionalProperties": false,
               "properties": {
                 "linux": {
@@ -71,123 +54,48 @@
                 "windows": {
                   "$ref": "#/definitions/executable"
                 }
-              }
+              },
+              "type": "object"
             }
           ]
         },
         "headless": {
-          "type": "boolean",
-          "title": "Run the browser in headless mode"
+          "title": "Run the browser in headless mode",
+          "type": "boolean"
         }
-      }
+      },
+      "title": "Settings for browsers and Node.js",
+      "type": "object"
+    },
+    "executable": {
+      "description": "The executable to run. Can be a plain basename, an absolute path or a relative path on Windows.",
+      "type": "string"
     },
     "foldStackFrameOptions": {
       "oneOf": [
         {
-          "type": "object",
           "additionalProperties": false,
           "properties": {
             "except": {
-              "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "type": "array"
             }
-          }
+          },
+          "type": "object"
         },
         {
-          "type": "object",
           "additionalProperties": false,
           "properties": {
             "only": {
-              "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "type": "array"
             }
-          }
-        }
-      ]
-    },
-    "testConfiguration": {
-      "type": "object",
-      "$comment": "Based on https://github.com/dart-lang/test/blob/master/pkgs/test/doc/configuration.md#test-configuration",
-      "properties": {
-        "timeout": {
-          "$ref": "#/definitions/timeout"
-        },
-        "verbose_trace": {
-          "type": "boolean",
-          "title": "Remove internal stack frames",
-          "description": "This field controls whether or not traces caused by errors are trimmed to remove internal stack frames. This includes frames from the Dart core libraries, the stack_trace package, and the test package itself.",
-          "default": false
-        },
-        "chain_stack_traces": {
-          "type": "boolean",
-          "title": "Whether stack traces are chained",
-          "description": "Disabling stack trace chaining will improve performance for heavily async code at the cost of debuggability."
-        },
-        "js_trace": {
-          "type": "boolean",
-          "title": "Convert JS traces to Dart traces",
-          "description": "Whether or not stack traces caused by errors while running Dart compiled to JS are converted back to Dart style.",
-          "default": false
-        },
-        "skip": {
-          "$ref": "#/definitions/skip"
-        },
-        "retry": {
-          "type": "number",
-          "description": "This field controls how many times a test is retried upon failure."
-        },
-        "test_on": {
-          "type": "string",
-          "examples": ["browser && !ie"]
-        },
-        "tags": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/_testConfigurationInner"
-          }
-        },
-        "add_tags": {
-          "type": "array",
-          "description": "Adds additional tags. This is usually used in a tag definition to enable tag inheritance.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "on_platform": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/_testConfigurationInner"
-          }
-        }
-      }
-    },
-    "_testConfigurationInner": {
-      "$comment": "presets and on_os can have different properties when used in a test vs runner configuration. We make runnerConfiguration extend from testConfiguration, so this configuration is used when we're definitely in a non-runner configuration context.",
-      "allOf": [
-        {
-          "$ref": "#/definitions/testConfiguration"
-        },
-        {
-          "properties": {
-            "presets": {
-              "type": "object",
-              "description": "A preset used in a test configuration can contain test configuration.",
-              "additionalProperties": {
-                "$ref": "#/definitions/testConfiguration"
-              }
-            },
-            "on_os": {
-              "type": "object",
-              "description": "Applies test options when a specific operating system is used",
-              "additionalProperties": {
-                "$ref": "#/definitions/testConfiguration"
-              }
-            }
-          }
+          },
+          "type": "object"
         }
       ]
     },
@@ -199,131 +107,223 @@
         },
         {
           "properties": {
-            "include": {
-              "type": "string",
-              "format": "uri"
-            },
-            "paths": {
-              "type": "array",
+            "add_presets": {
+              "description": "Commonly used in a preset, it can be used to enable present inheritance by adding the configuration from another preset.",
               "items": {
                 "type": "string"
               },
-              "default": ["test"]
-            },
-            "filename": {
-              "type": "string",
-              "description": "Filename pattern that the test runner uses to find test files in directories."
-            },
-            "names": {
-              "type": "array",
-              "description": "Only run tests whose names match the given regular expressions A test's name must match all regular expressions in names in order to be run.",
-              "items": {
-                "type": "string"
-              }
-            },
-            "plain_names": {
-              "type": "array",
-              "description": "This field causes the runner to only run tests whose names contain the given strings. A test's name must contain all strings in order to be run.",
-              "items": {
-                "type": "string"
-              }
-            },
-            "include_tags": {
-              "type": "string",
-              "description": "This field causes the runner to only run tests whose tags match the given boolean selector."
-            },
-            "exclude_tags": {
-              "type": "string",
-              "description": "This field causes the runner to only run tests whose tags match the given boolean selector. This takes precedence over include_tags"
-            },
-            "platforms": {
-              "description": "The platforms on which tests should be run.",
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "default": ["vm"]
+              "type": "array"
             },
             "concurrency": {
-              "type": "integer",
-              "description": "The default number of test suites to run in parallel. This defaults to approximately half the number of processors on the current machine. Setting it to 1 will disable concurrency"
-            },
-            "pause_after_load": {
-              "type": "boolean",
-              "description": "Indicates that the test runner should pause for debugging after each test suite is loaded but before its tests are executed. This disables concurrency and timeouts."
-            },
-            "run_skipped": {
-              "type": "boolean",
-              "description": "Run tests even if they're marked as skipped."
-            },
-            "reporter": {
-              "type": "string",
-              "description": "This field indicates the default reporter to use.",
-              "examples": ["compact", "expanded", "json"]
-            },
-            "file_reporters": {
-              "type": "object",
-              "description": "Specifies additional reporters that will write their output to a file rather than stdout",
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "fold_stack_frames": {
-              "$ref": "#/definitions/foldStackFrameOptions"
+              "description": "The default number of test suites to run in parallel. This defaults to approximately half the number of processors on the current machine. Setting it to 1 will disable concurrency",
+              "type": "integer"
             },
             "custom_html_template_path": {
               "description": "This field specifies the path of the HTML template to be used for tests run in an HTML environment.",
               "type": "string"
             },
-            "presets": {
-              "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/runnerConfiguration"
-              }
-            },
-            "add_presets": {
-              "type": "array",
-              "description": "Commonly used in a preset, it can be used to enable present inheritance by adding the configuration from another preset.",
-              "items": {
-                "type": "string"
-              }
-            },
-            "on_os": {
-              "type": "object",
-              "description": "Applies test or runner options when a specific operating system is used",
-              "additionalProperties": {
-                "$ref": "#/definitions/runnerConfiguration"
-              }
-            },
-            "override_platforms": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object",
-                "properties": {
-                  "settings": {
-                    "$ref": "#/definitions/browserAndNodeSettings"
-                  }
-                }
-              }
-            },
             "define_platforms": {
-              "type": "object",
               "additionalProperties": {
-                "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string"
-                  },
                   "extends": {
                     "type": "string"
                   },
+                  "name": {
+                    "type": "string"
+                  },
                   "settings": {
                     "$ref": "#/definitions/browserAndNodeSettings"
                   }
-                }
-              }
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "exclude_tags": {
+              "description": "This field causes the runner to only run tests whose tags match the given boolean selector. This takes precedence over include_tags",
+              "type": "string"
+            },
+            "file_reporters": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Specifies additional reporters that will write their output to a file rather than stdout",
+              "type": "object"
+            },
+            "filename": {
+              "description": "Filename pattern that the test runner uses to find test files in directories.",
+              "type": "string"
+            },
+            "fold_stack_frames": {
+              "$ref": "#/definitions/foldStackFrameOptions"
+            },
+            "include": {
+              "format": "uri",
+              "type": "string"
+            },
+            "include_tags": {
+              "description": "This field causes the runner to only run tests whose tags match the given boolean selector.",
+              "type": "string"
+            },
+            "names": {
+              "description": "Only run tests whose names match the given regular expressions A test's name must match all regular expressions in names in order to be run.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "on_os": {
+              "additionalProperties": {
+                "$ref": "#/definitions/runnerConfiguration"
+              },
+              "description": "Applies test or runner options when a specific operating system is used",
+              "type": "object"
+            },
+            "override_platforms": {
+              "additionalProperties": {
+                "properties": {
+                  "settings": {
+                    "$ref": "#/definitions/browserAndNodeSettings"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "paths": {
+              "default": ["test"],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "pause_after_load": {
+              "description": "Indicates that the test runner should pause for debugging after each test suite is loaded but before its tests are executed. This disables concurrency and timeouts.",
+              "type": "boolean"
+            },
+            "plain_names": {
+              "description": "This field causes the runner to only run tests whose names contain the given strings. A test's name must contain all strings in order to be run.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "platforms": {
+              "default": ["vm"],
+              "description": "The platforms on which tests should be run.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "presets": {
+              "additionalProperties": {
+                "$ref": "#/definitions/runnerConfiguration"
+              },
+              "type": "object"
+            },
+            "reporter": {
+              "description": "This field indicates the default reporter to use.",
+              "examples": ["compact", "expanded", "json"],
+              "type": "string"
+            },
+            "run_skipped": {
+              "description": "Run tests even if they're marked as skipped.",
+              "type": "boolean"
             }
           }
+        }
+      ]
+    },
+    "skip": {
+      "oneOf": [
+        {
+          "title": "Skip the test if true",
+          "type": "boolean"
+        },
+        {
+          "title": "Reason for skipping the test",
+          "type": "string"
+        }
+      ]
+    },
+    "testConfiguration": {
+      "$comment": "Based on https://github.com/dart-lang/test/blob/master/pkgs/test/doc/configuration.md#test-configuration",
+      "properties": {
+        "add_tags": {
+          "description": "Adds additional tags. This is usually used in a tag definition to enable tag inheritance.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "chain_stack_traces": {
+          "description": "Disabling stack trace chaining will improve performance for heavily async code at the cost of debuggability.",
+          "title": "Whether stack traces are chained",
+          "type": "boolean"
+        },
+        "js_trace": {
+          "default": false,
+          "description": "Whether or not stack traces caused by errors while running Dart compiled to JS are converted back to Dart style.",
+          "title": "Convert JS traces to Dart traces",
+          "type": "boolean"
+        },
+        "on_platform": {
+          "additionalProperties": {
+            "$ref": "#/definitions/_testConfigurationInner"
+          },
+          "type": "object"
+        },
+        "retry": {
+          "description": "This field controls how many times a test is retried upon failure.",
+          "type": "number"
+        },
+        "skip": {
+          "$ref": "#/definitions/skip"
+        },
+        "tags": {
+          "additionalProperties": {
+            "$ref": "#/definitions/_testConfigurationInner"
+          },
+          "type": "object"
+        },
+        "test_on": {
+          "examples": ["browser && !ie"],
+          "type": "string"
+        },
+        "timeout": {
+          "$ref": "#/definitions/timeout"
+        },
+        "verbose_trace": {
+          "default": false,
+          "description": "This field controls whether or not traces caused by errors are trimmed to remove internal stack frames. This includes frames from the Dart core libraries, the stack_trace package, and the test package itself.",
+          "title": "Remove internal stack frames",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "timeout": {
+      "$comment": "Based on https://github.com/dart-lang/test/blob/3b8d3b90efd24f55f7316cd414716d1cb031761c/pkgs/test_api/lib/src/frontend/timeout.dart#L55-L68",
+      "oneOf": [
+        {
+          "description": "Indicates that tests should never time out.",
+          "enum": ["none"],
+          "title": "No timeout"
+        },
+        {
+          "description": "Exact timeout duration for a test.",
+          "examples": ["1m", "30s", "1m 30s"],
+          "pattern": "^(?:[^a-df-zA-DF-Z\\s]+(?:[umUM][sS]|[dhmsDHMS])\\s?)+$",
+          "title": "Exact timeout",
+          "type": "string"
+        },
+        {
+          "description": "Timeout is applied as a multiple of the default value (30 seconds)",
+          "examples": ["12x", "1.5X"],
+          "pattern": "^[^a-df-zA-DF-Z\\s]+[xX]$",
+          "title": "Multiplicative timeout",
+          "type": "string"
         }
       ]
     }
