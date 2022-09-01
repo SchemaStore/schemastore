@@ -1035,6 +1035,27 @@ module.exports = function (grunt) {
     grunt.log.ok(`Total files scan: ${countScan}`)
   })
 
+  grunt.registerTask('local_check_for_schema_version_too_high', 'Dynamically load schema file for $schema version check', function () {
+    let countScan = 0
+    localSchemaFileAndTestFile({
+      schemaOnlyScan (callbackParameter) {
+        countScan++
+        if (schemaValidation.highSchemaVersion.includes(callbackParameter.jsonName)) {
+          return // skip the verification for this schema file
+        }
+        const schemaName = showSchemaVersions().getObj(callbackParameter.jsonObj).schemaName
+        if (schemaName === '2019-09' || schemaName === '2020-12') {
+          throwWithErrorText([`Schema version is too high => "${schemaName}" in file ${callbackParameter.jsonName}`])
+        }
+      }
+    },
+    {
+      fullScanAllFiles: true,
+      skipReadFile: false
+    })
+    grunt.log.ok(`Total files scan: ${countScan}`)
+  })
+
   grunt.registerTask('local_check_duplicate_list_in_schema-validation.json', 'Check if options list is unique in schema-validation.json', function () {
     function checkForDuplicateInList (list, listName) {
       if (list) {
@@ -1048,6 +1069,7 @@ module.exports = function (grunt) {
     checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
     checkForDuplicateInList(schemaValidation.missingcatalogurl, 'missingcatalogurl[]')
     checkForDuplicateInList(schemaValidation.fileMatchConflict, 'fileMatchConflict[]')
+    checkForDuplicateInList(schemaValidation.highSchemaVersion, 'highSchemaVersion[]')
 
     // Check for duplicate in options[]
     const checkList = []
@@ -1137,6 +1159,7 @@ module.exports = function (grunt) {
     x(schemaValidation.ajvNotStrictMode)
     x(schemaValidation.skiptest)
     x(schemaValidation.missingcatalogurl)
+    x(schemaValidation.highSchemaVersion)
 
     for (const item of schemaValidation.options) {
       const schemaName = Object.keys(item).pop()
@@ -1165,6 +1188,7 @@ module.exports = function (grunt) {
     x(schemaValidation.tv4test, 'tv4test')
     x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
     x(schemaValidation.missingcatalogurl, 'missingcatalogurl')
+    x(schemaValidation.highSchemaVersion, 'highSchemaVersion')
 
     for (const item of schemaValidation.options) {
       const schemaName = Object.keys(item).pop()
@@ -1383,6 +1407,7 @@ module.exports = function (grunt) {
       'local_bom',
       'local_find-duplicated-property-keys',
       'local_check_for_schema_version_present',
+      'local_check_for_schema_version_too_high',
       'local_count_url_in_catalog',
       'local_count_schema_versions',
       'local_search_for_schema_without_positive_test_files',
