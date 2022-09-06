@@ -52,6 +52,29 @@
         "$ref": "#/definitions/poetry-author-pattern"
       }
     },
+    "poetry-include-path": {
+      "type": "string",
+      "description": "Path to file or directory to include."
+    },
+    "poetry-package-format": {
+      "type": "string",
+      "enum": ["sdist", "wheel"],
+      "description": "A Python packaging format."
+    },
+    "poetry-package-formats": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/poetry-package-format"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/poetry-package-format"
+          }
+        }
+      ],
+      "description": "The format(s) for which the package must be included."
+    },
     "poetry-dependency-any": {
       "oneOf": [
         {
@@ -151,6 +174,10 @@
           "type": "string",
           "description": "The revision to checkout."
         },
+        "subdirectory": {
+          "type": "string",
+          "description": "The relative path to the directory where the package is located."
+        },
         "python": {
           "type": "string",
           "description": "The python versions for which the dependency should be installed."
@@ -181,6 +208,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "develop": {
+          "type": "boolean",
+          "description": "Whether to install the dependency in development mode."
         }
       }
     },
@@ -316,32 +347,53 @@
         ]
       }
     },
-    "poetry-scripts": {
+    "poetry-script-table": {
       "type": "object",
-      "patternProperties": {
-        "^[a-zA-Z-_.0-9]+$": {
-          "oneOf": [
-            {
-              "$ref": "#/definitions/poetry-script"
-            },
-            {
-              "$ref": "#/definitions/poetry-extra-script"
-            }
-          ]
+      "oneOf": [
+        {
+          "$ref": "#/definitions/poetry-extra-script-legacy"
+        },
+        {
+          "$ref": "#/definitions/poetry-extra-scripts"
         }
-      }
+      ]
     },
-    "poetry-script": {
+    "poetry-script-legacy": {
       "type": "string",
       "description": "A simple script pointing to a callable object."
     },
-    "poetry-extra-script": {
+    "poetry-extra-scripts": {
+      "type": "object",
+      "description": "Either a console entry point or a script file that'll be included in the distribution package.",
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "type": "string",
+          "description": "If type is file this is the relative path of the script file, if console it is the module name."
+        },
+        "type": {
+          "description": "Value can be either file or console.",
+          "type": "string",
+          "enum": ["file", "console"]
+        },
+        "extras": {
+          "type": "array",
+          "description": "The required extras for this script. Only applicable if type is console.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["reference", "type"]
+    },
+    "poetry-extra-script-legacy": {
       "type": "object",
       "description": "A script that should be installed only if extras are activated.",
       "additionalProperties": false,
       "properties": {
         "callable": {
-          "$ref": "#/definitions/poetry-script"
+          "$ref": "#/definitions/poetry-script-legacy",
+          "description": "The entry point of the script. Deprecated in favour of reference."
         },
         "extras": {
           "type": "array",
@@ -352,28 +404,34 @@
         }
       }
     },
-    "poetry-repository": {
+    "poetry-build-script": {
+      "type": "string",
+      "description": "The python script file used to build extensions."
+    },
+    "poetry-build-config": {
       "type": "object",
+      "description": "Build specific configurations.",
       "additionalProperties": false,
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "The name of the repository"
-        },
-        "url": {
-          "type": "string",
-          "description": "The url of the repository",
-          "format": "uri"
-        },
-        "default": {
+        "generate-setup-file": {
           "type": "boolean",
-          "description": "Make this repository the default (disable PyPI)"
+          "description": "Generate and include a setup.py file in sdist.",
+          "default": true
         },
-        "secondary": {
-          "type": "boolean",
-          "description": "Declare this repository as secondary, i.e. it will only be looked up last for packages."
+        "script": {
+          "$ref": "#/definitions/poetry-build-script"
         }
       }
+    },
+    "poetry-build-section": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/poetry-build-script"
+        },
+        {
+          "$ref": "#/definitions/poetry-build-config"
+        }
+      ]
     },
     "BuildSystem": {
       "title": "Project build system configuration",
@@ -443,8 +501,8 @@
       "properties": {
         "poetry": {
           "type": "object",
-          "additionalProperties": false,
-          "required": ["name", "version", "description"],
+          "additionalProperties": true,
+          "required": ["name", "version", "description", "authors"],
           "properties": {
             "name": {
               "type": "string",
@@ -456,7 +514,8 @@
             },
             "description": {
               "type": "string",
-              "description": "Short package description."
+              "description": "Short package description.",
+              "pattern": "^[^\n]*$"
             },
             "keywords": {
               "type": "array",
@@ -491,8 +550,19 @@
               "$ref": "#/definitions/poetry-maintainers"
             },
             "readme": {
-              "type": "string",
-              "description": "The path to the README file"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "The path to the README file."
+                },
+                {
+                  "type": "array",
+                  "description": "A list of paths to the readme files.",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
             },
             "classifiers": {
               "type": "array",
@@ -508,33 +578,41 @@
                 "required": ["include"],
                 "properties": {
                   "include": {
-                    "type": "string",
-                    "description": "What to include in the package."
+                    "$ref": "#/definitions/poetry-include-path"
                   },
                   "from": {
                     "type": "string",
                     "description": "Where the source directory of the package resides."
                   },
                   "format": {
-                    "oneOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    ],
-                    "description": "The format(s) for which the package must be included."
+                    "$ref": "#/definitions/poetry-package-formats"
                   }
                 }
               }
             },
             "include": {
               "type": "array",
-              "description": "A list of files and folders to include."
+              "description": "A list of files and folders to include.",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/poetry-include-path"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path"],
+                    "properties": {
+                      "path": {
+                        "$ref": "#/definitions/poetry-include-path"
+                      },
+                      "format": {
+                        "$ref": "#/definitions/poetry-package-formats"
+                      }
+                    }
+                  }
+                ]
+              }
             },
             "exclude": {
               "type": "array",
@@ -577,23 +655,50 @@
                 }
               }
             },
-            "build": {
-              "type": "string",
-              "description": "The file used to build extensions."
-            },
-            "source": {
-              "type": "array",
-              "description": "A set of additional repositories where packages can be found.",
-              "items": {
-                "$ref": "#/definitions/poetry-repository"
+            "group": {
+              "type": "object",
+              "description": "This represents groups of dependencies",
+              "patternProperties": {
+                "^[a-zA-Z-_.0-9]+$": {
+                  "type": "object",
+                  "description": "This represents a single dependency group",
+                  "required": ["dependencies"],
+                  "properties": {
+                    "optional": {
+                      "type": "boolean",
+                      "description": "Whether the dependency group is optional or not"
+                    },
+                    "dependencies": {
+                      "type": "object",
+                      "description": "The dependencies of this dependency group",
+                      "patternProperties": {
+                        "^[a-zA-Z-_.0-9]+$": {
+                          "$ref": "#/definitions/poetry-dependency-any"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
               }
+            },
+            "build": {
+              "$ref": "#/definitions/poetry-build-section"
             },
             "scripts": {
               "type": "object",
               "description": "A hash of scripts to be installed.",
               "patternProperties": {
-                "^.+$": {
-                  "type": "string"
+                "^[a-zA-Z-_.0-9]+$": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/definitions/poetry-script-legacy"
+                    },
+                    {
+                      "$ref": "#/definitions/poetry-script-table"
+                    }
+                  ]
                 }
               }
             },
