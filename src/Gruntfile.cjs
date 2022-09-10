@@ -21,6 +21,7 @@ const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
+const SchemaVersionTooHigh = ['2019-09', '2020-12']
 const countSchemasType = [
   { schemaName: '2020-12', schemaStr: 'json-schema.org/draft/2020-12/schema', totalCount: 0, active: true },
   { schemaName: '2019-09', schemaStr: 'json-schema.org/draft/2019-09/schema', totalCount: 0, active: true },
@@ -1043,9 +1044,11 @@ module.exports = function (grunt) {
         if (schemaValidation.highSchemaVersion.includes(callbackParameter.jsonName)) {
           return // skip the verification for this schema file
         }
-        const schemaName = showSchemaVersions().getObj(callbackParameter.jsonObj).schemaName
-        if (schemaName === '2019-09' || schemaName === '2020-12') {
-          throwWithErrorText([`Schema version is too high => "${schemaName}" in file ${callbackParameter.jsonName}`])
+        const schemaName = showSchemaVersions().getObj(callbackParameter.jsonObj)?.schemaName
+        if (SchemaVersionTooHigh.find(x => x === schemaName)) {
+          throwWithErrorText([`Schema version is too high => "${schemaName}" in file ${callbackParameter.jsonName}`,
+            `Schema version ${SchemaVersionTooHigh} is not supported by many editors and IDEs`,
+          `${callbackParameter.jsonName} must use a lower schema version.`])
         }
       }
     },
@@ -1391,6 +1394,7 @@ module.exports = function (grunt) {
     grunt.log.ok(`Total all schemas check: ${schemaInFullStrictMode.length + schemaInNotStrictMode.length}`)
   })
 
+  // The order of the task is relevant.
   grunt.registerTask('local_test',
     [
       'local_check_duplicate_list_in_schema-validation.json',
