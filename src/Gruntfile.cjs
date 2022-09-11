@@ -1043,7 +1043,7 @@ module.exports = function (grunt) {
           return // skip the verification for this schema file
         }
         const schemaName = showSchemaVersions().getObj(callbackParameter.jsonObj)?.schemaName
-        if (SchemaVersionTooHigh.find(x => x === schemaName)) {
+        if (SchemaVersionTooHigh.includes(schemaName)) {
           throwWithErrorText([`Schema version is too high => "${schemaName}" in file ${callbackParameter.jsonName}`,
             `Schema version ${SchemaVersionTooHigh} is not supported by many editors and IDEs`,
           `${callbackParameter.jsonName} must use a lower schema version.`])
