@@ -719,16 +719,14 @@ module.exports = function (grunt) {
     let countScan = 0
 
     getUrlFromCatalog(catalogUrl => {
-      // URL that does not have "schemastore.org" anywhere is an external schema.
-      // Then there is no need for further URL syntax check.
-      if (!catalogUrl.includes('schemastore.org')) {
+      const SchemaStoreHost = 'json.schemastore.org'
+      // URL host that does not have SchemaStoreHost is an external schema.
+      const URLcheck = new URL(catalogUrl)
+      if (!SchemaStoreHost.includes(URLcheck.host)) {
+        // This is an external schema.
         return
       }
       countScan++
-      // Check if local URL is a valid format with subdomain format.
-      if (!catalogUrl.startsWith(urlSchemaStore)) {
-        throwWithErrorText([`Wrong: ${catalogUrl} Must be in this format: ${urlRecommendation}`])
-      }
       // Check if local URL have .json extension
       const filenameMustBeAtThisUrlDepthPosition = 3
       const filename = catalogUrl.split('/')[filenameMustBeAtThisUrlDepthPosition]
