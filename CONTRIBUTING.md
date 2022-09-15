@@ -58,13 +58,18 @@ To make sure that files are validated against your schema correctly (we strongly
 
 1. Create a subfolder in [`src/test`](src/test) named as your schema file
 2. Create one or more `.json, .yml, .yaml or toml` files in that folder
-3. Run `npm run build` (to test a single schema, use `npm run build -- --SchemaName=<jsonFileName.json> default`)
-
-If the build succeeds, your changes are valid and you can safely create a PR.
 
 #### Adding negative tests
 
 To make sure that invalid files fail to validate against your schema, use a subfolder in [`src/negative_test/`](src/negative_test) instead.
+
+#### Run build locally
+
+- Install [NodeJS](https://nodejs.org) (The minimum required NodeJS version "engines" is defined in [package.json](src/package.json))
+- in subdirectory src/ run `npm run build` (to test a single schema, use `npm run build -- --SchemaName=<jsonFileName.json> default`)
+- or optionally for macOS or Linux in the project root directory run `make`
+
+If the build succeeds, your changes are valid and you can safely create a PR.
 
 ### Self-hosting schemas
 
