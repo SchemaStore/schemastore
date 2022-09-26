@@ -1,6 +1,99 @@
 {
-  "tosca_definitions_version": "cloudify_dsl_1_3",
   "description": "This blueprint create a managed cluster.\n",
+  "dsl_definitions": {
+    "azure_config": {
+      "subscription_id": {
+        "get_input": "subscription_id"
+      },
+      "tenant_id": {
+        "get_input": "tenant_id"
+      },
+      "client_id": {
+        "get_input": "client_id"
+      },
+      "client_secret": {
+        "get_input": "client_secret"
+      }
+    },
+    "resource_config": {
+      "location": {
+        "get_input": "location"
+      },
+      "tags": {
+        "Name": {
+          "concat": [
+            "AKS_Test",
+            {
+              "get_input": "resource_suffix"
+            }
+          ]
+        },
+        "tier": "Testing"
+      },
+      "kubernetes_version": "",
+      "dns_prefix": {
+        "concat": [
+          "akstest",
+          {
+            "get_input": "resource_suffix"
+          }
+        ]
+      },
+      "agent_pool_profiles": [
+        {
+          "name": {
+            "concat": [
+              "nodepool1",
+              {
+                "get_input": "resource_suffix"
+              }
+            ]
+          },
+          "count": 3,
+          "vmSize": "Standard_DS1_v2",
+          "osType": "Linux",
+          "type": "VirtualMachineScaleSets",
+          "availabilityZones": ["1", "2", "3"],
+          "enableNodePublicIP": true
+        }
+      ],
+      "linux_profile": {
+        "adminUsername": "azureuser",
+        "ssh": {
+          "publicKeys": [
+            {
+              "keyData": {
+                "get_attribute": ["agent_key", "public_key_export"]
+              }
+            }
+          ]
+        }
+      },
+      "network_profile": {
+        "loadBalancerSku": "standard",
+        "outboundType": "loadBalancer",
+        "loadBalancerProfile": {
+          "managedOutboundIPs": {
+            "count": 2
+          }
+        }
+      },
+      "windows_profile": {
+        "adminUsername": "azureuser",
+        "adminPassword": "az#1234"
+      },
+      "service_principal_profile": {
+        "clientId": {
+          "get_input": "client_id"
+        },
+        "secret": {
+          "get_input": "client_secret"
+        }
+      },
+      "addon_profiles": {},
+      "enable_rbac": true
+    }
+  },
   "imports": [
     "http://www.getcloudify.org/spec/cloudify/3.4/types.yaml",
     "plugin:cloudify-azure-plugin?version= >=2.1.10",
@@ -81,107 +174,6 @@
       "default": "agent_key"
     }
   },
-  "dsl_definitions": {
-    "azure_config": {
-      "subscription_id": {
-        "get_input": "subscription_id"
-      },
-      "tenant_id": {
-        "get_input": "tenant_id"
-      },
-      "client_id": {
-        "get_input": "client_id"
-      },
-      "client_secret": {
-        "get_input": "client_secret"
-      }
-    },
-    "resource_config": {
-      "location": {
-        "get_input": "location"
-      },
-      "tags": {
-        "Name": {
-          "concat": [
-            "AKS_Test",
-            {
-              "get_input": "resource_suffix"
-            }
-          ]
-        },
-        "tier": "Testing"
-      },
-      "kubernetes_version": "",
-      "dns_prefix": {
-        "concat": [
-          "akstest",
-          {
-            "get_input": "resource_suffix"
-          }
-        ]
-      },
-      "agent_pool_profiles": [
-        {
-          "name": {
-            "concat": [
-              "nodepool1",
-              {
-                "get_input": "resource_suffix"
-              }
-            ]
-          },
-          "count": 3,
-          "vmSize": "Standard_DS1_v2",
-          "osType": "Linux",
-          "type": "VirtualMachineScaleSets",
-          "availabilityZones": [
-            "1",
-            "2",
-            "3"
-          ],
-          "enableNodePublicIP": true
-        }
-      ],
-      "linux_profile": {
-        "adminUsername": "azureuser",
-        "ssh": {
-          "publicKeys": [
-            {
-              "keyData": {
-                "get_attribute": [
-                  "agent_key",
-                  "public_key_export"
-                ]
-              }
-            }
-          ]
-        }
-      },
-      "network_profile": {
-        "loadBalancerSku": "standard",
-        "outboundType": "loadBalancer",
-        "loadBalancerProfile": {
-          "managedOutboundIPs": {
-            "count": 2
-          }
-        }
-      },
-      "windows_profile": {
-        "adminUsername": "azureuser",
-        "adminPassword": "az#1234"
-      },
-      "service_principal_profile": {
-        "clientId": {
-          "get_input": "client_id"
-        },
-        "secret": {
-          "get_input": "client_secret"
-        }
-      },
-      "addon_profiles": {},
-      "enable_rbac": true
-    }
-  },
   "node_templates": {
     "resource_group": {
       "type": "cloudify.azure.nodes.ResourceGroup",
@@ -255,11 +247,7 @@
               "vmSize": "Standard_DS1_v2",
               "osType": "Linux",
               "type": "VirtualMachineScaleSets",
-              "availabilityZones": [
-                "1",
-                "2",
-                "3"
-              ],
+              "availabilityZones": ["1", "2", "3"],
               "enableNodePublicIP": true
             }
           ],
@@ -269,10 +257,7 @@
               "publicKeys": [
                 {
                   "keyData": {
-                    "get_attribute": [
-                      "agent_key",
-                      "public_key_export"
-                    ]
+                    "get_attribute": ["agent_key", "public_key_export"]
                   }
                 }
               ]
@@ -334,10 +319,7 @@
       "properties": {
         "configuration": {
           "file_content": {
-            "get_attribute": [
-              "managed_cluster",
-              "kubeconf"
-            ]
+            "get_attribute": ["managed_cluster", "kubeconf"]
           }
         }
       },
@@ -354,10 +336,7 @@
         "client_config": {
           "configuration": {
             "file_content": {
-              "get_attribute": [
-                "managed_cluster",
-                "kubeconf"
-              ]
+              "get_attribute": ["managed_cluster", "kubeconf"]
             }
           }
         },
@@ -392,10 +371,7 @@
         "client_config": {
           "configuration": {
             "file_content": {
-              "get_attribute": [
-                "managed_cluster",
-                "kubeconf"
-              ]
+              "get_attribute": ["managed_cluster", "kubeconf"]
             }
           }
         },
@@ -443,10 +419,7 @@
         "client_config": {
           "configuration": {
             "file_content": {
-              "get_attribute": [
-                "managed_cluster",
-                "kubeconf"
-              ]
+              "get_attribute": ["managed_cluster", "kubeconf"]
             }
           }
         },
@@ -512,12 +485,7 @@
             "executor": "central_deployment_agent",
             "inputs": {
               "kube_token": {
-                "get_attribute": [
-                  "secret",
-                  "kubernetes",
-                  "data",
-                  "token"
-                ]
+                "get_attribute": ["secret", "kubernetes", "data", "token"]
               }
             }
           }
@@ -630,5 +598,6 @@
         }
       }
     }
-  }
+  },
+  "tosca_definitions_version": "cloudify_dsl_1_3"
 }

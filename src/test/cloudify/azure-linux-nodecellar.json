@@ -1,6 +1,33 @@
 {
-  "tosca_definitions_version": "cloudify_dsl_1_3",
   "description": "This Blueprint installs the nodecellar application on an existing host.\n",
+  "dsl_definitions": {
+    "azure_config": {
+      "subscription_id": {
+        "get_input": "subscription_id"
+      },
+      "tenant_id": {
+        "get_input": "tenant_id"
+      },
+      "client_id": {
+        "get_input": "client_id"
+      },
+      "client_secret": {
+        "get_input": "client_secret"
+      }
+    }
+  },
+  "groups": {
+    "frontend": {
+      "members": [
+        "frontend_host_nic",
+        "frontend_host_nic_ip_cfg",
+        "frontend_public_ip",
+        "frontend_host",
+        "nodejs_app",
+        "nodecellar_app"
+      ]
+    }
+  },
   "imports": [
     "http://www.getcloudify.org/spec/cloudify/3.4/types.yaml",
     "http://www.getcloudify.org/spec/diamond-plugin/1.3.3/plugin.yaml",
@@ -113,151 +140,6 @@
     "webserver_port": {
       "description": "The external web server port",
       "default": 8080
-    }
-  },
-  "dsl_definitions": {
-    "azure_config": {
-      "subscription_id": {
-        "get_input": "subscription_id"
-      },
-      "tenant_id": {
-        "get_input": "tenant_id"
-      },
-      "client_id": {
-        "get_input": "client_id"
-      },
-      "client_secret": {
-        "get_input": "client_secret"
-      }
-    }
-  },
-  "node_types": {
-    "nodecellar.nodes.MonitoredServer": {
-      "derived_from": "cloudify.azure.nodes.compute.VirtualMachine",
-      "properties": {
-        "location": {
-          "default": {
-            "get_input": "location"
-          }
-        },
-        "retry_after": {
-          "default": {
-            "get_input": "retry_after"
-          }
-        },
-        "os_family": {
-          "default": {
-            "get_input": "vm_os_family"
-          }
-        },
-        "azure_config": {
-          "default": {
-            "subscription_id": {
-              "get_input": "subscription_id"
-            },
-            "tenant_id": {
-              "get_input": "tenant_id"
-            },
-            "client_id": {
-              "get_input": "client_id"
-            },
-            "client_secret": {
-              "get_input": "client_secret"
-            }
-          }
-        },
-        "resource_config": {
-          "default": {
-            "hardwareProfile": {
-              "vmSize": {
-                "get_input": "vm_size"
-              }
-            },
-            "storageProfile": {
-              "imageReference": {
-                "publisher": {
-                  "get_input": "vm_image_publisher"
-                },
-                "offer": {
-                  "get_input": "vm_image_offer"
-                },
-                "sku": {
-                  "get_input": "vm_image_sku"
-                },
-                "version": {
-                  "get_input": "vm_image_version"
-                }
-              }
-            },
-            "osProfile": {
-              "adminUsername": {
-                "get_input": "vm_os_username"
-              },
-              "adminPassword": {
-                "get_input": "vm_os_password"
-              },
-              "linuxConfiguration": {
-                "ssh": {
-                  "publicKeys": {
-                    "get_input": "vm_os_pubkeys"
-                  }
-                },
-                "disablePasswordAuthentication": {
-                  "get_input": "vm_os_pubkey_auth_only"
-                }
-              }
-            }
-          }
-        },
-        "agent_config": {
-          "default": {
-            "user": {
-              "get_input": "vm_os_username"
-            },
-            "password": {
-              "get_input": "vm_os_password"
-            },
-            "install_method": "remote"
-          }
-        }
-      },
-      "interfaces": {
-        "cloudify.interfaces.monitoring_agent": {
-          "install": {
-            "implementation": "diamond.diamond_agent.tasks.install",
-            "inputs": {
-              "diamond_config": {
-                "default": {
-                  "interval": 1
-                }
-              }
-            }
-          },
-          "start": "diamond.diamond_agent.tasks.start",
-          "stop": "diamond.diamond_agent.tasks.stop",
-          "uninstall": "diamond.diamond_agent.tasks.uninstall"
-        },
-        "cloudify.interfaces.monitoring": {
-          "start": {
-            "implementation": "diamond.diamond_agent.tasks.add_collectors",
-            "inputs": {
-              "collectors_config": {
-                "default": {
-                  "CPUCollector": {},
-                  "MemoryCollector": {},
-                  "LoadAverageCollector": {},
-                  "DiskUsageCollector": {
-                    "config": {
-                      "devices": "x?vd[a-z]+[0-9]*$"
-                    }
-                  },
-                  "NetworkCollector": {}
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "node_templates": {
@@ -495,10 +377,7 @@
                 "protocol": "Tcp",
                 "sourcePortRange": "*",
                 "destinationPortRange": {
-                  "get_property": [
-                    "nodecellar_app",
-                    "port"
-                  ]
+                  "get_property": ["nodecellar_app", "port"]
                 },
                 "sourceAddressPrefix": "*",
                 "destinationAddressPrefix": "*",
@@ -514,10 +393,7 @@
                 "protocol": "Tcp",
                 "sourcePortRange": "*",
                 "destinationPortRange": {
-                  "get_property": [
-                    "mongod_app",
-                    "port"
-                  ]
+                  "get_property": ["mongod_app", "port"]
                 },
                 "sourceAddressPrefix": "*",
                 "destinationAddressPrefix": "*",
@@ -803,16 +679,146 @@
       ]
     }
   },
-  "groups": {
-    "frontend": {
-      "members": [
-        "frontend_host_nic",
-        "frontend_host_nic_ip_cfg",
-        "frontend_public_ip",
-        "frontend_host",
-        "nodejs_app",
-        "nodecellar_app"
-      ]
+  "node_types": {
+    "nodecellar.nodes.MonitoredServer": {
+      "derived_from": "cloudify.azure.nodes.compute.VirtualMachine",
+      "properties": {
+        "location": {
+          "default": {
+            "get_input": "location"
+          }
+        },
+        "retry_after": {
+          "default": {
+            "get_input": "retry_after"
+          }
+        },
+        "os_family": {
+          "default": {
+            "get_input": "vm_os_family"
+          }
+        },
+        "azure_config": {
+          "default": {
+            "subscription_id": {
+              "get_input": "subscription_id"
+            },
+            "tenant_id": {
+              "get_input": "tenant_id"
+            },
+            "client_id": {
+              "get_input": "client_id"
+            },
+            "client_secret": {
+              "get_input": "client_secret"
+            }
+          }
+        },
+        "resource_config": {
+          "default": {
+            "hardwareProfile": {
+              "vmSize": {
+                "get_input": "vm_size"
+              }
+            },
+            "storageProfile": {
+              "imageReference": {
+                "publisher": {
+                  "get_input": "vm_image_publisher"
+                },
+                "offer": {
+                  "get_input": "vm_image_offer"
+                },
+                "sku": {
+                  "get_input": "vm_image_sku"
+                },
+                "version": {
+                  "get_input": "vm_image_version"
+                }
+              }
+            },
+            "osProfile": {
+              "adminUsername": {
+                "get_input": "vm_os_username"
+              },
+              "adminPassword": {
+                "get_input": "vm_os_password"
+              },
+              "linuxConfiguration": {
+                "ssh": {
+                  "publicKeys": {
+                    "get_input": "vm_os_pubkeys"
+                  }
+                },
+                "disablePasswordAuthentication": {
+                  "get_input": "vm_os_pubkey_auth_only"
+                }
+              }
+            }
+          }
+        },
+        "agent_config": {
+          "default": {
+            "user": {
+              "get_input": "vm_os_username"
+            },
+            "password": {
+              "get_input": "vm_os_password"
+            },
+            "install_method": "remote"
+          }
+        }
+      },
+      "interfaces": {
+        "cloudify.interfaces.monitoring_agent": {
+          "install": {
+            "implementation": "diamond.diamond_agent.tasks.install",
+            "inputs": {
+              "diamond_config": {
+                "default": {
+                  "interval": 1
+                }
+              }
+            }
+          },
+          "start": "diamond.diamond_agent.tasks.start",
+          "stop": "diamond.diamond_agent.tasks.stop",
+          "uninstall": "diamond.diamond_agent.tasks.uninstall"
+        },
+        "cloudify.interfaces.monitoring": {
+          "start": {
+            "implementation": "diamond.diamond_agent.tasks.add_collectors",
+            "inputs": {
+              "collectors_config": {
+                "default": {
+                  "CPUCollector": {},
+                  "MemoryCollector": {},
+                  "LoadAverageCollector": {},
+                  "DiskUsageCollector": {
+                    "config": {
+                      "devices": "x?vd[a-z]+[0-9]*$"
+                    }
+                  },
+                  "NetworkCollector": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "outputs": {
+    "endpoint": {
+      "description": "Web application endpoint",
+      "value": {
+        "ip_address": {
+          "get_attribute": ["frontend_host", "public_ip"]
+        },
+        "port": {
+          "get_property": ["nodecellar_app", "port"]
+        }
+      }
     }
   },
   "policies": {
@@ -821,28 +827,8 @@
       "properties": {
         "default_instances": 1
       },
-      "targets": [
-        "frontend"
-      ]
+      "targets": ["frontend"]
     }
   },
-  "outputs": {
-    "endpoint": {
-      "description": "Web application endpoint",
-      "value": {
-        "ip_address": {
-          "get_attribute": [
-            "frontend_host",
-            "public_ip"
-          ]
-        },
-        "port": {
-          "get_property": [
-            "nodecellar_app",
-            "port"
-          ]
-        }
-      }
-    }
-  }
+  "tosca_definitions_version": "cloudify_dsl_1_3"
 }
