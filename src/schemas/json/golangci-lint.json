@@ -130,6 +130,7 @@
         "G111",
         "G112",
         "G113",
+        "G114",
         "G201",
         "G202",
         "G203",
@@ -211,6 +212,7 @@
             "depguard",
             "dogsled",
             "dupl",
+            "dupword",
             "durationcheck",
             "errcheck",
             "errchkjson",
@@ -250,9 +252,11 @@
             "ifshort",
             "importas",
             "ineffassign",
+            "interfacebloat",
             "interfacer",
             "ireturn",
             "lll",
+            "loggercheck",
             "maintidx",
             "makezero",
             "maligned",
@@ -271,6 +275,7 @@
             "prealloc",
             "predeclared",
             "promlinter",
+            "reassign",
             "revive",
             "rowserrcheck",
             "scopelint",
@@ -280,6 +285,7 @@
             "stylecheck",
             "tagliatelle",
             "tenv",
+            "testableexamples",
             "testpackage",
             "thelper",
             "tparallel",
@@ -287,6 +293,7 @@
             "unconvert",
             "unparam",
             "unused",
+            "usestdlibvars",
             "varcheck",
             "varnamelen",
             "wastedassign",
@@ -474,6 +481,20 @@
       "description": "All available settings of specific linters.",
       "type": "object",
       "properties": {
+        "dupword": {
+          "type": "object",
+          "properties": {
+            "keywords": {
+              "description": "Keywords for detecting duplicate words. If this list is not empty, only the words defined in this list will be detected.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "examples": ["the", "and", "a"]
+              }
+            }
+          }
+        },
         "asasalint": {
           "type": "object",
           "properties": {
@@ -771,8 +792,27 @@
         "exhaustive": {
           "type": "object",
           "properties": {
+            "check": {
+              "description": "Program elements to check for exhaustiveness.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "examples": ["switch", "map"]
+              }
+            },
             "check-generated": {
               "description": "Check switch statements in generated files",
+              "type": "boolean",
+              "default": false
+            },
+            "explicit-exhaustive-switch": {
+              "description": "Only run exhaustive check on switches with \"//exhaustive:enforce\" comment.",
+              "type": "boolean",
+              "default": false
+            },
+            "explicit-exhaustive-map": {
+              "description": "Only run exhaustive check on map literals with \"//exhaustive:enforce\" comment.",
               "type": "boolean",
               "default": false
             },
@@ -879,6 +919,11 @@
               "description": "Skip generated files.",
               "type": "boolean",
               "default": true
+            },
+            "custom-order": {
+              "description": "Enable custom order of sections.",
+              "type": "boolean",
+              "default": false
             }
           }
         },
@@ -1040,6 +1085,31 @@
               "description": "Simplify code.",
               "type": "boolean",
               "default": true
+            },
+            "rewrite-rules": {
+              "description": "Apply the rewrite rules to the source before reformatting.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pattern": {
+                    "type": "string"
+                  },
+                  "replacement": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "interfacebloat": {
+          "type": "object",
+          "properties": {
+            "max": {
+              "description": "The maximum number of methods allowed for an interface.",
+              "type": "integer"
             }
           }
         },
@@ -1610,6 +1680,48 @@
             }
           }
         },
+        "loggercheck": {
+          "type": "object",
+          "properties": {
+            "kitlog": {
+              "description": "Allow check for the github.com/go-kit/log library.",
+              "type": "boolean",
+              "default": true
+            },
+            "klog": {
+              "description": "Allow check for the k8s.io/klog/v2 library.",
+              "type": "boolean",
+              "default": true
+            },
+            "logr": {
+              "description": "Allow check for the github.com/go-logr/logr library.",
+              "type": "boolean",
+              "default": true
+            },
+            "zap": {
+              "description": "Allow check for the \"sugar logger\" from go.uber.org/zap library.",
+              "type": "boolean",
+              "default": true
+            },
+            "require-string-key": {
+              "description": "Require all logging keys to be inlined constant strings.",
+              "type": "boolean",
+              "default": false
+            },
+            "no-printf-like": {
+              "description": "Require printf-like format specifier (%s, %d for example) not present.",
+              "type": "boolean",
+              "default": false
+            },
+            "rules": {
+              "description": "List of custom rules to check against, where each rule is a single logger pattern, useful for wrapped loggers.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
         "maligned": {
           "type": "object",
           "properties": {
@@ -1689,11 +1801,6 @@
               "type": "boolean",
               "default": true
             },
-            "allow-leading-space": {
-              "description": "Disable to ensure that nolint directives don't have a leading space.",
-              "type": "boolean",
-              "default": true
-            },
             "allow-no-explanation": {
               "description": "Exclude these linters from requiring an explanation.",
               "type": "array",
@@ -1711,6 +1818,17 @@
               "description": "Enable to require nolint directives to mention the specific linter being suppressed.",
               "type": "boolean",
               "default": false
+            }
+          }
+        },
+        "reassign": {
+          "type": "object",
+          "properties": {
+            "patterns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -2388,8 +2506,29 @@
               "minimum": 0,
               "default": 0
             },
-            "force-err-cuddling": {
-              "description": "Force cuddling of err checks with err var assignment.",
+            "allow-cuddle-with-calls": {
+              "description": "A list of call idents that everything can be cuddled with.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allow-cuddle-with-rhs": {
+              "description": "AllowCuddleWithRHS is a list of right hand side variables that is allowed to be cuddled with anything.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "error-variable-names": {
+              "description": "When enforce-err-cuddling is enabled this is a list of names used for error variables to check for in the conditional.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "enforce-err-cuddling": {
+              "description": "Causes an error when an If statement that checks an error variable doesn't cuddle with the assignment of that variable.",
               "type": "boolean",
               "default": false
             },
