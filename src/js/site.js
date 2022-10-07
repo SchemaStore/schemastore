@@ -28,10 +28,11 @@
         get(api, true, function (catalog) {
 
             p.innerHTML = p.innerHTML.replace("{0}", catalog.schemas.length);
+            let schemas = catalog.schemas.sort(function (a, b) { return a.name.localeCompare(b.name); });
 
-            for (let i = 0; i < catalog.schemas.length; i++) {
+            for (const element of schemas) {
 
-                let schema = catalog.schemas[i];
+                let schema = element;
                 let li = document.createElement("li");
                 let a = document.createElement("a");
                 a.href = schema.url;
@@ -47,14 +48,3 @@
     }
 
 }(typeof window !== 'undefined' ? window : this));
-
-
-(function (i, s, o, g, r, a, m) {
-    i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-        (i[r].q = i[r].q || []).push(arguments);
-    }, i[r].l = 1 * new Date(); a = s.createElement(o),
-    m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m);
-})(window, document, 'script', '//google-analytics.com/analytics.js', 'ga');
-
-ga('create', 'UA-51110136-1', 'auto');
-ga('send', 'pageview');
