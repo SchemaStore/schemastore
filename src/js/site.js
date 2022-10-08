@@ -18,6 +18,8 @@
     let ul = document.querySelector("#schemalist ul");
     let p = document.getElementById("count");
     let schemas = document.getElementById("schemas");
+    let search = document.getElementById("search");
+    let data = [];
 
     if (!ul || !p)
         return;
@@ -28,33 +30,38 @@
         get(api, true, function (catalog) {
 
             p.innerHTML = p.innerHTML.replace("{0}", catalog.schemas.length);
+            data = catalog.schemas.sort(function (a, b) { return a.name.localeCompare(b.name); });
 
-            for (let i = 0; i < catalog.schemas.length; i++) {
-
-                let schema = catalog.schemas[i];
-                let li = document.createElement("li");
-                let a = document.createElement("a");
-                a.href = schema.url;
-                a.title = schema.description;
-                a.innerText = schema.name;
-
-                li.appendChild(a);
-                ul.appendChild(li);
-            }
-
-            ul.parentNode.style.maxHeight = "9999px";
+            populate(data);
         });
     }
 
+    function populate(data) {
+        for (const element of data) {
+
+            let schema = element;
+            let li = document.createElement("li");
+            let a = document.createElement("a");
+            a.href = schema.url;
+            a.title = schema.description;
+            a.innerText = schema.name;
+
+            li.appendChild(a);
+            ul.appendChild(li);
+        }
+    }
+
+    search.addEventListener("input", () => {
+        let value = search.value.toLowerCase();
+
+        setTimeout(() => {
+            if (value !== search.value.toLowerCase())
+                return;
+            
+            for (const li of ul.childNodes) {
+                li.style.display = li.innerText.toLowerCase().indexOf(value) > -1 ? "block" : "none";
+            }
+        }, 300);
+    }, false);
+
 }(typeof window !== 'undefined' ? window : this));
-
-
-(function (i, s, o, g, r, a, m) {
-    i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-        (i[r].q = i[r].q || []).push(arguments);
-    }, i[r].l = 1 * new Date(); a = s.createElement(o),
-    m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m);
-})(window, document, 'script', '//google-analytics.com/analytics.js', 'ga');
-
-ga('create', 'UA-51110136-1', 'auto');
-ga('send', 'pageview');
