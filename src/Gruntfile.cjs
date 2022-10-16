@@ -801,6 +801,20 @@ module.exports = function (grunt) {
     grunt.log.ok('No new fileMatch conflict detected.')
   })
 
+  grunt.registerTask('local_catalog-fileMatch-path', 'fileMatch patterns that include a directory separator should consistently start with **/', function () {
+    for (const schema of catalog.schemas) {
+      schema.fileMatch?.forEach(fileMatchItem => {
+        if (fileMatchItem.includes('/')) {
+          // A folder must start with **/
+          if (!fileMatchItem.startsWith('**/')) {
+            throwWithErrorText([`fileMatch with directory must start with "**/" => ${fileMatchItem}`])
+          }
+        }
+      })
+    }
+    grunt.log.ok('fileMatch path OK')
+  })
+
   grunt.registerTask('local_check_filename_extension', 'Dynamically check local schema/test file for filename extension', function () {
     const schemaFileExtension = ['.json']
     const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
@@ -1403,6 +1417,7 @@ module.exports = function (grunt) {
       'local_check_for_test_folders_without_schema_to_be_tested',
       'local_tv4_validator_cannot_have_negative_test',
       'local_catalog',
+      'local_catalog-fileMatch-path',
       'local_catalog-fileMatch-conflict',
       'local_url-present-in-catalog',
       'local_schema-present-in-catalog-list',
