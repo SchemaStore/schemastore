@@ -23,6 +23,145 @@
       "description": "The number of seconds to repeat the probe",
       "default": 10
     },
+    "postgres": {
+      "title": "Postgres",
+      "type": "array",
+      "description": "Monitor postgres readiness",
+      "items": {
+        "type": "object",
+        "anyOf": [
+          {
+            "required": ["uri"],
+            "additionalProperties": false,
+            "properties": {
+              "uri": {
+                "title": "URI connection",
+                "type": "string",
+                "description": "Postgres uri connection configuration",
+                "examples": ["postgres://user:password@172.1.0.1:5432/mydb"]
+              }
+            }
+          },
+          {
+            "required": ["host", "port", "database"],
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "Postgres host address to connect to",
+                "default": "172.15.0.1"
+              },
+              "port": {
+                "title": "Port",
+                "type": "integer",
+                "description": "Postgres port to connect to",
+                "default": "5432"
+              },
+              "database": {
+                "title": "Database",
+                "type": "string",
+                "description": "Name of the database",
+                "default": ""
+              },
+              "username": {
+                "title": "Username",
+                "type": "string",
+                "description": "Username with access to the database",
+                "default": ""
+              },
+              "password": {
+                "title": "Password",
+                "type": "string",
+                "description": "User's database password",
+                "default": ""
+              }
+            }
+          }
+        ]
+      }
+    },
+    "redis": {
+      "title": "Redis",
+      "type": "array",
+      "description": "Monitor redis health ",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["host", "port"],
+        "properties": {
+          "host": {
+            "title": "Redis host",
+            "description": "The hostname or IP address of the redis server",
+            "type": "string",
+            "default": "172.15.0.1",
+            "examples": ["localhost", "192.168.0.1"]
+          },
+          "port": {
+            "title": "Port number",
+            "description": "Port number used for the redis",
+            "type": "integer",
+            "default": "6379"
+          },
+          "password": {
+            "title": "Password",
+            "description": "Password used for the redis AUTH, if set.",
+            "type": "string",
+            "default": ""
+          },
+          "username": {
+            "title": "Username",
+            "description": "Username used for the redis AUTH, if set.",
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
+    "mongo": {
+      "title": "MongoDB",
+      "type": "array",
+      "description": "Monitor MongoDB health ",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [],
+        "properties": {
+          "uri": {
+            "title": "MongoDB URI",
+            "description": "The hostname or IP address of the MongoDB server",
+            "type": "string",
+            "examples": ["mongodb://user:password@127.0.0.1:27017/database"],
+            "default": "mongodb://127.0.0.1:27017"
+          },
+          "host": {
+            "title": "MongoDB host",
+            "description": "The hostname or IP address of the MongoDB server",
+            "type": "string",
+            "examples": ["localhost", "127.0.0.1"],
+            "default": "0.0.0.0.0"
+          },
+          "port": {
+            "title": "Port number",
+            "description": "Port number used for the MongoDB",
+            "type": "integer",
+            "examples": ["27017"],
+            "default": "27017"
+          },
+          "password": {
+            "title": "Password",
+            "description": "Password used for the MongoDB AUTH, if set.",
+            "type": "string",
+            "default": ""
+          },
+          "username": {
+            "title": "Username",
+            "description": "Username used for the MongoDB AUTH, if set.",
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
     "requests": {
       "title": "Requests",
       "type": "array",
@@ -66,6 +205,11 @@
             "type": "boolean",
             "description": "If defined and to true, the request is an ICMP ping"
           },
+          "allowUnauthorized": {
+            "title": "AllowUnauthorized",
+            "type": "boolean",
+            "description": "If defined and to true, the request will ignore SSL certificate validity"
+          },
           "body": {
             "$ref": "#/definitions/body"
           },
@@ -106,10 +250,10 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "query": {
-            "title": "Query",
+          "assertion": {
+            "title": "Assertion",
             "type": "string",
-            "description": "An expression that will trigger an alert when its is logically true. See the queries here: https://monika.hyperjump.tech/guides/alerts#alert-query",
+            "description": "An expression that will trigger an alert when its is logically true. See the assertions here: https://monika.hyperjump.tech/guides/alerts#alert-query",
             "default": "response.status != 200"
           },
           "message": {
@@ -119,7 +263,7 @@
             "default": "Http Response status code is not 200!"
           }
         },
-        "required": ["query", "message"]
+        "required": ["assertion", "message"]
       }
     },
     "body": {
@@ -217,6 +361,15 @@
           },
           "interval": {
             "$ref": "#/definitions/interval"
+          },
+          "postgres": {
+            "$ref": "#/definitions/postgres"
+          },
+          "redis": {
+            "$ref": "#/definitions/redis"
+          },
+          "mongo": {
+            "$ref": "#/definitions/mongo"
           },
           "requests": {
             "$ref": "#/definitions/requests"
@@ -633,6 +786,38 @@
             }
           },
           {
+            "title": "Statuspage",
+            "type": "object",
+            "required": ["id", "type", "data"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Notification identity number",
+                "default": "statuspage"
+              },
+              "type": {
+                "const": "statuspage"
+              },
+              "data": {
+                "type": "object",
+                "description": "Data for your payload",
+                "additionalProperties": false,
+                "required": ["pageID", "apiKey"],
+                "properties": {
+                  "apiKey": {
+                    "type": "string",
+                    "description": "Statuspage API key"
+                  },
+                  "pageID": {
+                    "type": "string",
+                    "description": "Statuspage page ID "
+                  }
+                }
+              }
+            }
+          },
+          {
             "title": "Telegram",
             "type": "object",
             "required": ["id", "type", "data"],
@@ -791,6 +976,38 @@
                   "user": {
                     "type": "string",
                     "description": "Pushover user key"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "Gotify",
+            "type": "object",
+            "required": ["id", "type", "data"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique Gotify notification id",
+                "default": "Gotify-01"
+              },
+              "type": {
+                "const": "gotify"
+              },
+              "data": {
+                "type": "object",
+                "description": "Data for your payload",
+                "additionalProperties": false,
+                "required": ["token", "url"],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Gotify application token"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Gotify base url"
                   }
                 }
               }
