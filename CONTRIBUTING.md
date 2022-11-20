@@ -52,7 +52,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 - Don't end `title`/`description` values with colon.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
-[base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
+[base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
