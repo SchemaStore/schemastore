@@ -39,7 +39,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 
 ✔️ **Use** the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
 
-✔️ **Use** [`base.json`][base] schema with some common types for all schemas.
+✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
 
 :x: **Don't forget** add test files.
 
@@ -52,6 +52,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 - Don't end `title`/`description` values with colon.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
+[base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 
 ### Adding tests (for [local schemas](src/schemas/json) only)
 
