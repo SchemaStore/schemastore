@@ -44,11 +44,29 @@ extraMetrics:
   hw.site.pue_ratio: 1.8
   # Power Usage Effectiveness. A ratio describing how efficiently a computer data center uses energy. The ideal ratio is 1.
 
+# Sets Hardware Sentry's internal Exporter configuration
 exporter:
   otlp:
     headers:
       Authorization: token
     trustedCertificatesFile: security/otel.crt
+    endpoint: https://localhost:4317
+
+# Customizes the OpenTelemetry Collector sub-process
+otelCollector:
+  commandLine:
+    [
+      "/opt/hws/otel/otelcol",
+      "--config",
+      "/opt/hws/otel/otel-config.yaml",
+      "--feature-gates=pkg.translator.prometheus.NormalizeName",
+    ]
+  environment:
+    HTTPS_PROXY: "https://my-proxy.local.net"
+    NO_WINDOWS_SERVICE: 1
+  output: log
+  workingDir: /opt/hws/otel
+  disabled: false
 
 hosts:
   # Some templates can be found below:
@@ -205,3 +223,37 @@ hosts:
       port: 5985
       protocol: http
       authentications: [ntlm, kerberos]
+
+  #═══════════════════════════════════════════════════
+  # Host Group array SNMP v1 protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - hostGroup:
+      hostnames: [server-12, server-13]
+      type: network
+    snmp:
+      version: v1
+      community: public
+      port: 161
+      timeout: 120s
+
+  #═══════════════════════════════════════════════════
+  # Host Group object SNMP v2c protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - hostGroup:
+      hostnames:
+        server-14:
+          extraLabels:
+            host.name: server-14.local.net
+            host.id: server-14.local.net
+        server-15:
+          extraLabels:
+            host.name: server-15.local.net
+            host.id: server-15.local.net
+      type: storage
+    snmp:
+      version: v2c
+      community: public
+      port: 161
+      timeout: 120s
