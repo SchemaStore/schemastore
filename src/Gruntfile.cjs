@@ -689,20 +689,23 @@ module.exports = function (grunt) {
     }
   })
 
-  grunt.registerTask('local_find-duplicated-property-keys', 'Dynamically load local test file for validation', function () {
+  grunt.registerTask('local_find-duplicated-property-keys', 'Dynamically load local JSON file for validation', function () {
     const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
     let countScan = 0
     const findDuplicatedProperty = (callbackParameter) => {
       countScan++
       let result
+      // Can only test JSON files for duplicates.
+      const fileExtension = callbackParameter.urlOrFilePath.split('.').pop()
+      if (fileExtension !== 'json') return
       try {
-        result = findDuplicatedPropertyKeys(JSON.stringify(callbackParameter.jsonObj))
+        result = findDuplicatedPropertyKeys(callbackParameter.rawFile.toString())
       } catch (e) {
         throwWithErrorText([`Test file: ${callbackParameter.urlOrFilePath}`, e])
       }
       if (result.length > 0) {
         const errorText = []
-        errorText.push(`Duplicated key found in: ${callbackParameter.urlOrFilePath}`)
+        errorText.push(`Duplicate key found in: ${callbackParameter.urlOrFilePath}`)
         for (const issue of result) {
           errorText.push(`${issue.key} <= This duplicate key is found. occurrence :${issue.occurrence.toString()}`)
         }
@@ -710,8 +713,8 @@ module.exports = function (grunt) {
         throwWithErrorText(errorText)
       }
     }
-    localSchemaFileAndTestFile({ positiveTestScan: findDuplicatedProperty, negativeTestScan: findDuplicatedProperty }, { skipReadFile: false })
-    grunt.log.ok(`No duplicated property key found in test files. Total files scan: ${countScan}`)
+    localSchemaFileAndTestFile({ schemaForTestScan: findDuplicatedProperty, positiveTestScan: findDuplicatedProperty, negativeTestScan: findDuplicatedProperty }, { skipReadFile: false })
+    grunt.log.ok(`No duplicated property key found in JSON files. Total files scan: ${countScan}`)
   })
 
   grunt.registerTask('local_url-present-in-catalog', 'local url must reference to a file', function () {
