@@ -59,7 +59,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 To make sure that files are validated against your schema correctly (we strongly suggest adding at least one before creating a pull request):
 
 1. Create a subfolder in [`src/test`](src/test) named as your schema file
-2. Create one or more `.json, .yml, .yaml or toml` files in that folder
+2. Create one or more `.json`, `.yml`, `.yaml` or `toml` files in that folder
 
 #### Adding negative tests
 
