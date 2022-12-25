@@ -7,7 +7,7 @@ You can contribute in a variety of ways. For a detailed tutorial, read [Scott Ad
 3. Modify/update existing schema files
 
 [Versioning of schema](https://github.com/SchemaStore/schemastore/issues/197#issuecomment-229690162) files are handled by modifying the file name to include
-the version number: *myschema-1.2.json*
+the version number: _myschema-1.2.json_
 
 When uploading a new schema file, make sure it targets a file that is commonly
 used or has potential for broad uptake.
@@ -26,12 +26,10 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 
 ```json
 {
-    "name": "Friendly schema name",
-    "description": "Schema description",
-    "fileMatch": [
-        "list of well-known filenames matching schema"
-    ],
-    "url": "https://json.schemastore.org/<schemaName>.json"
+  "description": "Schema description",
+  "fileMatch": ["list of well-known filenames matching schema"],
+  "name": "Friendly schema name",
+  "url": "https://json.schemastore.org/<schemaName>.json"
 }
 ```
 
@@ -84,7 +82,7 @@ If you wish to retain full control over your schema definition, simply register 
 - `schema_y.json` must have `id` or `$id` with this value `"https://json.schemastore.org/schema_y.json"`
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
 - In [schema-validation.json](src/schema-validation.json), in `"options": []` list add
- `"schema_x.json": {"externalSchema": ["schema_y.json"]}`
+  `"schema_x.json": {"externalSchema": ["schema_y.json"]}`
 
 ### JSON formatter
 
