@@ -1285,17 +1285,28 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_for_schema_version_present',
+    'local_assert_schema_version_is_valid',
     'Dynamically load schema file for $schema present check',
     function () {
       let countScan = 0
+
       localSchemaFileAndTestFile(
         {
-          schemaOnlyScan(callbackParameter) {
+          schemaOnlyScan(data) {
             countScan++
-            if (!('$schema' in callbackParameter.jsonObj)) {
+
+            if (
+              ![
+                'http://json-schema.org/draft-03/schema#',
+                'http://json-schema.org/draft-04/schema#',
+                'http://json-schema.org/draft-06/schema#',
+                'http://json-schema.org/draft-07/schema#',
+                'https://json-schema.org/draft/2019-09/schema',
+                'https://json-schema.org/draft/2020-12/schema',
+              ].includes(data.jsonObj.$schema)
+            ) {
               throwWithErrorText([
-                `Schema file is missing '$schema' keyword => ${callbackParameter.jsonName}`,
+                `Schema file has invalid or missing '$schema' keyword => ${data.jsonName}`,
               ])
             }
           },
@@ -1305,6 +1316,7 @@ module.exports = function (grunt) {
           skipReadFile: false,
         }
       )
+
       grunt.log.ok(`Total files scan: ${countScan}`)
     }
   )
@@ -1820,7 +1832,7 @@ module.exports = function (grunt) {
     'local_schema-present-in-catalog-list',
     'local_bom',
     'local_find-duplicated-property-keys',
-    'local_check_for_schema_version_present',
+    'local_assert_schema_version_is_valid',
     'local_check_for_schema_version_too_high',
     'local_count_url_in_catalog',
     'local_count_schema_versions',
