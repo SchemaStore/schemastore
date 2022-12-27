@@ -36,7 +36,7 @@ const countSchemasType = [
 module.exports = function (grunt) {
   'use strict'
 
-  function skipThisFileName(name) {
+  function skipThisFileName(/** @type {string} */ name) {
     // This macOS file must always be ignored.
     return name === '.DS_Store'
   }
@@ -68,6 +68,9 @@ module.exports = function (grunt) {
     throw new Error('See error message above this line.')
   }
 
+  /**
+   * @param {CbParamFn} schemaOnlyScan
+   */
   async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
     const axios = require('axios').default
     const schemas = catalog.schemas
@@ -108,6 +111,45 @@ module.exports = function (grunt) {
     }
   }
 
+  /**
+   * @typedef {Object} CbParam
+   * @prop {Buffer | undefined} rawFile
+   * @prop {Record<string, unknown>} jsonObj
+   * @prop {string} jsonName
+   * @prop {string} urlorFilePath
+   * @prop {boolean} schemaScan
+   */
+
+  /**
+   * @callback CbParamFn
+   * @param {CbParam}
+   */
+
+  /**
+   * @typedef {Object} localSchemaFileAndTestFileParameter1
+   * @prop {CbParamFn} schemaOnlyScan
+   * @prop {CbParamFn} schemaOnlyScanDone
+   * @prop {CbParamFn} schemaForTestScan
+   * @prop {CbParamFn} schemaForTestScanDone
+   * @prop {CbParamFn} positiveTestScan
+   * @prop {CbParamFn} positiveTestScanDone
+   * @prop {CbParamFn} negativeTestScan
+   * @prop {CbParamFn} negativeTestScanDone
+   */
+
+  /**
+   * @typedef {Object} localSchemaFileAndTestFileParameter2
+   * @prop {boolean} fullScanAllFiles
+   * @prop {boolean} calledByTV4Validator
+   * @prop {boolean} skipReadFile
+   * @prop {boolean} fullScanAllFiles
+   * @prop {string} processOnlyThisOneSchemaFile
+   */
+
+  /**
+   * @param {localSchemaFileAndTestFileParameter1}
+   * @param {localSchemaFileAndTestFileParameter2}
+   */
   function localSchemaFileAndTestFile(
     {
       schemaOnlyScan = undefined,
@@ -334,6 +376,9 @@ module.exports = function (grunt) {
     schemaForTestScanDone?.()
   }
 
+  /**
+   * @param {CbParam} callbackParameter
+   */
   function testSchemaFileForBOM(callbackParameter) {
     // JSON schema file must not have any BOM type
     const buffer = callbackParameter.rawFile
@@ -371,7 +416,8 @@ module.exports = function (grunt) {
 
     let schemaToBeValidated
     let countSchema = 0
-    const processSchemaFile = (callbackParameter) => {
+
+    const processSchemaFile = (/** @type {CbParam} */ callbackParameter) => {
       // Start validate the JSON schema
       let validated
       let versionObj
@@ -414,7 +460,9 @@ module.exports = function (grunt) {
       countSchema = 0
     }
 
-    const processPositiveTestFile = (callbackParameter) => {
+    const processPositiveTestFile = (
+      /** @type {CbParam} */ callbackParameter
+    ) => {
       const testFile = callbackParameter.jsonObj
       const validated = tv4.validate(testFile, schemaToBeValidated)
       if (tv4.missing.length > 0) {
@@ -466,13 +514,18 @@ module.exports = function (grunt) {
   }
 
   /**
+   * @typedef {Object} FactoryAJVParameter
+   * @prop {string} schemaName
+   * @prop {string[]} unknownFormatsList
+   * @prop {boolean} fullStrictMode
+   * @prop {boolean} standAloneCode
+   * @prop {string[]} standAloneCodeWithMultipleSchema
+   */
+
+  /**
    * There are multiple AJV version for each $schema version.
    * return the correct AJV instance
-   * @param {string} schemaName
-   * @param {string[]} unknownFormatsList
-   * @param {boolean} fullStrictMode
-   * @param {boolean} standAloneCode
-   * @param {string[]} standAloneCodeWithMultipleSchema
+   * @param {FactoryAJVParameter} schemaName
    * @returns {Object}
    */
   function factoryAJV({
@@ -546,13 +599,16 @@ module.exports = function (grunt) {
   }
 
   /**
+   * @typedef {Object} getOptionReturn
+   * @prop {string[]} unknownFormatsList
+   * @prop {string[]} externalSchemaWithPathList
+   * @prop {string[]} unknownKeywordsList
+   */
+
+  /**
    * Get the option items for this specific jsonName
    * @param {string} jsonName
-   * @returns {
-   * {unknownFormatsList: string[],
-   * externalSchemaWithPathList: string[],
-   * unknownKeywordsList: string[]}
-   * }
+   * @returns {getOptionReturn}
    */
   function getOption(jsonName) {
     const options = schemaValidation.options.find((item) => jsonName in item)?.[
@@ -593,7 +649,7 @@ module.exports = function (grunt) {
     let validate
     let countSchema = 0
 
-    const processSchemaFile = (callbackParameter) => {
+    const processSchemaFile = (/** @type {CbParam} */ callbackParameter) => {
       let ajvSelected
 
       // Get possible options define in schema-validation.json
@@ -659,7 +715,9 @@ module.exports = function (grunt) {
       validate(callbackParameter.jsonObj) ? success() : failure()
     }
 
-    const processPositiveTestFile = (callbackParameter) => {
+    const processPositiveTestFile = (
+      /** @type {CbParam} */ callbackParameter
+    ) => {
       processTestFile(
         callbackParameter,
         () => {
@@ -679,7 +737,9 @@ module.exports = function (grunt) {
       )
     }
 
-    const processNegativeTestFile = (callbackParameter) => {
+    const processNegativeTestFile = (
+      /** @type {CbParam} */ callbackParameter
+    ) => {
       processTestFile(
         callbackParameter,
         () => {
@@ -823,7 +883,9 @@ module.exports = function (grunt) {
     function () {
       const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
       let countScan = 0
-      const findDuplicatedProperty = (callbackParameter) => {
+      const findDuplicatedProperty = (
+        /** @type {CbParam} */ callbackParameter
+      ) => {
         countScan++
         let result
         // Can only test JSON files for duplicates.
@@ -1103,8 +1165,12 @@ module.exports = function (grunt) {
     function () {
       const countSchemas = countSchemasType
       let countScan = 0
-      let option
 
+      /**
+       * @param {string} schemaJson
+       * @param {string} schemaName
+       * @param {getOptionReturn} option
+       */
       const validateViaAjv = (schemaJson, schemaName, option) => {
         try {
           const ajvSelected = factoryAJV({
@@ -1132,7 +1198,9 @@ module.exports = function (grunt) {
 
       // There are no positive or negative test processes here.
       // Only the schema files are tested.
-      const testLowerSchemaVersion = (callbackParameter) => {
+      const testLowerSchemaVersion = (
+        /** @type {CbParam} */ callbackParameter
+      ) => {
         countScan++
         let versionIndexOriginal = 0
         const schemaJson = callbackParameter.jsonObj
@@ -1142,7 +1210,7 @@ module.exports = function (grunt) {
           return
         }
 
-        option = getOption(callbackParameter.jsonName)
+        const option = getOption(callbackParameter.jsonName)
 
         // get the present schema_version
         const schemaVersion = schemaJson.$schema
@@ -1222,7 +1290,7 @@ module.exports = function (grunt) {
 
     return {
       getObj: getObj_,
-      process_data: (callbackParameter) => {
+      process_data: (/** @type {CbParam} */ callbackParameter) => {
         let obj
         try {
           obj = getObj_(callbackParameter.jsonObj)
@@ -1616,7 +1684,9 @@ module.exports = function (grunt) {
         let validations
 
         // Compile JSON schema to javascript and write it to disk.
-        const processSchemaFile = (callbackParameter) => {
+        const processSchemaFile = (
+          /** @type {CbParam} */ callbackParameter
+        ) => {
           jsonName = callbackParameter.jsonName
           // Get possible options define in schema-validation.json
           const {
@@ -1688,7 +1758,7 @@ module.exports = function (grunt) {
 
         // Load the Javascript file from the disk and run it with the JSON test file.
         // This will generate the NodeJS coverage data in the background.
-        const processTestFile = (callbackParameter) => {
+        const processTestFile = (/** @type {CbParam} */ callbackParameter) => {
           // Test only for the code coverage. Not for the validity of the test.
           if (isThisWithExternalSchema) {
             // Must use the root $id/id to call the correct schema JavaScript code
@@ -1736,7 +1806,9 @@ module.exports = function (grunt) {
       const schemaVersion = showSchemaVersions()
       const schemaInFullStrictMode = []
       const schemaInNotStrictMode = []
-      const checkIfThisSchemaIsAlreadyInStrictMode = (callbackParameter) => {
+      const checkIfThisSchemaIsAlreadyInStrictMode = (
+        /** @type {CbParam} */ callbackParameter
+      ) => {
         const schemaJsonName = callbackParameter.jsonName
         const {
           unknownFormatsList,
