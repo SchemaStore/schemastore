@@ -43,7 +43,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 
 - Always be consistent across your schema: order properties and describe in the one style.
 - Always use `$comment` to note about something to developers. You can refer to some issues here.
-- Always  use `title` when property type is an object to enhance editor experience which use
+- Always use `title` when property type is an object to enhance editor experience which use
   this property to show errors (like VS Code).
 - Always use `description`, `type`, `additionalProperties`.
   - Always set `additionalProperties` to `false` until documentation permits
