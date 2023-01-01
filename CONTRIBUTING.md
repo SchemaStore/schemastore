@@ -49,6 +49,8 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
   - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
 - Use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
+- Use lower case with spaces between words for `title`-s to make expected object
+  values look more like types in programming languages.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
