@@ -1363,18 +1363,18 @@ module.exports = function (grunt) {
           schemaOnlyScan(data) {
             countScan++
 
-            if (
-              ![
-                'http://json-schema.org/draft-03/schema#',
-                'http://json-schema.org/draft-04/schema#',
-                'http://json-schema.org/draft-06/schema#',
-                'http://json-schema.org/draft-07/schema#',
-                'https://json-schema.org/draft/2019-09/schema',
-                'https://json-schema.org/draft/2020-12/schema',
-              ].includes(data.jsonObj.$schema)
-            ) {
+            const validSchemas = [
+              'http://json-schema.org/draft-03/schema#',
+              'http://json-schema.org/draft-04/schema#',
+              'http://json-schema.org/draft-06/schema#',
+              'http://json-schema.org/draft-07/schema#',
+              'https://json-schema.org/draft/2019-09/schema',
+              'https://json-schema.org/draft/2020-12/schema',
+            ]
+            if (!validSchemas.includes(data.jsonObj.$schema)) {
               throwWithErrorText([
                 `Schema file has invalid or missing '$schema' keyword => ${data.jsonName}`,
+                `Valid schemas: ${JSON.stringify(validSchemas)}`,
               ])
             }
           },
