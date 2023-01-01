@@ -53,6 +53,10 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 - Don't end `title`/`description` values with colon.
 - Use lower case with spaces between words for `title`-s to make expected object
   values look more like types in programming languages.
+- Always explicitly state whether some setting is global for some tool or local
+  for a project created with this tool. For instance if some settings is local
+  then add `for the current <project-type>` at the end of the `description` like
+  `Whether to ignore a theme configuration for the current site` for `Jekyll`.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
