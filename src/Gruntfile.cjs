@@ -8,8 +8,10 @@ const Ajv2020 = require('ajv/dist/2020')
 const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
+const prettier = require('prettier')
 const pt = require('path')
 const fs = require('fs')
+
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
 const testPositiveDir = 'test'
@@ -1759,10 +1761,15 @@ module.exports = function (grunt) {
             )
           }
 
-          // Write the javascript module code to file + 'js-beautify' it
+          // Prettify the JavaScript module code
+          const prettierOptions = prettier.resolveConfig.sync(process.cwd())
           fs.writeFileSync(
             javaScriptCoverageNameWithPath,
-            require('js-beautify').js(moduleCode, { indent_size: 2 })
+            prettier.format(moduleCode, {
+              ...prettierOptions,
+              parser: 'babel',
+              printWidth: 200,
+            })
           )
           // Now use this JavaScript as validation in the positive and negative test
           validations = require(javaScriptCoverageNameWithPath)
