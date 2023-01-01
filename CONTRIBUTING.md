@@ -41,17 +41,17 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 
 :x: **Don't forget** add test files.
 
-- Be consistent across your schema: order properties and describe in the one style.
-- Use `$comment` to note about something to developers. You can refer to some issues here.
-- Use `title` when property type is an object to enhance editor experience which use
+- Always be consistent across your schema: order properties and describe in the one style.
+- Always use `$comment` to note about something to developers. You can refer to some issues here.
+- Always  use `title` when property type is an object to enhance editor experience which use
   this property to show errors (like VS Code).
 - Always use `description`, `type`, `additionalProperties`.
   - Always set `additionalProperties` to `false` until documentation permits
     additional properties explicitly. That tool the JSON schema is created for
     can be changed in the future to allow wrong extra properties.
-- Use `minLength`/`maxLength`/`pattern`/etc for property values.
+- Always use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
-- Use lower case with spaces between words for `title`-s to make expected object
+- Always use lower case with spaces between words for `title`-s to make expected object
   values look more like types in programming languages.
 - Always explicitly state whether some setting is global for some tool or local
   for a project created with this tool. For instance if some settings is local
