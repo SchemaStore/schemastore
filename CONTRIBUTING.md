@@ -46,7 +46,9 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 - Use `title` when property type is an object to enhance editor experience which use
   this property to show errors (like VS Code).
 - Always use `description`, `type`, `additionalProperties`.
-  - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
+  - Always set `additionalProperties` to `false` until documentation permits
+    additional properties explicitly. That tool the JSON schema is created for
+    can be changed in the future to allow wrong extra properties.
 - Use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
 - Use lower case with spaces between words for `title`-s to make expected object
