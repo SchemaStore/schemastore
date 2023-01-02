@@ -1,15 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Google Cloud Workflows config file",
-  "description": "Orchestrate Workflows consisting of Google Cloud APIs, SaaS APIs or private API endpoints.",
   "anyOf": [
     {
       "description": "A list of steps.",
       "$ref": "#/definitions/stepArray"
     },
     {
+      "type": "object",
       "description": "A map of subworkflows.",
-      "minItems": 1,
+      "minProperties": 1,
       "additionalProperties": false,
       "patternProperties": {
         "^.*$": {
@@ -21,6 +20,7 @@
   ],
   "definitions": {
     "subworkflow": {
+      "type": "object",
       "description": "A subworkflow.",
       "additionalProperties": false,
       "properties": {
@@ -42,9 +42,10 @@
       "description": "An array of objects with a single step.",
       "minItems": 1,
       "items": {
+        "type": "object",
         "description": "An object with a single step.",
-        "minItems": 1,
-        "maxItems": 1,
+        "minProperties": 1,
+        "maxProperties": 1,
         "additionalProperties": false,
         "patternProperties": {
           "^.*$": {
@@ -55,6 +56,7 @@
       }
     },
     "step": {
+      "type": "object",
       "description": "A single workflow step.",
       "additionalProperties": false,
       "properties": {
@@ -64,31 +66,31 @@
             {
               "description": "Use `http.get`, `http.post`, or `http.request` for HTTP requests.",
               "type": "string",
-              "enum": [
-                "http.get",
-                "http.post",
-                "http.request",
-                "sys.sleep"
-              ]
-            }, {
+              "enum": ["http.get", "http.post", "http.request", "sys.sleep"]
+            },
+            {
               "description": "A name of a subworkflow within this workflow, or a connector.",
               "type": "string"
             }
           ]
         },
         "args": {
+          "type": "object",
           "description": "Arguments to a workflow step.",
           "additionalProperties": false,
           "properties": {
             "url": {
-              "anyOf": [{
-                "type": "string",
-                "description": "Required. URL where the request is sent.",
-                "format": "uri"
-              }, {
-                "type": "string",
-                "description": "Required. An expression that resultvs to a URL where the request is sent."
-              }]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "Required. URL where the request is sent.",
+                  "format": "uri"
+                },
+                {
+                  "type": "string",
+                  "description": "Required. An expression that resultvs to a URL where the request is sent."
+                }
+              ]
             },
             "method": {
               "type": "string",
@@ -118,6 +120,7 @@
               "description": "Request query parameters."
             },
             "auth": {
+              "type": "object",
               "description": "Required if the API being called requires authentication.",
               "additionalProperties": false,
               "properties": {
@@ -141,9 +144,10 @@
           "type": "array",
           "description": "Define a dictionary.",
           "items": {
+            "type": "object",
             "description": "A single variable assignment.",
-            "minItems": 1,
-            "maxItems": 1
+            "minProperties": 1,
+            "maxProperties": 1
           }
         },
         "result": {
@@ -154,6 +158,7 @@
           "type": "array",
           "description": "A switch block.",
           "items": {
+            "type": "object",
             "additionalProperties": false,
             "properties": {
               "condition": {
@@ -193,6 +198,7 @@
           "$ref": "#/definitions/step"
         },
         "retry": {
+          "type": "object",
           "description": "Optional. If omitted, all other fields are required. Options include ${http.default_retry} and ${http.default_retry_non_idempotent}. Allows you to specify a default retry policy to use. If you specify a retry policy, omit all other fields in the retry block.",
           "additionalProperties": false,
           "properties": {
@@ -205,6 +211,7 @@
               "description": "Maximum number of times a step will be retried."
             },
             "backoff": {
+              "type": "object",
               "description": "Block that controls how retries occur.",
               "additionalProperties": false,
               "properties": {
@@ -231,6 +238,7 @@
               "$ref": "#/definitions/step"
             },
             {
+              "type": "object",
               "additionalProperties": false,
               "properties": {
                 "as": {
@@ -248,18 +256,101 @@
         "raise": {
           "description": "Raise an exception.",
           "$ref": "#/definitions/raise"
+        },
+        "for": {
+          "$ref": "#/definitions/for"
+        },
+        "parallel": {
+          "type": "object",
+          "description": "Run branches or iterations in parallel",
+          "additionalProperties": false,
+          "properties": {
+            "exception_policy": {
+              "description": "The action for other branches when an exception occurs",
+              "type": "string",
+              "enum": ["continueAll"]
+            },
+            "shared": {
+              "description": "A list of shared variables",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "concurrency_limit": {
+              "description": "An upper limit for branches/iterations to perform concurrently",
+              "type": "integer"
+            },
+            "branches": {
+              "description": "A list of branches that will run concurrently",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "steps": {
+                    "description": "A list of steps",
+                    "$ref": "#/definitions/stepArray"
+                  }
+                }
+              }
+            },
+            "for": {
+              "description": "A standard for loop to be evaluated in parallel",
+              "$ref": "#/definitions/for"
+            }
+          }
         }
       }
     },
     "raise": {
       "description": "Raise an exception.",
-      "anyOf": [{
-        "description": "String message.",
-        "type": "string"
-      }, {
-        "description": "A dictionary.",
-        "type": "object"
-      }]
+      "anyOf": [
+        {
+          "description": "String message.",
+          "type": "string"
+        },
+        {
+          "description": "A dictionary.",
+          "type": "object"
+        }
+      ]
+    },
+    "for": {
+      "description": "Iterates over a sequence of numbers or through a collection of data\nhttps://cloud.google.com/workflows/docs/reference/syntax/syntax-search",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "description": "A loop variable name\nhttps://cloud.google.com/workflows/docs/reference/syntax/iteration",
+          "type": "string"
+        },
+        "index": {
+          "description": "An index variable name\nhttps://cloud.google.com/workflows/docs/reference/syntax/iteration",
+          "type": "string"
+        },
+        "range": {
+          "description": "A number's range\nhttps://cloud.google.com/workflows/docs/reference/syntax/iteration",
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "in": {
+          "description": "A list expression\nhttps://cloud.google.com/workflows/docs/reference/syntax/iteration",
+          "type": "array"
+        },
+        "steps": {
+          "description": "Steps for loop\nhttps://cloud.google.com/workflows/docs/reference/syntax/iteration",
+          "$ref": "#/definitions/stepArray"
+        }
+      }
     }
-  }
+  },
+  "description": "Orchestrate Workflows consisting of Google Cloud APIs, SaaS APIs or private API endpoints.",
+  "title": "Google Cloud Workflows config file"
 }
