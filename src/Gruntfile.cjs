@@ -406,6 +406,26 @@ module.exports = function (grunt) {
     }
   }
 
+  function testSchemaFileForSmartQuotes(callbackParameter) {
+    const buffer = callbackParameter.rawFile
+    const bufferArr = buffer.toString().split('\n')
+
+    for (let i = 0; i < bufferArr.length; ++i) {
+      const line = bufferArr[i]
+
+      const smartQuotes = ['‘', '’', '“', '”']
+      for (const quote of smartQuotes) {
+        if (line.includes(quote)) {
+          throwWithErrorText([
+            `Schema file must not have a smart quote: ${
+              callbackParameter.urlOrFilePath
+            }:${++i}`,
+          ])
+        }
+      }
+    }
+  }
+
   function tv4Validator() {
     // tv4 validator can only process draft-04 schema
     // All unknown keyword used in draft-06 and newer are just ignored.
@@ -846,6 +866,29 @@ module.exports = function (grunt) {
       )
       grunt.log.ok(
         `no BOM file found in all schema files. Total files scan: ${countScan}`
+      )
+    }
+  )
+
+  grunt.registerTask(
+    'local_assert_no_smart_quotes',
+    'Ensure that no smart quotes are used',
+    function () {
+      let countScan = 0
+
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(data) {
+            countScan++
+
+            testSchemaFileForSmartQuotes(data)
+          },
+        },
+        { fullScanAllFiles: true, skipReadFile: false }
+      )
+
+      grunt.log.ok(
+        `no smart quotes found in all schema files. Total files scan: ${countScan}`
       )
     }
   )
@@ -1910,6 +1953,7 @@ module.exports = function (grunt) {
     'local_url-present-in-catalog',
     'local_schema-present-in-catalog-list',
     'local_bom',
+    'local_assert_no_smart_quotes',
     'local_find-duplicated-property-keys',
     'local_assert_schema_version_is_valid',
     'local_check_for_schema_version_too_high',
