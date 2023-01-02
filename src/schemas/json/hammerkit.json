@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "JSON Schema for hammerkit's build file",
   "description": "Build tool with support for containerization",
   "type": "object",
@@ -15,6 +15,13 @@
         "$ref": "#/definitions/task"
       }
     },
+    "services": {
+      "type": "object",
+      "description": "A map of services",
+      "additionalProperties": {
+        "$ref": "#/definitions/service"
+      }
+    },
     "includes": {
       "$ref": "#/definitions/include"
     },
@@ -23,6 +30,11 @@
     }
   },
   "definitions": {
+    "labels": {
+      "description": "A map of label values",
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
     "envMap": {
       "description": "A map of environment values",
       "type": "object",
@@ -88,10 +100,25 @@
         "type": "string"
       }
     },
-    "taskMount": {
+    "taskNeed": {
+      "type": "array",
+      "description": "A list of task service needs that get ready before the current task",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mount": {
       "type": "array",
       "description": "A list of file paths that get mounted into the container",
       "items": {
+        "type": "string"
+      }
+    },
+    "taskPort": {
+      "type": "array",
+      "description": "A list of ports that get exposed on the host from the container <localPort>:<targetPort>",
+      "items": {
+        "description": "<localPort>:<targetPort>",
         "type": "string"
       }
     },
@@ -108,11 +135,26 @@
           "type": "string",
           "description": "Name of task that gets used a template"
         },
+        "labels": {
+          "$ref": "#/definitions/labels"
+        },
         "envs": {
           "$ref": "#/definitions/envMap"
         },
+        "needs": {
+          "$ref": "#/definitions/taskNeed"
+        },
         "deps": {
           "$ref": "#/definitions/taskDependency"
+        },
+        "cache": {
+          "type": "string",
+          "description": "compare type for detecting changes in source files",
+          "enum": ["checksum", "modify-date", "none"]
+        },
+        "continuous": {
+          "type": "boolean",
+          "description": "The task runs continuous and does not end without cancellation"
         },
         "watch": {
           "type": "boolean",
@@ -142,15 +184,33 @@
           "type": "string",
           "description": "A description of the task"
         },
+        "labels": {
+          "$ref": "#/definitions/labels"
+        },
         "extend": {
           "type": "string",
           "description": "Name of task that gets used a template"
         },
+        "ports": {
+          "$ref": "#/definitions/taskPort"
+        },
         "envs": {
           "$ref": "#/definitions/envMap"
         },
+        "needs": {
+          "$ref": "#/definitions/taskNeed"
+        },
         "deps": {
           "$ref": "#/definitions/taskDependency"
+        },
+        "cache": {
+          "type": "string",
+          "description": "compare type for detecting changes in source files",
+          "enum": ["checksum", "modify-date", "none"]
+        },
+        "continuous": {
+          "type": "boolean",
+          "description": "The task runs continuous and does not end without cancellation"
         },
         "watch": {
           "type": "boolean",
@@ -165,7 +225,7 @@
           "description": "Define the container image the commands run in"
         },
         "mounts": {
-          "$ref": "#/definitions/taskMount"
+          "$ref": "#/definitions/mount"
         },
         "src": {
           "$ref": "#/definitions/taskSource"
@@ -188,6 +248,82 @@
       }, {
         "$ref": "#/definitions/localTask"
       }]
+    },
+    "service": {
+      "description": "A daemon in the background",
+      "anyOf": [{
+        "$ref": "#/definitions/containerService"
+      }, {
+        "$ref": "#/definitions/kubernetesService"
+      }]
+    },
+    "kubernetesService": {
+      "required": ["context", "selector", "ports"],
+      "additionalProperties": false,
+      "properties": {
+        "kubeconfig": {
+          "type": "string",
+          "description": ""
+        },
+        "context": {
+          "type": "string",
+          "description": ""
+        },
+        "ports": {
+          "$ref": "#/definitions/taskPort"
+        },
+        "selector": {
+          "required": ["type", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["deployment", "service", "pod"]
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "containerService": {
+      "required": ["image"],
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Define the container image the commands run in"
+        },
+        "labels": {
+          "$ref": "#/definitions/labels"
+        },
+        "envs": {
+          "$ref": "#/definitions/envMap"
+        },
+        "ports": {
+          "$ref": "#/definitions/taskPort"
+        },
+        "healthcheck": {
+          "$ref": "#/definitions/serviceHealthcheck"
+        },
+        "volumes": {
+          "$ref": "#/definitions/volume"
+        },
+        "mounts": {
+          "$ref": "#/definitions/mount"
+        }
+      }
+    },
+    "serviceHealthcheck": {
+      "additionalItems": false,
+      "description": "A check to detect if the service is started and ready",
+      "properties": {
+        "cmd": {
+          "description": "task to check if the service is healthy",
+          "type": "string"
+        }
+      }
     }
   }
 }
