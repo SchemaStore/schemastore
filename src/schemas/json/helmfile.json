@@ -1,12 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Helmfile config schema",
   "definitions": {
     "repository": {
       "type": "object",
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "properties": {
         "name": {
           "type": "string"
@@ -20,16 +17,26 @@
         "keyFile": {
           "type": "string"
         },
+        "caFile": {
+          "type": "string"
+        },
         "username": {
           "type": "string"
         },
         "password": {
           "type": "string"
+        },
+        "oci": {
+          "type": "boolean"
+        },
+        "passCredentials": {
+          "type": "boolean"
         }
       }
     },
     "helmDefaults": {
       "type": "object",
+      "description": "Default values to set for args along with dedicated keys that can be set by contributors, cli args take precedence over these.",
       "properties": {
         "tillerNamespace": {
           "type": "string"
@@ -59,6 +66,9 @@
         "wait": {
           "type": "boolean"
         },
+        "waitForJobs": {
+          "type": "boolean"
+        },
         "timeout": {
           "type": "number"
         },
@@ -81,7 +91,9 @@
           "type": "string"
         },
         "historyMax": {
-          "type": "number"
+          "type": "number",
+          "description": "limit the maximum number of revisions saved per release. Use 0 for no limit.",
+          "default": 10
         },
         "createNamespace": {
           "type": "boolean"
@@ -91,49 +103,85 @@
     "release": {
       "type": "object",
       "properties": {
-        "name": {
+        "atomic": {
+          "type": "boolean"
+        },
+        "chart": {
           "type": "string"
         },
-        "namespace": {
+        "cleanupOnFail": {
+          "type": "boolean",
+          "default": false
+        },
+        "condition": {
           "type": "string"
         },
         "createNamespace": {
           "type": "boolean"
         },
-        "labels": {
-          "type": "object",
-          "patternProperties": {
-            "[a-zA-Z0-9_-]": {
-              "type": "string"
-            }
-          }
+        "devel": {
+          "type": "boolean",
+          "description": "if used with charts museum allows to pull unstable charts for deployment, for example: if 1.2.3 and 1.2.4-dev versions exist and set to true, 1.2.4-dev will be pulled (default false)",
+          "default": false
         },
-        "chart": {
-          "type": "string"
+        "disableValidation": {
+          "type": "boolean"
         },
-        "version": {
-          "type": "string"
+        "disableValidationOnInstall": {
+          "type": "boolean"
         },
-        "condition": {
-          "type": "string"
+        "disableOpenAPIValidation": {
+          "type": "boolean"
         },
-        "missingFileHandler": {
-          "type": "string"
+        "force": {
+          "type": "boolean"
         },
-        "values": {
+        "historyMax": {
+          "type": "number"
+        },
+        "hooks": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "string",
-                "x-intellij-language-injection": {
-                  "language": "File reference"
-                }
-              },
-              {
-                "type": "object"
-              }
-            ]
+            "$ref": "#/definitions/hook"
+          }
+        },
+        "installed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "kubeContext": {
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/definitions/map"
+        },
+        "missingFileHandler": {
+          "type": "string",
+          "$ref": "#/definitions/missingFileHandler"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string",
+          "examples": ["default"]
+        },
+        "recreatePods": {
+          "type": "boolean"
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         },
         "set": {
@@ -183,51 +231,19 @@
             ]
           }
         },
-        "secrets": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "verify": {
-          "type": "boolean"
-        },
-        "wait": {
-          "type": "boolean"
-        },
-        "timeout": {
-          "type": "number"
-        },
-        "recreatePods": {
-          "type": "boolean"
-        },
-        "force": {
-          "type": "boolean"
-        },
-        "installed": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "type": "object"
-            }
-          ]
-        },
-        "atomic": {
-          "type": "boolean"
-        },
-        "cleanupOnFail": {
-          "type": "boolean"
+        "skipDeps": {
+          "type": "boolean",
+          "description": "When set to `true`, skips running `helm dep up` and `helm dep build` on this release's chart.",
+          "default": false
         },
         "tillerNamespace": {
           "type": "string"
         },
         "tillerless": {
           "type": "boolean"
+        },
+        "timeout": {
+          "type": "number"
         },
         "tls": {
           "type": "boolean"
@@ -241,65 +257,91 @@
         "tlsKey": {
           "type": "string"
         },
-        "kubeContext": {
-          "type": "string"
-        },
-        "historyMax": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "name"
-      ]
-    },
-    "helmfile": {
-      "type": "object",
-      "required": [
-        "path"
-      ],
-      "properties": {
-        "path": {
-          "type": "string"
-        },
-        "selectors": {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              }
-            ]
-          }
-        },
         "values": {
           "type": "array",
           "items": {
             "anyOf": [
               {
-                "type": "string",
-                "x-intellij-language-injection": {
-                  "language": "File reference"
-                }
+                "type": "string"
               },
               {
-                "type": "object",
-                "properties": {
-                  "key1": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/definitions/map"
               }
             ]
           }
+        },
+        "verify": {
+          "type": "boolean"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "wait": {
+          "type": "boolean"
+        },
+        "waitForJobs": {
+          "type": "boolean"
         }
-      }
+      },
+      "required": ["name", "chart"]
+    },
+    "helmfile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "required": ["path"],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "selectors": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key1": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "missingFileHandler": {
       "type": "string",
-      "enum": [
-        "Error",
-        "Warn"
-      ]
+      "enum": ["Error", "Warn"]
     },
     "environment": {
       "type": "object",
@@ -309,13 +351,10 @@
           "items": {
             "anyOf": [
               {
-                "type": "string",
-                "x-intellij-language-injection": {
-                  "language": "File reference"
-                }
+                "type": "string"
               },
               {
-                "type": "object"
+                "$ref": "#/definitions/map"
               }
             ]
           }
@@ -328,25 +367,120 @@
         },
         "missingFileHandler": {
           "$ref": "#/definitions/missingFileHandler"
+        },
+        "kubeContext": {
+          "type": "string"
+        }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "showlogs": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "map": {
+      "type": "object",
+      "patternProperties": {
+        "[a-zA-Z\\d_-]+": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer"
+            }
+          ]
         }
       }
     }
   },
   "properties": {
-    "repositories": {
+    "apiVersions": {
+      "type": "array",
+      "description": "Configure a fixed list of API versions to pass to 'helm template' via the --api-versions flag with the below:",
+      "items": {
+        "type": "string",
+        "examples": ["example/v1"]
+      }
+    },
+    "bases": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/repository"
+        "anyOf": [
+          {
+            "type": "string"
+          }
+        ]
       }
+    },
+    "environments": {
+      "type": "object",
+      "description": "The list of environments managed by helmfile.",
+      "default": {
+        "default": {}
+      },
+      "examples": [
+        {
+          "default": {
+            "values": []
+          }
+        }
+      ],
+      "patternProperties": {
+        "[a-zA-Z\\d_-]+": {
+          "$ref": "#/definitions/environment"
+        }
+      }
+    },
+    "commonLabels": {
+      "type": "object",
+      "description": "these labels will be applied to all releases in a Helmfile. Useful in templating if you have a helmfile per environment or customer and don't want to copy the same label to each release",
+      "$ref": "#/definitions/map"
+    },
+    "helmBinary": {
+      "type": "string",
+      "description": "Path to alternative helm binary (--helm-binary)",
+      "examples": ["path/to/helm3"]
     },
     "helmDefaults": {
       "$ref": "#/definitions/helmDefaults"
-    },
-    "releases": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/release"
-      }
     },
     "helmfiles": {
       "type": "array",
@@ -354,28 +488,28 @@
         "$ref": "#/definitions/helmfile"
       }
     },
+    "hooks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hook"
+      }
+    },
     "missingFileHandler": {
       "$ref": "#/definitions/missingFileHandler"
     },
-    "environments": {
-      "type": "object",
-      "patternProperties": {
-        "[a-zA-Z0-9_-]": {
-          "$ref": "#/definitions/environment"
-        }
+    "releases": {
+      "type": "array",
+      "description": "Helmfile runs various helm commands to converge the current state in the live cluster to the desired state defined here.",
+      "items": {
+        "$ref": "#/definitions/release"
       }
     },
-    "bases": {
+    "repositories": {
       "type": "array",
       "items": {
-        "type": "string"
-      }
-    },
-    "apiVersions": {
-      "type": "array",
-      "items": {
-        "type": "string"
+        "$ref": "#/definitions/repository"
       }
     }
-  }
+  },
+  "title": "Helmfile config schema"
 }

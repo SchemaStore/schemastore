@@ -1,7 +1,13 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
   "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "definitions": {
+    "expressionSyntax": {
+      "type": "string",
+      "$comment": "escape `{` and `}` in pattern to be unicode compatible (#1360)",
+      "pattern": "^\\$\\{\\{.*\\}\\}$"
+    },
     "pre-if": {
       "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#pre-if",
       "description": "Allows you to define conditions for the `pre:` action execution. The `pre:` action will only run if the conditions in `pre-if` are met. If not set, then `pre-if` defaults to `always()`. Note that the `step` context is unavailable, as no steps have run yet.",
@@ -20,7 +26,7 @@
         "using": {
           "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsusing",
           "description": "The application used to execute the code specified in `main`.",
-          "const": "node12"
+          "enum": ["node12", "node16"]
         },
         "main": {
           "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsmain",
@@ -44,10 +50,7 @@
           "$ref": "#/definitions/post-if"
         }
       },
-      "required": [
-        "using",
-        "main"
-      ],
+      "required": ["using", "main"],
       "additionalProperties": false
     },
     "runs-composite": {
@@ -92,6 +95,16 @@
                   }
                 ]
               },
+              "uses": {
+                "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsuses",
+                "description": "Selects an action to run as part of a step in your job.",
+                "type": "string"
+              },
+              "with": {
+                "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepswith",
+                "description": "A map of the input parameters defined by the action. Each input parameter is a key/value pair. Input parameters are set as environment variables. The variable is prefixed with INPUT_ and converted to upper case.",
+                "type": "object"
+              },
               "name": {
                 "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsname",
                 "description": "The name of the composite run step.",
@@ -102,6 +115,11 @@
                 "description": "A unique identifier for the step. You can use the `id` to reference the step in contexts.",
                 "type": "string"
               },
+              "if": {
+                "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsif",
+                "description": "You can use the if conditional to prevent a step from running unless a condition is met. You can use any supported context and expression to create a conditional.\nExpressions in an if conditional do not require the ${{ }} syntax. For more information, see https://help.github.com/en/articles/contexts-and-expression-syntax-for-github-actions.",
+                "type": "string"
+              },
               "env": {
                 "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsenv",
                 "description": "Sets a map of environment variables for only that step.",
@@ -110,24 +128,38 @@
                   "type": "string"
                 }
               },
+              "continue-on-error": {
+                "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idstepscontinue-on-error",
+                "description": "Prevents a job from failing when a step fails. Set to true to allow a job to pass when this step fails.",
+                "oneOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "$ref": "#/definitions/expressionSyntax"
+                  }
+                ],
+                "default": false
+              },
               "working-directory": {
                 "$comment": "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsworking-directory",
                 "description": "Specifies the working directory where the command is run.",
                 "type": "string"
               }
             },
-            "required": [
-              "run",
-              "shell"
+            "oneOf": [
+              {
+                "required": ["run", "shell"]
+              },
+              {
+                "required": ["uses"]
+              }
             ],
             "additionalProperties": false
           }
         }
       },
-      "required": [
-        "using",
-        "steps"
-      ],
+      "required": ["using", "steps"],
       "additionalProperties": false
     },
     "runs-docker": {
@@ -183,10 +215,7 @@
           }
         }
       },
-      "required": [
-        "using",
-        "image"
-      ],
+      "required": ["using", "image"],
       "additionalProperties": false
     },
     "outputs": {
@@ -205,9 +234,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "description"
-          ],
+          "required": ["description"],
           "additionalProperties": false
         }
       },
@@ -234,14 +261,29 @@
               "type": "string"
             }
           },
-          "required": [
-            "description",
-            "value"
-          ],
+          "required": ["description", "value"],
           "additionalProperties": false
         }
       },
       "additionalProperties": false
+    }
+  },
+  "else": {
+    "properties": {
+      "outputs": {
+        "$ref": "#/definitions/outputs"
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "runs": {
+        "properties": {
+          "using": {
+            "const": "composite"
+          }
+        }
+      }
     }
   },
   "properties": {
@@ -290,10 +332,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "description",
-            "required"
-          ],
+          "required": ["description"],
           "additionalProperties": false
         }
       },
@@ -603,17 +642,7 @@
       "additionalProperties": false
     }
   },
-  "if": {
-    "properties": {
-      "runs": {
-        "properties": {
-          "using": {
-            "const": "composite"
-          }
-        }
-      }
-    }
-  },
+  "required": ["name", "description", "runs"],
   "then": {
     "properties": {
       "outputs": {
@@ -621,17 +650,5 @@
       }
     }
   },
-  "else": {
-    "properties": {
-      "outputs": {
-        "$ref": "#/definitions/outputs"
-      }
-    }
-  },
-  "required": [
-    "name",
-    "description",
-    "runs"
-  ],
-  "additionalProperties": false
+  "type": "object"
 }

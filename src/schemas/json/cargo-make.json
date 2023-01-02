@@ -1,0 +1,1465 @@
+{
+  "$id": "https://github.com/sagiegurari/cargo-make",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "semver": {
+      "title": "Semantic Version",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "extend": {
+      "title": "External Makefile",
+      "description": "A potentially optional external makefile to extend",
+      "type": "object",
+      "x-taplo": {
+        "initKeys": ["optional"]
+      },
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "File Path",
+          "description": "The path of the external makefile, relative to this file",
+          "type": "string",
+          "default": "path/to/Makefile.toml"
+        },
+        "optional": {
+          "description": "If true, the external makefile is optional and does not need to exist",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "script": {
+      "title": "Script",
+      "oneOf": [
+        {
+          "title": "Script Line",
+          "type": "string"
+        },
+        {
+          "title": "Script Lines",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "title": "Script File",
+          "type": "object",
+          "examples": [
+            {
+              "file": "path/to/script"
+            },
+            {
+              "file": "path/to/script",
+              "absolute_path": true
+            }
+          ],
+          "required": ["file"],
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "title": "File Path",
+              "description": "Scipt file name",
+              "type": "string",
+              "default": "path/to/script"
+            },
+            "absolute_path": {
+              "description": "If true, the `file` value is an absolute path",
+              "default": true,
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "title": "Split Script",
+          "description": "Script content split to parts to enable a more fine tuned extension capability",
+          "type": "object",
+          "x-taplo": {
+            "initKeys": ["pre", "main", "post"]
+          },
+          "additionalProperties": false,
+          "properties": {
+            "pre": {
+              "title": "Pre-Main Script",
+              "description": "Pre-main script section",
+              "type": "string"
+            },
+            "main": {
+              "title": "Main Script",
+              "description": "Main script section",
+              "type": "string"
+            },
+            "post": {
+              "title": "Post-Main Script",
+              "description": "Post-main script section",
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "env_files": {
+      "title": "List of Env Files",
+      "description": "Load environment files",
+      "type": "array",
+      "default": [],
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/#usage-env-file"
+        }
+      },
+      "items": {
+        "$ref": "#/definitions/envfile"
+      },
+      "uniqueItems": true
+    },
+    "envfile": {
+      "title": "Env File",
+      "description": "File containing environment variables and their values",
+      "examples": [
+        "path/to/env.env",
+        {
+          "path": "path/to/env.env",
+          "profile": "development"
+        }
+      ],
+      "oneOf": [
+        {
+          "title": "File Path",
+          "description": "The path to the env file",
+          "type": "string",
+          "default": "path/to/env.env"
+        },
+        {
+          "description": "The env file path and attributes",
+          "type": "object",
+          "x-taplo": {
+            "initKeys": ["profile"]
+          },
+          "required": ["path"],
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "title": "File Path",
+              "description": "The path to the env file",
+              "type": "string",
+              "default": "path/to/env.env"
+            },
+            "base_path": {
+              "title": "Directory Path",
+              "description": "The path base directory (relative paths are from this base path)",
+              "type": "string",
+              "default": "path/to/dir"
+            },
+            "profile": {
+              "title": "Profile",
+              "description": "The profile name this file is relevant to",
+              "type": "string",
+              "default": "development",
+              "examples": ["development", "production"]
+            }
+          }
+        }
+      ]
+    },
+    "env": {
+      "title": "Env Vars",
+      "description": "Setup environment variables",
+      "type": "object",
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/#usage-env-config"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/env_value"
+      }
+    },
+    "env_value": {
+      "title": "Env Value",
+      "description": "An environment variable value",
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/#usage-env"
+        }
+      },
+      "anyOf": [
+        {
+          "title": "Boolean",
+          "type": "boolean"
+        },
+        {
+          "title": "Integer",
+          "type": "integer"
+        },
+        {
+          "title": "String",
+          "type": "string"
+        },
+        {
+          "title": "Separator List",
+          "description": "An array which will be joined with the `;` separator ",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/definitions/env_value_unset"
+        },
+        {
+          "$ref": "#/definitions/env_value_script"
+        },
+        {
+          "$ref": "#/definitions/env_value_decode"
+        },
+        {
+          "$ref": "#/definitions/env_value_conditioned"
+        },
+        {
+          "$ref": "#/definitions/env_value_path_glob"
+        },
+        {
+          "title": "Profile Env Vars",
+          "description": "Profile dependent environment variables",
+          "$ref": "#/definitions/env"
+        }
+      ]
+    },
+    "env_value_unset": {
+      "title": "Unset",
+      "description": "Unsets environment variable",
+      "type": "object",
+      "required": ["unset"],
+      "additionalProperties": false,
+      "properties": {
+        "unset": {
+          "description": "If true, the env variable will be unset, else ignored",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "env_value_script": {
+      "title": "Env Value Script",
+      "description": "Provide environment variable via script",
+      "type": "object",
+      "required": ["script"],
+      "additionalProperties": false,
+      "properties": {
+        "script": {
+          "title": "Script Lines",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "multi_line": {
+          "description": "Enable multi-line values",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "env_value_decode": {
+      "title": "Env Value Mapping",
+      "description": "Environment variable value provided by decoding other values",
+      "type": "object",
+      "x-taplo": {
+        "initKeys": ["default_value"]
+      },
+      "required": ["source", "mapping"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "title": "Env Var",
+          "description": "The source environment variable (can be an env expression)",
+          "type": "string"
+        },
+        "default_value": {
+          "title": "Env Value",
+          "description": "The default value in case no decode mapping was found, if not provided it will default to the source value",
+          "type": "string"
+        },
+        "mapping": {
+          "title": "Value Mapping",
+          "description": "The decoding mapping from one value to another value",
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "title": "Env Value",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "env_value_conditioned": {
+      "title": "Conditional Env Value",
+      "description": "Environment variable value set if condition is met",
+      "type": "object",
+      "x-taplo": {
+        "initKeys": ["condition"]
+      },
+      "required": ["value"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "title": "Env Value",
+          "description": "The value to set (can be an env expression)",
+          "type": "string"
+        },
+        "condition": {
+          "description": "Condition to evaluate to see whether to set the environment value or not",
+          "$ref": "#/definitions/task_condition"
+        }
+      }
+    },
+    "env_value_path_glob": {
+      "title": "Env Value Glob",
+      "description": "Environment value holding a list of paths based on given glob definitions",
+      "type": "object",
+      "required": ["glob"],
+      "additionalProperties": false,
+      "properties": {
+        "glob": {
+          "title": "Glob Pattern",
+          "description": "The glob used to fetch all paths",
+          "type": "string"
+        },
+        "include_files": {
+          "description": "If true, include files in glob",
+          "default": true,
+          "type": "boolean"
+        },
+        "include_dirs": {
+          "description": "If true, include directories in glob",
+          "default": true,
+          "type": "boolean"
+        },
+        "ignore_type": {
+          "title": "Ignore Source",
+          "description": "An ignore source that enables respecting ignore files from that source",
+          "enum": ["git"],
+          "type": "string",
+          "default": "git"
+        }
+      }
+    },
+    "task_condition": {
+      "title": "Condition",
+      "description": "Conditions allow you to evaluate at runtime if to run a specific task or not",
+      "type": "object",
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/#usage-conditions"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "fail_message": {
+          "title": "Message",
+          "description": "Message to display when the condition fails",
+          "type": "string"
+        },
+        "profiles": {
+          "title": "List of Profiles",
+          "description": "Profile names to match for the condition",
+          "type": "array",
+          "default": [],
+          "items": {
+            "title": "Profile",
+            "description": "Profile name",
+            "type": "string",
+            "default": "development"
+          }
+        },
+        "platforms": {
+          "title": "List of Platforms",
+          "description": "Platform names to match for the condition",
+          "type": "array",
+          "items": {
+            "title": "Platform",
+            "description": "Platform name",
+            "enum": ["linux", "windows", "mac"],
+            "type": "string"
+          }
+        },
+        "channels": {
+          "title": "List of Channels",
+          "description": "Rust channels to match for the condition",
+          "type": "array",
+          "items": {
+            "title": "Channel",
+            "description": "Rust channel",
+            "enum": ["stable", "beta", "nightly"],
+            "type": "string",
+            "default": "stable"
+          }
+        },
+        "env_set": {
+          "title": "List of Env Vars",
+          "description": "List of environment variables which must be defined",
+          "type": "array",
+          "items": {
+            "title": "Env Var",
+            "description": "Environment variable",
+            "type": "string"
+          }
+        },
+        "env_not_set": {
+          "title": "List of Env Vars",
+          "description": "List of environment variables which must not be defined",
+          "type": "array",
+          "items": {
+            "title": "Env Var",
+            "description": "Environment variable",
+            "type": "string"
+          }
+        },
+        "env_true": {
+          "title": "List of Env Vars",
+          "description": "List of environment variables which must be defined and must not be set to any of the following (case insensitive): `false`, `no`, `0`, or empty",
+          "type": "array",
+          "items": {
+            "title": "Env Var",
+            "description": "Environment variable",
+            "type": "string"
+          }
+        },
+        "env_false": {
+          "title": "List of Env Vars",
+          "description": "List of environment variables which must be defined and must be set to any of the following (case insensitive): `false`, `no`, `0`, or empty",
+          "type": "array",
+          "items": {
+            "title": "Env Var",
+            "description": "Environment variable",
+            "type": "string"
+          }
+        },
+        "env": {
+          "title": "Env Vars",
+          "description": "Map of environment variables that must be defined and equal to the provided values",
+          "type": "object",
+          "additionalProperties": {
+            "title": "Env Value",
+            "description": "Environment value",
+            "type": "string"
+          }
+        },
+        "env_contains": {
+          "title": "Env Vars",
+          "description": "Map of environment variables that must be defined and contain (case insensitive) the provided values",
+          "type": "object",
+          "additionalProperties": {
+            "title": "Env Value",
+            "description": "Environment value",
+            "type": "string"
+          }
+        },
+        "rust_version": {
+          "title": "Rust Version Criteria",
+          "description": "A definition of min, max and/or specific rust version",
+          "type": "object",
+          "x-taplo": {
+            "initKeys": ["min"]
+          },
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "description": "Minimum Rust version",
+              "$ref": "#/definitions/semver"
+            },
+            "max": {
+              "description": "Maximum Rust version",
+              "$ref": "#/definitions/semver"
+            },
+            "equal": {
+              "description": "Exact Rust version",
+              "$ref": "#/definitions/semver"
+            }
+          }
+        },
+        "files_exist": {
+          "title": "List of Files",
+          "description": "List of absolute path files to check they exist. Environment substitution is supported so you can define relative paths",
+          "type": "array",
+          "items": {
+            "title": "File Path",
+            "description": "File path",
+            "type": "string"
+          }
+        },
+        "files_not_exist": {
+          "title": "List of Files",
+          "description": "List of absolute path files to check they do not exist. Environment substitution is supported so you can define relative paths",
+          "type": "array",
+          "items": {
+            "title": "File Path",
+            "description": "File path",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "task": {
+      "title": "Task",
+      "description": "A task is a command, script, rust code or other sub tasks to execute. Tasks can have dependencies which are also tasks that will be executed before the task itself.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clear": {
+          "description": "If true, it should ignore all data in the base task",
+          "default": true,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-default-tasks"
+            }
+          }
+        },
+        "description": {
+          "title": "Description",
+          "description": "A description used to document the task",
+          "type": "string"
+        },
+        "category": {
+          "title": "Category",
+          "description": "Category name used to document the task",
+          "type": "string"
+        },
+        "disabled": {
+          "description": "If true, the command/script of this task will not be invoked, but dependencies will be",
+          "default": true,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-default-tasks"
+            }
+          }
+        },
+        "private": {
+          "description": "If true, the task is hidden from the list of available tasks and also cannot be invoked directly from CLI",
+          "default": true,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-private-tasks"
+            }
+          }
+        },
+        "deprecated": {
+          "description": "If set, this task is documented as deprecated. This can be a boolean or a string deprecation message.",
+          "default": true,
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-deprecated-tasks"
+            }
+          },
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "title": "Deprecation Message",
+              "type": "string"
+            }
+          ]
+        },
+        "extend": {
+          "title": "Task Name",
+          "description": "Extends the specified task as a base task",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-extend-attribute"
+            }
+          }
+        },
+        "workspace": {
+          "description": "Set to false to specify that this is not a workspace and should not call the task for every member (same as --no-workspace CLI flag)",
+          "default": false,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-workspace-disabling-workspace-support"
+            }
+          }
+        },
+        "watch": {
+          "description": "Watch for file changes and invoke the task operation",
+          "default": true,
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-watch"
+            }
+          },
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "title": "Watch Options",
+              "type": "object",
+              "x-taplo": {
+                "initKeys": ["watch"]
+              },
+              "additionalProperties": false,
+              "properties": {
+                "version": {
+                  "description": "Version of cargo-watch to install if it's not already installed",
+                  "$ref": "#/definitions/semver"
+                },
+                "postpone": {
+                  "description": "Postpone first run until a file changes",
+                  "default": true,
+                  "type": "boolean"
+                },
+                "ignore_pattern": {
+                  "title": "Glob Pattern",
+                  "description": "Ignore a glob/gitignore-style pattern while watching",
+                  "type": "string"
+                },
+                "no_git_ignore": {
+                  "description": "Do not use .gitignore files while watching",
+                  "default": true,
+                  "type": "boolean"
+                },
+                "watch": {
+                  "title": "List of Paths",
+                  "description": "List of files and folders to watch",
+                  "type": "array",
+                  "items": {
+                    "title": "Path",
+                    "description": "File or folder to watch",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "condition": {
+          "description": "If provided all condition values must be met in order for the task to be invoked (will not stop dependencies)",
+          "$ref": "#/definitions/task_condition"
+        },
+        "condition_script": {
+          "title": "Script",
+          "description": "If script exit code is not 0, the command/script of this task will not be invoked, dependencies however will be",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-conditions-script"
+            }
+          }
+        },
+        "ignore_errors": {
+          "description": "If true, any error while executing the task will be printed but will not break the build",
+          "default": true,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-ignoring-errors"
+            }
+          }
+        },
+        "force": {
+          "description": "DEPRECATED, replaced with `ignore_errors`",
+          "default": true,
+          "type": "boolean",
+          "deprecated": true,
+          "x-taplo": {
+            "hidden": true
+          }
+        },
+        "env_files": {
+          "description": "The env files to setup before running the task commands",
+          "$ref": "#/definitions/env_files"
+        },
+        "env": {
+          "description": "The env vars to setup before running the task commands",
+          "$ref": "#/definitions/env"
+        },
+        "cwd": {
+          "title": "Directory Path",
+          "description": "The working directory for the task to execute its command/script",
+          "type": "string",
+          "default": "path/to/dir"
+        },
+        "alias": {
+          "title": "Task Name",
+          "description": "If defined, task points to another task and all other properties are ignored",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-dependencies-alias"
+            }
+          }
+        },
+        "linux_alias": {
+          "title": "Task Name",
+          "description": "If defined and this platform is Linux, task points to another task and all other properties are ignored (takes precedence over `alias` on Linux)",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-dependencies-alias"
+            }
+          }
+        },
+        "windows_alias": {
+          "title": "Task Name",
+          "description": "If defined and this platform is Windows, task points to another task and all other properties are ignored (takes precedence over `alias` on Windows)",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-dependencies-alias"
+            }
+          }
+        },
+        "mac_alias": {
+          "title": "Task Name",
+          "description": "If defined and this platform is Mac, task points to another task and all other properties are ignored (takes precedence over `alias` on Mac)",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-dependencies-alias"
+            }
+          }
+        },
+        "install_crate": {
+          "description": "Indicates the provided crate needs to be installed (if needed) before running the task",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-installing-crates"
+            }
+          },
+          "oneOf": [
+            {
+              "description": "If set to false, will disable crate installation from the base task",
+              "default": false,
+              "type": "boolean"
+            },
+            {
+              "title": "Crate Name",
+              "description": "Name of the crate to install",
+              "type": "string"
+            },
+            {
+              "title": "Crate Install Options",
+              "description": "Instructions on how to install a crate",
+              "type": "object",
+              "required": ["crate_name", "binary", "test_arg"],
+              "additionalProperties": false,
+              "properties": {
+                "crate_name": {
+                  "title": "Crate Name",
+                  "description": "Name of the crate to install",
+                  "type": "string"
+                },
+                "rustup_component_name": {
+                  "title": "Component Name",
+                  "description": "The component to install via rustup",
+                  "type": "string"
+                },
+                "binary": {
+                  "title": "File Name",
+                  "description": "The binary file name to be used to test if the crate is already installed",
+                  "type": "string"
+                },
+                "test_arg": {
+                  "title": "Args",
+                  "description": "Arguments used to check whether a crate or rustup component is installed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "min_version": {
+                  "description": "Minimum version of installed crate before it needs to be reinstalled",
+                  "$ref": "#/definitions/semver"
+                },
+                "version": {
+                  "description": "Exact version of installed crate",
+                  "$ref": "#/definitions/semver"
+                }
+              }
+            },
+            {
+              "title": "Component Install Options",
+              "description": "Instructions on how to install a rustup component",
+              "type": "object",
+              "required": ["rustup_component_name"],
+              "additionalProperties": false,
+              "properties": {
+                "rustup_component_name": {
+                  "title": "Component Name",
+                  "description": "The component to install via rustup",
+                  "type": "string"
+                },
+                "binary": {
+                  "title": "File Name",
+                  "description": "The binary file name to be used to test if the crate is already installed",
+                  "type": "string"
+                },
+                "test_arg": {
+                  "title": "Args",
+                  "description": "Arguments used to check whether a crate or rustup component is installed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "title": "Plugin Install Options",
+              "description": "Instructions on how to install a cargo plugin",
+              "type": "object",
+              "required": ["crate_name", "min_version"],
+              "additionalProperties": false,
+              "properties": {
+                "crate_name": {
+                  "title": "Crate Name",
+                  "description": "Name of the crate to install",
+                  "type": "string"
+                },
+                "min_version": {
+                  "description": "Minimum version of installed crate before it needs to be reinstalled",
+                  "$ref": "#/definitions/semver"
+                }
+              }
+            }
+          ]
+        },
+        "install_crate_args": {
+          "title": "Args",
+          "description": "Additional cargo install args",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "install_script": {
+          "description": "Provided script will be executed before running the task",
+          "$ref": "#/definitions/script"
+        },
+        "command": {
+          "title": "File Name",
+          "description": "The command to execute for this task",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplecommand"
+            }
+          }
+        },
+        "args": {
+          "title": "Args",
+          "description": "The args for the executed command",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplecommand"
+            }
+          }
+        },
+        "script": {
+          "description": "If `command` is not defined, but `script` is defined, the provided script will be executed",
+          "$ref": "#/definitions/script",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplescript"
+            }
+          }
+        },
+        "script_runner": {
+          "title": "Script Runner",
+          "description": "The script attribute may hold non OS scripts, for example rust code to be compiled and executed. In order to use non OS script runners, you must define the special script_runner with the @ prefix.",
+          "type": "string",
+          "examples": [
+            "@rust",
+            "@duckscript",
+            "@shell",
+            "python",
+            "perl",
+            "node",
+            "php",
+            "powershell"
+          ],
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task"
+            }
+          }
+        },
+        "script_runner_args": {
+          "title": "Args",
+          "description": "The script runner arguments before the script file path",
+          "type": "string",
+          "examples": ["-f"],
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplegeneric"
+            }
+          }
+        },
+        "script_extension": {
+          "title": "File Extension",
+          "description": "The file extension to use for the script",
+          "type": "string",
+          "examples": ["py", "pl", "js", "php", "ps1"]
+        },
+        "x-taplo": {
+          "links": {
+            "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplegeneric"
+          }
+        },
+        "run_task": {
+          "description": "Run a task as a sub-task at the end of executing this task",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+            }
+          },
+          "oneOf": [
+            {
+              "title": "Task Name",
+              "description": "Name of the sub-task to execute",
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": ["name"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "title": "Task Name",
+                  "description": "Name(s) of the sub-task to execute",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "title": "List of Task Names",
+                      "type": "array",
+                      "items": {
+                        "title": "Task Name",
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "fork": {
+                  "description": "Fork the sub-task into a a new subprocess",
+                  "default": true,
+                  "type": "boolean",
+                  "x-taplo": {
+                    "links": {
+                      "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+                    }
+                  }
+                },
+                "parallel": {
+                  "description": "Run tasks in parallel",
+                  "default": true,
+                  "type": "boolean",
+                  "x-taplo": {
+                    "links": {
+                      "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+                    }
+                  }
+                },
+                "cleanup_task": {
+                  "title": "Task Name",
+                  "description": "A task to run after all specified sub-tasks have completed",
+                  "type": "string",
+                  "x-taplo": {
+                    "links": {
+                      "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "title": "Conditional Tasks",
+              "description": "Conditional sub-task selector",
+              "type": "array",
+              "items": {
+                "description": "Sub-task routing information",
+                "type": "object",
+                "required": ["name"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "title": "Task Name",
+                    "description": "Name(s) of the sub-task to execute",
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "title": "List of Task Names",
+                        "type": "array",
+                        "items": {
+                          "title": "Task Name",
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "fork": {
+                    "description": "Fork the sub-task into a a new subprocess",
+                    "default": true,
+                    "type": "boolean",
+                    "x-taplo": {
+                      "links": {
+                        "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+                      }
+                    }
+                  },
+                  "parallel": {
+                    "description": "Run tasks in parallel",
+                    "default": true,
+                    "type": "boolean",
+                    "x-taplo": {
+                      "links": {
+                        "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+                      }
+                    }
+                  },
+                  "cleanup_task": {
+                    "title": "Task Name",
+                    "description": "A task to run after all specified sub-tasks have completed",
+                    "type": "string",
+                    "x-taplo": {
+                      "links": {
+                        "key": "https://sagiegurari.github.io/cargo-make/#usage-task-command-script-task-examplesubtask"
+                      }
+                    }
+                  },
+                  "condition": {
+                    "description": "If provided all condition values must be met in order for the task to be invoked",
+                    "$ref": "#/definitions/task_condition"
+                  },
+                  "condition_script": {
+                    "title": "Script",
+                    "description": "If script exit code is not 0, the sub tasks will not be invoked",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "dependencies": {
+          "title": "List of Tasks",
+          "description": "A list of tasks to execute before this task",
+          "type": "array",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-task-dependencies-alias"
+            }
+          },
+          "items": {
+            "oneOf": [
+              {
+                "title": "Task Name",
+                "description": "The name of a task in this file",
+                "type": "string"
+              },
+              {
+                "title": "External Task",
+                "description": "A task dependency potentially in another file",
+                "type": "object",
+                "x-taplo": {
+                  "initKeys": ["path"]
+                },
+                "required": ["name"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "title": "Task Name",
+                    "description": "The task name to execute",
+                    "type": "string"
+                  },
+                  "path": {
+                    "title": "File Path",
+                    "description": "The path to the makefile the task resides in",
+                    "type": "string",
+                    "default": "path/to/makefile"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "toolchain": {
+          "title": "Toolchain",
+          "description": "The rust toolchain used to invoke the command or install the needed crates/components",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-toolchain"
+            }
+          }
+        },
+        "linux": {
+          "description": "Override task if runtime OS is Linux (takes precedence over alias)",
+          "$ref": "#/definitions/task"
+        },
+        "windows": {
+          "description": "Override task if runtime OS is Windows (takes precedence over alias)",
+          "$ref": "#/definitions/task"
+        },
+        "mac": {
+          "description": "Override task if runtime OS is Mac (takes precedence over alias)",
+          "$ref": "#/definitions/task"
+        }
+      }
+    }
+  },
+  "description": "A schema for cargo-make makefiles",
+  "properties": {
+    "extend": {
+      "title": "Extend External Makefile",
+      "description": "Extend an external makefile by importing its tasks and properties to this file. Paths are relative to this makefile",
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/#usage-workspace-extending-external-makefile"
+        }
+      },
+      "default": "path/to/Makefile.toml",
+      "examples": [
+        "path/to/Makefile.toml",
+        {
+          "path": "path/to/Makefile.toml",
+          "optional": true
+        },
+        [
+          {
+            "path": "path/to/Makefile.toml",
+            "optional": true
+          }
+        ]
+      ],
+      "oneOf": [
+        {
+          "title": "File Path",
+          "description": "File path to external makefile relative to this file",
+          "type": "string",
+          "examples": ["path/to/Makefile.toml"]
+        },
+        {
+          "$ref": "#/definitions/extend"
+        },
+        {
+          "title": "External Makefile List",
+          "description": "List of external makefiles to extend",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/extend"
+          },
+          "uniqueItems": true
+        }
+      ]
+    },
+    "config": {
+      "title": "Config",
+      "description": "Configuration options for this makefile",
+      "type": "object",
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/api/cli/types/struct.ConfigSection.html"
+        },
+        "initKeys": ["min_version"]
+      },
+      "additionalProperties": false,
+      "properties": {
+        "skip_core_tasks": {
+          "description": "If true, the default core tasks will not be loaded",
+          "default": false,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-predefined-flows-disable"
+            }
+          }
+        },
+        "skip_git_env_info": {
+          "description": "If true, the Git related environment variables will not be loaded",
+          "default": false,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/sagiegurari/cargo-make#performance-tuning"
+            }
+          }
+        },
+        "skip_rust_env_info": {
+          "description": "If true, the rust related environment variables will not be loaded",
+          "default": false,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/sagiegurari/cargo-make#performance-tuning"
+            }
+          }
+        },
+        "skip_crate_env_info": {
+          "description": "If true, the current crate related environment variables will not be loaded",
+          "default": false,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://github.com/sagiegurari/cargo-make#performance-tuning"
+            }
+          }
+        },
+        "modify_core_tasks": {
+          "description": "Options to modify all the core tasks",
+          "type": "object",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-predefined-flows-modify"
+            }
+          },
+          "examples": [
+            {
+              "private": true
+            },
+            {
+              "namespace": "default"
+            },
+            {
+              "private": true,
+              "namespace": "default"
+            }
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "private": {
+              "description": "If true, all core tasks will be set to private (default false)",
+              "default": true,
+              "type": "boolean"
+            },
+            "namespace": {
+              "title": "Namespace",
+              "description": "If set to some value, all core tasks are modified to: `namespace::name`",
+              "type": "string",
+              "default": "default"
+            }
+          }
+        },
+        "init_task": {
+          "title": "Task Name",
+          "description": "Init task name which will be invoked at the start of every run",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-init-end-tasks"
+            }
+          },
+          "default": "init"
+        },
+        "end_task": {
+          "title": "Task Name",
+          "description": "End task name which will be invoked at the end of every run",
+          "default": "end",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-init-end-tasks"
+            }
+          }
+        },
+        "on_error_task": {
+          "title": "Task Name",
+          "description": "The name of the task to run in case of any error during the invocation of the flow",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-catching-errors"
+            }
+          },
+          "default": "catch"
+        },
+        "legacy_migration_task": {
+          "title": "Task Name",
+          "description": "The name of the task which runs legacy migration flows",
+          "default": "legacy-migration",
+          "type": "string",
+          "x-taplo": {
+            "hidden": true
+          }
+        },
+        "additional_profiles": {
+          "title": "List of Profiles",
+          "description": "Additional profile names to load",
+          "default": [],
+          "type": "array",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-profiles"
+            }
+          },
+          "examples": [["additional_profile"]],
+          "items": {
+            "title": "Profile",
+            "description": "Additional profile name to load",
+            "type": "string",
+            "default": "additional_profile"
+          },
+          "uniqueItems": true
+        },
+        "min_version": {
+          "description": "Minimum cargo-make/makers version",
+          "$ref": "#/definitions/semver",
+          "default": "0.35.0",
+          "examples": ["0.35.0", "0.34.0", "0.33.0"],
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-min-version"
+            }
+          }
+        },
+        "default_to_workspace": {
+          "description": "The default value for the `workspace` value of tasks in this makefile",
+          "default": true,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-workspace-disabling-workspace-support"
+            }
+          }
+        },
+        "reduce_output": {
+          "description": "Set to true to reduce console output for non CI execution",
+          "default": true,
+          "type": "boolean"
+        },
+        "time_summary": {
+          "description": "Set to true to print time summary at the end of the flow",
+          "default": true,
+          "type": "boolean"
+        },
+        "load_cargo_aliases": {
+          "description": "Automatically load cargo aliases as cargo-make tasks",
+          "default": true,
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-cargo-alias-tasks"
+            }
+          }
+        },
+        "main_project_member": {
+          "title": "Crate",
+          "description": "The project information member (used by workspaces)",
+          "type": "string",
+          "default": "main-crate"
+        },
+        "load_script": {
+          "description": "Invoked while loading the descriptor file but before loading any extended descriptor",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-load-scripts"
+            }
+          },
+          "$ref": "#/definitions/script"
+        },
+        "linux_load_script": {
+          "description": "Invoked while loading the descriptor file but before loading any extended descriptor. Takes precedence over `load_script` if runtime OS is Linux.",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-load-scripts"
+            }
+          },
+          "$ref": "#/definitions/script"
+        },
+        "windows_load_script": {
+          "description": "Invoked while loading the descriptor file but before loading any extended descriptor. Takes precedence over `load_script` if runtime OS is Windows.",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-load-scripts"
+            }
+          },
+          "$ref": "#/definitions/script"
+        },
+        "mac_load_script": {
+          "description": "Invoked while loading the descriptor file but before loading any extended descriptor. Takes precedence over `load_script` if runtime OS is Mac.",
+          "x-taplo": {
+            "links": {
+              "key": "https://sagiegurari.github.io/cargo-make/#usage-load-scripts"
+            }
+          },
+          "$ref": "#/definitions/script"
+        }
+      }
+    },
+    "env_files": {
+      "description": "The environment files to setup before running any tasks",
+      "$ref": "#/definitions/env_files"
+    },
+    "env_scripts": {
+      "title": "List of Env Scripts",
+      "description": "The environment scripts to execute after environment files and the env block. These scripts can be used to run anything needed before starting up the flow.",
+      "type": "array",
+      "x-taplo": {
+        "links": {
+          "key": "https://sagiegurari.github.io/cargo-make/#usage-env-file"
+        }
+      },
+      "default": [],
+      "items": {
+        "description": "Env script",
+        "type": "string",
+        "$ref": "#/definitions/script"
+      }
+    },
+    "env": {
+      "description": "The environment variables to setup before running any tasks",
+      "$ref": "#/definitions/env"
+    },
+    "tasks": {
+      "description": "Task definitions",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/task"
+      }
+    }
+  },
+  "title": "Makefile.toml",
+  "type": "object",
+  "x-taplo-info": {
+    "authors": ["Kathryn Long (https://github.com/starkat99)"],
+    "version": "0.35.0",
+    "patterns": ["^(.*(/|\\\\)Makefile\\.toml|Makefile\\.toml)$"]
+  }
+}
