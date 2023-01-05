@@ -59,6 +59,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
   `Whether to ignore a theme configuration for the current site` for `Jekyll`.
 - Always add documentation url to descriptions when available in the following
   format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
+- Don't add undocumented properties or features to the schema.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
