@@ -52,7 +52,8 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 - Always use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
 - Always omit leading articles for `title`-s and trailing punctuation to make
-  expected object values look more like types in programming languages.
+  expected object values look more like types in programming languages. Also
+  start `title`-s with a lowercase letter and try use nouns for titles instead of sentences.
 - Always explicitly state whether some setting is global for some tool or local
   for a project created with this tool. For instance if some settings is local
   then add `for the current <project-type>` at the end of the `description` like
