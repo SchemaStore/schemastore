@@ -1,16 +1,331 @@
 {
-  "title": "JSON schema for Google Chrome extension manifest files",
   "$schema": "http://json-schema.org/draft-07/schema#",
-
-  "type": "object",
   "additionalProperties": true,
-  "required": [ "manifest_version", "name", "version" ],
-
+  "definitions": {
+    "action_v2": {
+      "type": "object",
+      "properties": {
+        "default_title": {
+          "type": "string",
+          "description": "Tooltip for the main toolbar icon."
+        },
+        "default_popup": {
+          "$ref": "#/definitions/uri",
+          "description": "The popup appears when the user clicks the icon."
+        },
+        "default_icon": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "FIXME: String form is deprecated."
+            },
+            {
+              "type": "object",
+              "description": "Icon for the main toolbar.",
+              "properties": {
+                "19": {
+                  "$ref": "#/definitions/icon"
+                },
+                "38": {
+                  "$ref": "#/definitions/icon"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "dependencies": {
+        "name": {
+          "not": {
+            "required": ["name"]
+          }
+        },
+        "icons": {
+          "not": {
+            "required": ["icons"]
+          }
+        },
+        "popup": {
+          "not": {
+            "required": ["popup"]
+          }
+        }
+      }
+    },
+    "action_v3": {
+      "type": "object",
+      "properties": {
+        "default_title": {
+          "type": "string",
+          "description": "Tooltip for the main toolbar icon."
+        },
+        "default_popup": {
+          "$ref": "#/definitions/uri",
+          "description": "The popup appears when the user clicks the icon."
+        },
+        "default_icon": {
+          "type": "object",
+          "properties": {
+            "16": {
+              "$ref": "#/definitions/icon"
+            },
+            "24": {
+              "$ref": "#/definitions/icon"
+            },
+            "32": {
+              "$ref": "#/definitions/icon"
+            }
+          }
+        }
+      },
+      "dependencies": {
+        "name": {
+          "not": {
+            "required": ["name"]
+          }
+        },
+        "icons": {
+          "not": {
+            "required": ["icons"]
+          }
+        },
+        "popup": {
+          "not": {
+            "required": ["popup"]
+          }
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "if": {
+        "$comment": "Global shortcuts change the acceptable pattern for the suggested_key.",
+        "properties": {
+          "global": {
+            "const": true
+          }
+        },
+        "required": ["global"]
+      },
+      "then": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "global": {
+            "type": "boolean",
+            "description": "Whether this command should work while Chrome does not have focus. Keyboard shortcut suggestions for global commands are limited to Ctrl+Shift+[0..9]"
+          },
+          "suggested_key": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+              "^(default|mac|windows|linux|chromeos)$": {
+                "type": "string",
+                "pattern": "^(Ctrl|Command|MacCtrl)\\+Shift\\+[0-9]"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "global": {
+            "type": "boolean",
+            "description": "Whether this command should work while Chrome does not have focus. Keyboard shortcut suggestions for global commands are limited to Ctrl+Shift+[0..9]"
+          },
+          "suggested_key": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+              "^(default|mac|windows|linux|chromeos)$": {
+                "type": "string",
+                "pattern": "^(Ctrl|Command|MacCtrl|Alt|Option)\\+(Shift\\+)?[A-Z]"
+              }
+            }
+          }
+        }
+      }
+    },
+    "content_security_policy": {
+      "type": "string",
+      "description": "This introduces some fairly strict policies that will make extensions more secure by default, and provides you with the ability to create and enforce rules governing the types of content that can be loaded and executed by your extensions and applications.",
+      "format": "content-security-policy",
+      "default": "script-src 'self'; object-src 'self'"
+    },
+    "glob_pattern": {
+      "type": "string",
+      "format": "glob-pattern"
+    },
+    "icon": {
+      "$ref": "#/definitions/uri"
+    },
+    "match_pattern": {
+      "type": "string",
+      "format": "match-pattern",
+      "pattern": "^((\\*|http|https|file|ftp|chrome-extension):\\/\\/(\\*|\\*\\.[^\\/\\*]+|[^\\/\\*]+)?(\\/.*))|urn:(\\*|.*)|<all_urls>$"
+    },
+    "mime_type": {
+      "type": "string",
+      "format": "mime-type",
+      "pattern": "^(?:application|audio|image|message|model|multipart|text|video)\\/[-+.\\w]+$"
+    },
+    "page": {
+      "$ref": "#/definitions/uri"
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "permission"
+      }
+    },
+    "scripts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/uri"
+      }
+    },
+    "uri": {
+      "type": "string"
+    },
+    "version_string": {
+      "type": "string",
+      "pattern": "^(?:\\d{1,5}\\.){0,3}\\d{1,5}$"
+    },
+    "web_resource": {
+      "type": "object",
+      "required": ["resources"],
+      "properties": {
+        "resources": {
+          "type": "array",
+          "description": "An array of resources to be exposed. Resources are specified as strings and may contain * for wildcard matches. For example, \"/images/*\" exposes everything in the extension's /images directory recursively while \"*.png\" exposes all PNG files.",
+          "items": {
+            "$ref": "#/definitions/glob_pattern"
+          }
+        },
+        "matches": {
+          "type": "array",
+          "description": "A list of URL match patterns specifying which pages can access the resources. Only the origin is used to match URLs; subdomains patterns (*.google.com) and paths are ignored.",
+          "items": {
+            "$ref": "#/definitions/match_pattern"
+          }
+        },
+        "extension_ids": {
+          "type": "array",
+          "description": "A list of extension IDs, specifying which extensions can access the resources.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "use_dynamic_url": {
+          "type": "boolean",
+          "description": "If true, only allow resources to be accessible through dynamic ID. The dynamic ID is generated per session. It's regenerated on browser restart or extension reload."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "content_scripts": {
+      "not": {
+        "required": ["script_badge"]
+      }
+    },
+    "script_badge": {
+      "not": {
+        "required": ["content_scripts"]
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "background": {
+        "type": "object",
+        "description": "The background page is an HTML page that runs in the extension process. It exists for the lifetime of your extension, and only one instance of it at a time is active.",
+        "properties": {
+          "persistent": {
+            "type": "boolean",
+            "description": "When false, makes the background page an event page (loaded only when needed).",
+            "default": true
+          },
+          "page": {
+            "$ref": "#/definitions/page",
+            "description": "Specify the HTML of the background page.",
+            "default": "background.html"
+          },
+          "scripts": {
+            "$ref": "#/definitions/scripts",
+            "description": "A background page will be generated by the extension system that includes each of the files listed in the scripts property.",
+            "default": ["background.js"]
+          }
+        },
+        "dependencies": {
+          "page": {
+            "not": {
+              "required": ["scripts"]
+            }
+          },
+          "scripts": {
+            "not": {
+              "required": ["page"]
+            }
+          }
+        }
+      },
+      "browser_action": {
+        "$ref": "#/definitions/action_v2",
+        "description": "Use browser actions to put icons in the main Google Chrome toolbar, to the right of the address bar. In addition to its icon, a browser action can also have a tooltip, a badge, and a popup."
+      },
+      "page_action": {
+        "$ref": "#/definitions/action_v2",
+        "description": "Use the chrome.pageAction API to put icons inside the address bar. Page actions represent actions that can be taken on the current page, but that aren't applicable to all pages."
+      },
+      "content_security_policy": {
+        "$ref": "#/definitions/content_security_policy"
+      },
+      "web_accessible_resources": {
+        "type": "array",
+        "description": "An array of strings specifying the paths (relative to the package root) of packaged resources that are expected to be usable in the context of a web page.",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "$ref": "#/definitions/uri"
+        }
+      }
+    },
+    "dependencies": {
+      "page_action": {
+        "not": {
+          "required": ["browser_action"]
+        }
+      },
+      "browser_action": {
+        "not": {
+          "required": ["page_action"]
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "manifest_version": {
+        "const": 3
+      }
+    }
+  },
   "properties": {
     "manifest_version": {
       "type": "number",
       "description": "One integer specifying the version of the manifest file format your package requires.",
-      "enum": [ 2, 3 ]
+      "enum": [2, 3]
     },
     "name": {
       "type": "string",
@@ -81,9 +396,15 @@
       "type": "object",
       "description": "Use the commands API to add keyboard shortcuts that trigger actions in your extension, for example, an action to open the browser action or send a command to the extension.",
       "patternProperties": {
-        ".*": { "$ref": "#/definitions/command" },
-        "^_execute_browser_action$": { "$ref": "#/definitions/command" },
-        "^_execute_page_action$": { "$ref": "#/definitions/command" }
+        ".*": {
+          "$ref": "#/definitions/command"
+        },
+        "^_execute_browser_action$": {
+          "$ref": "#/definitions/command"
+        },
+        "^_execute_page_action$": {
+          "$ref": "#/definitions/command"
+        }
       }
     },
     "content_scripts": {
@@ -93,7 +414,7 @@
       "uniqueItems": true,
       "items": {
         "type": "object",
-        "required": [ "matches" ],
+        "required": ["matches"],
         "additionalProperties": false,
         "properties": {
           "matches": {
@@ -101,19 +422,25 @@
             "description": "Specifies which pages this content script will be injected into.",
             "minItems": 1,
             "uniqueItems": true,
-            "items": { "$ref": "#/definitions/match_pattern" }
+            "items": {
+              "$ref": "#/definitions/match_pattern"
+            }
           },
           "exclude_matches": {
             "type": "array",
             "description": "Excludes pages that this content script would otherwise be injected into.",
             "uniqueItems": true,
-            "items": { "$ref": "#/definitions/match_pattern" }
+            "items": {
+              "$ref": "#/definitions/match_pattern"
+            }
           },
           "css": {
             "type": "array",
             "description": "The list of CSS files to be injected into matching pages. These are injected in the order they appear in this array, before any DOM is constructed or displayed for the page.",
             "uniqueItems": true,
-            "items": { "$ref": "#/definitions/uri" }
+            "items": {
+              "$ref": "#/definitions/uri"
+            }
           },
           "js": {
             "$ref": "#/definitions/scripts",
@@ -122,7 +449,7 @@
           "run_at": {
             "type": "string",
             "description": "Controls when the files in js are injected.",
-            "enum": [ "document_start", "document_end", "document_idle" ],
+            "enum": ["document_start", "document_end", "document_idle"],
             "default": "document_idle"
           },
           "all_frames": {
@@ -134,13 +461,17 @@
             "type": "array",
             "description": "Applied after matches to include only those URLs that also match this glob. Intended to emulate the @include Greasemonkey keyword.",
             "uniqueItems": true,
-            "items": { "$ref": "#/definitions/glob_pattern" }
+            "items": {
+              "$ref": "#/definitions/glob_pattern"
+            }
           },
           "exclude_globs": {
             "type": "array",
             "description": "Applied after matches to exclude URLs that match this glob. Intended to emulate the @exclude Greasemonkey keyword.",
             "uniqueItems": true,
-            "items": { "$ref": "#/definitions/glob_pattern" }
+            "items": {
+              "$ref": "#/definitions/glob_pattern"
+            }
           },
           "match_about_blank": {
             "type": "boolean",
@@ -186,7 +517,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [ "id", "default_title", "file_filters" ],
+        "required": ["id", "default_title", "file_filters"],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -215,16 +546,22 @@
     "incognito": {
       "type": "string",
       "description": "Specify how this extension will behave if allowed to run in incognito mode.",
-      "enum": [ "spanning", "split", "not_allowed" ],
+      "enum": ["spanning", "split", "not_allowed"],
       "default": "spanning"
     },
-
     "input_components": {
       "type": "array",
       "description": "Allows your extension to handle keystrokes, set the composition, and manage the candidate window.",
       "items": {
         "type": "object",
-        "required": [ "name", "type", "id", "description", "language", "layouts" ],
+        "required": [
+          "name",
+          "type",
+          "id",
+          "description",
+          "language",
+          "layouts"
+        ],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -263,7 +600,7 @@
       "uniqueItems": true,
       "items": {
         "type": "object",
-        "required": [ "path", "mime_type" ],
+        "required": ["path", "mime_type"],
         "additionalProperties": false,
         "properties": {
           "path": {
@@ -280,7 +617,7 @@
     "oauth2": {
       "type": "object",
       "description": "Use the Chrome Identity API to authenticate users: the getAuthToken for users logged into their Google Account and the launchWebAuthFlow for users logged into a non-Google account.",
-      "required": [ "client_id", "scopes" ],
+      "required": ["client_id", "scopes"],
       "additionalProperties": false,
       "properties": {
         "client_id": {
@@ -303,7 +640,7 @@
     "omnibox": {
       "type": "object",
       "description": "The omnibox API allows you to register a keyword with Google Chrome's address bar, which is also known as the omnibox.",
-      "required": [ "keyword" ],
+      "required": ["keyword"],
       "additionalProperties": false,
       "properties": {
         "keyword": {
@@ -324,7 +661,7 @@
     "options_ui": {
       "type": "object",
       "description": "To allow users to customize the behavior of your extension, you may wish to provide an options page. If you do, an Options link will be shown on the extensions management page at chrome://extensions which opens a dialogue containing your options page.",
-      "required": [ "page" ],
+      "required": ["page"],
       "properties": {
         "page": {
           "type": "string",
@@ -354,7 +691,7 @@
         "3D": {
           "type": "object",
           "description": "The '3D' requirement denotes GPU hardware acceleration.",
-          "required": [ "features" ],
+          "required": ["features"],
           "additionalProperties": false,
           "properties": {
             "features": {
@@ -364,7 +701,7 @@
               "uniqueItems": true,
               "items": {
                 "type": "string",
-                "enum": [ "webgl" ]
+                "enum": ["webgl"]
               }
             }
           }
@@ -372,7 +709,7 @@
         "plugins": {
           "type": "object",
           "description": "Indicates if an app or extension requires NPAPI to run. This requirement is enabled by default when the manifest includes the 'plugins' field.",
-          "required": [ "npapi" ],
+          "required": ["npapi"],
           "additionalProperties": false,
           "properties": {
             "npapi": {
@@ -386,14 +723,16 @@
     "sandbox": {
       "type": "object",
       "description": "Defines an collection of app or extension pages that are to be served in a sandboxed unique origin, and optionally a Content Security Policy to use with them.",
-      "required": [ "pages" ],
+      "required": ["pages"],
       "additionalProperties": false,
       "properties": {
         "pages": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/page" }
+          "items": {
+            "$ref": "#/definitions/page"
+          }
         },
         "content_security_policy": {
           "$ref": "#/definitions/content_security_policy",
@@ -413,7 +752,7 @@
     "tts_engine": {
       "type": "object",
       "description": "Register itself as a speech engine.",
-      "required": [ "voices" ],
+      "required": ["voices"],
       "additionalProperties": false,
       "properties": {
         "voices": {
@@ -423,7 +762,7 @@
           "uniqueItems": true,
           "items": {
             "type": "object",
-            "required": [ "voice_name", "event_types" ],
+            "required": ["voice_name", "event_types"],
             "additionalProperties": false,
             "properties": {
               "voice_name": {
@@ -446,7 +785,14 @@
                 "items": {
                   "type": "string",
                   "description": "",
-                  "enum": [ "start", "word", "sentence", "marker", "end", "error" ]
+                  "enum": [
+                    "start",
+                    "word",
+                    "sentence",
+                    "marker",
+                    "end",
+                    "error"
+                  ]
                 }
               }
             }
@@ -468,9 +814,7 @@
     "storage": {},
     "system_indicator": {}
   },
-  "if": {
-    "properties": {"manifest_version": {"const": 3}}
-  },
+  "required": ["manifest_version", "name", "version"],
   "then": {
     "properties": {
       "background": {
@@ -487,8 +831,16 @@
           }
         },
         "dependencies": {
-          "page": { "not": { "required": [ "scripts" ] } },
-          "scripts": { "not": { "required": [ "page" ] } }
+          "page": {
+            "not": {
+              "required": ["scripts"]
+            }
+          },
+          "scripts": {
+            "not": {
+              "required": ["page"]
+            }
+          }
         }
       },
       "host_permissions": {
@@ -499,6 +851,7 @@
         "$ref": "#/definitions/action_v3"
       },
       "content_security_policy": {
+        "type": "object",
         "properties": {
           "extension_pages": {
             "description": "This policy covers pages in your extension, including html files and service workers.",
@@ -519,225 +872,21 @@
           "$ref": "#/definitions/web_resource"
         }
       }
-    }
-  },
-  "else": {
-    "properties": {
-      "background": {
-        "type": "object",
-        "description": "The background page is an HTML page that runs in the extension process. It exists for the lifetime of your extension, and only one instance of it at a time is active.",
-        "properties": {
-          "persistent": {
-            "type": "boolean",
-            "description": "When false, makes the background page an event page (loaded only when needed).",
-            "default": true
-          },
-          "page": {
-            "$ref": "#/definitions/page",
-            "description": "Specify the HTML of the background page.",
-            "default": "background.html"
-          },
-          "scripts": {
-            "$ref": "#/definitions/scripts",
-            "description": "A background page will be generated by the extension system that includes each of the files listed in the scripts property.",
-            "default": [ "background.js" ]
-          }
-        },
-        "dependencies": {
-          "page": { "not": { "required": [ "scripts" ] } },
-          "scripts": { "not": { "required": [ "page" ] } }
-        }
-      },
+    },
+    "$comment": "browser_action and page_action are no longer present in v3",
+    "dependencies": {
       "browser_action": {
-        "$ref": "#/definitions/action_v2",
-        "description": "Use browser actions to put icons in the main Google Chrome toolbar, to the right of the address bar. In addition to its icon, a browser action can also have a tooltip, a badge, and a popup."
+        "not": {
+          "required": ["browser_action"]
+        }
       },
       "page_action": {
-        "$ref": "#/definitions/action_v2",
-        "description": "Use the chrome.pageAction API to put icons inside the address bar. Page actions represent actions that can be taken on the current page, but that aren't applicable to all pages."
-      },
-      "content_security_policy": {
-        "$ref": "#/definitions/content_security_policy"
-      },
-      "web_accessible_resources": {
-        "type": "array",
-        "description": "An array of strings specifying the paths (relative to the package root) of packaged resources that are expected to be usable in the context of a web page.",
-        "minItems": 1,
-        "uniqueItems": true,
-        "items": {
-          "$ref": "#/definitions/uri"
-        }
-      }
-    },
-    "dependencies": {
-      "page_action": { "not": { "required": [ "browser_action" ] } },
-      "browser_action": { "not": { "required": [ "page_action" ] } }
-    }
-  },
-  "dependencies": {
-    "content_scripts": { "not": { "required": [ "script_badge" ] } },
-    "script_badge": { "not": { "required": [ "content_scripts" ] } }
-  },
-  "definitions": {
-    "action_v2": {
-      "type": "object",
-      "properties": {
-        "default_title": {
-          "type": "string",
-          "description": "Tooltip for the main toolbar icon."
-        },
-        "default_popup": {
-          "$ref": "#/definitions/uri",
-          "description": "The popup appears when the user clicks the icon."
-        },
-        "default_icon": {
-          "anyOf": [
-            {
-              "type": "string",
-              "description": "FIXME: String form is deprecated."
-            },
-            {
-              "type": "object",
-              "description": "Icon for the main toolbar.",
-              "properties": {
-                "19": { "$ref": "#/definitions/icon" },
-                "38": { "$ref": "#/definitions/icon" }
-              }
-            }
-          ]
-        }
-      },
-      "dependencies": {
-        "name": { "not": { "required": [ "name" ] } },
-        "icons": { "not": { "required": [ "icons" ] } },
-        "popup": { "not": { "required": [ "popup" ] } }
-      }
-    },
-    "action_v3": {
-      "type": "object",
-      "properties": {
-        "default_title": {
-          "type": "string",
-          "description": "Tooltip for the main toolbar icon."
-        },
-        "default_popup": {
-          "$ref": "#/definitions/uri",
-          "description": "The popup appears when the user clicks the icon."
-        },
-        "default_icon": {
-          "type": "object",
-          "properties": {
-            "16": { "$ref": "#/definitions/icon" },
-            "24": { "$ref": "#/definitions/icon" },
-            "32": { "$ref": "#/definitions/icon" }
-          }
-        }
-      },
-      "dependencies": {
-        "name": { "not": { "required": [ "name" ] } },
-        "icons": { "not": { "required": [ "icons" ] } },
-        "popup": { "not": { "required": [ "popup" ] } }
-      }
-    },
-    "command": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "description": {
-          "type": "string"
-        },
-        "suggested_key": {
-          "type": "object",
-          "additionalProperties": false,
-          "patternProperties": {
-            "^(default|mac|windows|linux|chromeos)$": {
-              "type": "string",
-              "pattern": "^(Ctrl|Command|MacCtrl|Alt|Option)\\+(Shift\\+)?[A-Z]"
-            }
-          }
-        }
-      }
-    },
-
-    "content_security_policy": {
-      "type": "string",
-      "description": "This introduces some fairly strict policies that will make extensions more secure by default, and provides you with the ability to create and enforce rules governing the types of content that can be loaded and executed by your extensions and applications.",
-      "format": "content-security-policy",
-      "default": "script-src 'self'; object-src 'self'"
-    },
-    "glob_pattern": {
-      "type": "string",
-      "format": "glob-pattern"
-    },
-    "icon": {
-      "$ref": "#/definitions/uri"
-    },
-    "match_pattern": {
-      "type": "string",
-      "format": "match-pattern",
-      "pattern": "^((\\*|http|https|file|ftp|chrome-extension):\\/\\/(\\*|\\*\\.[^\\/\\*]+|[^\\/\\*]+)?(\\/.*))|<all_urls>$"
-    },
-    "mime_type": {
-      "type": "string",
-      "format": "mime-type",
-      "pattern": "^(?:application|audio|image|message|model|multipart|text|video)\\/[-+.\\w]+$"
-    },
-    "page": {
-      "$ref": "#/definitions/uri"
-    },
-    "permissions": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "type": "string",
-        "format": "permission"
-      }
-    },
-    "scripts": {
-      "type": "array",
-      "minItems": 1,
-      "uniqueItems": true,
-      "items": {
-        "$ref": "#/definitions/uri"
-      }
-    },
-    "uri": {
-      "type": "string"
-    },
-    "version_string": {
-      "type": "string",
-      "pattern": "^(?:\\d{1,5}\\.){0,3}\\d{1,5}$"
-    },
-    "web_resource": {
-      "type": "object",
-      "required": ["resources"],
-      "properties": {
-        "resources": {
-          "type": "array",
-          "description": "An array of resources to be exposed. Resources are specified as strings and may contain * for wildcard matches. For example, \"/images/*\" exposes everything in the extension's /images directory recursively while \"*.png\" exposes all PNG files.",
-          "items": {
-            "$ref": "#/definitions/glob_pattern"
-          }
-        },
-        "matches": {
-          "type": "array",
-          "description": "A list of URL match patterns specifying which pages can access the resources. Only the origin is used to match URLs; subdomains patterns (*.google.com) and paths are ignored.",
-          "items": {
-            "$ref": "#/definitions/match_pattern"
-          }
-        },
-        "extension_ids": {
-          "type": "array",
-          "description": "A list of extension IDs, specifying which extensions can access the resources.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "use_dynamic_url": {
-          "type": "boolean",
-          "description": "If true, only allow resources to be accessible through dynamic ID. The dynamic ID is generated per session. It's regenerated on browser restart or extension reload."
+        "not": {
+          "required": ["page_action"]
         }
       }
     }
-  }
+  },
+  "title": "JSON schema for Google Chrome extension manifest files",
+  "type": "object"
 }
