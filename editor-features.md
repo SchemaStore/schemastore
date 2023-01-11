@@ -17,7 +17,6 @@ Let's say you have the following schema:
   },
   "title": "schema title"
 }
-
 ```
 
 If integer or another incorrect value is passed to `first` than
