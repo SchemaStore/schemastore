@@ -41,13 +41,26 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 
 :x: **Don't forget** add test files.
 
-- Be consistent across your schema: order properties and describe in the one style.
-- Use `$comment` to note about something to developers. You can refer to some issues here.
-- Use `title` when documentation mentions title explicitly.
+- Always be consistent across your schema: order properties and describe in the one style.
+- Always use `$comment` to note about something to developers. You can refer to some issues here.
+- Always use `title` when property type is an object to enhance editor experience which use
+  this property to show errors (like VS Code). [Why](./editor-features.md)?
 - Always use `description`, `type`, `additionalProperties`.
-  - Always set `additionalProperties` to `false` until documentation permits additional properties explicitly. that tool the JSON schema is created for can be changed in the future to allow wrong extra properties.
-- Use `minLength`/`maxLength`/`pattern`/etc for property values.
+  - Always set `additionalProperties` to `false` until documentation permits
+    additional properties explicitly. That tool the JSON schema is created for
+    can be changed in the future to allow wrong extra properties.
+- Always use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
+- Always omit leading articles for `title`-s and trailing punctuation to make
+  expected object values look more like types in programming languages. Also
+  start `title`-s with a lowercase letter and try use nouns for titles instead of sentences.
+- Always explicitly state whether some setting is global for some tool or local
+  for a project created with this tool. For instance if some settings is local
+  then add `for the current <project-type>` at the end of the `description` like
+  `Whether to ignore a theme configuration for the current site` for `Jekyll`.
+- Always add documentation url to descriptions when available in the following
+  format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
+- Don't add undocumented properties or features to the schema.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
