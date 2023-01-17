@@ -118,7 +118,7 @@ module.exports = function (grunt) {
    * @prop {Buffer | undefined} rawFile
    * @prop {Record<string, unknown>} jsonObj
    * @prop {string} jsonName
-   * @prop {string} urlorFilePath
+   * @prop {string} urlOrFilePath
    * @prop {boolean} schemaScan
    */
 
@@ -144,7 +144,7 @@ module.exports = function (grunt) {
    * @prop {boolean} fullScanAllFiles
    * @prop {boolean} calledByTV4Validator
    * @prop {boolean} skipReadFile
-   * @prop {boolean} fullScanAllFiles
+   * @prop {boolean} ignoreSkiptest
    * @prop {string} processOnlyThisOneSchemaFile
    */
 
@@ -167,6 +167,7 @@ module.exports = function (grunt) {
       fullScanAllFiles = false,
       calledByTV4Validator = false,
       skipReadFile = true,
+      ignoreSkiptest = false,
       processOnlyThisOneSchemaFile = undefined,
     } = {}
   ) {
@@ -187,7 +188,7 @@ module.exports = function (grunt) {
      * @returns {boolean}
      */
     const canThisTestBeRun = (jsonFilename) => {
-      if (schemaValidation.skiptest.includes(jsonFilename)) {
+      if (!ignoreSkiptest && schemaValidation.skiptest.includes(jsonFilename)) {
         return false // This test can be never process
       }
       if (fullScanAllFiles) {
@@ -973,6 +974,34 @@ module.exports = function (grunt) {
       grunt.log.ok(
         `No duplicated property key found in JSON files. Total files scan: ${countScan}`
       )
+    }
+  )
+
+  grunt.registerTask(
+    'local_assert_top_level_$ref_is_standalone',
+    'top level $ref propertie of schemas must be the only property',
+    function () {
+      let countScan = 0
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(data) {
+            if (data.jsonObj.$ref?.startsWith('http')) {
+              for (const [member] of Object.entries(data.jsonObj)) {
+                if (member !== '$ref') {
+                  throwWithErrorText([
+                    `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${data.jsonName}`,
+                  ])
+                }
+              }
+            }
+
+            ++countScan
+          },
+        },
+        { skipReadFile: false, ignoreSkiptest: true }
+      )
+
+      grunt.log.ok(`All urls tested OK. Total: ${countScan}`)
     }
   )
 
@@ -1955,6 +1984,7 @@ module.exports = function (grunt) {
     'local_bom',
     'local_assert_no_smart_quotes',
     'local_find-duplicated-property-keys',
+    'local_assert_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
     'local_check_for_schema_version_too_high',
     'local_count_url_in_catalog',
