@@ -80,8 +80,7 @@ To make sure that invalid files fail to validate against your schema, use a subf
 
 - Install [NodeJS](https://nodejs.org) (The minimum required NodeJS version "engines" is defined in [package.json](src/package.json))
 - In subdirectory `src/`, run `npm clean-install`
-- In subdirectory `src/`, run `npm run build` (to test a single schema, use `npm run build -- --SchemaName=<jsonFileName.json> default`)
-- or optionally for macOS or Linux in the project root directory run `make`
+- In subdirectory `src/`, run `npm run build` (to test a single schema, use `./node_modules/.bin/grunt --SchemaName=<jsonFileName.json> default`)
 
 If the build succeeds, your changes are valid and you can safely create a PR.
 
