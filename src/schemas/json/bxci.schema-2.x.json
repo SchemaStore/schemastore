@@ -126,25 +126,81 @@
       },
       "additionalProperties": false
     },
-    "stage": {
+    "when": {
       "type": "object",
+      "title": "When",
+      "description": "Condition that should be met to run this step",
       "properties": {
-        "steps": {
-          "type": "array",
-          "description": "List of steps to run"
+        "branch": {
+          "title": "Branch",
+          "$ref": "#/definitions/branchPattern"
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "List of steps to run",
+      "title": "Steps"
+    },
+    "singleStage": {
+      "type": "object",
+      "title": "Stage",
+      "properties": {
+        "steps": { "$ref": "#/definitions/steps" },
+        "when": { "$ref": "#/definitions/when" }
+      },
+      "required": ["steps"],
+      "additionalProperties": false
+    },
+    "failFast": {
+      "type": "boolean",
+      "title": "Fail Fast",
+      "default": false,
+      "description": "Forces parallel stages to all be aborted when one of them fails"
+    },
+    "parallelStage": {
+      "type": "object",
+      "title": "Parallel Stage",
+      "properties": {
+        "when": { "$ref": "#/definitions/when" },
+        "fail_fast": {
+          "$ref": "#/definitions/failFast"
         },
-        "when": {
+        "parallel": {
           "type": "object",
-          "description": "Condition that should be met to run this step",
-          "properties": {
-            "branch": {
-              "$ref": "#/definitions/branchPattern",
-              "description": "Specifies in which branches this stage will be executed"
+          "description": "List of stages to be executed in parallel",
+          "patternProperties": {
+            "^\\w+( \\w+)*$": {
+              "$ref": "#/definitions/singleStage",
+              "description": "Stage name in the Jenkins pipeline"
             }
           }
         }
       },
-      "required": ["steps"],
+      "required": ["parallel"],
+      "additionalProperties": false
+    },
+    "stage": {
+      "type": "object",
+      "properties": {
+        "when": { "$ref": "#/definitions/when" },
+        "steps": { "$ref": "#/definitions/steps" },
+        "fail_fast": {
+          "$ref": "#/definitions/failFast"
+        },
+        "parallel": {
+          "title": "Parallel",
+          "patternProperties": {
+            "^\\w+( \\w+)*$": {
+              "$ref": "#/definitions/singleStage"
+            }
+          }
+        }
+      },
+      "anyOf": [
+        { "$ref": "#/definitions/singleStage" },
+        { "$ref": "#/definitions/parallelStage" }
+      ],
       "additionalProperties": false
     },
     "releaseChannel": {
@@ -153,7 +209,7 @@
     },
     "releaseChannelBranch": {
       "$ref": "#/definitions/branchPattern",
-      "description": "Indicates on which branches the artifact will be published."
+      "description": "Indicates on which branches the artifact will be published"
     },
     "dockerfile": {
       "description": "Dockerfile path",
@@ -532,6 +588,7 @@
     },
     "stages": {
       "type": "object",
+      "title": "Stages",
       "description": "Defines the stages and steps required to build the project.",
       "patternProperties": {
         "^\\w+( \\w+)*$": {
