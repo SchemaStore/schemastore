@@ -25,7 +25,7 @@ const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
 const SchemaVersionTooHigh = ['2019-09', '2020-12']
 // prettier-ignore
-const countSchemasType = [ 
+const countSchemasType = [
   { schemaName: '2020-12', schemaStr: 'json-schema.org/draft/2020-12/schema', totalCount: 0, active: true },
   { schemaName: '2019-09', schemaStr: 'json-schema.org/draft/2019-09/schema', totalCount: 0, active: true },
   { schemaName: 'draft-07', schemaStr: 'json-schema.org/draft-07/schema', totalCount: 0, active: true },
@@ -1561,6 +1561,30 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
+    'local_assert_catalog_has_no_duplicate_names',
+    'Ensure there are no duplicate names in the catalog.json file',
+    function () {
+      /** @type {string[]} */
+      const schemaNames = catalog.schemas.map((entry) => entry.name)
+      /** @type {string[]} */
+      const duplicateSchemaNames = []
+
+      for (const schemaName of schemaNames) {
+        const matches = schemaNames.filter((item) => item === schemaName)
+        if (matches.length > 1 && !duplicateSchemaNames.includes(schemaName)) {
+          duplicateSchemaNames.push(schemaName)
+        }
+      }
+
+      if (duplicateSchemaNames.length > 0) {
+        throwWithErrorText([
+          `Found duplicates: ${JSON.stringify(duplicateSchemaNames)}`,
+        ])
+      }
+    }
+  )
+
+  grunt.registerTask(
     'local_check_for_test_folders_without_schema_to_be_tested',
     'Check if schema file is missing',
     function () {
@@ -1970,6 +1994,7 @@ module.exports = function (grunt) {
   // The order of the task is relevant.
   grunt.registerTask('local_test', [
     'local_check_duplicate_list_in_schema-validation.json',
+    'local_assert_catalog_has_no_duplicate_names',
     'local_validate_directory_structure',
     'local_check_filename_extension',
     'local_check_in_schema-validation.json_for_missing_schema_files',
