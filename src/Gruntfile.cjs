@@ -840,7 +840,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'remote_ajv_test',
+    'remote_test_ajv',
     'Dynamically load external schema file for validation',
     async function () {
       const done = this.async()
@@ -902,7 +902,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'remote_bom',
+    'remote_assert_schema_no_bom',
     'Dynamically load remote schema file for BOM validation',
     async function () {
       const done = this.async()
@@ -1424,7 +1424,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'remote_count_schema_versions',
+    'remote_print_count_schema_versions',
     'Dynamically load remote schema file for schema version count',
     async function () {
       const done = this.async()
@@ -2031,9 +2031,9 @@ module.exports = function (grunt) {
     'local_print_count_schema_versions',
   ])
   grunt.registerTask('remote_test', [
-    'remote_count_schema_versions',
-    'remote_bom',
-    'remote_ajv_test',
+    'remote_assert_schema_no_bom',
+    'remote_test_ajv',
+    'remote_print_count_schema_versions',
   ])
   grunt.registerTask('local_maintenance', [
     'local_test_downgrade_schema_version',
