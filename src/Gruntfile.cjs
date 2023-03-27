@@ -9,7 +9,7 @@ const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
 const prettier = require('prettier')
-const pt = require('path')
+const path = require('path')
 const fs = require('fs')
 
 const temporaryCoverageDir = 'temp'
@@ -18,7 +18,11 @@ const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = require('./api/json/catalog.json')
-const schemaV4JSON = require(pt.resolve('.', schemaDir, 'schema-draft-v4.json'))
+const schemaV4JSON = require(path.resolve(
+  '.',
+  schemaDir,
+  'schema-draft-v4.json'
+))
 const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
@@ -88,7 +92,7 @@ module.exports = function (grunt) {
         if (response.status === 200) {
           const parsed = new URL(url)
           const callbackParameter = {
-            jsonName: pt.basename(parsed.pathname),
+            jsonName: path.basename(parsed.pathname),
             jsonObj: JSON.parse(response.data.toString()),
             rawFile: response.data,
             urlOrFilePath: url,
@@ -174,7 +178,7 @@ module.exports = function (grunt) {
     const schemaNameOption = grunt.option('SchemaName')
     if (processOnlyThisOneSchemaFile === undefined && schemaNameOption) {
       processOnlyThisOneSchemaFile = schemaNameOption
-      const file = pt.join(schemaDir, processOnlyThisOneSchemaFile)
+      const file = path.join(schemaDir, processOnlyThisOneSchemaFile)
       if (!fs.existsSync(file)) {
         throwWithErrorText([
           `Schema file ${processOnlyThisOneSchemaFile} does not exist`,
@@ -218,7 +222,7 @@ module.exports = function (grunt) {
         if (processOnlyThisOneSchemaFile) {
           if (schemaFileName !== processOnlyThisOneSchemaFile) return
         }
-        const schemaFullPathName = pt.join(schemaDir, schemaFileName)
+        const schemaFullPathName = path.join(schemaDir, schemaFileName)
 
         // Some schema files must be ignored.
         if (
@@ -241,7 +245,7 @@ module.exports = function (grunt) {
             // Return the real Raw file for BOM file test rejection
             rawFile: buffer,
             jsonObj: jsonObj_,
-            jsonName: pt.basename(schemaFullPathName),
+            jsonName: path.basename(schemaFullPathName),
             urlOrFilePath: schemaFullPathName,
             schemaScan: onlySchemaScan,
           }
@@ -303,9 +307,9 @@ module.exports = function (grunt) {
         return
       }
       // remove filename '.json' extension and to create the folder name
-      const folderNameAndPath = pt.join(
+      const folderNameAndPath = path.join(
         testDir,
-        pt.basename(schemaName, '.json')
+        path.basename(schemaName, '.json')
       )
       // if test folder doesn't exist then exit. Some schemas do not have a test folder.
       if (!fs.existsSync(folderNameAndPath)) {
@@ -315,7 +319,7 @@ module.exports = function (grunt) {
       // Read all files name inside one test folder
       const filesInsideOneTestFolder = fs.readdirSync(folderNameAndPath).map(
         // Must create a list with full path name
-        (fileName) => pt.join(folderNameAndPath, fileName)
+        (fileName) => path.join(folderNameAndPath, fileName)
       )
 
       if (!filesInsideOneTestFolder.length) {
@@ -333,7 +337,7 @@ module.exports = function (grunt) {
             `Found non test file inside test folder: ${testFileFullPathName}`,
           ])
         }
-        if (!skipThisFileName(pt.basename(testFileFullPathName))) {
+        if (!skipThisFileName(path.basename(testFileFullPathName))) {
           const buffer = skipReadFile
             ? undefined
             : fs.readFileSync(testFileFullPathName)
@@ -342,7 +346,7 @@ module.exports = function (grunt) {
             jsonObj: skipReadFile
               ? undefined
               : loadTestFile(testFileFullPathName, buffer),
-            jsonName: pt.basename(testFileFullPathName),
+            jsonName: path.basename(testFileFullPathName),
             urlOrFilePath: testFileFullPathName,
             // This is a test folder scan process, not schema scan process
             schemaScan: false,
@@ -513,7 +517,7 @@ module.exports = function (grunt) {
     const loadExternalSchema = () => {
       for (const property in schemaValidation.tv4ExternalRef) {
         try {
-          const schema = require(pt.resolve(
+          const schema = require(path.resolve(
             '.',
             schemaDir,
             schemaValidation.tv4ExternalRef[property]
@@ -648,7 +652,7 @@ module.exports = function (grunt) {
     const externalSchemaList = options?.externalSchema ?? []
     const externalSchemaWithPathList = externalSchemaList?.map(
       (schemaFileName) => {
-        return pt.resolve('.', schemaDir, schemaFileName)
+        return path.resolve('.', schemaDir, schemaFileName)
       }
     )
 
@@ -801,7 +805,7 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask(
-    'local_tv4_only_for_non_compliance_schema',
+    'local_test_tv4_only_for_non_compliance_schema',
     'Dynamically load local schema file for validation with /test/',
     function () {
       const x = tv4Validator()
@@ -818,7 +822,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_ajv_test',
+    'local_test_ajv',
     'Dynamically load local schema file for validation with /test/',
     function () {
       const x = ajv()
@@ -836,7 +840,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'remote_ajv_test',
+    'remote_test_ajv',
     'Dynamically load external schema file for validation',
     async function () {
       const done = this.async()
@@ -853,18 +857,21 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_bom',
+    'local_assert_schema_no_bom',
     'Dynamically load local schema file for BOM validation',
     function () {
       let countScan = 0
-      const x = (data) => {
-        countScan++
-        testSchemaFileForBOM(data)
-      }
+
       localSchemaFileAndTestFile(
-        { schemaOnlyScan: x },
+        {
+          schemaOnlyScan(data) {
+            countScan++
+            testSchemaFileForBOM(data)
+          },
+        },
         { fullScanAllFiles: true, skipReadFile: false }
       )
+
       grunt.log.ok(
         `no BOM file found in all schema files. Total files scan: ${countScan}`
       )
@@ -872,7 +879,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_no_smart_quotes',
+    'local_assert_schema_no_smart_quotes',
     'Ensure that no smart quotes are used',
     function () {
       let countScan = 0
@@ -895,7 +902,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'remote_bom',
+    'remote_assert_schema_no_bom',
     'Dynamically load remote schema file for BOM validation',
     async function () {
       const done = this.async()
@@ -904,27 +911,31 @@ module.exports = function (grunt) {
     }
   )
 
-  grunt.registerTask('local_catalog', 'Catalog validation', function () {
-    const catalogSchema = require(pt.resolve(
-      '.',
-      schemaDir,
-      'schema-catalog.json'
-    ))
-    const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
-    if (ajvInstance.validate(catalogSchema, catalog)) {
-      grunt.log.ok('catalog.json OK')
-    } else {
-      throwWithErrorText([
-        `(Schema file) keywordLocation: ${ajvInstance.errors[0].schemaPath}`,
-        `(Catalog file) instanceLocation: ${ajvInstance.errors[0].instancePath}`,
-        `(message) instanceLocation: ${ajvInstance.errors[0].message}`,
-        '"Catalog ERROR"',
-      ])
+  grunt.registerTask(
+    'local_assert_catalog.json_validates',
+    'Catalog validation',
+    function () {
+      const catalogSchema = require(path.resolve(
+        '.',
+        schemaDir,
+        'schema-catalog.json'
+      ))
+      const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
+      if (ajvInstance.validate(catalogSchema, catalog)) {
+        grunt.log.ok('catalog.json OK')
+      } else {
+        throwWithErrorText([
+          `(Schema file) keywordLocation: ${ajvInstance.errors[0].schemaPath}`,
+          `(Catalog file) instanceLocation: ${ajvInstance.errors[0].instancePath}`,
+          `(message) instanceLocation: ${ajvInstance.errors[0].message}`,
+          '"Catalog ERROR"',
+        ])
+      }
     }
-  })
+  )
 
   grunt.registerTask(
-    'local_find-duplicated-property-keys',
+    'local_assert_schema_no_duplicated_property_keys',
     'Dynamically load local JSON file for validation',
     function () {
       const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
@@ -978,7 +989,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_top_level_$ref_is_standalone',
+    'local_assert_schema_top_level_$ref_is_standalone',
     'top level $ref propertie of schemas must be the only property',
     function () {
       let countScan = 0
@@ -1006,7 +1017,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_url-present-in-catalog',
+    'local_assert_catalog.json_local_url_must_ref_file',
     'local url must reference to a file',
     function () {
       const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
@@ -1014,7 +1025,7 @@ module.exports = function (grunt) {
 
       getUrlFromCatalog((catalogUrl) => {
         const SchemaStoreHost = 'json.schemastore.org'
-        // URL host that does not have SchemaStoreHost is an external schema.
+        // URL host that does not have SchemaStoreHost is an external schema.local_assert_catalog.json_local_url_must_ref_file
         const URLcheck = new URL(catalogUrl)
         if (!SchemaStoreHost.includes(URLcheck.host)) {
           // This is an external schema.
@@ -1032,7 +1043,7 @@ module.exports = function (grunt) {
           ])
         }
         // Check if schema file exist or not.
-        if (fs.existsSync(pt.resolve('.', schemaDir, filename)) === false) {
+        if (fs.existsSync(path.resolve('.', schemaDir, filename)) === false) {
           throwWithErrorText([
             `The catalog have this URL: ${catalogUrl}`,
             `But there is no schema file present: ${filename}`,
@@ -1044,15 +1055,15 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_schema-present-in-catalog-list',
-    'local schema must have a url reference in catalog list',
+    'local_assert_catalog.json_includes_all_schemas',
+    'local schema must have a url reference in catalog.json',
     function () {
       let countScan = 0
       const allCatalogLocalJsonFiles = []
 
       // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
       getUrlFromCatalog((catalogUrl) => {
-        // No need to validate the local URL correctness. It is al ready done in "local_url-present-in-catalog"
+        // No need to validate the local URL correctness. It is al ready done in "local_assert_catalog.json_local_url_must_ref_file"
         // Only scan for local schema.
         if (catalogUrl.startsWith(urlSchemaStore)) {
           const filename = catalogUrl.split('/').pop()
@@ -1086,7 +1097,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_catalog-fileMatch-conflict',
+    'local_assert_catalog.json_fileMatch_conflict',
     'note: app.json and *app.json conflicting will not be detected',
     function () {
       const fileMatchConflict = schemaValidation.fileMatchConflict
@@ -1113,7 +1124,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_catalog-fileMatch-path',
+    'local_assert_catalog.json_fileMatch_path',
     'fileMatch patterns that include a directory separator should consistently start with **/',
     function () {
       for (const schema of catalog.schemas) {
@@ -1133,7 +1144,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_filename_extension',
+    'local_assert_filenames_have_correct_extensions',
     'Dynamically check local schema/test file for filename extension',
     function () {
       const schemaFileExtension = ['.json']
@@ -1165,7 +1176,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_search_for_schema_without_positive_test_files',
+    'local_print_schemas_without_positive_test_files',
     'Dynamically check local schema if positive test files are present',
     function () {
       let countMissingTest = 0
@@ -1194,13 +1205,13 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_validate_directory_structure',
+    'local_assert_directory_structure_is_valid',
     'Dynamically check if schema and test directory structure are valid',
     function () {
       schemasToBeTested.forEach((name) => {
         if (
           !skipThisFileName(name) &&
-          !fs.lstatSync(pt.join(schemaDir, name)).isFile()
+          !fs.lstatSync(path.join(schemaDir, name)).isFile()
         ) {
           throwWithErrorText([
             `There can only be files in directory : ${schemaDir} => ${name}`,
@@ -1211,7 +1222,7 @@ module.exports = function (grunt) {
       foldersPositiveTest.forEach((name) => {
         if (
           !skipThisFileName(name) &&
-          !fs.lstatSync(pt.join(testPositiveDir, name)).isDirectory()
+          !fs.lstatSync(path.join(testPositiveDir, name)).isDirectory()
         ) {
           throwWithErrorText([
             `There can only be directory's in :${testPositiveDir} => ${name}`,
@@ -1222,7 +1233,7 @@ module.exports = function (grunt) {
       foldersNegativeTest.forEach((name) => {
         if (
           !skipThisFileName(name) &&
-          !fs.lstatSync(pt.join(testNegativeDir, name)).isDirectory()
+          !fs.lstatSync(path.join(testNegativeDir, name)).isDirectory()
         ) {
           throwWithErrorText([
             `There can only be directory's in :${testNegativeDir} => ${name}`,
@@ -1395,7 +1406,7 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask(
-    'local_count_schema_versions',
+    'local_print_count_schema_versions',
     'Dynamically check local schema for schema version count',
     function () {
       const x = showSchemaVersions()
@@ -1413,7 +1424,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'remote_count_schema_versions',
+    'remote_print_count_schema_versions',
     'Dynamically load remote schema file for schema version count',
     async function () {
       const done = this.async()
@@ -1464,7 +1475,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_for_schema_version_too_high',
+    'local_assert_schema_version_isnt_too_high',
     'Dynamically load schema file for $schema version check',
     function () {
       let countScan = 0
@@ -1501,7 +1512,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_duplicate_list_in_schema-validation.json',
+    'local_assert_schema-validation.json_no_duplicate_list',
     'Check if options list is unique in schema-validation.json',
     function () {
       function checkForDuplicateInList(list, listName) {
@@ -1561,7 +1572,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_catalog_has_no_duplicate_names',
+    'local_assert_catalog.json_no_duplicate_names',
     'Ensure there are no duplicate names in the catalog.json file',
     function () {
       /** @type {string[]} */
@@ -1585,7 +1596,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_for_test_folders_without_schema_to_be_tested',
+    'local_assert_test_folders_have_at_least_one_test_schema',
     'Check if schema file is missing',
     function () {
       let countTestFolders = 0
@@ -1608,7 +1619,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_count_url_in_catalog',
+    'local_print_url_counts_in_catalog',
     'Show statistic info of the catalog',
     function () {
       let countScanURLExternal = 0
@@ -1629,7 +1640,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_count_schema_tested_in_full_strict_mode',
+    'local_print_schemas_tested_in_full_strict_mode',
     'Show statistic how many full strict schema there are',
     function () {
       let countSchemaScanViaAJV = 0
@@ -1656,7 +1667,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_tv4_validator_cannot_have_negative_test',
+    'local_assert_tv4_validator_has_no_negative_tests',
     'Check for forbidden negative test folder',
     function () {
       const found = foldersNegativeTest.find((x) =>
@@ -1664,7 +1675,7 @@ module.exports = function (grunt) {
       )
       if (found) {
         throwWithErrorText([
-          `Negative folder found for TV4 validator => ${pt.join(
+          `Negative folder found for TV4 validator => ${path.join(
             testNegativeDir,
             found
           )}`,
@@ -1675,7 +1686,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_in_schema-validation.json_for_missing_schema_files',
+    'local_assert_schema-validation.json_no_missing_schema_files',
     'Check if all schema JSON files are present',
     function () {
       let countSchemaValidationItems = 0
@@ -1715,7 +1726,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_check_in_schema-validation.json_for_skiptest',
+    'local_assert_schema-validation.json_valid_skiptest',
     'schemas in skiptest[] list must not be present anywhere else',
     function () {
       let countSchemaValidationItems = 0
@@ -1774,7 +1785,7 @@ module.exports = function (grunt) {
     'Run one selected schema in coverage mode',
     function () {
       const javaScriptCoverageName = 'schema.json.translated.to.js'
-      const javaScriptCoverageNameWithPath = pt.join(
+      const javaScriptCoverageNameWithPath = path.join(
         __dirname,
         `${temporaryCoverageDir}/${javaScriptCoverageName}`
       )
@@ -1993,40 +2004,40 @@ module.exports = function (grunt) {
 
   // The order of the task is relevant.
   grunt.registerTask('local_test', [
-    'local_check_duplicate_list_in_schema-validation.json',
-    'local_assert_catalog_has_no_duplicate_names',
-    'local_validate_directory_structure',
-    'local_check_filename_extension',
-    'local_check_in_schema-validation.json_for_missing_schema_files',
-    'local_check_in_schema-validation.json_for_skiptest',
-    'local_check_for_test_folders_without_schema_to_be_tested',
-    'local_tv4_validator_cannot_have_negative_test',
-    'local_catalog',
-    'local_catalog-fileMatch-path',
-    'local_catalog-fileMatch-conflict',
-    'local_url-present-in-catalog',
-    'local_schema-present-in-catalog-list',
-    'local_bom',
-    'local_assert_no_smart_quotes',
-    'local_find-duplicated-property-keys',
-    'local_assert_top_level_$ref_is_standalone',
+    'local_assert_directory_structure_is_valid',
+    'local_assert_filenames_have_correct_extensions',
+    'local_assert_test_folders_have_at_least_one_test_schema',
+    'local_assert_tv4_validator_has_no_negative_tests',
+    'local_assert_schema-validation.json_no_duplicate_list',
+    'local_assert_schema-validation.json_no_missing_schema_files',
+    'local_assert_schema-validation.json_valid_skiptest',
+    'local_assert_catalog.json_validates',
+    'local_assert_catalog.json_no_duplicate_names',
+    'local_assert_catalog.json_fileMatch_path',
+    'local_assert_catalog.json_fileMatch_conflict',
+    'local_assert_catalog.json_local_url_must_ref_file',
+    'local_assert_catalog.json_includes_all_schemas',
+    'local_assert_schema_no_bom',
+    'local_assert_schema_no_smart_quotes',
+    'local_assert_schema_no_duplicated_property_keys',
+    'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
-    'local_check_for_schema_version_too_high',
-    'local_count_url_in_catalog',
-    'local_count_schema_versions',
-    'local_search_for_schema_without_positive_test_files',
-    'local_count_schema_tested_in_full_strict_mode',
-    'local_ajv_test',
-    'local_tv4_only_for_non_compliance_schema',
+    'local_assert_schema_version_isnt_too_high',
+    'local_print_schemas_tested_in_full_strict_mode',
+    'local_print_schemas_without_positive_test_files',
+    'local_test_ajv',
+    'local_test_tv4_only_for_non_compliance_schema',
+    'local_print_url_counts_in_catalog',
+    'local_print_count_schema_versions',
   ])
   grunt.registerTask('remote_test', [
-    'remote_count_schema_versions',
-    'remote_bom',
-    'remote_ajv_test',
+    'remote_assert_schema_no_bom',
+    'remote_test_ajv',
+    'remote_print_count_schema_versions',
   ])
-  grunt.registerTask('default', ['local_test'])
   grunt.registerTask('local_maintenance', [
     'local_test_downgrade_schema_version',
     'local_show_two_list_of_full_strict_and_not_strict_AJV_schemas',
   ])
+  grunt.registerTask('default', ['local_test'])
 }
