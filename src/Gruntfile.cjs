@@ -987,7 +987,7 @@ module.exports = function (grunt) {
           schemaOnlyScan(data) {
             if (data.jsonObj.$ref?.startsWith('http')) {
               for (const [member] of Object.entries(data.jsonObj)) {
-                if (member !== '$ref') {
+                if (member !== '$ref' && member !== '$schema') {
                   throwWithErrorText([
                     `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${data.jsonName}`,
                   ])
