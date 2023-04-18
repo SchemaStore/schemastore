@@ -1,7 +1,79 @@
 {
   "$id": "https://json.schemastore.org/mason-registry.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mason Registry package schema",
+  "description": "Schema for package definitions.",
+  "type": "object",
   "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The package name. MUST be unique within the registry it belongs to."
+    },
+    "description": {
+      "type": "string",
+      "description": "The description of the package. Usually sourced upstream."
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "A URL to the package's homepage."
+    },
+    "licenses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/enums:spdx-license"
+      }
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/enums:language"
+      }
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/enums:category"
+      }
+    },
+    "source": {
+      "$ref": "#/definitions/components:source"
+    },
+    "bin": {
+      "$ref": "#/definitions/components:bin"
+    },
+    "share": {
+      "$ref": "#/definitions/components:share"
+    },
+    "opt": {
+      "$ref": "#/definitions/components:opt"
+    },
+    "ci_skip": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/enums:platform"
+          }
+        }
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "homepage",
+    "licenses",
+    "languages",
+    "categories",
+    "source"
+  ],
   "definitions": {
     "enums:spdx-license": {
       "$comment": "SPDX license list; releaseDate=2022-12-15; source=https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json",
@@ -577,6 +649,7 @@
         "Handlebars",
         "Haskell",
         "Haxe",
+        "Helm",
         "Hoon",
         "JSON",
         "JSX",
@@ -605,6 +678,7 @@
         "Nix",
         "Nunjucks",
         "OCaml",
+        "Odin",
         "OneScript",
         "OpenAPI",
         "OpenCL",
@@ -630,11 +704,13 @@
         "SCSS",
         "SQL",
         "Salt",
+        "Sass",
         "Scala",
         "Sh",
         "Shell",
         "Slint",
         "Smithy",
+        "Standard ML",
         "Snakemake",
         "Solidity",
         "Sphinx",
@@ -665,7 +741,14 @@
     },
     "enums:category": {
       "type": "string",
-      "enum": ["Compiler", "DAP", "Formatter", "LSP", "Linter", "Runtime"]
+      "enum": [
+        "Compiler",
+        "DAP",
+        "Formatter",
+        "LSP",
+        "Linter",
+        "Runtime"
+      ]
     },
     "components:source": {
       "oneOf": [
@@ -707,7 +790,9 @@
     "components:sources:cargo": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -725,8 +810,11 @@
     "enums:platform": {
       "type": "string",
       "enum": [
+        "unix",
+        "darwin",
         "darwin_arm64",
         "darwin_x64",
+        "linux",
         "linux_arm",
         "linux_arm64",
         "linux_arm64_gnu",
@@ -743,6 +831,7 @@
         "linux_x64_openbsd",
         "linux_x86",
         "linux_x86_gnu",
+        "win",
         "win_arm",
         "win_arm64",
         "win_armv6l",
@@ -754,7 +843,9 @@
     "components:sources:composer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -765,7 +856,9 @@
     "components:sources:gem": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -788,9 +881,22 @@
       }
     },
     "components:sources:generic": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/components:sources:generic:download"
+        },
+        {
+          "$ref": "#/definitions/components:sources:generic:build"
+        }
+      ]
+    },
+    "components:sources:generic:download": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "download"],
+      "required": [
+        "id",
+        "download"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -801,11 +907,11 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/components:sources:generic/definitions/Download"
+                "$ref": "#/definitions/components:sources:generic:download/definitions/Download"
               }
             },
             {
-              "$ref": "#/definitions/components:sources:generic/definitions/Download"
+              "$ref": "#/definitions/components:sources:generic:download/definitions/Download"
             }
           ]
         }
@@ -813,7 +919,9 @@
       "definitions": {
         "Download": {
           "type": "object",
-          "required": ["files"],
+          "required": [
+            "files"
+          ],
           "additionalProperties": true,
           "properties": {
             "target": {
@@ -843,6 +951,72 @@
         }
       }
     },
+    "components:sources:generic:build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "build"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pkg:generic/.+@.+"
+        },
+        "build": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/components:sources:build"
+              }
+            },
+            {
+              "$ref": "#/definitions/components:sources:build"
+            }
+          ]
+        }
+      }
+    },
+    "components:sources:build": {
+      "type": "object",
+      "required": [
+        "run"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "target": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/enums:platform"
+              }
+            },
+            {
+              "$ref": "#/definitions/enums:platform"
+            }
+          ]
+        },
+        "run": {
+          "type": "string",
+          "description": "The shell script to run. Platform sensitive (bash on Unix, powershell on Windows)."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Z0-9_]+$": {
+              "type": "string"
+            }
+          }
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "Whether to run the build script in a staging location (defaults to true)."
+        }
+      }
+    },
     "components:sources:github": {
       "oneOf": [
         {
@@ -856,7 +1030,10 @@
     "components:sources:github:release": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "asset"],
+      "required": [
+        "id",
+        "asset"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -870,7 +1047,10 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["constraint", "asset"],
+            "required": [
+              "constraint",
+              "asset"
+            ],
             "properties": {
               "id": {
                 "type": "string",
@@ -894,7 +1074,10 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["target", "file"],
+                "required": [
+                  "target",
+                  "file"
+                ],
                 "additionalProperties": true,
                 "properties": {
                   "target": {
@@ -930,7 +1113,17 @@
               "type": "object",
               "properties": {
                 "file": {
-                  "type": "string"
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
                 }
               }
             }
@@ -941,7 +1134,10 @@
     "components:sources:github:build": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "build"],
+      "required": [
+        "id",
+        "build"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -952,51 +1148,22 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/components:sources:github:build/definitions/Build"
+                "$ref": "#/definitions/components:sources:build"
               }
             },
             {
-              "type": "object",
-              "properties": {
-                "run": {
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/components:sources:build"
             }
           ]
-        }
-      },
-      "definitions": {
-        "Build": {
-          "type": "object",
-          "required": ["target", "run"],
-          "additionalProperties": true,
-          "properties": {
-            "target": {
-              "oneOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/enums:platform"
-                  }
-                },
-                {
-                  "$ref": "#/definitions/enums:platform"
-                }
-              ]
-            },
-            "run": {
-              "type": "string",
-              "description": "The shell script to run. Platform sensitive (bash on Unix, powershell on Windows)."
-            }
-          }
         }
       }
     },
     "components:sources:golang": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1014,7 +1181,9 @@
     "components:sources:luarocks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1025,7 +1194,9 @@
     "components:sources:npm": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1043,7 +1214,9 @@
     "components:sources:nuget": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1054,7 +1227,9 @@
     "components:sources:opam": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1065,7 +1240,9 @@
     "components:sources:pypi": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1114,77 +1291,5 @@
       },
       "additionalProperties": false
     }
-  },
-  "description": "Schema for package definitions.",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "The package name. MUST be unique within the registry it belongs to."
-    },
-    "description": {
-      "type": "string",
-      "description": "The description of the package. Usually sourced upstream."
-    },
-    "homepage": {
-      "type": "string",
-      "format": "uri",
-      "pattern": "^https?://",
-      "description": "A URL to the package's homepage."
-    },
-    "licenses": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/enums:spdx-license"
-      }
-    },
-    "languages": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/enums:language"
-      }
-    },
-    "categories": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/enums:category"
-      }
-    },
-    "source": {
-      "$ref": "#/definitions/components:source"
-    },
-    "bin": {
-      "$ref": "#/definitions/components:bin"
-    },
-    "share": {
-      "$ref": "#/definitions/components:share"
-    },
-    "opt": {
-      "$ref": "#/definitions/components:opt"
-    },
-    "ci_skip": {
-      "oneOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/enums:platform"
-          }
-        }
-      ]
-    }
-  },
-  "required": [
-    "name",
-    "description",
-    "homepage",
-    "licenses",
-    "languages",
-    "categories",
-    "source"
-  ],
-  "title": "Mason Registry package schema",
-  "type": "object"
+  }
 }
