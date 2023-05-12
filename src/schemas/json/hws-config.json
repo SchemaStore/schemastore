@@ -46,6 +46,39 @@
     "hardwareProblemTemplate": {
       "type": "string",
       "default": "Hardware problem on \\${FQDN\\} with \\${MONITOR_NAME\\}.\\${NEWLINE\\}\\${NEWLINE\\}\\${ALERT_DETAILS\\}\\${NEWLINE\\}\\${NEWLINE\\}\\${FULLREPORT\\}"
+    },
+    "hostType": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^lin|^lnx$|^win|^ms.*win|^microsoft.*w|^oob$|^out|^vmware|^mgmt|^management|^esx|^blade|^net|^switch|^sto|^san|vms|tru64|osf|hp.*ux|aix|rs6000|^sun|^ora|sol"
+        },
+        {
+          "enum": [
+            "win",
+            "linux",
+            "network",
+            "oob",
+            "storage",
+            "aix",
+            "hpux",
+            "solaris",
+            "tru64",
+            "vmx"
+          ]
+        }
+      ]
+    },
+    "keyValuePairVariables": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      },
+      "patternProperties": {
+        ".*": {
+          "type": ["number", "string", "boolean"]
+        }
+      }
     }
   },
   "id": "https://json.schemastore.org/hws-config.json",
@@ -81,6 +114,11 @@
               "description": "Sets Hardware Sentry's OTLP Exporter trusted certificates file (Default: security/otel.crt).",
               "type": "string",
               "default": "security/otel.crt"
+            },
+            "endpoint": {
+              "description": "Configures the OTLP Receiver endpoint (Default: https://localhost:4317).",
+              "type": "string",
+              "default": "https://localhost:4317"
             }
           }
         }
@@ -88,11 +126,19 @@
     },
     "extraLabels": {
       "description": "Adds or overrides the attributes for all the monitored hosts. It is recommended to specify a different `site` label value for each OpenTelemetry Collector running the Hardware Sentry Agent.",
-      "type": "object"
+      "$ref": "#/definitions/keyValuePairVariables"
     },
     "extraMetrics": {
       "description": "Adds additional static metrics to be exposed by Hardware Sentry.",
-      "type": "object"
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      },
+      "patternProperties": {
+        ".*": {
+          "type": "number"
+        }
+      }
     },
     "hardwareProblemTemplate": {
       "description": "Overrides the default hardware problem template used to build the alert body for all the monitored hosts.",
@@ -128,7 +174,7 @@
           },
           "extraLabels": {
             "description": "Adds or overrides the attributes of the monitored host.",
-            "type": "object"
+            "$ref": "#/definitions/keyValuePairVariables"
           },
           "hardwareProblemTemplate": {
             "description": "Overrides the default hardware problem template used to build the alert body for the monitored host.",
@@ -148,29 +194,47 @@
               },
               "type": {
                 "description": "Configures the type of the host to be monitored.",
-                "type": "string",
-                "anyOf": [
-                  {
-                    "pattern": "^lin|^lnx$|^win|^ms.*win|^microsoft.*w|^oob$|^out|^vmware|^mgmt|^management|^esx|^blade|^net|^switch|^sto|^san|vms|tru64|osf|hp.*ux|aix|rs6000|^sun|^ora|sol"
-                  },
-                  {
-                    "enum": [
-                      "win",
-                      "linux",
-                      "network",
-                      "oob",
-                      "storage",
-                      "aix",
-                      "hpux",
-                      "solaris",
-                      "tru64",
-                      "vmx"
-                    ]
-                  }
-                ]
+                "$ref": "#/definitions/hostType"
               }
             },
             "required": ["hostname", "type"]
+          },
+          "hostGroup": {
+            "description": "Configures several hosts which share the same characteristics.",
+            "type": "object",
+            "properties": {
+              "hostnames": {
+                "description": "Configures the hostnames of the hosts to be monitored.",
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "patternProperties": {
+                      "^[A-Za-z0-9.\\-_:]+$": {
+                        "type": "object",
+                        "description": "Configures the hostname of the host to be monitored.",
+                        "properties": {
+                          "extraLabels": {
+                            "description": "Adds or overrides the attributes of the monitored host.",
+                            "$ref": "#/definitions/keyValuePairVariables"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "type": {
+                "description": "Configures the type of the hosts to be monitored.",
+                "$ref": "#/definitions/hostType"
+              }
+            },
+            "required": ["hostnames", "type"]
           },
           "http": {
             "description": "Configures the HTTP protocol to access the host.",
@@ -450,7 +514,14 @@
             }
           }
         },
-        "required": ["host"]
+        "oneOf": [
+          {
+            "required": ["host"]
+          },
+          {
+            "required": ["hostGroup"]
+          }
+        ]
       }
     },
     "jobPoolSize": {
@@ -461,6 +532,38 @@
     "loggerLevel": {
       "description": "Enables the debug mode of the core engine (Default: off).",
       "$ref": "#/definitions/loggerLevel"
+    },
+    "otelCollector": {
+      "description": "Customizes the OpenTelemetry Collector sub-process.",
+      "type": "object",
+      "properties": {
+        "commandLine": {
+          "description": "Overrides the OpenTelemetry Collector command line.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "environment": {
+          "description": "Configures the OpenTelemetry Collector environment variables.",
+          "$ref": "#/definitions/keyValuePairVariables"
+        },
+        "output": {
+          "description": "Configures where to print the OpenTelemetry Collector's output (Default: log).",
+          "type": "string",
+          "enum": ["log", "console", "silent"],
+          "default": "log"
+        },
+        "workingDir": {
+          "description": "Configures the working directory of the OpenTelemetry Collector.",
+          "type": "string"
+        },
+        "disabled": {
+          "description": "Disables the OpenTelemetry Collector (Default: false).",
+          "type": "boolean",
+          "default": false
+        }
+      }
     },
     "outputDirectory": {
       "description": "Sets the debug output directory for all the monitored hosts. By default, the debug output files are saved in the `logs` directory under the Hardware Sentry's home directory.",
