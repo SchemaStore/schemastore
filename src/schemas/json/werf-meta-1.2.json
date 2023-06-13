@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Werf. Missing part of your CI/CD system https://werf.io/ docs for this file https://werf.io/documentation/v1.2/reference/werf_yaml.html",
+  "$ref": "#/definitions/WerfMeta",
+  "description": "Werf meta section",
+  "title": "Werf",
+  "definitions": {
+    "WerfMeta": {
+      "type": "object",
+      "description": "Meta section",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "description": "Unique project name",
+          "type": "string"
+        },
+        "configVersion": {
+          "description": "Config syntax version. It should always be 1 for now",
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "build": {
+          "description": "Common build settings",
+          "$ref": "#/definitions/Build"
+        },
+        "deploy": {
+          "description": "Settings for deployment",
+          "$ref": "#/definitions/Deploy"
+        },
+        "cleanup": {
+          "description": "Settings for cleaning up irrelevant images",
+          "$ref": "#/definitions/Cleanup"
+        },
+        "gitWorktree": {
+          "description": "Configure how werf handles git worktree of the project",
+          "$ref": "#/definitions/GitWorktree"
+        }
+      },
+      "required": [
+        "configVersion",
+        "project"
+      ]
+    },
+    "Build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Common list of target platforms for all images (for example ['linux/amd64', 'linux/arm64', 'linux/arm/v8'])"
+        }
+      },
+      "required": [],
+      "title": "Build"
+    },
+    "Cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disableKubernetesBasedPolicy": {
+          "type": "boolean",
+          "description": "Disable a cleanup policy that allows not to remove images deployed in Kubernetes from the container registry"
+        },
+        "disableGitHistoryBasedPolicy": {
+          "type": "boolean",
+          "description": "Disable a cleanup policy that allows not to remove images taking into account user-defined policies by the Git history (keepPolicies)"
+        },
+        "disableBuiltWithinLastNHoursPolicy": {
+          "type": "boolean",
+          "description": "Disable a cleanup policy that allows not to remove images built in last hours (keepImagesBuiltWithinLastNHours)"
+        },
+        "keepImagesBuiltWithinLastNHours": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The minimum number of hours that must elapse since the image is built (default 2)"
+        },
+        "keepPolicies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeepPolicy"
+          },
+          "description": "Set of policies to select relevant images using the Git history"
+        }
+      },
+      "required": [],
+      "title": "Cleanup"
+    },
+    "KeepPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "references": {
+          "$ref": "#/definitions/References",
+          "description": "References to perform scanning on"
+        },
+        "imagesPerReference": {
+          "$ref": "#/definitions/ImagesPerReference"
+        }
+      },
+      "required": [],
+      "title": "KeepPolicy"
+    },
+    "ImagesPerReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last": {
+          "type": "integer",
+          "description": "To select n last references last n references from those defined in the branch or tag (default `-1)`"
+        },
+        "in": {
+          "type": "string",
+          "description": "To select git tags that were created during the specified period or git branches that were active during the period"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "And",
+            "Or"
+          ],
+          "description": "Check both conditions or any of them (default `And`)"
+        }
+      },
+      "required": [
+        "in",
+        "last",
+        "operator"
+      ],
+      "title": "ImagesPerReference"
+    },
+    "References": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "type": "string",
+          "description": "One or more git origin branches"
+        },
+        "tag": {
+          "type": "string",
+          "description": "One or more git origin tags"
+        },
+        "limit": {
+          "$ref": "#/definitions/ImagesPerReference",
+          "description": "The set of rules to limit references on the basis of the date when the git tag was created or the activity in the git branch"
+        }
+      },
+      "required": [
+        "branch",
+        "limit",
+        "tag"
+      ],
+      "title": "References"
+    },
+    "Deploy": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "helmChartDir": {
+          "type": "string",
+          "description": "Path to the helm chart directory of the project (default `.helm`)"
+        },
+        "helmRelease": {
+          "type": "string",
+          "description": "Release name template (default `[[ project ]]-[[ env ]]`)"
+        },
+        "helmReleaseSlug": {
+          "type": "boolean",
+          "description": "Release name slugification (default `true`)"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Kubernetes namespace template (default `[[ project ]]-[[ env ]]`)"
+        },
+        "namespaceSlug": {
+          "type": "boolean",
+          "description": "Kubernetes namespace slugification (default `true`)"
+        }
+      },
+      "required": [],
+      "title": "Deploy"
+    },
+    "GitWorktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "forceShallowClone": {
+          "type": "boolean",
+          "description": "Force werf to use shallow clone despite restrictions"
+        },
+        "allowUnshallow": {
+          "type": "boolean",
+          "description": "Allow werf to automatically convert project shallow git clone to full one during build process when needed (default `true`)"
+        },
+        "allowFetchOriginBranchesAndTags": {
+          "type": "boolean",
+          "description": "Allow werf to synchronize git branches and tags with remote origin during cleanup process when needed (default `true`)"
+        }
+      },
+      "required": [],
+      "title": "GitWorktree"
+    }
+  }
+}
