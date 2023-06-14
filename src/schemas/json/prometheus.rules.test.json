@@ -1,0 +1,224 @@
+{
+  "$id": "https://json.schemastore.org/prometheus.rules.test.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "duration": {
+      "type": ["string", "null"],
+      "pattern": "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$",
+      "minLength": 1
+    },
+    "label_name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+    },
+    "label_value": {
+      "type": "string"
+    },
+    "labels": {
+      "type": ["object", "null"],
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/label_value"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tmpl_string": {
+      "description": "A string which is template-expanded before usage.",
+      "type": "string"
+    },
+    "annotations": {
+      "type": ["object", "null"],
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/tmpl_string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "recording_rule": {
+      "type": "object",
+      "properties": {
+        "record": {
+          "description": "The name of the time series to output to. Must be a valid metric name.",
+          "type": "string"
+        },
+        "expr": {
+          "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and the result recorded as a new set of time series with the metric name as given by 'record'.",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Labels to add or overwrite before storing the result.",
+          "$ref": "#/definitions/labels"
+        }
+      },
+      "required": ["record", "expr"],
+      "additionalProperties": false
+    },
+    "alerting_rule": {
+      "type": "object",
+      "properties": {
+        "alert": {
+          "description": "The name of the alert. Must be a valid metric name.",
+          "type": "string"
+        },
+        "expr": {
+          "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and all resultant time series become pending/firing alerts.",
+          "type": "string"
+        },
+        "for": {
+          "description": "Alerts are considered firing once they have been returned for this long. Alerts which have not yet fired for long enough are considered pending.",
+          "$ref": "#/definitions/duration"
+        },
+        "labels": {
+          "description": "Labels to add or overwrite for each alert.",
+          "$ref": "#/definitions/labels"
+        },
+        "annotations": {
+          "description": "Annotations to add to each alert.",
+          "$ref": "#/definitions/annotations"
+        }
+      },
+      "required": ["alert", "expr"],
+      "additionalProperties": false
+    }
+  },
+  "description": "Prometheus rules test file",
+  "properties": {
+    "rule_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of rule files to consider for testing. Globs are supported."
+    },
+    "evaluation_interval": {
+      "type": ["string", "null"],
+      "description": "The evaluation interval for the tests. [duration] format.",
+      "default": "1m"
+    },
+    "group_eval_order": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      },
+      "description": "The order in which group names are listed below will be the order of evaluation of rule groups (at a given evaluation time)."
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "interval": {
+            "$ref": "#/definitions/duration",
+            "description": "The time elapsed from time=0s when the alerts have to be checked."
+          },
+          "input_series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "$ref": "#/definitions/labels",
+                  "description": "Labels of the series in the usual series notation '<metric name>{<label name>=<label value>, ...}'"
+                }
+              }
+            },
+            "description": "Series data"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the test group"
+          },
+          "alert_rule_test": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "eval_time": {
+                  "$ref": "#/definitions/duration",
+                  "description": "The time elapsed from time=0s when the alerts have to be checked."
+                },
+                "alertname": {
+                  "type": "string",
+                  "description": "Name of the alert to be tested."
+                },
+                "exp_alerts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "exp_labels": {
+                        "$ref": "#/definitions/labels",
+                        "description": "Expanded labels and annotations of the expected alert"
+                      },
+                      "exp_annotations": {
+                        "$ref": "#/definitions/annotations",
+                        "description": "Expanded annotations of the expected alert"
+                      }
+                    },
+                    "required": ["exp_labels"]
+                  },
+                  "description": "List of expected alerts firing under the given alertname at the given evaluation time"
+                }
+              },
+              "required": ["eval_time", "alertname"],
+              "additionalProperties": false
+            },
+            "description": "Unit tests for alerting rules"
+          },
+          "promql_expr_test": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "expr": {
+                  "type": "string",
+                  "description": "Expression to evaluate"
+                },
+                "eval_time": {
+                  "$ref": "#/definitions/duration",
+                  "description": "The time elapsed from time=0s when the expression has to be evaluated."
+                },
+                "exp_samples": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "labels": {
+                        "type": "string",
+                        "description": "Labels of the sample in the usual series notation '<metric name>{<label name>=<label value>, ...}'"
+                      },
+                      "value": {
+                        "type": "number",
+                        "description": "Expected value of the PromQL expression."
+                      }
+                    },
+                    "required": ["labels", "value"]
+                  },
+                  "description": "Expected samples at the given evaluation time."
+                }
+              },
+              "required": ["expr", "eval_time"],
+              "additionalProperties": false
+            },
+            "description": "Unit tests for PromQL expressions"
+          },
+          "external_labels": {
+            "$ref": "#/definitions/labels",
+            "description": "External labels accessible to the alert template."
+          },
+          "external_url": {
+            "type": "string",
+            "description": "External URL accessible to the alert template. Usually set using --web.external-url."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["interval", "input_series"]
+      }
+    }
+  },
+  "title": "Prometheus Rules Test",
+  "type": "object"
+}
