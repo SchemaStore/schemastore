@@ -3,222 +3,213 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
-    "duration": {
-      "type": ["string", "null"],
-      "pattern": "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$",
-      "minLength": 1
+    "alert": {
+      "properties": {
+        "exp_annotations": {
+          "$ref": "#/definitions/labels",
+          "description": "Expanded annotations of the expected alert"
+        },
+        "exp_labels": {
+          "$ref": "#/definitions/labels",
+          "description": "Expanded labels and annotations of the expected alert. This also include the labels of the sample associated with the alert (same as what you see in `/alerts`, without series `__name__` and `alertname`)."
+        }
+      },
+      "required": [
+        "exp_labels"
+      ],
+      "type": "object"
     },
-    "label_name": {
-      "type": "string",
-      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+    "alert_test_case": {
+      "additionalProperties": false,
+      "properties": {
+        "alertname": {
+          "description": "Name of the alert to be tested.",
+          "type": "string"
+        },
+        "eval_time": {
+          "$ref": "#/definitions/duration",
+          "description": "The time elapsed from time=0s when the alerts have to be checked."
+        },
+        "exp_alerts": {
+          "description": "List of expected alerts firing under the given alertname at the given evaluation time",
+          "items": {
+            "$ref": "#/definitions/alert"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "eval_time",
+        "alertname"
+      ],
+      "type": "object"
+    },
+    "duration": {
+      "minLength": 1,
+      "pattern": "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "label_value": {
       "type": "string"
     },
     "labels": {
-      "type": ["object", "null"],
+      "additionalProperties": false,
       "patternProperties": {
         "^[a-zA-Z_][a-zA-Z0-9_]*$": {
           "$ref": "#/definitions/label_value"
         }
       },
-      "additionalProperties": false
+      "type": [
+        "object",
+        "null"
+      ]
     },
-    "tmpl_string": {
-      "description": "A string which is template-expanded before usage.",
-      "type": "string"
-    },
-    "annotations": {
-      "type": ["object", "null"],
-      "patternProperties": {
-        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
-          "$ref": "#/definitions/tmpl_string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "recording_rule": {
-      "type": "object",
+    "promql_test_case": {
+      "additionalProperties": false,
       "properties": {
-        "record": {
-          "description": "The name of the time series to output to. Must be a valid metric name.",
-          "type": "string"
+        "eval_time": {
+          "$ref": "#/definitions/duration",
+          "description": "The time elapsed from time=0s when the expression has to be evaluated."
+        },
+        "exp_samples": {
+          "description": "Expected samples at the given evaluation time.",
+          "items": {
+            "$ref": "#/definitions/sample"
+          },
+          "type": "array"
         },
         "expr": {
-          "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and the result recorded as a new set of time series with the metric name as given by 'record'.",
+          "description": "PromQL expression to evaluate",
           "type": "string"
-        },
-        "labels": {
-          "description": "Labels to add or overwrite before storing the result.",
-          "$ref": "#/definitions/labels"
         }
       },
-      "required": ["record", "expr"],
-      "additionalProperties": false
+      "required": [
+        "expr",
+        "eval_time"
+      ],
+      "type": "object"
     },
-    "alerting_rule": {
-      "type": "object",
+    "sample": {
       "properties": {
-        "alert": {
-          "description": "The name of the alert. Must be a valid metric name.",
-          "type": "string"
-        },
-        "expr": {
-          "description": "The PromQL expression to evaluate. Every evaluation cycle this is evaluated at the current time, and all resultant time series become pending/firing alerts.",
-          "type": "string"
-        },
-        "for": {
-          "description": "Alerts are considered firing once they have been returned for this long. Alerts which have not yet fired for long enough are considered pending.",
-          "$ref": "#/definitions/duration"
-        },
         "labels": {
-          "description": "Labels to add or overwrite for each alert.",
-          "$ref": "#/definitions/labels"
+          "description": "Labels of the sample in the usual series notation '<metric name>{<label name>=<label value>, ...}'",
+          "type": "string"
         },
-        "annotations": {
-          "description": "Annotations to add to each alert.",
-          "$ref": "#/definitions/annotations"
+        "value": {
+          "description": "Expected value of the PromQL expression.",
+          "type": "number"
         }
       },
-      "required": ["alert", "expr"],
-      "additionalProperties": false
+      "required": [
+        "labels",
+        "value"
+      ],
+      "type": "object"
+    },
+    "series": {
+      "additionalProperties": false,
+      "properties": {
+        "series": {
+          "description": "This follows the usual series notation '<metric name>{<label name>=<label value>, ...}'.",
+          "type": "string"
+        },
+        "values": {
+          "description": "This uses expanded notation to project time series. There are also the special `_` and `stale` values to indicate missing or stale samples",
+          "type": "string"
+        }
+      },
+      "required": [
+        "series",
+        "values"
+      ],
+      "type": "object"
+    },
+    "test_group": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_rule_test": {
+          "description": "Unit tests for alerting rules. We only consider the alerting rules from the input files.",
+          "items": {
+            "$ref": "#/definitions/alert_test_case"
+          },
+          "type": "array"
+        },
+        "external_labels": {
+          "$ref": "#/definitions/labels",
+          "description": "External labels accessible to the alert template."
+        },
+        "external_url": {
+          "description": "External URL accessible to the alert template. Usually set using --web.external-url.",
+          "type": "string"
+        },
+        "input_series": {
+          "description": "A list of time series",
+          "items": {
+            "$ref": "#/definitions/series"
+          },
+          "type": "array"
+        },
+        "interval": {
+          "$ref": "#/definitions/duration",
+          "description": "The time elapsed from time=0s when the alerts have to be checked."
+        },
+        "name": {
+          "description": "Name of the test group",
+          "type": "string"
+        },
+        "promql_expr_test": {
+          "description": "Unit tests for PromQL expressions",
+          "items": {
+            "$ref": "#/definitions/promql_test_case"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "interval",
+        "input_series"
+      ],
+      "type": "object"
     }
   },
-  "description": "Prometheus rules test file",
+  "description": "Prometheus rules test file. See https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/ for details.",
   "properties": {
-    "rule_files": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "List of rule files to consider for testing. Globs are supported."
-    },
     "evaluation_interval": {
-      "type": ["string", "null"],
+      "default": "1m",
       "description": "The evaluation interval for the tests. [duration] format.",
-      "default": "1m"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "group_eval_order": {
-      "type": ["array", "null"],
+      "description": "The order in which group names are listed below will be the order of evaluation of rule groups (at a given evaluation time).",
       "items": {
         "type": "string"
       },
-      "description": "The order in which group names are listed below will be the order of evaluation of rule groups (at a given evaluation time)."
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "rule_files": {
+      "description": "List of rule files to consider for testing. Globs are supported.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "tests": {
-      "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "interval": {
-            "$ref": "#/definitions/duration",
-            "description": "The time elapsed from time=0s when the alerts have to be checked."
-          },
-          "input_series": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "labels": {
-                  "$ref": "#/definitions/labels",
-                  "description": "Labels of the series in the usual series notation '<metric name>{<label name>=<label value>, ...}'"
-                }
-              }
-            },
-            "description": "Series data"
-          },
-          "name": {
-            "type": "string",
-            "description": "Name of the test group"
-          },
-          "alert_rule_test": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "eval_time": {
-                  "$ref": "#/definitions/duration",
-                  "description": "The time elapsed from time=0s when the alerts have to be checked."
-                },
-                "alertname": {
-                  "type": "string",
-                  "description": "Name of the alert to be tested."
-                },
-                "exp_alerts": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "exp_labels": {
-                        "$ref": "#/definitions/labels",
-                        "description": "Expanded labels and annotations of the expected alert"
-                      },
-                      "exp_annotations": {
-                        "$ref": "#/definitions/annotations",
-                        "description": "Expanded annotations of the expected alert"
-                      }
-                    },
-                    "required": ["exp_labels"]
-                  },
-                  "description": "List of expected alerts firing under the given alertname at the given evaluation time"
-                }
-              },
-              "required": ["eval_time", "alertname"],
-              "additionalProperties": false
-            },
-            "description": "Unit tests for alerting rules"
-          },
-          "promql_expr_test": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "expr": {
-                  "type": "string",
-                  "description": "Expression to evaluate"
-                },
-                "eval_time": {
-                  "$ref": "#/definitions/duration",
-                  "description": "The time elapsed from time=0s when the expression has to be evaluated."
-                },
-                "exp_samples": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "labels": {
-                        "type": "string",
-                        "description": "Labels of the sample in the usual series notation '<metric name>{<label name>=<label value>, ...}'"
-                      },
-                      "value": {
-                        "type": "number",
-                        "description": "Expected value of the PromQL expression."
-                      }
-                    },
-                    "required": ["labels", "value"]
-                  },
-                  "description": "Expected samples at the given evaluation time."
-                }
-              },
-              "required": ["expr", "eval_time"],
-              "additionalProperties": false
-            },
-            "description": "Unit tests for PromQL expressions"
-          },
-          "external_labels": {
-            "$ref": "#/definitions/labels",
-            "description": "External labels accessible to the alert template."
-          },
-          "external_url": {
-            "type": "string",
-            "description": "External URL accessible to the alert template. Usually set using --web.external-url."
-          }
-        },
-        "additionalProperties": false,
-        "required": ["interval", "input_series"]
-      }
+        "$ref": "#/definitions/test_group",
+        "description": "All the tests are listed here."
+      },
+      "type": "array"
     }
   },
-  "title": "Prometheus Rules Test",
+  "title": "Prometheus Rules Test File",
   "type": "object"
 }
