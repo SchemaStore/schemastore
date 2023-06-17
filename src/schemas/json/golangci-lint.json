@@ -254,6 +254,7 @@
             "goprintffuncname",
             "gosec",
             "gosimple",
+            "gosmopolitan",
             "govet",
             "grouper",
             "ifshort",
@@ -267,6 +268,7 @@
             "maintidx",
             "makezero",
             "maligned",
+            "mirror",
             "misspell",
             "musttag",
             "nakedret",
@@ -291,6 +293,7 @@
             "staticcheck",
             "structcheck",
             "stylecheck",
+            "tagalign",
             "tagliatelle",
             "tenv",
             "testableexamples",
@@ -307,7 +310,8 @@
             "wastedassign",
             "whitespace",
             "wrapcheck",
-            "wsl"
+            "wsl",
+            "zerologlint"
           ]
         },
         {
@@ -453,7 +457,7 @@
       "properties": {
         "format": {
           "description": "Output format to use.",
-          "pattern": "^(,?(colored-line-number|line-number|json|tab|checkstyle|code-climate|junit-xml|github-actions)(:[^,]+)?)+$",
+          "pattern": "^(,?(colored-line-number|line-number|json|colored-tab|tab|checkstyle|code-climate|junit-xml|github-actions|teamcity)(:[^,]+)?)+$",
           "default": "colored-line-number",
           "examples": [
             "colored-line-number",
@@ -626,74 +630,52 @@
         },
         "depguard": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "list-type": {
-              "description": "List kind (`allowlist` or `denylist`)",
-              "enum": ["allowlist", "denylist", "blacklist", "whitelist"],
-              "default": "denylist"
-            },
-            "include-go-root": {
-              "description": "Whether to check the list against the standard lib.",
-              "type": "boolean",
-              "default": false
-            },
-            "packages": {
-              "description": "List of packages for the list type specified.",
-              "type": "array",
-              "uniqueItems": true,
-              "items": {
-                "type": "string",
-                "examples": ["github.com/OpenPeeDeeP/depguard"]
-              }
-            },
-            "packages-with-error-message": {
-              "description": "Specify a mapping from packages to the error message to display.",
-              "type": "array",
-              "items": {
-                "uniqueItems": true,
-                "type": "object",
-                "patternProperties": {
-                  "^.*$": {
-                    "type": "string"
-                  }
-                },
-                "examples": [
-                  {
-                    "github.com/OpenPeeDeeP/depguards": "Please use \"github.com/OpenPeeDeeP/depguard\"."
-                  }
-                ]
-              }
-            },
-            "ignore-file-rules": {
-              "description": "Specify rules by which the linter ignores certain files for consideration.",
-              "type": "array",
-              "uniqueItems": true,
-              "items": {
-                "type": "string",
-                "examples": ["ignore/**/*.go"]
-              }
-            },
-            "additional-guards": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "list-type": {},
-                  "include-go-root": {
-                    "type": "boolean"
-                  },
-                  "packages": {
-                    "description": "List of packages for the list type specified.",
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "ignore-file-rules": {
-                    "description": "Specify rules by which the linter ignores certain files for consideration.",
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+            "rules": {
+              "description": "Rules to apply.",
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[^.]+$": {
+                  "description": "Name of a rule.",
+                  "additionalProperties": false,
+                  "type": "object",
+                  "properties": {
+                    "files": {
+                      "description": "List of file globs that will match this list of settings to compare against.",
+                      "additionalProperties": false,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "allow": {
+                      "description": "List of allowed packages.",
+                      "additionalProperties": false,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "deny": {
+                      "description": "Packages that are not allowed where the value is a suggestion.",
+                      "additionalProperties": false,
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "properties": {
+                          "desc": {
+                            "description": "Description",
+                            "type": "string"
+                          },
+                          "pkg": {
+                            "description": "Package",
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -783,6 +765,11 @@
               "type": "boolean",
               "default": true
             },
+            "errorf-multi": {
+              "description": "Permit more than 1 %w verb, valid per Go 1.20",
+              "type": "boolean",
+              "default": true
+            },
             "asserts": {
               "description": "Check for plain type assertions and type switches.",
               "type": "boolean",
@@ -859,6 +846,21 @@
               "description": "Suppress the wrong error assertion warning.",
               "type": "boolean",
               "default": false
+            },
+            "suppress-compare-assertion": {
+              "description": "Suppress the wrong comparison assertion warning.",
+              "type": "boolean",
+              "default": false
+            },
+            "suppress-async-assertion": {
+              "description": "Suppress the function all in async assertion warning.",
+              "type": "boolean",
+              "default": false
+            },
+            "allow-havelen-zero": {
+              "description": "Don't trigger warnings for HaveLen(0).",
+              "type": "boolean",
+              "default": false
             }
           }
         },
@@ -898,9 +900,15 @@
         },
         "forbidigo": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "exclude_godoc_examples": {
+            "exclude-godoc-examples": {
               "description": "Exclude code in godoc examples.",
+              "type": "boolean",
+              "default": true
+            },
+            "analyze-types": {
+              "description": "Instead of matching the literal source code, use type information to replace expressions with strings that contain the package name and (for methods and fields) the type name.",
               "type": "boolean",
               "default": true
             },
@@ -909,13 +917,36 @@
               "type": "array",
               "examples": ["^print.*$"],
               "items": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "p": {
+                        "description": "Pattern",
+                        "type": "string"
+                      },
+                      "pkg": {
+                        "description": "Package",
+                        "type": "string"
+                      },
+                      "msg": {
+                        "description": "Message",
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
               }
             }
           }
         },
         "funlen": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "lines": {
               "description": "Limit lines number per function.",
@@ -1488,6 +1519,35 @@
             "concurrency": {
               "description": "Concurrency value",
               "type": "integer"
+            }
+          }
+        },
+        "gosmopolitan": {
+          "type": "object",
+          "properties": {
+            "allow-time-local": {
+              "description": "Allow and ignore `time.Local` usages.",
+              "type": "boolean",
+              "default": false
+            },
+            "escape-hatches": {
+              "description": "List of fully qualified names in the `full/pkg/path.name` form, to act as \"i18n escape hatches\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "ignore-tests": {
+              "description": "Ignore test files.",
+              "type": "boolean",
+              "default": false
+            },
+            "watch-for-scripts": {
+              "description": "List of Unicode scripts to watch for any usage in string literals.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -2228,6 +2288,40 @@
             }
           }
         },
+        "tagalign": {
+          "type": "object",
+          "properties": {
+            "align": {
+              "description": "Align and sort can be used together or separately.",
+              "type": "boolean",
+              "default": true
+            },
+            "sort": {
+              "description": "Whether enable tags sort.",
+              "type": "boolean",
+              "default": true
+            },
+            "order": {
+              "description": "Specify the order of tags, the other tags will be sorted by name.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "examples": [
+                [
+                  "json",
+                  "yaml",
+                  "yml",
+                  "toml",
+                  "mapstructure",
+                  "binding",
+                  "validate"
+                ]
+              ]
+            }
+          }
+        },
         "tagliatelle": {
           "type": "object",
           "properties": {
@@ -2253,6 +2347,7 @@
                         "goKebab",
                         "goSnake",
                         "upper",
+                        "upperSnake",
                         "lower",
                         "header"
                       ]
@@ -2651,6 +2746,11 @@
               "type": "boolean",
               "default": false
             },
+            "force-short-decl-cuddling": {
+              "description": "Causes an error if a short declaration (:=) cuddles with anything other than another short declaration.",
+              "type": "boolean",
+              "default": false
+            },
             "strict-append": {
               "description": "If true, append is only allowed to be cuddled if appending value is matching variables, fields or types on line above.",
               "type": "boolean",
@@ -2757,6 +2857,9 @@
             "type": "object",
             "properties": {
               "path": {
+                "type": "string"
+              },
+              "path-except": {
                 "type": "string"
               },
               "linters": {
