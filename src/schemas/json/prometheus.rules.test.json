@@ -1,0 +1,186 @@
+{
+  "$id": "https://json.schemastore.org/prometheus.rules.test.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "alert": {
+      "properties": {
+        "exp_annotations": {
+          "$ref": "#/definitions/labels",
+          "description": "Expanded annotations of the expected alert"
+        },
+        "exp_labels": {
+          "$ref": "#/definitions/labels",
+          "description": "Expanded labels and annotations of the expected alert. This also include the labels of the sample associated with the alert (same as what you see in `/alerts`, without series `__name__` and `alertname`)."
+        }
+      },
+      "required": ["exp_labels"],
+      "type": "object"
+    },
+    "alert_test_case": {
+      "additionalProperties": false,
+      "properties": {
+        "alertname": {
+          "description": "Name of the alert to be tested.",
+          "type": "string"
+        },
+        "eval_time": {
+          "$ref": "#/definitions/duration",
+          "description": "The time elapsed from time=0s when the alerts have to be checked."
+        },
+        "exp_alerts": {
+          "description": "List of expected alerts firing under the given alertname at the given evaluation time",
+          "items": {
+            "$ref": "#/definitions/alert"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["eval_time", "alertname"],
+      "type": "object"
+    },
+    "duration": {
+      "minLength": 1,
+      "pattern": "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$",
+      "type": ["string", "null"]
+    },
+    "label_value": {
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/label_value"
+        }
+      },
+      "type": ["object", "null"]
+    },
+    "promql_test_case": {
+      "additionalProperties": false,
+      "properties": {
+        "eval_time": {
+          "$ref": "#/definitions/duration",
+          "description": "The time elapsed from time=0s when the expression has to be evaluated."
+        },
+        "exp_samples": {
+          "description": "Expected samples at the given evaluation time.",
+          "items": {
+            "$ref": "#/definitions/sample"
+          },
+          "type": "array"
+        },
+        "expr": {
+          "description": "PromQL expression to evaluate",
+          "type": "string"
+        }
+      },
+      "required": ["expr", "eval_time"],
+      "type": "object"
+    },
+    "sample": {
+      "properties": {
+        "labels": {
+          "description": "Labels of the sample in the usual series notation '<metric name>{<label name>=<label value>, ...}'",
+          "type": "string"
+        },
+        "value": {
+          "description": "Expected value of the PromQL expression.",
+          "type": "number"
+        }
+      },
+      "required": ["labels", "value"],
+      "type": "object"
+    },
+    "series": {
+      "additionalProperties": false,
+      "properties": {
+        "series": {
+          "description": "This follows the usual series notation '<metric name>{<label name>=<label value>, ...}'.",
+          "type": "string"
+        },
+        "values": {
+          "description": "This uses expanded notation to project time series. There are also the special `_` and `stale` values to indicate missing or stale samples",
+          "type": "string"
+        }
+      },
+      "required": ["series", "values"],
+      "type": "object"
+    },
+    "test_group": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_rule_test": {
+          "description": "Unit tests for alerting rules. We only consider the alerting rules from the input files.",
+          "items": {
+            "$ref": "#/definitions/alert_test_case"
+          },
+          "type": "array"
+        },
+        "external_labels": {
+          "$ref": "#/definitions/labels",
+          "description": "External labels accessible to the alert template."
+        },
+        "external_url": {
+          "description": "External URL accessible to the alert template. Usually set using --web.external-url.",
+          "type": "string"
+        },
+        "input_series": {
+          "description": "A list of time series",
+          "items": {
+            "$ref": "#/definitions/series"
+          },
+          "type": "array"
+        },
+        "interval": {
+          "$ref": "#/definitions/duration",
+          "description": "The time elapsed from time=0s when the alerts have to be checked."
+        },
+        "name": {
+          "description": "Name of the test group",
+          "type": "string"
+        },
+        "promql_expr_test": {
+          "description": "Unit tests for PromQL expressions",
+          "items": {
+            "$ref": "#/definitions/promql_test_case"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["interval", "input_series"],
+      "type": "object"
+    }
+  },
+  "description": "Prometheus rules test file. See https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/ for details.",
+  "properties": {
+    "evaluation_interval": {
+      "default": "1m",
+      "description": "The evaluation interval for the tests. [duration] format.",
+      "type": ["string", "null"]
+    },
+    "group_eval_order": {
+      "description": "The order in which group names are listed below will be the order of evaluation of rule groups (at a given evaluation time).",
+      "items": {
+        "type": "string"
+      },
+      "type": ["array", "null"]
+    },
+    "rule_files": {
+      "description": "List of rule files to consider for testing. Globs are supported.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "tests": {
+      "items": {
+        "$ref": "#/definitions/test_group",
+        "description": "All the tests are listed here."
+      },
+      "type": "array"
+    }
+  },
+  "title": "Prometheus Rules Test File",
+  "type": "object"
+}
