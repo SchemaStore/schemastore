@@ -35,7 +35,7 @@ After adding a schema file in `src/schemas`, register them in alphabetical order
 
 ### Best practices
 
-✔️ **Use** the lowest possible schema draft needed, preferably Draft v4, to ensure interoperability with as many supported editors, IDEs and parsers as possible.
+✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
 
 ✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
 
@@ -91,7 +91,7 @@ If you wish to retain full control over your schema definition, simply register 
 ### How to `$ref` from `schema_x.json` to `schema_y.json`
 
 - Both schemas must exist [locally](src/schemas/json) in SchemaStore.
-- Both schemas must have the same draft (example draft-04)
+- Both schemas must have the same draft (example draft-07)
 - `schema_y.json` must have `id` or `$id` with this value `"https://json.schemastore.org/schema_y.json"`
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
 - In [schema-validation.json](src/schema-validation.json), in `"options": []` list add
