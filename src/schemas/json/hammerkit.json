@@ -1,193 +1,424 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "JSON Schema for hammerkit's build file",
-  "description": "Build tool with support for containerization",
-  "type": "object",
+  "$comment": "https://no0dles.gitbook.io",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "properties": {
-    "envs": {
-      "$ref": "#/definitions/envMap"
-    },
-    "tasks": {
+  "definitions": {
+    "buildFileEnvs": {
+      "title": "environment variables",
+      "description": "Environment values for the current build task\nhttps://no0dles.gitbook.io/hammerkit/build-file/environment-variables",
       "type": "object",
-      "description": "A map of tasks",
+      "additionalProperties": {
+        "description": "environment variable",
+        "type": "string"
+      }
+    },
+    "buildFileTasks": {
+      "title": "tasks",
+      "description": "Task for the current build file\nhttps://no0dles.gitbook.io/hammerkit/task",
+      "type": "object",
       "additionalProperties": {
         "$ref": "#/definitions/task"
       }
     },
-    "includes": {
-      "$ref": "#/definitions/include"
-    },
-    "references": {
-      "$ref": "#/definitions/reference"
-    }
-  },
-  "definitions": {
-    "envMap": {
-      "description": "A map of environment values",
+    "buildFileServices": {
+      "title": "services",
+      "description": "Services for the current build file\nhttps://no0dles.gitbook.io/hammerkit/service",
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "$ref": "#/definitions/service"
+      }
+    },
+    "buildFileIncludes": {
+      "title": "includes",
+      "description": "Includes to other build files\nhttps://no0dles.gitbook.io/hammerkit/build-file/includes",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "https://json.schemastore.org/base.json#/definitions/path"
+      }
+    },
+    "buildFileReferences": {
+      "title": "references",
+      "description": "References to other build files\nhttps://no0dles.gitbook.io/hammerkit/build-file/references",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "https://json.schemastore.org/base.json#/definitions/path"
+      }
+    },
+    "task": {
+      "title": "task",
+      "description": "Task for the current build file\nhttps://no0dles.gitbook.io/hammerkit/task",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/containerTask"
+        },
+        {
+          "$ref": "#/definitions/localTask"
+        }
+      ]
+    },
+    "localTask": {
+      "title": "local task",
+      "description": "Task that gets executed in the local shell in the current directory",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cmds"],
+      "properties": {
+        "description": {
+          "$ref": "#/definitions/taskCommand"
+        },
+        "labels": {
+          "$ref": "#/definitions/taskLabels"
+        },
+        "extend": {
+          "$ref": "#/definitions/taskExtend"
+        },
+        "cache": {
+          "$ref": "#/definitions/taskCache"
+        },
+        "continuous": {
+          "$ref": "#/definitions/taskContinuous"
+        },
+        "envs": {
+          "$ref": "#/definitions/taskEnvs"
+        },
+        "needs": {
+          "$ref": "#/definitions/taskNeeds"
+        },
+        "deps": {
+          "$ref": "#/definitions/taskDeps"
+        },
+        "src": {
+          "$ref": "#/definitions/taskSrc"
+        },
+        "generates": {
+          "$ref": "#/definitions/taskGenerates"
+        },
+        "cmds": {
+          "description": "Commands for the current task",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/taskCommand"
+          }
+        }
+      }
+    },
+    "containerTask": {
+      "title": "container task",
+      "description": "Container task for the current build file\nhttps://no0dles.gitbook.io/hammerkit/task/container",
+      "type": "object",
+      "required": ["image", "cmds"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "$ref": "#/definitions/taskCommand"
+        },
+        "extend": {
+          "$ref": "#/definitions/taskExtend"
+        },
+        "labels": {
+          "$ref": "#/definitions/taskLabels"
+        },
+        "cache": {
+          "$ref": "#/definitions/taskCache"
+        },
+        "continuous": {
+          "$ref": "#/definitions/taskContinuous"
+        },
+        "envs": {
+          "$ref": "#/definitions/taskEnvs"
+        },
+        "needs": {
+          "$ref": "#/definitions/taskNeeds"
+        },
+        "deps": {
+          "$ref": "#/definitions/taskDeps"
+        },
+        "src": {
+          "$ref": "#/definitions/taskSrc"
+        },
+        "generates": {
+          "$ref": "#/definitions/taskGenerates"
+        },
+        "cmds": {
+          "description": "Commands for the current task",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/taskCommand"
+          }
+        },
+        "shell": {
+          "title": "task shell",
+          "description": "Define which shell is used to execute the commands",
+          "type": "string"
+        },
+        "image": {
+          "title": "task image",
+          "description": "Container image for the current task to run commands in",
+          "type": "string"
+        },
+        "ports": {
+          "description": "A list of ports that get exposed on the host from the container <localPort>:<targetPort>",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "description": "<localPort>:<targetPort>",
+            "type": "string",
+            "pattern": "\\d+:\\d+"
+          }
+        },
+        "mounts": {
+          "description": "File paths that get mounted into the container\nhttps://no0dles.gitbook.io/hammerkit/task/container#adding-mounts",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "\\d+:\\d+"
+          }
+        }
       }
     },
     "taskCommand": {
       "anyOf": [
         {
-          "description": "Command to be executed for the task",
+          "title": "command",
+          "description": "Command to be executed for the current task",
           "type": "string"
         },
         {
+          "title": "task command with path extension",
+          "description": "Command to be executed in sub directory for the current task",
           "type": "object",
           "additionalProperties": false,
+          "required": ["cmd"],
           "properties": {
             "cmd": {
+              "title": "command",
               "description": "Command to be executed for the task",
               "type": "string"
             },
             "path": {
+              "title": "command path",
               "description": "Path below build file path",
-              "type": "string"
+              "$ref": "https://json.schemastore.org/base.json#/definitions/path"
             }
-          },
-          "required": ["cmd"]
+          }
         }
       ]
     },
-    "include": {
+    "taskDescription": {
+      "description": "Description for the current task",
+      "type": "string"
+    },
+    "taskExtend": {
+      "description": "Extension task as a base template\nhttps://no0dles.gitbook.io/hammerkit/task/extending",
+      "type": "string"
+    },
+    "taskCache": {
+      "description": "compare type for detecting changes in source files\nhttps://no0dles.gitbook.io/hammerkit/task/caching",
+      "type": "string",
+      "enum": ["checksum", "modify-date", "none"]
+    },
+    "taskContinuous": {
+      "description": "The task runs continuous and does not end without cancellation\nhttps://no0dles.gitbook.io/hammerkit/task/watching#continuous-tasks",
+      "type": "boolean"
+    },
+    "taskLabels": {
+      "title": "label options",
+      "description": "A map of label values for the current task\nhttps://no0dles.gitbook.io/hammerkit/labels",
       "type": "object",
-      "description": "A map of includes",
       "additionalProperties": {
+        "description": "label value",
         "type": "string"
       }
     },
-    "reference": {
+    "taskEnvs": {
+      "title": "task environment variables",
+      "description": "Environment values for the current build file\nhttps://no0dles.gitbook.io/hammerkit/build-file/environment-variables",
       "type": "object",
-      "description": "A map of references",
       "additionalProperties": {
+        "description": "environment value",
         "type": "string"
       }
     },
-    "taskSource": {
+    "taskNeeds": {
+      "description": "Service needs that need to get ready before the current task\nhttps://no0dles.gitbook.io/hammerkit/task/needs",
       "type": "array",
-      "description": "A list of source files and folders",
+      "uniqueItems": true,
       "items": {
         "type": "string"
       }
     },
-    "taskGenerate": {
+    "taskDeps": {
+      "description": "Task dependencies that get executed before the current task\nhttps://no0dles.gitbook.io/hammerkit/task/dependencies",
       "type": "array",
-      "description": "A list of generated files and folders",
+      "uniqueItems": true,
       "items": {
         "type": "string"
       }
     },
-    "taskDependency": {
+    "taskSrc": {
+      "description": "Source files and folders for the current task\nhttps://no0dles.gitbook.io/hammerkit/task#source",
       "type": "array",
-      "description": "A list of task dependencies that get executed before the current task",
+      "uniqueItems": true,
       "items": {
-        "type": "string"
+        "$ref": "https://json.schemastore.org/base.json#/definitions/path"
       }
     },
-    "taskMount": {
+    "taskGenerates": {
+      "description": "Generated files and folders for the current task\n\nhttps://no0dles.gitbook.io/hammerkit/task#generate",
       "type": "array",
-      "description": "A list of file paths that get mounted into the container",
+      "uniqueItems": true,
       "items": {
-        "type": "string"
+        "$ref": "https://json.schemastore.org/base.json#/definitions/path"
       }
     },
-    "localTask": {
+    "service": {
+      "title": "service",
+      "description": "A daemon in the background",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/containerService"
+        },
+        {
+          "$ref": "#/definitions/kubernetesService"
+        }
+      ]
+    },
+    "kubernetesService": {
+      "title": "kubernetes service",
+      "description": "Kubernetes service for the current build file\nhttps://no0dles.gitbook.io/hammerkit/service/kubernetes",
       "type": "object",
-      "description": "A task that gets executed in the local shell",
+      "required": ["context", "selector", "ports"],
       "additionalProperties": false,
       "properties": {
-        "description": {
-          "type": "string",
-          "description": "A description of the task"
+        "kubeconfig": {
+          "description": "Kube config for the current service\nhttps://no0dles.gitbook.io/hammerkit/service/kubernetes#config",
+          "type": "string"
         },
-        "extend": {
-          "type": "string",
-          "description": "Name of task that gets used a template"
+        "context": {
+          "description": "Kubernetes context for the current service\nhttps://no0dles.gitbook.io/hammerkit/service/kubernetes#config",
+          "type": "string"
         },
-        "envs": {
-          "$ref": "#/definitions/envMap"
-        },
-        "deps": {
-          "$ref": "#/definitions/taskDependency"
-        },
-        "watch": {
-          "type": "boolean",
-          "description": "Watch the source files and restart the task on changes"
-        },
-        "src": {
-          "$ref": "#/definitions/taskSource"
-        },
-        "generates": {
-          "$ref": "#/definitions/taskGenerate"
-        },
-        "cmds": {
-          "description": "A list of commands in a task",
+        "ports": {
+          "description": "A list of ports that get exposed on the host from the service <localPort>:<targetPort>",
           "type": "array",
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/definitions/taskCommand"
+            "description": "<localPort>:<targetPort>",
+            "type": "string",
+            "pattern": "\\d+:\\d+"
+          }
+        },
+        "selector": {
+          "title": "service selector",
+          "description": "Selector to specify which resource gets forwarded to\nhttps://no0dles.gitbook.io/hammerkit/service/kubernetes",
+          "type": "object",
+          "required": ["type", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "description": "resource type for the current service",
+              "type": "string",
+              "enum": ["deployment", "service", "pod"]
+            },
+            "name": {
+              "description": "resource name for the kubernetes resource",
+              "type": "string"
+            }
           }
         }
-      },
-      "required": ["cmds"]
+      }
     },
-    "dockerTask": {
-      "required": ["cmds", "image"],
+    "containerService": {
+      "title": "container service",
+      "description": "Container service for the current build file\nhttps://no0dles.gitbook.io/hammerkit/service/kubernetes",
+      "type": "object",
+      "required": ["image"],
       "additionalProperties": false,
       "properties": {
-        "description": {
-          "type": "string",
-          "description": "A description of the task"
-        },
-        "extend": {
-          "type": "string",
-          "description": "Name of task that gets used a template"
+        "labels": {
+          "title": "label options",
+          "description": "A map of label values for the current service\nhttps://no0dles.gitbook.io/hammerkit/labels",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
         },
         "envs": {
-          "$ref": "#/definitions/envMap"
+          "title": "service environment variables",
+          "description": "Environment values for the current service\nhttps://no0dles.gitbook.io/hammerkit/build-file/environment-variables",
+          "type": "object",
+          "additionalProperties": {
+            "description": "environment value",
+            "type": "string"
+          }
         },
-        "deps": {
-          "$ref": "#/definitions/taskDependency"
-        },
-        "watch": {
-          "type": "boolean",
-          "description": "Watch the source files and restart the task on changes"
-        },
-        "shell": {
-          "type": "string",
-          "description": "Define which shell is used to execute the commands"
+        "healthcheck": {
+          "title": "service healthcheck",
+          "description": "Check to detect if the service is started and ready\nhttps://no0dles.gitbook.io/hammerkit/service/container#healthcheck",
+          "type": "object",
+          "required": ["cmd"],
+          "additionalProperties": false,
+          "properties": {
+            "cmd": {
+              "description": "task to check if the service is healthy",
+              "type": "string"
+            }
+          }
         },
         "image": {
-          "type": "string",
-          "description": "Define the container image the commands run in"
+          "description": "Container image for the current service to run commands in",
+          "type": "string"
+        },
+        "ports": {
+          "description": "A list of ports that get exposed on the host from the container <localPort>:<targetPort>\nhttps://no0dles.gitbook.io/hammerkit/service/container#mounts",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "description": "<localPort>:<targetPort>",
+            "type": "string",
+            "pattern": "\\d+:\\d+"
+          }
+        },
+        "volumes": {
+          "description": "A list of volumes that get attached to the container <name>:<containerPath>\nhttps://no0dles.gitbook.io/hammerkit/service/container#mounts",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "description": "<name>:<containerPath>",
+            "type": "string",
+            "pattern": "\\d+:\\d+"
+          }
         },
         "mounts": {
-          "$ref": "#/definitions/taskMount"
-        },
-        "src": {
-          "$ref": "#/definitions/taskSource"
-        },
-        "generates": {
-          "$ref": "#/definitions/taskGenerate"
-        },
-        "cmds": {
-          "description": "A list of commands in a task",
+          "description": "File paths that get mounted into the container <localPath>:<containerPath>\nhttps://no0dles.gitbook.io/hammerkit/service/container#mounts",
           "type": "array",
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/definitions/taskCommand"
+            "type": "string",
+            "description": "<localPath>:<containerPath>",
+            "pattern": "\\d+:\\d+"
           }
         }
       }
-    },
-    "task": {
-      "anyOf": [{
-        "$ref": "#/definitions/dockerTask"
-      }, {
-        "$ref": "#/definitions/localTask"
-      }]
     }
-  }
+  },
+  "description": "Build tool with support for containerization\nhttps://no0dles.gitbook.io/hammerkit/build-file",
+  "properties": {
+    "envs": {
+      "$ref": "#/definitions/buildFileEnvs"
+    },
+    "tasks": {
+      "$ref": "#/definitions/buildFileTasks"
+    },
+    "services": {
+      "$ref": "#/definitions/buildFileServices"
+    },
+    "includes": {
+      "$ref": "#/definitions/buildFileIncludes"
+    },
+    "references": {
+      "$ref": "#/definitions/buildFileReferences"
+    }
+  },
+  "title": "JSON Schema for hammerkit's build file",
+  "type": "object"
 }
