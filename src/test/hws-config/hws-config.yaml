@@ -1,0 +1,259 @@
+# Hardware Sentry
+
+# Number of jobs that Hardware Sentry can run simultaneously.
+jobPoolSize: 30
+
+# Discovery cycle.
+discoveryCycle: 20
+
+# Internal collect interval.
+collectPeriod: 1m
+
+# Debug mode of the core engine.
+loggerLevel: debug
+
+# Display the configured hostname in the Host Resource `host.name` attribute instead of the resolved FQDN.
+resolveHostnameToFqdn: true
+
+# Forces all the network calls to be executed in sequential order.
+sequential: false
+
+# Disable hardware alerts.
+disableAlerts: false
+
+extraLabels:
+  site: Datacenter 1 # Customize this value with your own site naming convention. (Dedicating 1 collector to 1 site is a good practice.)
+
+extraMetrics:
+  hw.site.carbon_density_grams: 230 # in g/kWh
+  # Carbon dioxide produced per kilowatt-hour.
+  # The average is 230g/kWh for Europe.
+  # The average is 309g/kWh for Texas, USA.
+  # The average is 40g/kWh for Ontario, Canada.
+  # The average is 712g/kWh for Queensland, Australia.
+  # Source: https://app.electricitymap.org/map
+
+  hw.site.electricity_cost_dollars: 0.12 # in $/kWh
+  # Electricity cost per kilowatt-hour.
+  # The average is $0.12/kWh for non-household in Europe.
+  # The average is $0.159/kWh for non-household in the USA.
+  # The average is $0.117/kWh for non-household in Canada.
+  # The average is $0.225/kWh for non-household in Australia.
+  # Source: https://www.globalpetrolprices.com/electricity_prices/
+
+  hw.site.pue_ratio: 1.8
+  # Power Usage Effectiveness. A ratio describing how efficiently a computer data center uses energy. The ideal ratio is 1.
+
+# Sets Hardware Sentry's internal Exporter configuration
+exporter:
+  otlp:
+    headers:
+      Authorization: token
+    trustedCertificatesFile: security/otel.crt
+    endpoint: https://localhost:4317
+
+# Customizes the OpenTelemetry Collector sub-process
+otelCollector:
+  commandLine:
+    [
+      '/opt/hws/otel/otelcol',
+      '--config',
+      '/opt/hws/otel/otel-config.yaml',
+      '--feature-gates=pkg.translator.prometheus.NormalizeName',
+    ]
+  environment:
+    HTTPS_PROXY: 'https://my-proxy.local.net'
+    NO_WINDOWS_SERVICE: 1
+  output: log
+  workingDir: /opt/hws/otel
+  disabled: false
+
+hosts:
+  # Some templates can be found below:
+
+  #═══════════════════════════════════════════════════
+  # IPMI protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-1
+      type: oob
+    ipmi:
+      username: username
+      password: password
+      timeout: 120s
+
+  #═══════════════════════════════════════════════════
+  # WMI protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-2
+      type: win
+    wmi:
+      timeout: 120s
+
+  #═══════════════════════════════════════════════════
+  # WMI protocol configuration with credentials
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-3
+      type: win
+    wmi:
+      username: server-3\username
+      password: password
+      timeout: 120s
+
+  #═══════════════════════════════════════════════════
+  # SNMP v1 protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-4
+      type: network
+    snmp:
+      version: v1
+      community: public
+      port: 161
+      timeout: 120s
+    excludedConnectors: [SunF15K]
+
+  #═══════════════════════════════════════════════════
+  # SNMP v2c protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-5
+      type: oob
+    snmp:
+      version: v2c
+      community: public
+      port: 161
+      timeout: 120s
+
+  #═══════════════════════════════════════════════════
+  # SNMP v3 MD5 protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-6
+      type: oob
+    snmp:
+      version: v3-md5
+      community: public
+      port: 161
+      timeout: 120
+      privacy: des
+      privacyPassword: privacy_password
+      username: username
+      password: password
+
+  #═══════════════════════════════════════════════════
+  # WBEM protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-7
+      type: storage
+    wbem:
+      protocol: https
+      port: 5989
+      timeout: 120s
+      username: username
+      password: password
+    excludedConnectors:
+      - PureStorageREST
+
+  #═══════════════════════════════════════════════════
+  # HTTP protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-8
+      type: storage
+    http:
+      https: true
+      port: 443
+      username: username
+      password: password
+    selectedConnectors:
+      - PureStorageREST
+
+  #═══════════════════════════════════════════════════
+  # SSH protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-9
+      type: linux
+    ssh:
+      timeout: 120
+      useSudo: true
+      useSudoCommands: [isi, isi_for_array]
+      sudoCommand: sudo
+      username: username
+      password: password
+      privateKey: /tmp/ssh-key.txt
+
+  #═══════════════════════════════════════════════════
+  # OSCommand configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-10
+      type: linux
+    osCommand:
+      timeout: 120
+      useSudo: true
+      useSudoCommands: []
+      sudoCommand: sudo
+
+  #═══════════════════════════════════════════════════
+  # WinRM configuration
+  #═══════════════════════════════════════════════════
+
+  - host:
+      hostname: server-11
+      type: win
+    winrm:
+      timeout: 120
+      username: username
+      password: password
+      port: 5985
+      protocol: http
+      authentications: [ntlm, kerberos]
+
+  #═══════════════════════════════════════════════════
+  # Host Group array SNMP v1 protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - hostGroup:
+      hostnames: [server-12, server-13]
+      type: network
+    snmp:
+      version: v1
+      community: public
+      port: 161
+      timeout: 120s
+
+  #═══════════════════════════════════════════════════
+  # Host Group object SNMP v2c protocol configuration
+  #═══════════════════════════════════════════════════
+
+  - hostGroup:
+      hostnames:
+        server-14:
+          extraLabels:
+            host.name: server-14.local.net
+            host.id: server-14.local.net
+        server-15:
+          extraLabels:
+            host.name: server-15.local.net
+            host.id: server-15.local.net
+      type: storage
+    snmp:
+      version: v2c
+      community: public
+      port: 161
+      timeout: 120s
