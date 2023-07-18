@@ -577,6 +577,7 @@
         "Handlebars",
         "Haskell",
         "Haxe",
+        "Helm",
         "Hoon",
         "JSON",
         "JSX",
@@ -605,6 +606,7 @@
         "Nix",
         "Nunjucks",
         "OCaml",
+        "Odin",
         "OneScript",
         "OpenAPI",
         "OpenCL",
@@ -630,11 +632,13 @@
         "SCSS",
         "SQL",
         "Salt",
+        "Sass",
         "Scala",
         "Sh",
         "Shell",
         "Slint",
         "Smithy",
+        "Standard ML",
         "Snakemake",
         "Solidity",
         "Sphinx",
@@ -725,8 +729,11 @@
     "enums:platform": {
       "type": "string",
       "enum": [
+        "unix",
+        "darwin",
         "darwin_arm64",
         "darwin_x64",
+        "linux",
         "linux_arm",
         "linux_arm64",
         "linux_arm64_gnu",
@@ -743,6 +750,9 @@
         "linux_x64_openbsd",
         "linux_x86",
         "linux_x86_gnu",
+        "linux_x86_musl",
+        "linux_x86_openbsd",
+        "win",
         "win_arm",
         "win_arm64",
         "win_armv6l",
@@ -788,6 +798,16 @@
       }
     },
     "components:sources:generic": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/components:sources:generic:download"
+        },
+        {
+          "$ref": "#/definitions/components:sources:generic:build"
+        }
+      ]
+    },
+    "components:sources:generic:download": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "download"],
@@ -801,11 +821,11 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/components:sources:generic/definitions/Download"
+                "$ref": "#/definitions/components:sources:generic:download/definitions/Download"
               }
             },
             {
-              "$ref": "#/definitions/components:sources:generic/definitions/Download"
+              "$ref": "#/definitions/components:sources:generic:download/definitions/Download"
             }
           ]
         }
@@ -840,6 +860,67 @@
               "additionalProperties": false
             }
           }
+        }
+      }
+    },
+    "components:sources:generic:build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "build"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pkg:generic/.+@.+"
+        },
+        "build": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/components:sources:build"
+              }
+            },
+            {
+              "$ref": "#/definitions/components:sources:build"
+            }
+          ]
+        }
+      }
+    },
+    "components:sources:build": {
+      "type": "object",
+      "required": ["run"],
+      "additionalProperties": true,
+      "properties": {
+        "target": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/enums:platform"
+              }
+            },
+            {
+              "$ref": "#/definitions/enums:platform"
+            }
+          ]
+        },
+        "run": {
+          "type": "string",
+          "description": "The shell script to run. Platform sensitive (bash on Unix, powershell on Windows)."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Z0-9_]+$": {
+              "type": "string"
+            }
+          }
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "Whether to run the build script in a staging location (defaults to true)."
         }
       }
     },
@@ -930,7 +1011,17 @@
               "type": "object",
               "properties": {
                 "file": {
-                  "type": "string"
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
                 }
               }
             }
@@ -952,44 +1043,13 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/components:sources:github:build/definitions/Build"
+                "$ref": "#/definitions/components:sources:build"
               }
             },
             {
-              "type": "object",
-              "properties": {
-                "run": {
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/components:sources:build"
             }
           ]
-        }
-      },
-      "definitions": {
-        "Build": {
-          "type": "object",
-          "required": ["target", "run"],
-          "additionalProperties": true,
-          "properties": {
-            "target": {
-              "oneOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/enums:platform"
-                  }
-                },
-                {
-                  "$ref": "#/definitions/enums:platform"
-                }
-              ]
-            },
-            "run": {
-              "type": "string",
-              "description": "The shell script to run. Platform sensitive (bash on Unix, powershell on Windows)."
-            }
-          }
         }
       }
     },
@@ -1087,6 +1147,17 @@
         }
       }
     },
+    "components:schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lsp": {
+          "type": "string",
+          "description": "A URL to where the LSP JSON schema can be downloaded from. If the provided URL is a VSCode package.json you MUST prefix the url with vscode:",
+          "pattern": "^(vscode:)?https://"
+        }
+      }
+    },
     "components:bin": {
       "type": "object",
       "patternProperties": {
@@ -1152,6 +1223,9 @@
     },
     "source": {
       "$ref": "#/definitions/components:source"
+    },
+    "schemas": {
+      "$ref": "#/definitions/components:schemas"
     },
     "bin": {
       "$ref": "#/definitions/components:bin"
