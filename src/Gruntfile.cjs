@@ -2033,6 +2033,7 @@ module.exports = function (grunt) {
     // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
     'local_assert_schema_version_isnt_too_high',
+    'local_assert_schema_passes_schemasafe_lint',
   ])
   grunt.registerTask('local_test', [
     'local_test_filesystem',
