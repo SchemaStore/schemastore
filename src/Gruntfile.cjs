@@ -2004,27 +2004,42 @@ module.exports = function (grunt) {
     },
   )
 
-  // The order of the task is relevant.
-  grunt.registerTask('local_test', [
+  /**
+   * The order of tasks are relevant.
+   */
+  grunt.registerTask('local_test_filesystem', [
     'local_assert_directory_structure_is_valid',
     'local_assert_filenames_have_correct_extensions',
     'local_assert_test_folders_have_at_least_one_test_schema',
     'local_assert_tv4_validator_has_no_negative_tests',
+  ])
+  grunt.registerTask('local_test_schema_validation_json', [
     'local_assert_schema-validation.json_no_duplicate_list',
     'local_assert_schema-validation.json_no_missing_schema_files',
     'local_assert_schema-validation.json_valid_skiptest',
+  ])
+  grunt.registerTask('local_test_catalog_json', [
     'local_assert_catalog.json_validates',
     'local_assert_catalog.json_no_duplicate_names',
     'local_assert_catalog.json_fileMatch_path',
     'local_assert_catalog.json_fileMatch_conflict',
     'local_assert_catalog.json_local_url_must_ref_file',
     'local_assert_catalog.json_includes_all_schemas',
+  ])
+  grunt.registerTask('local_test_schema', [
     'local_assert_schema_no_bom',
     // 'local_assert_schema_no_smart_quotes',
     'local_assert_schema_no_duplicated_property_keys',
     // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
     'local_assert_schema_version_isnt_too_high',
+  ])
+  grunt.registerTask('local_test', [
+    'local_test_filesystem',
+    'local_test_schema_validation_json',
+    'local_test_catalog_json',
+    'local_test_schema',
+
     'local_print_schemas_tested_in_full_strict_mode',
     'local_print_schemas_without_positive_test_files',
     'local_test_ajv',
@@ -2032,14 +2047,14 @@ module.exports = function (grunt) {
     'local_print_url_counts_in_catalog',
     'local_print_count_schema_versions',
   ])
+  grunt.registerTask('local_maintenance', [
+    'local_test_downgrade_schema_version',
+    'local_show_two_list_of_full_strict_and_not_strict_AJV_schemas',
+  ])
   grunt.registerTask('remote_test', [
     'remote_assert_schema_no_bom',
     'remote_test_ajv',
     'remote_print_count_schema_versions',
-  ])
-  grunt.registerTask('local_maintenance', [
-    'local_test_downgrade_schema_version',
-    'local_show_two_list_of_full_strict_and_not_strict_AJV_schemas',
   ])
   grunt.registerTask('default', ['local_test'])
 }
