@@ -8,6 +8,7 @@ const Ajv2020 = require('ajv/dist/2020')
 const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
+const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const path = require('path')
 const fs = require('fs')
@@ -1512,6 +1513,36 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
+    'local_assert_schema_passes_schemasafe_lint',
+    'Check if schema version passes lint',
+    function () {
+      if (!grunt.option.flags().includes('--lint')) {
+        return
+      }
+      let countScan = 0
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(callbackParameter) {
+            countScan++
+
+            const errors = schemasafe.lint(callbackParameter.jsonObj, {
+              mode: 'strong',
+            })
+            for (const e of errors) {
+              console.log(`${callbackParameter.jsonName}: ${e.message}`)
+            }
+          },
+        },
+        {
+          fullScanAllFiles: true,
+          skipReadFile: false,
+        },
+      )
+      grunt.log.ok(`Total files scan: ${countScan}`)
+    },
+  )
+
+  grunt.registerTask(
     'local_assert_schema-validation.json_no_duplicate_list',
     'Check if options list is unique in schema-validation.json',
     function () {
@@ -2025,6 +2056,7 @@ module.exports = function (grunt) {
     // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
     'local_assert_schema_version_isnt_too_high',
+    'local_assert_schema_passes_schemasafe_lint',
     'local_print_schemas_tested_in_full_strict_mode',
     'local_print_schemas_without_positive_test_files',
     'local_test_ajv',
