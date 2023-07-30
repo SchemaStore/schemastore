@@ -8,6 +8,7 @@ const Ajv2020 = require('ajv/dist/2020')
 const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
+const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const path = require('path')
 const fs = require('fs')
@@ -1499,6 +1500,36 @@ module.exports = function (grunt) {
                 `Schema version ${SchemaVersionTooHigh} is not supported by many editors and IDEs`,
                 `${callbackParameter.jsonName} must use a lower schema version.`,
               ])
+            }
+          },
+        },
+        {
+          fullScanAllFiles: true,
+          skipReadFile: false,
+        },
+      )
+      grunt.log.ok(`Total files scan: ${countScan}`)
+    },
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_passes_schemasafe_lint',
+    'Check if schema version passes lint',
+    function () {
+      if (!grunt.option.flags().includes('--lint')) {
+        return
+      }
+      let countScan = 0
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(callbackParameter) {
+            countScan++
+
+            const errors = schemasafe.lint(callbackParameter.jsonObj, {
+              mode: 'strong',
+            })
+            for (const e of errors) {
+              console.log(`${callbackParameter.jsonName}: ${e.message}`)
             }
           },
         },
