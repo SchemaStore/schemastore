@@ -17,6 +17,7 @@ const prettier = require('prettier')
 const axios = require('axios').default
 const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
 
+const temporaryPreviousTv4OnlySchemas = ['tslint.json', 'cloudify.json']
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
 const testPositiveDir = 'test'
@@ -1744,7 +1745,12 @@ module.exports = function (grunt) {
       // Test folder must not exist if defined in skiptest[]
       schemaValidation.skiptest.forEach((schemaName) => {
         countSchemaValidationItems++
+        if (temporaryPreviousTv4OnlySchemas.includes(schemaName)) {
+          return
+        }
+
         const folderName = schemaName.replace('.json', '')
+
         if (foldersPositiveTest.includes(folderName)) {
           throwWithErrorText([
             `Disabled/skiptest[] schema: ${schemaName} cannot have positive test folder`,
