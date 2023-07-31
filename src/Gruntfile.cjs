@@ -1,17 +1,21 @@
 /// <binding AfterBuild='build' />
+const path = require('node:path')
+const fs = require('node:fs')
 const addFormats = require('ajv-formats')
 const ajvFormatsDraft2019 = require('ajv-formats-draft2019')
 const AjvDraft04 = require('ajv-draft-04')
 const AjvDraft06And07 = require('ajv')
 const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
+const AjvDraft06SchemaJson = require('ajv/dist/refs/json-schema-draft-06.json')
+const AjvStandalone = require('ajv/dist/standalone').default
 const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
 const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
-const path = require('path')
-const fs = require('fs')
+const axios = require('axios').default
+const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
 
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
@@ -19,11 +23,7 @@ const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = require('./api/json/catalog.json')
-const schemaV4JSON = require(path.resolve(
-  '.',
-  schemaDir,
-  'schema-draft-v4.json',
-))
+const schemaV4JSON = require(path.resolve(schemaDir, 'schema-draft-v4.json'))
 const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
@@ -78,7 +78,6 @@ module.exports = function (grunt) {
    * @param {CbParamFn} schemaOnlyScan
    */
   async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
-    const axios = require('axios').default
     const schemas = catalog.schemas
     const responseType = 'arraybuffer'
 
@@ -597,9 +596,7 @@ module.exports = function (grunt) {
       case 'draft-07':
         ajvSelected = new AjvDraft06And07(ajvOptions)
         if (schemaName === 'draft-06') {
-          ajvSelected.addMetaSchema(
-            require('ajv/dist/refs/json-schema-draft-06.json'),
-          )
+          ajvSelected.addMetaSchema(AjvDraft06SchemaJson)
         } else {
           // 'draft-07' have additional format
           ajvFormatsDraft2019(ajvSelected)
@@ -806,7 +803,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_test_tv4_only_for_non_compliance_schema',
-    'Dynamically load local schema file for validation with /test/',
+    'Use tv4 to validate local schemas in ./test/',
     function () {
       const x = tv4Validator()
       // tv4 is an outdated/unreliable validator. Do not add a negative test scan here.
@@ -823,7 +820,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_test_ajv',
-    'Dynamically load local schema file for validation with /test/',
+    'Use AJV to validate local schemas in ./test/',
     function () {
       const x = ajv()
       localSchemaFileAndTestFile(
@@ -841,7 +838,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'remote_test_ajv',
-    'Dynamically load external schema file for validation',
+    'Use AJV to validate remote schemas',
     async function () {
       const done = this.async()
       const x = ajv()
@@ -858,7 +855,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_no_bom',
-    'Dynamically load local schema file for BOM validation',
+    'Check that local schema files do not have a BOM (Byte Order Mark)',
     function () {
       let countScan = 0
 
@@ -880,7 +877,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_no_smart_quotes',
-    'Ensure that no smart quotes are used',
+    'Check that local schemas have no smart quotes',
     function () {
       let countScan = 0
 
@@ -903,7 +900,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'remote_assert_schema_no_bom',
-    'Dynamically load remote schema file for BOM validation',
+    'Check that remote schema files do not have a BOM (Byte Order Mark)',
     async function () {
       const done = this.async()
       await remoteSchemaFile(testSchemaFileForBOM, false)
@@ -913,7 +910,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_validates',
-    'Catalog validation',
+    'Check that the catalog.json file passes schema validation',
     function () {
       const catalogSchema = require(path.resolve(
         '.',
@@ -936,9 +933,8 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_no_duplicated_property_keys',
-    'Dynamically load local JSON file for validation',
+    'Check that schemas have no duplicated property keys',
     function () {
-      const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
       let countScan = 0
       const findDuplicatedProperty = (
         /** @type {CbParam} */ callbackParameter,
@@ -990,7 +986,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_top_level_$ref_is_standalone',
-    'top level $ref propertie of schemas must be the only property',
+    'Check that top level $ref properties of schemas are be the only property',
     function () {
       let countScan = 0
       localSchemaFileAndTestFile(
@@ -1018,7 +1014,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_local_url_must_ref_file',
-    'local url must reference to a file',
+    'Check that local urls must reference a file that exists',
     function () {
       const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
       let countScan = 0
@@ -1056,7 +1052,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_includes_all_schemas',
-    'local schema must have a url reference in catalog.json',
+    'Check that local schemas have a url reference in catalog.json',
     function () {
       let countScan = 0
       const allCatalogLocalJsonFiles = []
@@ -1098,7 +1094,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_fileMatch_conflict',
-    'note: app.json and *app.json conflicting will not be detected',
+    'Check for duplicate fileMatch entries (note: app.json and *app.json conflicting will not be detected)',
     function () {
       const fileMatchConflict = schemaValidation.fileMatchConflict
       let fileMatchCollection = []
@@ -1125,7 +1121,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_fileMatch_path',
-    'fileMatch patterns that include a directory separator should consistently start with **/',
+    'Ensure that fileMatch patterns include a directory separator that consistently starts with **/',
     function () {
       for (const schema of catalog.schemas) {
         schema.fileMatch?.forEach((fileMatchItem) => {
@@ -1145,7 +1141,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_filenames_have_correct_extensions',
-    'Dynamically check local schema/test file for filename extension',
+    'Check that local test schemas have a valid filename extension',
     function () {
       const schemaFileExtension = ['.json']
       const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
@@ -1177,7 +1173,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_print_schemas_without_positive_test_files',
-    'Dynamically check local schema if positive test files are present',
+    'Check that local test schemas always have a positive test file (unless listed in skipTest)',
     function () {
       let countMissingTest = 0
       // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
@@ -1206,7 +1202,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_directory_structure_is_valid',
-    'Dynamically check if schema and test directory structure are valid',
+    'Check if schema and test directory structure are valid',
     function () {
       schemasToBeTested.forEach((name) => {
         if (
@@ -1246,7 +1242,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_test_downgrade_schema_version',
-    'Dynamically check local schema version is not to high',
+    'Check if schema can be downgraded to a lower schema version and still pass validation',
     function () {
       const countSchemas = countSchemasType
       let countScan = 0
@@ -1407,7 +1403,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_print_count_schema_versions',
-    'Dynamically check local schema for schema version count',
+    'Print the schema versions and their usage frequencies',
     function () {
       const x = showSchemaVersions()
       localSchemaFileAndTestFile(
@@ -1425,7 +1421,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'remote_print_count_schema_versions',
-    'Dynamically load remote schema file for schema version count',
+    'Print the schema versions and their usage frequencies',
     async function () {
       const done = this.async()
       const x = showSchemaVersions()
@@ -1490,7 +1486,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_passes_schemasafe_lint',
-    'Check if schema version passes lint',
+    'Check that local schemas pass the SchemaSafe lint',
     function () {
       if (!grunt.option.flags().includes('--lint')) {
         return
@@ -1805,7 +1801,6 @@ module.exports = function (grunt) {
        * @param {string} processOnlyThisOneSchemaFile The schema file that need to process
        */
       const generateCoverage = (processOnlyThisOneSchemaFile) => {
-        const standaloneCode = require('ajv/dist/standalone').default
         const schemaVersion = showSchemaVersions()
         let jsonName
         let mainSchema
@@ -1867,11 +1862,11 @@ module.exports = function (grunt) {
             if (!mainSchemaJsonId) {
               throwWithErrorText([`Missing $id or id in ${jsonName}`])
             }
-            moduleCode = standaloneCode(ajvSelected)
+            moduleCode = AjvStandalone(ajvSelected)
           } else {
             // Single schema
             mainSchemaJsonId = undefined
-            moduleCode = standaloneCode(
+            moduleCode = AjvStandalone(
               ajvSelected,
               ajvSelected.compile(mainSchema),
             )
