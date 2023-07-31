@@ -28,7 +28,6 @@ const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
-const SchemaVersionTooHigh = ['2019-09', '2020-12']
 // prettier-ignore
 const countSchemasType = [
   { schemaName: '2020-12', schemaStr: 'json-schema.org/draft/2020-12/schema', totalCount: 0, active: true },
@@ -1440,7 +1439,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_version_is_valid',
-    'Dynamically load schema file for $schema present check',
+    'Check that the $schema version string is a correct and standard value',
     function () {
       let countScan = 0
 
@@ -1463,43 +1462,19 @@ module.exports = function (grunt) {
                 `Valid schemas: ${JSON.stringify(validSchemas)}`,
               ])
             }
-          },
-        },
-        {
-          fullScanAllFiles: true,
-          skipReadFile: false,
-        },
-      )
 
-      grunt.log.ok(`Total files scan: ${countScan}`)
-    },
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_version_isnt_too_high',
-    'Dynamically load schema file for $schema version check',
-    function () {
-      let countScan = 0
-      localSchemaFileAndTestFile(
-        {
-          schemaOnlyScan(callbackParameter) {
-            countScan++
-            if (
-              schemaValidation.highSchemaVersion.includes(
-                callbackParameter.jsonName,
-              )
-            ) {
-              return // skip the verification for this schema file
-            }
-            const schemaName = showSchemaVersions().getObj(
-              callbackParameter.jsonObj,
-            )?.schemaName
-            if (SchemaVersionTooHigh.includes(schemaName)) {
-              throwWithErrorText([
-                `Schema version is too high => "${schemaName}" in file ${callbackParameter.jsonName}`,
-                `Schema version ${SchemaVersionTooHigh} is not supported by many editors and IDEs`,
-                `${callbackParameter.jsonName} must use a lower schema version.`,
-              ])
+            if (!schemaValidation.highSchemaVersion.includes(data.jsonName)) {
+              const tooHighSchemas = [
+                'https://json-schema.org/draft/2019-09/schema',
+                'https://json-schema.org/draft/2020-12/schema',
+              ]
+              if (tooHighSchemas.includes(data.jsonObj.$schema)) {
+                throwWithErrorText([
+                  `Schema version is too high => in file ${data.jsonName}`,
+                  `Schema version '${data.jsonObj.$schema}' is not supported by many editors and IDEs`,
+                  `${data.jsonName} must use a lower schema version.`,
+                ])
+              }
             }
           },
         },
@@ -1508,6 +1483,7 @@ module.exports = function (grunt) {
           skipReadFile: false,
         },
       )
+
       grunt.log.ok(`Total files scan: ${countScan}`)
     },
   )
@@ -2055,7 +2031,6 @@ module.exports = function (grunt) {
     'local_assert_schema_no_duplicated_property_keys',
     // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
-    'local_assert_schema_version_isnt_too_high',
     'local_assert_schema_passes_schemasafe_lint',
     'local_print_schemas_tested_in_full_strict_mode',
     'local_print_schemas_without_positive_test_files',
