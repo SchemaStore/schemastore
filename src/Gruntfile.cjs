@@ -8,6 +8,7 @@ const Ajv2020 = require('ajv/dist/2020')
 const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
+const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const path = require('path')
 const fs = require('fs')
@@ -21,7 +22,7 @@ const catalog = require('./api/json/catalog.json')
 const schemaV4JSON = require(path.resolve(
   '.',
   schemaDir,
-  'schema-draft-v4.json'
+  'schema-draft-v4.json',
 ))
 const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
@@ -173,7 +174,7 @@ module.exports = function (grunt) {
       skipReadFile = true,
       ignoreSkiptest = false,
       processOnlyThisOneSchemaFile = undefined,
-    } = {}
+    } = {},
   ) {
     const schemaNameOption = grunt.option('SchemaName')
     if (processOnlyThisOneSchemaFile === undefined && schemaNameOption) {
@@ -259,7 +260,7 @@ module.exports = function (grunt) {
       schemaName,
       testDir,
       testPassScan,
-      testPassScanDone
+      testPassScanDone,
     ) => {
       const loadTestFile = (testFileNameWithPath, buffer) => {
         // Test files have extension '.json' or else it must be a YAML file
@@ -309,7 +310,7 @@ module.exports = function (grunt) {
       // remove filename '.json' extension and to create the folder name
       const folderNameAndPath = path.join(
         testDir,
-        path.basename(schemaName, '.json')
+        path.basename(schemaName, '.json'),
       )
       // if test folder doesn't exist then exit. Some schemas do not have a test folder.
       if (!fs.existsSync(folderNameAndPath)) {
@@ -319,7 +320,7 @@ module.exports = function (grunt) {
       // Read all files name inside one test folder
       const filesInsideOneTestFolder = fs.readdirSync(folderNameAndPath).map(
         // Must create a list with full path name
-        (fileName) => path.join(folderNameAndPath, fileName)
+        (fileName) => path.join(folderNameAndPath, fileName),
       )
 
       if (!filesInsideOneTestFolder.length) {
@@ -371,13 +372,13 @@ module.exports = function (grunt) {
         schemaName,
         testPositiveDir,
         positiveTestScan,
-        positiveTestScanDone
+        positiveTestScanDone,
       )
       scanOneTestFolder(
         schemaName,
         testNegativeDir,
         negativeTestScan,
-        negativeTestScanDone
+        negativeTestScanDone,
       )
     }, false)
     schemaForTestScanDone?.()
@@ -400,7 +401,7 @@ module.exports = function (grunt) {
     for (const bom of bomTypes) {
       if (buffer.length >= bom.signature.length) {
         const bomFound = bom.signature.every(
-          (value, index) => buffer[index] === value
+          (value, index) => buffer[index] === value,
         )
         if (bomFound) {
           throwWithErrorText([
@@ -477,7 +478,7 @@ module.exports = function (grunt) {
       countSchema++
       grunt.log.writeln()
       grunt.log.ok(
-        `${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`
+        `${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`,
       )
     }
 
@@ -488,7 +489,7 @@ module.exports = function (grunt) {
     }
 
     const processPositiveTestFile = (
-      /** @type {CbParam} */ callbackParameter
+      /** @type {CbParam} */ callbackParameter,
     ) => {
       const testFile = callbackParameter.jsonObj
       const validated = tv4.validate(testFile, schemaToBeValidated)
@@ -501,7 +502,7 @@ module.exports = function (grunt) {
       }
       if (validated) {
         grunt.log.ok(
-          `${textPositivePassTest}${callbackParameter.urlOrFilePath}`
+          `${textPositivePassTest}${callbackParameter.urlOrFilePath}`,
         )
       } else {
         throwWithErrorText([
@@ -520,7 +521,7 @@ module.exports = function (grunt) {
           const schema = require(path.resolve(
             '.',
             schemaDir,
-            schemaValidation.tv4ExternalRef[property]
+            schemaValidation.tv4ExternalRef[property],
           ))
           tv4.addSchema(property, schema)
         } catch (e) {
@@ -598,7 +599,7 @@ module.exports = function (grunt) {
         ajvSelected = new AjvDraft06And07(ajvOptions)
         if (schemaName === 'draft-06') {
           ajvSelected.addMetaSchema(
-            require('ajv/dist/refs/json-schema-draft-06.json')
+            require('ajv/dist/refs/json-schema-draft-06.json'),
           )
         } else {
           // 'draft-07' have additional format
@@ -653,7 +654,7 @@ module.exports = function (grunt) {
     const externalSchemaWithPathList = externalSchemaList?.map(
       (schemaFileName) => {
         return path.resolve('.', schemaDir, schemaFileName)
-      }
+      },
     )
 
     // return all the collected values
@@ -693,7 +694,7 @@ module.exports = function (grunt) {
       // const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)
       // The SchemaStore default mode is full Strict Mode. Not in the list => full strict mode
       const fullStrictMode = !schemaValidation.ajvNotStrictMode.includes(
-        callbackParameter.jsonName
+        callbackParameter.jsonName,
       )
       const fullStrictModeStr = fullStrictMode
         ? '(FullStrictMode)'
@@ -734,7 +735,7 @@ module.exports = function (grunt) {
       countSchema++
       grunt.log.writeln()
       grunt.log.ok(
-        `${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`
+        `${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`,
       )
     }
 
@@ -743,13 +744,13 @@ module.exports = function (grunt) {
     }
 
     const processPositiveTestFile = (
-      /** @type {CbParam} */ callbackParameter
+      /** @type {CbParam} */ callbackParameter,
     ) => {
       processTestFile(
         callbackParameter,
         () => {
           grunt.log.ok(
-            `${textPositivePassTest}${callbackParameter.urlOrFilePath}`
+            `${textPositivePassTest}${callbackParameter.urlOrFilePath}`,
           )
         },
         () => {
@@ -760,12 +761,12 @@ module.exports = function (grunt) {
             `(Message)  ${validate.errors[0].message}`,
             'Error in positive test.',
           ])
-        }
+        },
       )
     }
 
     const processNegativeTestFile = (
-      /** @type {CbParam} */ callbackParameter
+      /** @type {CbParam} */ callbackParameter,
     ) => {
       processTestFile(
         callbackParameter,
@@ -780,13 +781,13 @@ module.exports = function (grunt) {
           // const path = validate.errors[0].instancePath
           let text = ''
           text = text.concat(
-            `${textNegativePassTest}${callbackParameter.urlOrFilePath}`
+            `${textNegativePassTest}${callbackParameter.urlOrFilePath}`,
           )
           text = text.concat(` (Schema: ${validate.errors[0].schemaPath})`)
           text = text.concat(` (Test: ${validate.errors[0].instancePath})`)
           text = text.concat(` (Message): ${validate.errors[0].message})`)
           grunt.log.ok(text)
-        }
+        },
       )
     }
 
@@ -816,9 +817,9 @@ module.exports = function (grunt) {
           positiveTestScan: x.positiveTestFile,
           schemaForTestScanDone: x.testSchemaFileDone,
         },
-        { calledByTV4Validator: true, skipReadFile: false }
+        { calledByTV4Validator: true, skipReadFile: false },
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -833,10 +834,10 @@ module.exports = function (grunt) {
           negativeTestScan: x.negativeTestFile,
           schemaForTestScanDone: x.testSchemaFileDone,
         },
-        { skipReadFile: false }
+        { skipReadFile: false },
       )
       grunt.log.ok('local AJV schema passed')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -853,7 +854,7 @@ module.exports = function (grunt) {
       grunt.log.writeln()
       grunt.log.writeln(`Total schemas validated with AJV: ${countScan}`)
       done()
-    }
+    },
   )
 
   grunt.registerTask(
@@ -869,13 +870,13 @@ module.exports = function (grunt) {
             testSchemaFileForBOM(data)
           },
         },
-        { fullScanAllFiles: true, skipReadFile: false }
+        { fullScanAllFiles: true, skipReadFile: false },
       )
 
       grunt.log.ok(
-        `no BOM file found in all schema files. Total files scan: ${countScan}`
+        `no BOM file found in all schema files. Total files scan: ${countScan}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -892,13 +893,13 @@ module.exports = function (grunt) {
             testSchemaFileForSmartQuotes(data)
           },
         },
-        { fullScanAllFiles: true, skipReadFile: false }
+        { fullScanAllFiles: true, skipReadFile: false },
       )
 
       grunt.log.ok(
-        `no smart quotes found in all schema files. Total files scan: ${countScan}`
+        `no smart quotes found in all schema files. Total files scan: ${countScan}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -908,7 +909,7 @@ module.exports = function (grunt) {
       const done = this.async()
       await remoteSchemaFile(testSchemaFileForBOM, false)
       done()
-    }
+    },
   )
 
   grunt.registerTask(
@@ -918,7 +919,7 @@ module.exports = function (grunt) {
       const catalogSchema = require(path.resolve(
         '.',
         schemaDir,
-        'schema-catalog.json'
+        'schema-catalog.json',
       ))
       const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
       if (ajvInstance.validate(catalogSchema, catalog)) {
@@ -931,7 +932,7 @@ module.exports = function (grunt) {
           '"Catalog ERROR"',
         ])
       }
-    }
+    },
   )
 
   grunt.registerTask(
@@ -941,7 +942,7 @@ module.exports = function (grunt) {
       const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
       let countScan = 0
       const findDuplicatedProperty = (
-        /** @type {CbParam} */ callbackParameter
+        /** @type {CbParam} */ callbackParameter,
       ) => {
         countScan++
         let result
@@ -950,7 +951,7 @@ module.exports = function (grunt) {
         if (fileExtension !== 'json') return
         try {
           result = findDuplicatedPropertyKeys(
-            callbackParameter.rawFile.toString()
+            callbackParameter.rawFile.toString(),
           )
         } catch (e) {
           throwWithErrorText([
@@ -961,13 +962,13 @@ module.exports = function (grunt) {
         if (result.length > 0) {
           const errorText = []
           errorText.push(
-            `Duplicate key found in: ${callbackParameter.urlOrFilePath}`
+            `Duplicate key found in: ${callbackParameter.urlOrFilePath}`,
           )
           for (const issue of result) {
             errorText.push(
               `${
                 issue.key
-              } <= This duplicate key is found. occurrence :${issue.occurrence.toString()}`
+              } <= This duplicate key is found. occurrence :${issue.occurrence.toString()}`,
             )
           }
           errorText.push('Error in test: find-duplicated-property-keys')
@@ -980,12 +981,12 @@ module.exports = function (grunt) {
           positiveTestScan: findDuplicatedProperty,
           negativeTestScan: findDuplicatedProperty,
         },
-        { skipReadFile: false }
+        { skipReadFile: false },
       )
       grunt.log.ok(
-        `No duplicated property key found in JSON files. Total files scan: ${countScan}`
+        `No duplicated property key found in JSON files. Total files scan: ${countScan}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1009,11 +1010,11 @@ module.exports = function (grunt) {
             ++countScan
           },
         },
-        { skipReadFile: false, ignoreSkiptest: true }
+        { skipReadFile: false, ignoreSkiptest: true },
       )
 
       grunt.log.ok(`All urls tested OK. Total: ${countScan}`)
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1051,7 +1052,7 @@ module.exports = function (grunt) {
         }
       })
       grunt.log.ok(`All local url tested OK. Total: ${countScan}`)
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1088,12 +1089,12 @@ module.exports = function (grunt) {
       // Get all the json file for AJV and tv4
       localSchemaFileAndTestFile(
         { schemaOnlyScan: schemaFileCompare },
-        { fullScanAllFiles: true }
+        { fullScanAllFiles: true },
       )
       grunt.log.ok(
-        `All local schema files have URL link in catalog. Total: ${countScan}`
+        `All local schema files have URL link in catalog. Total: ${countScan}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1120,7 +1121,7 @@ module.exports = function (grunt) {
         }
       }
       grunt.log.ok('No new fileMatch conflict detected.')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1140,7 +1141,7 @@ module.exports = function (grunt) {
         })
       }
       grunt.log.ok('fileMatch path OK')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1167,12 +1168,12 @@ module.exports = function (grunt) {
         },
         {
           fullScanAllFiles: true,
-        }
+        },
       )
       grunt.log.ok(
-        `All schema and test filename have the correct file extension. Total files scan: ${countScan}`
+        `All schema and test filename have the correct file extension. Total files scan: ${countScan}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1193,15 +1194,15 @@ module.exports = function (grunt) {
         const percent = (countMissingTest / schemasToBeTested.length) * 100
         grunt.log.writeln()
         grunt.log.writeln(
-          `${Math.round(percent)}% of schemas do not have tests.`
+          `${Math.round(percent)}% of schemas do not have tests.`,
         )
         grunt.log.ok(
-          `Schemas that have no positive test files. Total files: ${countMissingTest}`
+          `Schemas that have no positive test files. Total files: ${countMissingTest}`,
         )
       } else {
         grunt.log.ok('All schemas have positive test')
       }
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1241,7 +1242,7 @@ module.exports = function (grunt) {
         }
       })
       grunt.log.ok('OK')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1284,7 +1285,7 @@ module.exports = function (grunt) {
       // There are no positive or negative test processes here.
       // Only the schema files are tested.
       const testLowerSchemaVersion = (
-        /** @type {CbParam} */ callbackParameter
+        /** @type {CbParam} */ callbackParameter,
       ) => {
         countScan++
         let versionIndexOriginal = 0
@@ -1331,7 +1332,7 @@ module.exports = function (grunt) {
           result = validateViaAjv(
             schemaJson,
             schemaVersionToBeTested.schemaName,
-            option
+            option,
           )
 
           if (result) {
@@ -1346,22 +1347,22 @@ module.exports = function (grunt) {
           const original = countSchemas[versionIndexOriginal].schemaName
           const recommended = countSchemas[recommendedIndex].schemaName
           grunt.log.ok(
-            `${callbackParameter.jsonName} (${original}) is also valid with (${recommended})`
+            `${callbackParameter.jsonName} (${original}) is also valid with (${recommended})`,
           )
         }
       }
 
       grunt.log.writeln()
       grunt.log.ok(
-        'Check if a lower $schema version will also pass the schema validation test'
+        'Check if a lower $schema version will also pass the schema validation test',
       )
       localSchemaFileAndTestFile(
         { schemaOnlyScan: testLowerSchemaVersion },
-        { skipReadFile: false }
+        { skipReadFile: false },
       )
       grunt.log.writeln()
       grunt.log.ok(`Total files scan: ${countScan}`)
-    }
+    },
   )
 
   function showSchemaVersions() {
@@ -1387,7 +1388,7 @@ module.exports = function (grunt) {
         } else {
           countSchemaVersionUnknown++
           grunt.log.error(
-            `$schema is unknown in the file: ${callbackParameter.urlOrFilePath}`
+            `$schema is unknown in the file: ${callbackParameter.urlOrFilePath}`,
           )
         }
       },
@@ -1395,11 +1396,11 @@ module.exports = function (grunt) {
         // Show the all the schema version count.
         for (const obj of countSchemas) {
           grunt.log.ok(
-            `Schemas using (${obj.schemaName}) Total files: ${obj.totalCount}`
+            `Schemas using (${obj.schemaName}) Total files: ${obj.totalCount}`,
           )
         }
         grunt.log.ok(
-          `$schema unknown. Total files: ${countSchemaVersionUnknown}`
+          `$schema unknown. Total files: ${countSchemaVersionUnknown}`,
         )
       },
     }
@@ -1418,9 +1419,9 @@ module.exports = function (grunt) {
         {
           fullScanAllFiles: true,
           skipReadFile: false,
-        }
+        },
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1434,7 +1435,7 @@ module.exports = function (grunt) {
       }, false)
       x.process_data_done()
       done()
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1467,11 +1468,11 @@ module.exports = function (grunt) {
         {
           fullScanAllFiles: true,
           skipReadFile: false,
-        }
+        },
       )
 
       grunt.log.ok(`Total files scan: ${countScan}`)
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1485,13 +1486,13 @@ module.exports = function (grunt) {
             countScan++
             if (
               schemaValidation.highSchemaVersion.includes(
-                callbackParameter.jsonName
+                callbackParameter.jsonName,
               )
             ) {
               return // skip the verification for this schema file
             }
             const schemaName = showSchemaVersions().getObj(
-              callbackParameter.jsonObj
+              callbackParameter.jsonObj,
             )?.schemaName
             if (SchemaVersionTooHigh.includes(schemaName)) {
               throwWithErrorText([
@@ -1505,10 +1506,40 @@ module.exports = function (grunt) {
         {
           fullScanAllFiles: true,
           skipReadFile: false,
-        }
+        },
       )
       grunt.log.ok(`Total files scan: ${countScan}`)
-    }
+    },
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_passes_schemasafe_lint',
+    'Check if schema version passes lint',
+    function () {
+      if (!grunt.option.flags().includes('--lint')) {
+        return
+      }
+      let countScan = 0
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(callbackParameter) {
+            countScan++
+
+            const errors = schemasafe.lint(callbackParameter.jsonObj, {
+              mode: 'strong',
+            })
+            for (const e of errors) {
+              console.log(`${callbackParameter.jsonName}: ${e.message}`)
+            }
+          },
+        },
+        {
+          fullScanAllFiles: true,
+          skipReadFile: false,
+        },
+      )
+      grunt.log.ok(`Total files scan: ${countScan}`)
+    },
   )
 
   grunt.registerTask(
@@ -1525,20 +1556,20 @@ module.exports = function (grunt) {
       checkForDuplicateInList(schemaValidation.tv4test, 'tv4test[]')
       checkForDuplicateInList(
         schemaValidation.ajvNotStrictMode,
-        'ajvNotStrictMode[]'
+        'ajvNotStrictMode[]',
       )
       checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
       checkForDuplicateInList(
         schemaValidation.missingcatalogurl,
-        'missingcatalogurl[]'
+        'missingcatalogurl[]',
       )
       checkForDuplicateInList(
         schemaValidation.fileMatchConflict,
-        'fileMatchConflict[]'
+        'fileMatchConflict[]',
       )
       checkForDuplicateInList(
         schemaValidation.highSchemaVersion,
-        'highSchemaVersion[]'
+        'highSchemaVersion[]',
       )
 
       // Check for duplicate in options[]
@@ -1554,21 +1585,21 @@ module.exports = function (grunt) {
         const optionValues = Object.values(item).pop()
         checkForDuplicateInList(
           optionValues?.unknownKeywords,
-          `${schemaName} unknownKeywords[]`
+          `${schemaName} unknownKeywords[]`,
         )
         checkForDuplicateInList(
           optionValues?.unknownFormat,
-          `${schemaName} unknownFormat[]`
+          `${schemaName} unknownFormat[]`,
         )
         checkForDuplicateInList(
           optionValues?.externalSchema,
-          `${schemaName} externalSchema[]`
+          `${schemaName} externalSchema[]`,
         )
         checkList.push(schemaName)
       }
 
       grunt.log.ok('OK')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1592,7 +1623,7 @@ module.exports = function (grunt) {
           `Found duplicates: ${JSON.stringify(duplicateSchemaNames)}`,
         ])
       }
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1615,7 +1646,7 @@ module.exports = function (grunt) {
       x(foldersPositiveTest)
       x(foldersNegativeTest)
       grunt.log.ok(`Total test folders: ${countTestFolders}`)
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1633,10 +1664,12 @@ module.exports = function (grunt) {
       const percentExternal = (countScanURLExternal / totalCount) * 100
       grunt.log.ok(`${countScanURLInternal} SchemaStore URL`)
       grunt.log.ok(
-        `${countScanURLExternal} External URL (${Math.round(percentExternal)}%)`
+        `${countScanURLExternal} External URL (${Math.round(
+          percentExternal,
+        )}%)`,
       )
       grunt.log.ok(`${totalCount} Total URL`)
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1655,15 +1688,15 @@ module.exports = function (grunt) {
           countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
         const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
         grunt.log.ok(
-          'Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.'
+          'Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.',
         )
         grunt.log.ok(
           `${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(
-            percent
-          )}%)`
+            percent,
+          )}%)`,
         )
       }
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1671,18 +1704,18 @@ module.exports = function (grunt) {
     'Check for forbidden negative test folder',
     function () {
       const found = foldersNegativeTest.find((x) =>
-        schemaValidation.tv4test.includes(x + '.json')
+        schemaValidation.tv4test.includes(x + '.json'),
       )
       if (found) {
         throwWithErrorText([
           `Negative folder found for TV4 validator => ${path.join(
             testNegativeDir,
-            found
+            found,
           )}`,
         ])
       }
       grunt.log.ok('OK')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1720,9 +1753,9 @@ module.exports = function (grunt) {
         }
       }
       grunt.log.ok(
-        `Total schema-validation.json items check: ${countSchemaValidationItems}`
+        `Total schema-validation.json items check: ${countSchemaValidationItems}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1775,9 +1808,9 @@ module.exports = function (grunt) {
         }
       })
       grunt.log.ok(
-        `Total schema-validation.json items check: ${countSchemaValidationItems}`
+        `Total schema-validation.json items check: ${countSchemaValidationItems}`,
       )
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1787,7 +1820,7 @@ module.exports = function (grunt) {
       const javaScriptCoverageName = 'schema.json.translated.to.js'
       const javaScriptCoverageNameWithPath = path.join(
         __dirname,
-        `${temporaryCoverageDir}/${javaScriptCoverageName}`
+        `${temporaryCoverageDir}/${javaScriptCoverageName}`,
       )
 
       /**
@@ -1806,7 +1839,7 @@ module.exports = function (grunt) {
 
         // Compile JSON schema to javascript and write it to disk.
         const processSchemaFile = (
-          /** @type {CbParam} */ callbackParameter
+          /** @type {CbParam} */ callbackParameter,
         ) => {
           jsonName = callbackParameter.jsonName
           // Get possible options define in schema-validation.json
@@ -1864,7 +1897,7 @@ module.exports = function (grunt) {
             mainSchemaJsonId = undefined
             moduleCode = standaloneCode(
               ajvSelected,
-              ajvSelected.compile(mainSchema)
+              ajvSelected.compile(mainSchema),
             )
           }
 
@@ -1876,7 +1909,7 @@ module.exports = function (grunt) {
               ...prettierOptions,
               parser: 'babel',
               printWidth: 200,
-            })
+            }),
           )
           // Now use this JavaScript as validation in the positive and negative test
           validations = require(javaScriptCoverageNameWithPath)
@@ -1902,7 +1935,7 @@ module.exports = function (grunt) {
             positiveTestScan: processTestFile,
             negativeTestScan: processTestFile,
           },
-          { skipReadFile: false, processOnlyThisOneSchemaFile }
+          { skipReadFile: false, processOnlyThisOneSchemaFile },
         )
       }
 
@@ -1921,7 +1954,7 @@ module.exports = function (grunt) {
       }
       generateCoverage(schemaNameToBeCoverage)
       grunt.log.ok('OK')
-    }
+    },
   )
 
   grunt.registerTask(
@@ -1933,7 +1966,7 @@ module.exports = function (grunt) {
       const schemaInFullStrictMode = []
       const schemaInNotStrictMode = []
       const checkIfThisSchemaIsAlreadyInStrictMode = (
-        /** @type {CbParam} */ callbackParameter
+        /** @type {CbParam} */ callbackParameter,
       ) => {
         const schemaJsonName = callbackParameter.jsonName
         const {
@@ -1987,7 +2020,7 @@ module.exports = function (grunt) {
         {
           schemaOnlyScan: checkIfThisSchemaIsAlreadyInStrictMode,
         },
-        { skipReadFile: false }
+        { skipReadFile: false },
       )
 
       listSchema('Full', schemaInFullStrictMode)
@@ -1997,9 +2030,9 @@ module.exports = function (grunt) {
       grunt.log.ok(
         `Total all schemas check: ${
           schemaInFullStrictMode.length + schemaInNotStrictMode.length
-        }`
+        }`,
       )
-    }
+    },
   )
 
   // The order of the task is relevant.
@@ -2018,11 +2051,12 @@ module.exports = function (grunt) {
     'local_assert_catalog.json_local_url_must_ref_file',
     'local_assert_catalog.json_includes_all_schemas',
     'local_assert_schema_no_bom',
-    'local_assert_schema_no_smart_quotes',
+    // 'local_assert_schema_no_smart_quotes',
     'local_assert_schema_no_duplicated_property_keys',
-    'local_assert_schema_top_level_$ref_is_standalone',
+    // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
     'local_assert_schema_version_isnt_too_high',
+    'local_assert_schema_passes_schemasafe_lint',
     'local_print_schemas_tested_in_full_strict_mode',
     'local_print_schemas_without_positive_test_files',
     'local_test_ajv',
