@@ -155,20 +155,6 @@
         }
       ]
     },
-    "Engine": {
-      "description": "SPARK or BQ. Default value is SPARK.",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "BQ",
-          "description": ""
-        },
-        {
-          "const": "SPARK",
-          "description": ""
-        }
-      ]
-    },
     "WriteMode": {
       "description": "Append to or overwrite existing data",
       "type": "string",
@@ -256,24 +242,6 @@
         {
           "const": "KAFKA",
           "description": "Sink to Kafka"
-        }
-      ]
-    },
-    "Mode": {
-      "description": "FILE mode by default.\\nFILE and STREAM are the two accepted values.\\nFILE is currently the only supported mode.",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "FILE",
-          "description": ""
-        },
-        {
-          "const": "STREAM",
-          "description": ""
-        },
-        {
-          "const": "FILE_AND_STREAM",
-          "description": ""
         }
       ]
     },
@@ -488,14 +456,6 @@
     "Sink": {
       "type": "object",
       "properties": {
-        "type": {
-          "$ref": "#/definitions/SinkType",
-          "description": "Once ingested, files may be sinked to BigQuery, Elasticsearch or any JDBC compliant Database."
-        },
-        "name": {
-          "type": "string",
-          "description": "Once ingested, files may be sinked to BigQuery, Elasticsearch or any JDBC compliant Database."
-        },
         "options": {
           "$ref": "#/definitions/MapString",
           "description": "spark  options to use"
@@ -527,6 +487,18 @@
           "type": "boolean",
           "description": "BQ: Should be require a partition filter on every request ? No by default."
         },
+        "materializedView": {
+          "type": "boolean",
+          "description": "BQ: Should we materialize as a table or as a view when saving the results ? false by default."
+        },
+        "enableRefresh": {
+          "type": "boolean",
+          "description": "BQ: Enable automatic refresh of materialized view ? false by default."
+        },
+        "refreshIntervalMs": {
+          "type": "number",
+          "description": "BQ: Refresh interval in milliseconds. Default to BigQuery default value"
+        },
         "format": {
           "type": "string",
           "description": "FS: File format"
@@ -539,31 +511,20 @@
           "$ref": "#/definitions/Partition",
           "description": "FS or BQ: List of partition attributes"
         },
-        "connection": {
+        "connectionRef": {
           "type": "string",
           "description": "JDBC: Connection String"
-        },
-        "partitions": {
-          "type": "number",
-          "description": "JDBC: Number of Spark partitions"
-        },
-        "batchSize": {
-          "type": "number",
-          "description": "JDBC: Batch size of each JDBC bulk insert"
         },
         "coalesce": {
           "type": "boolean",
           "description": "When outputting files, should we coalesce it to a single file. Useful when CSV is the output format."
         }
       },
-      "required": ["type"]
+      "required": []
     },
     "Metadata": {
       "type": "object",
       "properties": {
-        "mode": {
-          "$ref": "#/definitions/Mode"
-        },
         "format": {
           "$ref": "#/definitions/Format"
         },
@@ -609,13 +570,6 @@
           "type": "string",
           "description": "Pattern to ignore or UDF to apply to ignore some lines"
         },
-        "clustering": {
-          "description": "List of attributes to use for clustering",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "xml": {
           "$ref": "#/definitions/MapString",
           "description": "com.databricks.spark.xml options to use (eq. rowTag)"
@@ -640,12 +594,33 @@
           "description": "Options to add to the spark reader"
         },
         "validator": {
-          "description": "Row validator to use",
+          "description": "Validator to use, 'spark' or 'native'. Default to 'spark' of SL_VALIDATOR env variable is set to 'native'",
           "type": "string"
         },
-        "schedule": {
-          "description": "Scheduler Options",
-          "$ref": "#/definitions/MapString"
+        "emptyIsNull": {
+          "description": "Treat empty columns as null in DSV files. Default to false",
+          "type": "boolean"
+        },
+        "nullValue": {
+          "description": "Treat a specific input string as a null value indicator",
+          "type": "string"
+        },
+        "freshness": {
+          "description": "Configure freshness checks on this dataset",
+          "$ref": "#/definitions/Freshness"
+        }
+      }
+    },
+    "Freshness": {
+      "type": "object",
+      "properties": {
+        "warn": {
+          "type": "string",
+          "description": "How old may be teh data before a warning is raised. Use syntax like '3 day' or '2 hour' or '30 minute'"
+        },
+        "error": {
+          "type": "string",
+          "description": "How old may be teh data before an error is raised. Use syntax like '3 day' or '2 hour' or '30 minute'"
         }
       }
     },
@@ -658,7 +633,7 @@
         },
         "rename": {
           "type": "string",
-          "description": "If present, the attribute is renamed with this name"
+          "description": "If present, the table is renamed with this name. Useful when use in conjuntion with the 'extract' module"
         },
         "pattern": {
           "description": "filename pattern to which this schema must be applied.\n  *                     This instructs the framework to use this schema to parse any file with a filename that match this pattern.",
@@ -727,8 +702,25 @@
           "items": {
             "$ref": "#/definitions/AccessControlEntry"
           }
+        },
+        "sample": {
+          "description": "Store here a couple of records illustrating the table data.",
+          "type": "string"
+        },
+        "filter": {
+          "description": "remove all records that do not match this condition",
+          "type": "string"
+        },
+        "patternSample": {
+          "description": "Sample of filename matching this schema",
+          "type": "string"
+        },
+        "scheduleRef": {
+          "type": "string",
+          "description": "Dag configuration to use for this table. If not specified, the default dag is used."
         }
-      }
+      },
+      "required": ["name", "pattern"]
     },
     "Attribute": {
       "type": "object",
@@ -815,6 +807,10 @@
           "type": "string",
           "description": "Main SQL request to execute (do not forget to prefix table names with the database name to avoid conflicts)"
         },
+        "database": {
+          "type": "string",
+          "description": "Output Database (refer to a project id in BigQuery). Default to SL_DATABASE env var if set."
+        },
         "domain": {
           "type": "string",
           "description": "Output domain in output Area (Will be the Database name in Hive or Dataset in BigQuery)"
@@ -860,15 +856,70 @@
           "$ref": "#/definitions/MapString",
           "description": "Expectations to check after Load / Transform has succeeded"
         },
-        "engine": {
-          "$ref": "#/definitions/Engine",
-          "description": "When BigQuery, The Spark engine is not required, the whole task is executed inside the datawarehouse, including when data saving in the table."
+        "acl": {
+          "description": "Map of rolename -> List[Users].",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AccessControlEntry"
+          }
+        },
+        "comment": {
+          "type": "string",
+          "description": "Output table description"
+        },
+        "freshness": {
+          "description": "Configure freshness checks on the output table",
+          "$ref": "#/definitions/Freshness"
+        },
+        "attributesDesc": {
+          "description": "Attributes comments and access policies",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AttributeDesc"
+          }
+        },
+        "python": {
+          "type": "string",
+          "description": "Python script URI to execute instead of the SQL request"
+        },
+        "tags": {
+          "description": "Set of string to attach to the output table",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "merge": {
+          "$ref": "#/definitions/MergeOptions"
+        },
+        "scheduleRef": {
+          "type": "string",
+          "description": "Dag configuration to use for this task. If not specified, the default dag is used."
         }
       },
-      "required": ["domain", "table", "write"]
+      "required": []
+    },
+    "AttributeDesc": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Column name"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Column description"
+        },
+        "accessPolicy": {
+          "type": "string",
+          "description": "Access policy to apply to this column"
+        }
+      },
+      "required": ["name", "comment"]
     },
     "Domain": {
       "type": "object",
+      "description": "A schema in SGBD database or a folder in HDFS or a dataset in BigQuery.",
       "properties": {
         "name": {
           "type": "string",
@@ -899,20 +950,16 @@
           "description": "Domain Description (free text)",
           "type": "string"
         },
-        "directory": {
-          "description": "Moved to metadata section since 0.2.8",
+        "database": {
+          "description": "Output Database (refer to a project id in BigQuery). Default to SL_DATABASE env var if set.",
           "type": "string"
         },
-        "extensions": {
+        "tags": {
+          "description": "Set of string to attach to this domain",
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "description": "Moved to metadata section since 0.2.8"
-        },
-        "ack": {
-          "description": "Moved to metadata section since 0.2.8",
-          "type": "string"
+          }
         }
       },
       "anyOf": [
@@ -929,7 +976,11 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Job name. Must be set to the prefix of the filename. [JOBNAME].comet.yml "
+          "description": "Optional name. If not specified, the name of the file without the extension is used."
+        },
+        "default": {
+          "$ref": "#/definitions/AutoTaskDesc",
+          "description": "Default task properties to apply to all tasks defined in tasks and taskrefs sections"
         },
         "tasks": {
           "type": "array",
@@ -944,24 +995,8 @@
           "items": {
             "type": "string"
           }
-        },
-        "format": {
-          "type": "string",
-          "description": "output file format when using Spark engine. Ignored for BigQuery. Default value is \"parquet\""
-        },
-        "udf": {
-          "type": "string",
-          "description": "Register UDFs written in this JVM class when using Spark engine.\\nRegister UDFs stored at this location when using BigQuery engine"
-        },
-        "views": {
-          "$ref": "#/definitions/MapString",
-          "description": "Create temporary views using where the key is the view name and the map the SQL request corresponding to this view using the SQL engine supported syntax."
-        },
-        "engine": {
-          "$ref": "#/definitions/Engine"
         }
-      },
-      "required": ["name"]
+      }
     },
     "JDBCTable": {
       "type": "object",
@@ -976,6 +1011,21 @@
           "items": {
             "type": "string"
           }
+        },
+        "partitionColumn": {
+          "type": "string"
+        },
+        "numPartitions": {
+          "type": "integer"
+        },
+        "connectionOptions": {
+          "type": "string"
+        },
+        "fetchSize": {
+          "type": "integer"
+        },
+        "fullExport": {
+          "type": "boolean"
         }
       },
       "required": ["name"]
@@ -1070,6 +1120,71 @@
           "description": "JDBC connection options: url, user, password ..."
         }
       }
+    },
+    "InputRef": {
+      "description": "Input for ref object",
+      "type": "object",
+      "properties": {
+        "database": {
+          "type": "string",
+          "description": "Database pattern to match, none if any database"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Domain pattern to match, none if any domain matchy"
+        },
+        "table": {
+          "type": "string",
+          "description": "Table pattern to match"
+        }
+      },
+      "required": ["table"]
+    },
+    "OutputRef": {
+      "description": "Output for ref object",
+      "type": "object",
+      "properties": {
+        "database": {
+          "type": "string",
+          "description": ""
+        },
+        "domain": {
+          "type": "string",
+          "description": ""
+        },
+        "table": {
+          "type": "string",
+          "description": ""
+        }
+      },
+      "required": ["table", "domain", "database"]
+    },
+    "Ref": {
+      "description": "Describe how to resolve a reference in a transform task",
+      "type": "object",
+      "properties": {
+        "input": {
+          "$ref": "#/definitions/RefInput",
+          "description": "The input table to resolve"
+        }
+      },
+      "output": {
+        "$ref": "#/definitions/RefOuput",
+        "description": "The output table resolved with the domain and database"
+      },
+      "required": ["input", "output"]
+    },
+    "Refs": {
+      "type": "object",
+      "properties": {
+        "Ref": {
+          "description": "All references",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Ref"
+          }
+        }
+      }
     }
   },
   "description": "JSON Schema for Starlake Data Pipeline",
@@ -1097,6 +1212,9 @@
     },
     {
       "required": ["tables"]
+    },
+    {
+      "required": ["connections"]
     }
   ],
   "properties": {
@@ -1128,14 +1246,14 @@
     "views": {
       "$ref": "#/definitions/MapString"
     },
-    "schemas": {
+    "tables": {
       "type": "array",
-      "description": "List of schemas for each dataset in this domain.\nA domain usually contains multiple schemas. Each schema defining how the contents of the input file should be parsed.\nSee Schema for more details.",
+      "description": "List of tables for each dataset in this domain.\nA domain usually contains multiple schemas. Each schema defining how the contents of the input file should be parsed.\nSee Schema for more details.",
       "items": {
         "$ref": "#/definitions/Table"
       }
     },
-    "schema": {
+    "table": {
       "$ref": "#/definitions/Table"
     }
   },
