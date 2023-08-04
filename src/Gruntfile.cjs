@@ -1,17 +1,21 @@
 /// <binding AfterBuild='build' />
+const path = require('node:path')
+const fs = require('node:fs')
 const addFormats = require('ajv-formats')
 const ajvFormatsDraft2019 = require('ajv-formats-draft2019')
 const AjvDraft04 = require('ajv-draft-04')
 const AjvDraft06And07 = require('ajv')
 const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
+const AjvDraft06SchemaJson = require('ajv/dist/refs/json-schema-draft-06.json')
+const AjvStandalone = require('ajv/dist/standalone').default
 const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
 const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
-const path = require('path')
-const fs = require('fs')
+const axios = require('axios').default
+const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
 
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
@@ -19,16 +23,11 @@ const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = require('./api/json/catalog.json')
-const schemaV4JSON = require(path.resolve(
-  '.',
-  schemaDir,
-  'schema-draft-v4.json',
-))
+const schemaV4JSON = require(path.resolve(schemaDir, 'schema-draft-v4.json'))
 const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
-const SchemaVersionTooHigh = ['2019-09', '2020-12']
 // prettier-ignore
 const countSchemasType = [
   { schemaName: '2020-12', schemaStr: 'json-schema.org/draft/2020-12/schema', totalCount: 0, active: true },
@@ -79,7 +78,6 @@ module.exports = function (grunt) {
    * @param {CbParamFn} schemaOnlyScan
    */
   async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
-    const axios = require('axios').default
     const schemas = catalog.schemas
     const responseType = 'arraybuffer'
 
@@ -92,14 +90,14 @@ module.exports = function (grunt) {
         const response = await axios.get(url, { responseType })
         if (response.status === 200) {
           const parsed = new URL(url)
-          const callbackParameter = {
+          const schema = {
             jsonName: path.basename(parsed.pathname),
             jsonObj: JSON.parse(response.data.toString()),
             rawFile: response.data,
             urlOrFilePath: url,
             schemaScan: true,
           }
-          schemaOnlyScan(callbackParameter)
+          schemaOnlyScan(schema)
           if (showLog) {
             grunt.log.ok(url)
           }
@@ -119,7 +117,7 @@ module.exports = function (grunt) {
   }
 
   /**
-   * @typedef {Object} CbParam
+   * @typedef {Object} Schema
    * @prop {Buffer | undefined} rawFile
    * @prop {Record<string, unknown>} jsonObj
    * @prop {string} jsonName
@@ -129,7 +127,7 @@ module.exports = function (grunt) {
 
   /**
    * @callback CbParamFn
-   * @param {CbParam}
+   * @param {Schema}
    */
 
   /**
@@ -211,7 +209,7 @@ module.exports = function (grunt) {
 
     /**
      * @summary Get all the schema files via callback
-     * @param callback The callback function(callbackParameter)
+     * @param callback The callback function(schema)
      * @param {boolean} onlySchemaScan True = a scan without test files.
      */
     const scanAllSchemaFiles = (callback, onlySchemaScan) => {
@@ -242,7 +240,7 @@ module.exports = function (grunt) {
               err,
             ])
           }
-          const callbackParameter = {
+          const schema = {
             // Return the real Raw file for BOM file test rejection
             rawFile: buffer,
             jsonObj: jsonObj_,
@@ -250,7 +248,7 @@ module.exports = function (grunt) {
             urlOrFilePath: schemaFullPathName,
             schemaScan: onlySchemaScan,
           }
-          callback(callbackParameter)
+          callback(schema)
         }
       })
     }
@@ -280,10 +278,10 @@ module.exports = function (grunt) {
           case 'yml':
             try {
               return YAML.parse(buffer.toString())
-            } catch (e) {
+            } catch (err) {
               throwWithErrorText([
                 `Can't read/decode yaml file: ${testFileNameWithPath}`,
-                e,
+                err,
               ])
             }
             break
@@ -292,10 +290,10 @@ module.exports = function (grunt) {
               // { bigint: false } or else toml variable like 'a = 3' will return as 'a = 3n'
               // This creates an error because the schema expect an integer 3 and not 3n
               return TOML.parse(buffer.toString(), { bigint: false })
-            } catch (e) {
+            } catch (err) {
               throwWithErrorText([
                 `Can't read/decode toml file: ${testFileNameWithPath}`,
-                e,
+                err,
               ])
             }
             break
@@ -342,7 +340,7 @@ module.exports = function (grunt) {
           const buffer = skipReadFile
             ? undefined
             : fs.readFileSync(testFileFullPathName)
-          const callbackParameter = {
+          const schema = {
             rawFile: buffer,
             jsonObj: skipReadFile
               ? undefined
@@ -352,7 +350,7 @@ module.exports = function (grunt) {
             // This is a test folder scan process, not schema scan process
             schemaScan: false,
           }
-          testPassScan(callbackParameter)
+          testPassScan(schema)
         }
       })
       testPassScanDone?.()
@@ -385,11 +383,11 @@ module.exports = function (grunt) {
   }
 
   /**
-   * @param {CbParam} callbackParameter
+   * @param {Schema} schema
    */
-  function testSchemaFileForBOM(callbackParameter) {
+  function testSchemaFileForBOM(schema) {
     // JSON schema file must not have any BOM type
-    const buffer = callbackParameter.rawFile
+    const buffer = schema.rawFile
     const bomTypes = [
       { name: 'UTF-8', signature: [0xef, 0xbb, 0xbf] },
       { name: 'UTF-16 (BE)', signature: [0xfe, 0xff] },
@@ -405,15 +403,15 @@ module.exports = function (grunt) {
         )
         if (bomFound) {
           throwWithErrorText([
-            `Schema file must not have ${bom.name} BOM: ${callbackParameter.urlOrFilePath}`,
+            `Schema file must not have ${bom.name} BOM: ${schema.urlOrFilePath}`,
           ])
         }
       }
     }
   }
 
-  function testSchemaFileForSmartQuotes(callbackParameter) {
-    const buffer = callbackParameter.rawFile
+  function testSchemaFileForSmartQuotes(schema) {
+    const buffer = schema.rawFile
     const bufferArr = buffer.toString().split('\n')
 
     for (let i = 0; i < bufferArr.length; ++i) {
@@ -424,7 +422,7 @@ module.exports = function (grunt) {
         if (line.includes(quote)) {
           throwWithErrorText([
             `Schema file must not have a smart quote: ${
-              callbackParameter.urlOrFilePath
+              schema.urlOrFilePath
             }:${++i}`,
           ])
         }
@@ -445,14 +443,14 @@ module.exports = function (grunt) {
     let schemaToBeValidated
     let countSchema = 0
 
-    const processSchemaFile = (/** @type {CbParam} */ callbackParameter) => {
+    const processSchemaFile = (/** @type {Schema} */ schema) => {
       // Start validate the JSON schema
       let validated
       let versionObj
       let schemaVersionStr = 'unknown'
       try {
         // select the correct AJV object for this schema
-        schemaToBeValidated = callbackParameter.jsonObj
+        schemaToBeValidated = schema.jsonObj
         versionObj = schemaVersion.getObj(schemaToBeValidated)
 
         // What schema draft version is it?
@@ -460,15 +458,15 @@ module.exports = function (grunt) {
 
         // validate the schema with draft-04. This is the only draft version it understands.
         validated = tv4.validate(schemaToBeValidated, schemaV4JSON)
-      } catch (e) {
+      } catch (err) {
         throwWithErrorText([
-          `${textValidate}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`,
-          e,
+          `${textValidate}${schema.urlOrFilePath} (${schemaVersionStr})`,
+          err,
         ])
       }
       if (!validated) {
         throwWithErrorText([
-          `${textValidate}${callbackParameter.urlOrFilePath} (${schemaVersionStr}`,
+          `${textValidate}${schema.urlOrFilePath} (${schemaVersionStr}`,
           `(Schema file) keywordLocation: ${tv4.error.schemaPath}`,
           `(Test file) instanceLocation:  ${tv4.error.dataPath}`,
           `(Message)  ${tv4.error.message}`,
@@ -478,7 +476,7 @@ module.exports = function (grunt) {
       countSchema++
       grunt.log.writeln()
       grunt.log.ok(
-        `${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})`,
+        `${textPassSchema}${schema.urlOrFilePath} (${schemaVersionStr})`,
       )
     }
 
@@ -488,25 +486,21 @@ module.exports = function (grunt) {
       countSchema = 0
     }
 
-    const processPositiveTestFile = (
-      /** @type {CbParam} */ callbackParameter,
-    ) => {
-      const testFile = callbackParameter.jsonObj
+    const processPositiveTestFile = (/** @type {Schema} */ schema) => {
+      const testFile = schema.jsonObj
       const validated = tv4.validate(testFile, schemaToBeValidated)
       if (tv4.missing.length > 0) {
         throwWithErrorText([
-          `${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
+          `${textPositiveFailedTest}${schema.urlOrFilePath}`,
           `Missing URL: ${tv4.missing[0]}`,
           'Must add URL and schema file in schema-validation.json (tv4ExternalRef list)',
         ])
       }
       if (validated) {
-        grunt.log.ok(
-          `${textPositivePassTest}${callbackParameter.urlOrFilePath}`,
-        )
+        grunt.log.ok(`${textPositivePassTest}${schema.urlOrFilePath}`)
       } else {
         throwWithErrorText([
-          `${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
+          `${textPositiveFailedTest}${schema.urlOrFilePath}`,
           `(Schema file) keywordLocation: ${tv4.error.schemaPath}`,
           `(Test file) instanceLocation:  ${tv4.error.dataPath}`,
           `(Message)  ${tv4.error.message}`,
@@ -524,10 +518,10 @@ module.exports = function (grunt) {
             schemaValidation.tv4ExternalRef[property],
           ))
           tv4.addSchema(property, schema)
-        } catch (e) {
+        } catch (err) {
           throwWithErrorText([
             `Error in processing tv4ExternalRef ${property} : ${schemaValidation.tv4ExternalRef[property]}`,
-            e,
+            err,
           ])
         }
       }
@@ -598,9 +592,7 @@ module.exports = function (grunt) {
       case 'draft-07':
         ajvSelected = new AjvDraft06And07(ajvOptions)
         if (schemaName === 'draft-06') {
-          ajvSelected.addMetaSchema(
-            require('ajv/dist/refs/json-schema-draft-06.json'),
-          )
+          ajvSelected.addMetaSchema(AjvDraft06SchemaJson)
         } else {
           // 'draft-07' have additional format
           ajvFormatsDraft2019(ajvSelected)
@@ -677,7 +669,7 @@ module.exports = function (grunt) {
     let validate
     let countSchema = 0
 
-    const processSchemaFile = (/** @type {CbParam} */ callbackParameter) => {
+    const processSchemaFile = (/** @type {Schema} */ schema) => {
       let ajvSelected
 
       // Get possible options define in schema-validation.json
@@ -685,23 +677,23 @@ module.exports = function (grunt) {
         unknownFormatsList,
         unknownKeywordsList,
         externalSchemaWithPathList,
-      } = getOption(callbackParameter.jsonName)
+      } = getOption(schema.jsonName)
 
       // Start validate the JSON schema
       let schemaJson
       let versionObj
       let schemaVersionStr = 'unknown'
-      // const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(callbackParameter.jsonName)
+      // const fullStrictMode = schemaValidation.ajvFullStrictMode.includes(schema.jsonName)
       // The SchemaStore default mode is full Strict Mode. Not in the list => full strict mode
       const fullStrictMode = !schemaValidation.ajvNotStrictMode.includes(
-        callbackParameter.jsonName,
+        schema.jsonName,
       )
       const fullStrictModeStr = fullStrictMode
         ? '(FullStrictMode)'
         : '(NotStrictMode)'
       try {
         // select the correct AJV object for this schema
-        schemaJson = callbackParameter.jsonObj
+        schemaJson = schema.jsonObj
         versionObj = schemaVersion.getObj(schemaJson)
 
         // Get the correct AJV version
@@ -726,36 +718,32 @@ module.exports = function (grunt) {
 
         // compile the schema
         validate = ajvSelected.compile(schemaJson)
-      } catch (e) {
+      } catch (err) {
         throwWithErrorText([
-          `${textCompile}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`,
-          e,
+          `${textCompile}${schema.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`,
+          err,
         ])
       }
       countSchema++
       grunt.log.writeln()
       grunt.log.ok(
-        `${textPassSchema}${callbackParameter.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`,
+        `${textPassSchema}${schema.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`,
       )
     }
 
-    const processTestFile = (callbackParameter, success, failure) => {
-      validate(callbackParameter.jsonObj) ? success() : failure()
+    const processTestFile = (schema, success, failure) => {
+      validate(schema.jsonObj) ? success() : failure()
     }
 
-    const processPositiveTestFile = (
-      /** @type {CbParam} */ callbackParameter,
-    ) => {
+    const processPositiveTestFile = (/** @type {Schema} */ schema) => {
       processTestFile(
-        callbackParameter,
+        schema,
         () => {
-          grunt.log.ok(
-            `${textPositivePassTest}${callbackParameter.urlOrFilePath}`,
-          )
+          grunt.log.ok(`${textPositivePassTest}${schema.urlOrFilePath}`)
         },
         () => {
           throwWithErrorText([
-            `${textPositiveFailedTest}${callbackParameter.urlOrFilePath}`,
+            `${textPositiveFailedTest}${schema.urlOrFilePath}`,
             `(Schema file) keywordLocation: ${validate.errors[0].schemaPath}`,
             `(Test file) instanceLocation:  ${validate.errors[0].instancePath}`,
             `(Message)  ${validate.errors[0].message}`,
@@ -765,14 +753,12 @@ module.exports = function (grunt) {
       )
     }
 
-    const processNegativeTestFile = (
-      /** @type {CbParam} */ callbackParameter,
-    ) => {
+    const processNegativeTestFile = (/** @type {Schema} */ schema) => {
       processTestFile(
-        callbackParameter,
+        schema,
         () => {
           throwWithErrorText([
-            `${textNegativeFailedTest}${callbackParameter.urlOrFilePath}`,
+            `${textNegativeFailedTest}${schema.urlOrFilePath}`,
             'Negative test must always fail.',
           ])
         },
@@ -780,9 +766,7 @@ module.exports = function (grunt) {
           // must show log as single line
           // const path = validate.errors[0].instancePath
           let text = ''
-          text = text.concat(
-            `${textNegativePassTest}${callbackParameter.urlOrFilePath}`,
-          )
+          text = text.concat(`${textNegativePassTest}${schema.urlOrFilePath}`)
           text = text.concat(` (Schema: ${validate.errors[0].schemaPath})`)
           text = text.concat(` (Test: ${validate.errors[0].instancePath})`)
           text = text.concat(` (Message): ${validate.errors[0].message})`)
@@ -807,7 +791,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_test_tv4_only_for_non_compliance_schema',
-    'Dynamically load local schema file for validation with /test/',
+    'Use tv4 to validate local schemas in ./test/',
     function () {
       const x = tv4Validator()
       // tv4 is an outdated/unreliable validator. Do not add a negative test scan here.
@@ -824,7 +808,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_test_ajv',
-    'Dynamically load local schema file for validation with /test/',
+    'Use AJV to validate local schemas in ./test/',
     function () {
       const x = ajv()
       localSchemaFileAndTestFile(
@@ -842,7 +826,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'remote_test_ajv',
-    'Dynamically load external schema file for validation',
+    'Use AJV to validate remote schemas',
     async function () {
       const done = this.async()
       const x = ajv()
@@ -859,15 +843,15 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_no_bom',
-    'Dynamically load local schema file for BOM validation',
+    'Check that local schema files do not have a BOM (Byte Order Mark)',
     function () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
         {
-          schemaOnlyScan(data) {
+          schemaOnlyScan(schema) {
             countScan++
-            testSchemaFileForBOM(data)
+            testSchemaFileForBOM(schema)
           },
         },
         { fullScanAllFiles: true, skipReadFile: false },
@@ -881,16 +865,16 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_no_smart_quotes',
-    'Ensure that no smart quotes are used',
+    'Check that local schemas have no smart quotes',
     function () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
         {
-          schemaOnlyScan(data) {
+          schemaOnlyScan(schema) {
             countScan++
 
-            testSchemaFileForSmartQuotes(data)
+            testSchemaFileForSmartQuotes(schema)
           },
         },
         { fullScanAllFiles: true, skipReadFile: false },
@@ -904,7 +888,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'remote_assert_schema_no_bom',
-    'Dynamically load remote schema file for BOM validation',
+    'Check that remote schema files do not have a BOM (Byte Order Mark)',
     async function () {
       const done = this.async()
       await remoteSchemaFile(testSchemaFileForBOM, false)
@@ -914,7 +898,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_validates',
-    'Catalog validation',
+    'Check that the catalog.json file passes schema validation',
     function () {
       const catalogSchema = require(path.resolve(
         '.',
@@ -937,33 +921,23 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_no_duplicated_property_keys',
-    'Dynamically load local JSON file for validation',
+    'Check that schemas have no duplicated property keys',
     function () {
-      const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
       let countScan = 0
-      const findDuplicatedProperty = (
-        /** @type {CbParam} */ callbackParameter,
-      ) => {
+      const findDuplicatedProperty = (/** @type {Schema} */ schema) => {
         countScan++
         let result
         // Can only test JSON files for duplicates.
-        const fileExtension = callbackParameter.urlOrFilePath.split('.').pop()
+        const fileExtension = schema.urlOrFilePath.split('.').pop()
         if (fileExtension !== 'json') return
         try {
-          result = findDuplicatedPropertyKeys(
-            callbackParameter.rawFile.toString(),
-          )
-        } catch (e) {
-          throwWithErrorText([
-            `Test file: ${callbackParameter.urlOrFilePath}`,
-            e,
-          ])
+          result = findDuplicatedPropertyKeys(schema.rawFile.toString())
+        } catch (err) {
+          throwWithErrorText([`Test file: ${schema.urlOrFilePath}`, err])
         }
         if (result.length > 0) {
           const errorText = []
-          errorText.push(
-            `Duplicate key found in: ${callbackParameter.urlOrFilePath}`,
-          )
+          errorText.push(`Duplicate key found in: ${schema.urlOrFilePath}`)
           for (const issue of result) {
             errorText.push(
               `${
@@ -991,17 +965,17 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_top_level_$ref_is_standalone',
-    'top level $ref propertie of schemas must be the only property',
+    'Check that top level $ref properties of schemas are be the only property',
     function () {
       let countScan = 0
       localSchemaFileAndTestFile(
         {
-          schemaOnlyScan(data) {
-            if (data.jsonObj.$ref?.startsWith('http')) {
-              for (const [member] of Object.entries(data.jsonObj)) {
+          schemaOnlyScan(schema) {
+            if (schema.jsonObj.$ref?.startsWith('http')) {
+              for (const [member] of Object.entries(schema.jsonObj)) {
                 if (member !== '$ref') {
                   throwWithErrorText([
-                    `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${data.jsonName}`,
+                    `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${schema.jsonName}`,
                   ])
                 }
               }
@@ -1019,7 +993,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_local_url_must_ref_file',
-    'local url must reference to a file',
+    'Check that local urls must reference a file that exists',
     function () {
       const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
       let countScan = 0
@@ -1057,7 +1031,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_includes_all_schemas',
-    'local schema must have a url reference in catalog.json',
+    'Check that local schemas have a url reference in catalog.json',
     function () {
       let countScan = 0
       const allCatalogLocalJsonFiles = []
@@ -1099,7 +1073,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_fileMatch_conflict',
-    'note: app.json and *app.json conflicting will not be detected',
+    'Check for duplicate fileMatch entries (note: app.json and *app.json conflicting will not be detected)',
     function () {
       const fileMatchConflict = schemaValidation.fileMatchConflict
       let fileMatchCollection = []
@@ -1126,7 +1100,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_catalog.json_fileMatch_path',
-    'fileMatch patterns that include a directory separator should consistently start with **/',
+    'Ensure that fileMatch patterns include a directory separator that consistently starts with **/',
     function () {
       for (const schema of catalog.schemas) {
         schema.fileMatch?.forEach((fileMatchItem) => {
@@ -1146,7 +1120,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_filenames_have_correct_extensions',
-    'Dynamically check local schema/test file for filename extension',
+    'Check that local test schemas have a valid filename extension',
     function () {
       const schemaFileExtension = ['.json']
       const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
@@ -1162,9 +1136,9 @@ module.exports = function (grunt) {
       }
       localSchemaFileAndTestFile(
         {
-          schemaForTestScan: (data) => x(data, schemaFileExtension),
-          positiveTestScan: (data) => x(data, testFileExtension),
-          negativeTestScan: (data) => x(data, testFileExtension),
+          schemaForTestScan: (schema) => x(schema, schemaFileExtension),
+          positiveTestScan: (schema) => x(schema, testFileExtension),
+          negativeTestScan: (schema) => x(schema, testFileExtension),
         },
         {
           fullScanAllFiles: true,
@@ -1178,7 +1152,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_print_schemas_without_positive_test_files',
-    'Dynamically check local schema if positive test files are present',
+    'Check that local test schemas always have a positive test file (unless listed in skipTest)',
     function () {
       let countMissingTest = 0
       // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
@@ -1207,7 +1181,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_directory_structure_is_valid',
-    'Dynamically check if schema and test directory structure are valid',
+    'Check if schema and test directory structure are valid',
     function () {
       schemasToBeTested.forEach((name) => {
         if (
@@ -1247,7 +1221,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_test_downgrade_schema_version',
-    'Dynamically check local schema version is not to high',
+    'Check if schema can be downgraded to a lower schema version and still pass validation',
     function () {
       const countSchemas = countSchemasType
       let countScan = 0
@@ -1277,26 +1251,24 @@ module.exports = function (grunt) {
 
           ajvSelected.compile(schemaJson)
           return true
-        } catch (e) {
+        } catch (err) {
           return false
         }
       }
 
       // There are no positive or negative test processes here.
       // Only the schema files are tested.
-      const testLowerSchemaVersion = (
-        /** @type {CbParam} */ callbackParameter,
-      ) => {
+      const testLowerSchemaVersion = (/** @type {Schema} */ schema) => {
         countScan++
         let versionIndexOriginal = 0
-        const schemaJson = callbackParameter.jsonObj
+        const schemaJson = schema.jsonObj
 
         if (!('$schema' in schemaJson)) {
           // There is no $schema present in the file.
           return
         }
 
-        const option = getOption(callbackParameter.jsonName)
+        const option = getOption(schema.jsonName)
 
         // get the present schema_version
         const schemaVersion = schemaJson.$schema
@@ -1347,7 +1319,7 @@ module.exports = function (grunt) {
           const original = countSchemas[versionIndexOriginal].schemaName
           const recommended = countSchemas[recommendedIndex].schemaName
           grunt.log.ok(
-            `${callbackParameter.jsonName} (${original}) is also valid with (${recommended})`,
+            `${schema.jsonName} (${original}) is also valid with (${recommended})`,
           )
         }
       }
@@ -1376,11 +1348,11 @@ module.exports = function (grunt) {
 
     return {
       getObj: getObj_,
-      process_data: (/** @type {CbParam} */ callbackParameter) => {
+      process_data: (/** @type {Schema} */ schema) => {
         let obj
         try {
-          obj = getObj_(callbackParameter.jsonObj)
-        } catch (e) {
+          obj = getObj_(schema.jsonObj)
+        } catch (err) {
           // suppress possible JSON.parse exception. It will be processed as obj = undefined
         }
         if (obj) {
@@ -1388,7 +1360,7 @@ module.exports = function (grunt) {
         } else {
           countSchemaVersionUnknown++
           grunt.log.error(
-            `$schema is unknown in the file: ${callbackParameter.urlOrFilePath}`,
+            `$schema is unknown in the file: ${schema.urlOrFilePath}`,
           )
         }
       },
@@ -1408,7 +1380,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_print_count_schema_versions',
-    'Dynamically check local schema for schema version count',
+    'Print the schema versions and their usage frequencies',
     function () {
       const x = showSchemaVersions()
       localSchemaFileAndTestFile(
@@ -1426,12 +1398,12 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'remote_print_count_schema_versions',
-    'Dynamically load remote schema file for schema version count',
+    'Print the schema versions and their usage frequencies',
     async function () {
       const done = this.async()
       const x = showSchemaVersions()
-      await remoteSchemaFile((callbackParameter) => {
-        x.process_data(callbackParameter)
+      await remoteSchemaFile((schema) => {
+        x.process_data(schema)
       }, false)
       x.process_data_done()
       done()
@@ -1440,13 +1412,13 @@ module.exports = function (grunt) {
 
   grunt.registerTask(
     'local_assert_schema_version_is_valid',
-    'Dynamically load schema file for $schema present check',
+    'Check that the $schema version string is a correct and standard value',
     function () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
         {
-          schemaOnlyScan(data) {
+          schemaOnlyScan(schema) {
             countScan++
 
             const validSchemas = [
@@ -1457,49 +1429,25 @@ module.exports = function (grunt) {
               'https://json-schema.org/draft/2019-09/schema',
               'https://json-schema.org/draft/2020-12/schema',
             ]
-            if (!validSchemas.includes(data.jsonObj.$schema)) {
+            if (!validSchemas.includes(schema.jsonObj.$schema)) {
               throwWithErrorText([
-                `Schema file has invalid or missing '$schema' keyword => ${data.jsonName}`,
+                `Schema file has invalid or missing '$schema' keyword => ${schema.jsonName}`,
                 `Valid schemas: ${JSON.stringify(validSchemas)}`,
               ])
             }
-          },
-        },
-        {
-          fullScanAllFiles: true,
-          skipReadFile: false,
-        },
-      )
 
-      grunt.log.ok(`Total files scan: ${countScan}`)
-    },
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_version_isnt_too_high',
-    'Dynamically load schema file for $schema version check',
-    function () {
-      let countScan = 0
-      localSchemaFileAndTestFile(
-        {
-          schemaOnlyScan(callbackParameter) {
-            countScan++
-            if (
-              schemaValidation.highSchemaVersion.includes(
-                callbackParameter.jsonName,
-              )
-            ) {
-              return // skip the verification for this schema file
-            }
-            const schemaName = showSchemaVersions().getObj(
-              callbackParameter.jsonObj,
-            )?.schemaName
-            if (SchemaVersionTooHigh.includes(schemaName)) {
-              throwWithErrorText([
-                `Schema version is too high => "${schemaName}" in file ${callbackParameter.jsonName}`,
-                `Schema version ${SchemaVersionTooHigh} is not supported by many editors and IDEs`,
-                `${callbackParameter.jsonName} must use a lower schema version.`,
-              ])
+            if (!schemaValidation.highSchemaVersion.includes(schema.jsonName)) {
+              const tooHighSchemas = [
+                'https://json-schema.org/draft/2019-09/schema',
+                'https://json-schema.org/draft/2020-12/schema',
+              ]
+              if (tooHighSchemas.includes(schema.jsonObj.$schema)) {
+                throwWithErrorText([
+                  `Schema version is too high => in file ${schema.jsonName}`,
+                  `Schema version '${schema.jsonObj.$schema}' is not supported by many editors and IDEs`,
+                  `${schema.jsonName} must use a lower schema version.`,
+                ])
+              }
             }
           },
         },
@@ -1508,13 +1456,14 @@ module.exports = function (grunt) {
           skipReadFile: false,
         },
       )
+
       grunt.log.ok(`Total files scan: ${countScan}`)
     },
   )
 
   grunt.registerTask(
     'local_assert_schema_passes_schemasafe_lint',
-    'Check if schema version passes lint',
+    'Check that local schemas pass the SchemaSafe lint',
     function () {
       if (!grunt.option.flags().includes('--lint')) {
         return
@@ -1522,14 +1471,14 @@ module.exports = function (grunt) {
       let countScan = 0
       localSchemaFileAndTestFile(
         {
-          schemaOnlyScan(callbackParameter) {
+          schemaOnlyScan(schema) {
             countScan++
 
-            const errors = schemasafe.lint(callbackParameter.jsonObj, {
+            const errors = schemasafe.lint(schema.jsonObj, {
               mode: 'strong',
             })
             for (const e of errors) {
-              console.log(`${callbackParameter.jsonName}: ${e.message}`)
+              console.log(`${schema.jsonName}: ${e.message}`)
             }
           },
         },
@@ -1829,7 +1778,6 @@ module.exports = function (grunt) {
        * @param {string} processOnlyThisOneSchemaFile The schema file that need to process
        */
       const generateCoverage = (processOnlyThisOneSchemaFile) => {
-        const standaloneCode = require('ajv/dist/standalone').default
         const schemaVersion = showSchemaVersions()
         let jsonName
         let mainSchema
@@ -1838,19 +1786,17 @@ module.exports = function (grunt) {
         let validations
 
         // Compile JSON schema to javascript and write it to disk.
-        const processSchemaFile = (
-          /** @type {CbParam} */ callbackParameter,
-        ) => {
-          jsonName = callbackParameter.jsonName
+        const processSchemaFile = (/** @type {Schema} */ schema) => {
+          jsonName = schema.jsonName
           // Get possible options define in schema-validation.json
           const {
             unknownFormatsList,
             unknownKeywordsList,
             externalSchemaWithPathList,
-          } = getOption(callbackParameter.jsonName)
+          } = getOption(schema.jsonName)
 
           // select the correct AJV object for this schema
-          mainSchema = callbackParameter.jsonObj
+          mainSchema = schema.jsonObj
           const versionObj = schemaVersion.getObj(mainSchema)
 
           // External schema present to be included?
@@ -1891,11 +1837,11 @@ module.exports = function (grunt) {
             if (!mainSchemaJsonId) {
               throwWithErrorText([`Missing $id or id in ${jsonName}`])
             }
-            moduleCode = standaloneCode(ajvSelected)
+            moduleCode = AjvStandalone(ajvSelected)
           } else {
             // Single schema
             mainSchemaJsonId = undefined
-            moduleCode = standaloneCode(
+            moduleCode = AjvStandalone(
               ajvSelected,
               ajvSelected.compile(mainSchema),
             )
@@ -1917,15 +1863,15 @@ module.exports = function (grunt) {
 
         // Load the Javascript file from the disk and run it with the JSON test file.
         // This will generate the NodeJS coverage data in the background.
-        const processTestFile = (/** @type {CbParam} */ callbackParameter) => {
+        const processTestFile = (/** @type {Schema} */ schema) => {
           // Test only for the code coverage. Not for the validity of the test.
           if (isThisWithExternalSchema) {
             // Must use the root $id/id to call the correct schema JavaScript code
             const validateRootSchema = validations[mainSchemaJsonId]
-            validateRootSchema?.(callbackParameter.jsonObj)
+            validateRootSchema?.(schema.jsonObj)
           } else {
             // Single schema does not need $id
-            validations(callbackParameter.jsonObj)
+            validations(schema.jsonObj)
           }
         }
 
@@ -1966,9 +1912,9 @@ module.exports = function (grunt) {
       const schemaInFullStrictMode = []
       const schemaInNotStrictMode = []
       const checkIfThisSchemaIsAlreadyInStrictMode = (
-        /** @type {CbParam} */ callbackParameter,
+        /** @type {Schema} */ schema,
       ) => {
-        const schemaJsonName = callbackParameter.jsonName
+        const schemaJsonName = schema.jsonName
         const {
           unknownFormatsList,
           unknownKeywordsList,
@@ -1976,7 +1922,7 @@ module.exports = function (grunt) {
         } = getOption(schemaJsonName)
 
         // select the correct AJV object for this schema
-        const mainSchema = callbackParameter.jsonObj
+        const mainSchema = schema.jsonObj
         const versionObj = schemaVersion.getObj(mainSchema)
 
         // Get the correct AJV version
@@ -1998,7 +1944,7 @@ module.exports = function (grunt) {
 
         try {
           ajvSelected.compile(mainSchema)
-        } catch (e) {
+        } catch (err) {
           // failed to compile in strict mode.
           schemaInNotStrictMode.push(schemaJsonName)
           return
@@ -2063,7 +2009,6 @@ module.exports = function (grunt) {
     'local_assert_schema_no_duplicated_property_keys',
     // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
-    'local_assert_schema_version_isnt_too_high',
     'local_assert_schema_passes_schemasafe_lint',
   ])
   grunt.registerTask('local_test', [
