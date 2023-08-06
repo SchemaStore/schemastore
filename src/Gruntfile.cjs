@@ -1,6 +1,7 @@
 /// <binding AfterBuild='build' />
 const path = require('node:path')
 const fs = require('node:fs')
+const readline = require('node:readline/promises')
 const addFormats = require('ajv-formats')
 const ajvFormatsDraft2019 = require('ajv-formats-draft2019')
 const AjvDraft04 = require('ajv-draft-04')
@@ -410,26 +411,6 @@ module.exports = function (grunt) {
     }
   }
 
-  function testSchemaFileForSmartQuotes(schema) {
-    const buffer = schema.rawFile
-    const bufferArr = buffer.toString().split('\n')
-
-    for (let i = 0; i < bufferArr.length; ++i) {
-      const line = bufferArr[i]
-
-      const smartQuotes = ['‘', '’', '“', '”']
-      for (const quote of smartQuotes) {
-        if (line.includes(quote)) {
-          throwWithErrorText([
-            `Schema file must not have a smart quote: ${
-              schema.urlOrFilePath
-            }:${++i}`,
-          ])
-        }
-      }
-    }
-  }
-
   function tv4Validator() {
     // tv4 validator can only process draft-04 schema
     // All unknown keyword used in draft-06 and newer are just ignored.
@@ -790,6 +771,124 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask(
+    'new_schema',
+    'Create a new schemas and associated files',
+    async function () {
+      const done = this.async()
+
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+
+      console.log('Enter the name of the schema (without .json extension)')
+      /** @type {string} */
+      let schemaName
+      do {
+        schemaName = await rl.question('input: ')
+      } while (schemaName.endsWith('.json'))
+
+      const schemaFile = path.join(schemaDir, schemaName + '.json')
+      const testDir = path.join(testPositiveDir, schemaName)
+      const testFile = path.join(testDir, `${schemaName}.json`)
+
+      if (fs.existsSync(schemaFile)) {
+        throw new Error(`Schema file already exists: ${schemaFile}`)
+      }
+
+      console.info(`Creating schema file at 'src/${schemaFile}'...`)
+      console.info(`Creating positive test file at 'src/${testFile}'...`)
+
+      await fs.promises.mkdir(path.dirname(schemaFile), { recursive: true })
+      await fs.promises.writeFile(
+        schemaFile,
+        `{
+  "$id": "https://json.schemastore.org/${schemaName}.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
+
+  },
+  "type": "object"
+}\n`,
+      )
+      await fs.promises.mkdir(testDir, { recursive: true })
+      await fs.promises.writeFile(
+        testFile,
+        `"Replace this file with an example/test that passes schema validation. Supported formats are JSON, YAML, and TOML. We recommend adding as many files as possible to make your schema most robust."\n`,
+      )
+
+      console.info(`Please add the following to 'src/api/json/catalog.json':
+{
+  "name": "",
+  "description": "",
+  "fileMatch": ["${schemaName}.yml", "${schemaName}.yaml"],
+  "url": "https://json.schemastore.org/${schemaName}.json"
+}`)
+
+      done()
+    },
+  )
+
+  grunt.registerTask(
+    'lint_schema_no_smart_quotes',
+    'Check that local schemas have no smart quotes',
+    function () {
+      let countScan = 0
+
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(schema) {
+            countScan++
+            const buffer = schema.rawFile
+            const bufferArr = buffer.toString().split('\n')
+
+            for (let i = 0; i < bufferArr.length; ++i) {
+              const line = bufferArr[i]
+
+              const smartQuotes = ['‘', '’', '“', '”']
+              for (const quote of smartQuotes) {
+                if (line.includes(quote)) {
+                  grunt.log.error(
+                    `Schema file should not have a smart quote: ${
+                      schema.urlOrFilePath
+                    }:${++i}`,
+                  )
+                }
+              }
+            }
+          },
+        },
+        { fullScanAllFiles: true, skipReadFile: false },
+      )
+
+      grunt.log.writeln(`Total files scan: ${countScan}`)
+    },
+  )
+
+  grunt.registerTask(
+    'lint_catalog_entry_no_schema_word',
+    'Check that catalog.json entries do not contain the word "schema" or "json"',
+    function () {
+      let countScan = 0
+
+      for (const entry of catalog.schemas) {
+        if (
+          entry.name.toLowerCase().includes('schema') ||
+          entry.name.toLowerCase().includes('json')
+        ) {
+          ++countScan
+          grunt.log.error(
+            `Catalog entry "${entry.url}" should not contain the word "schema" or "json"`,
+          )
+        }
+      }
+
+      grunt.log.writeln(`Total found files: ${countScan}`)
+    },
+  )
+
+  grunt.registerTask(
     'local_test_tv4_only_for_non_compliance_schema',
     'Use tv4 to validate local schemas in ./test/',
     function () {
@@ -859,29 +958,6 @@ module.exports = function (grunt) {
 
       grunt.log.ok(
         `no BOM file found in all schema files. Total files scan: ${countScan}`,
-      )
-    },
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_no_smart_quotes',
-    'Check that local schemas have no smart quotes',
-    function () {
-      let countScan = 0
-
-      localSchemaFileAndTestFile(
-        {
-          schemaOnlyScan(schema) {
-            countScan++
-
-            testSchemaFileForSmartQuotes(schema)
-          },
-        },
-        { fullScanAllFiles: true, skipReadFile: false },
-      )
-
-      grunt.log.ok(
-        `no smart quotes found in all schema files. Total files scan: ${countScan}`,
       )
     },
   )
@@ -964,7 +1040,7 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_schema_top_level_$ref_is_standalone',
+    'lint_top_level_$ref_is_standalone',
     'Check that top level $ref properties of schemas are be the only property',
     function () {
       let countScan = 0
@@ -1984,6 +2060,11 @@ module.exports = function (grunt) {
   /**
    * The order of tasks are relevant.
    */
+  grunt.registerTask('lint', [
+    'lint_schema_no_smart_quotes',
+    'lint_catalog_entry_no_schema_word',
+    'lint_top_level_$ref_is_standalone',
+  ])
   grunt.registerTask('local_test_filesystem', [
     'local_assert_directory_structure_is_valid',
     'local_assert_filenames_have_correct_extensions',
@@ -2005,9 +2086,7 @@ module.exports = function (grunt) {
   ])
   grunt.registerTask('local_test_schema', [
     'local_assert_schema_no_bom',
-    // 'local_assert_schema_no_smart_quotes',
     'local_assert_schema_no_duplicated_property_keys',
-    // 'local_assert_schema_top_level_$ref_is_standalone',
     'local_assert_schema_version_is_valid',
     'local_assert_schema_passes_schemasafe_lint',
   ])
