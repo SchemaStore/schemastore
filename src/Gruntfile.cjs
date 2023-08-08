@@ -9,7 +9,6 @@ const Ajv2019 = require('ajv/dist/2019')
 const Ajv2020 = require('ajv/dist/2020')
 const AjvDraft06SchemaJson = require('ajv/dist/refs/json-schema-draft-06.json')
 const AjvStandalone = require('ajv/dist/standalone').default
-const tv4 = require('tv4')
 const TOML = require('@ltd/j-toml')
 const YAML = require('yaml')
 const schemasafe = require('@exodus/schemasafe')
@@ -17,13 +16,13 @@ const prettier = require('prettier')
 const axios = require('axios').default
 const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
 
+const temporaryPreviousTv4OnlySchemas = ['tslint.json', 'cloudify.json']
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
 const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = require('./api/json/catalog.json')
-const schemaV4JSON = require(path.resolve(schemaDir, 'schema-draft-v4.json'))
 const schemaValidation = require('./schema-validation.json')
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
@@ -145,7 +144,6 @@ module.exports = function (grunt) {
   /**
    * @typedef {Object} localSchemaFileAndTestFileParameter2
    * @prop {boolean} fullScanAllFiles
-   * @prop {boolean} calledByTV4Validator
    * @prop {boolean} skipReadFile
    * @prop {boolean} ignoreSkiptest
    * @prop {string} processOnlyThisOneSchemaFile
@@ -168,7 +166,6 @@ module.exports = function (grunt) {
     },
     {
       fullScanAllFiles = false,
-      calledByTV4Validator = false,
       skipReadFile = true,
       ignoreSkiptest = false,
       processOnlyThisOneSchemaFile = undefined,
@@ -197,13 +194,7 @@ module.exports = function (grunt) {
       if (fullScanAllFiles) {
         return true // All tests are always performed.
       } else {
-        // Schema must be run for tv4 or AJV validator
-        // calledByTV4Validator is only set true when it is called by tv4 validator
-        // If schema is present in "tv4test" list then it can only be run if calledByTV4Validator = true
-        // If schema is NOT present in "tv4test" list then it can only be run if calledByTV4Validator = false
-        return schemaValidation.tv4test.includes(jsonFilename)
-          ? calledByTV4Validator
-          : !calledByTV4Validator
+        return true
       }
     }
 
@@ -427,111 +418,6 @@ module.exports = function (grunt) {
           ])
         }
       }
-    }
-  }
-
-  function tv4Validator() {
-    // tv4 validator can only process draft-04 schema
-    // All unknown keyword used in draft-06 and newer are just ignored.
-    // This is the correct implementation of the json schema specification.
-    const schemaVersion = showSchemaVersions()
-    const textValidate = 'validate              | '
-    const textPassSchema = 'pass schema          | '
-    const textPositivePassTest = 'pass positive test   | '
-    const textPositiveFailedTest = 'failed positive test | '
-
-    let schemaToBeValidated
-    let countSchema = 0
-
-    const processSchemaFile = (/** @type {Schema} */ schema) => {
-      // Start validate the JSON schema
-      let validated
-      let versionObj
-      let schemaVersionStr = 'unknown'
-      try {
-        // select the correct AJV object for this schema
-        schemaToBeValidated = schema.jsonObj
-        versionObj = schemaVersion.getObj(schemaToBeValidated)
-
-        // What schema draft version is it?
-        schemaVersionStr = versionObj ? versionObj.schemaName : 'unknown'
-
-        // validate the schema with draft-04. This is the only draft version it understands.
-        validated = tv4.validate(schemaToBeValidated, schemaV4JSON)
-      } catch (err) {
-        throwWithErrorText([
-          `${textValidate}${schema.urlOrFilePath} (${schemaVersionStr})`,
-          err,
-        ])
-      }
-      if (!validated) {
-        throwWithErrorText([
-          `${textValidate}${schema.urlOrFilePath} (${schemaVersionStr}`,
-          `(Schema file) keywordLocation: ${tv4.error.schemaPath}`,
-          `(Test file) instanceLocation:  ${tv4.error.dataPath}`,
-          `(Message)  ${tv4.error.message}`,
-          'Error in validation',
-        ])
-      }
-      countSchema++
-      grunt.log.writeln()
-      grunt.log.ok(
-        `${textPassSchema}${schema.urlOrFilePath} (${schemaVersionStr})`,
-      )
-    }
-
-    const processSchemaFileDone = () => {
-      grunt.log.writeln()
-      grunt.log.writeln(`Total schemas validated with tv4: ${countSchema}`)
-      countSchema = 0
-    }
-
-    const processPositiveTestFile = (/** @type {Schema} */ schema) => {
-      const testFile = schema.jsonObj
-      const validated = tv4.validate(testFile, schemaToBeValidated)
-      if (tv4.missing.length > 0) {
-        throwWithErrorText([
-          `${textPositiveFailedTest}${schema.urlOrFilePath}`,
-          `Missing URL: ${tv4.missing[0]}`,
-          'Must add URL and schema file in schema-validation.json (tv4ExternalRef list)',
-        ])
-      }
-      if (validated) {
-        grunt.log.ok(`${textPositivePassTest}${schema.urlOrFilePath}`)
-      } else {
-        throwWithErrorText([
-          `${textPositiveFailedTest}${schema.urlOrFilePath}`,
-          `(Schema file) keywordLocation: ${tv4.error.schemaPath}`,
-          `(Test file) instanceLocation:  ${tv4.error.dataPath}`,
-          `(Message)  ${tv4.error.message}`,
-          'Error in positive test.',
-        ])
-      }
-    }
-
-    const loadExternalSchema = () => {
-      for (const property in schemaValidation.tv4ExternalRef) {
-        try {
-          const schema = require(path.resolve(
-            '.',
-            schemaDir,
-            schemaValidation.tv4ExternalRef[property],
-          ))
-          tv4.addSchema(property, schema)
-        } catch (err) {
-          throwWithErrorText([
-            `Error in processing tv4ExternalRef ${property} : ${schemaValidation.tv4ExternalRef[property]}`,
-            err,
-          ])
-        }
-      }
-    }
-
-    loadExternalSchema()
-    return {
-      testSchemaFile: processSchemaFile,
-      testSchemaFileDone: processSchemaFileDone,
-      positiveTestFile: processPositiveTestFile,
     }
   }
 
@@ -790,23 +676,6 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask(
-    'local_test_tv4_only_for_non_compliance_schema',
-    'Use tv4 to validate local schemas in ./test/',
-    function () {
-      const x = tv4Validator()
-      // tv4 is an outdated/unreliable validator. Do not add a negative test scan here.
-      localSchemaFileAndTestFile(
-        {
-          schemaForTestScan: x.testSchemaFile,
-          positiveTestScan: x.positiveTestFile,
-          schemaForTestScanDone: x.testSchemaFileDone,
-        },
-        { calledByTV4Validator: true, skipReadFile: false },
-      )
-    },
-  )
-
-  grunt.registerTask(
     'local_test_ajv',
     'Use AJV to validate local schemas in ./test/',
     function () {
@@ -1060,7 +929,7 @@ module.exports = function (grunt) {
           }
         }
       }
-      // Get all the json file for AJV and tv4
+      // Get all the json file for AJV
       localSchemaFileAndTestFile(
         { schemaOnlyScan: schemaFileCompare },
         { fullScanAllFiles: true },
@@ -1502,7 +1371,6 @@ module.exports = function (grunt) {
           }
         }
       }
-      checkForDuplicateInList(schemaValidation.tv4test, 'tv4test[]')
       checkForDuplicateInList(
         schemaValidation.ajvNotStrictMode,
         'ajvNotStrictMode[]',
@@ -1649,25 +1517,6 @@ module.exports = function (grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_tv4_validator_has_no_negative_tests',
-    'Check for forbidden negative test folder',
-    function () {
-      const found = foldersNegativeTest.find((x) =>
-        schemaValidation.tv4test.includes(x + '.json'),
-      )
-      if (found) {
-        throwWithErrorText([
-          `Negative folder found for TV4 validator => ${path.join(
-            testNegativeDir,
-            found,
-          )}`,
-        ])
-      }
-      grunt.log.ok('OK')
-    },
-  )
-
-  grunt.registerTask(
     'local_assert_schema-validation.json_no_missing_schema_files',
     'Check if all schema JSON files are present',
     function () {
@@ -1684,7 +1533,6 @@ module.exports = function (grunt) {
           }
         })
       }
-      x(schemaValidation.tv4test)
       x(schemaValidation.ajvNotStrictMode)
       x(schemaValidation.skiptest)
       x(schemaValidation.missingcatalogurl)
@@ -1724,7 +1572,6 @@ module.exports = function (grunt) {
           }
         })
       }
-      x(schemaValidation.tv4test, 'tv4test')
       x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
       x(schemaValidation.missingcatalogurl, 'missingcatalogurl')
       x(schemaValidation.highSchemaVersion, 'highSchemaVersion')
@@ -1744,7 +1591,12 @@ module.exports = function (grunt) {
       // Test folder must not exist if defined in skiptest[]
       schemaValidation.skiptest.forEach((schemaName) => {
         countSchemaValidationItems++
+        if (temporaryPreviousTv4OnlySchemas.includes(schemaName)) {
+          return
+        }
+
         const folderName = schemaName.replace('.json', '')
+
         if (foldersPositiveTest.includes(folderName)) {
           throwWithErrorText([
             `Disabled/skiptest[] schema: ${schemaName} cannot have positive test folder`,
@@ -1892,12 +1744,6 @@ module.exports = function (grunt) {
           'Must start "make" file with schema name parameter.',
         ])
       }
-      // Not for tv4 schema files
-      if (schemaValidation.tv4test.includes(schemaNameToBeCoverage)) {
-        throwWithErrorText([
-          `Coverage is not possible for tv4-validator schema file :${schemaNameToBeCoverage}`,
-        ])
-      }
       generateCoverage(schemaNameToBeCoverage)
       grunt.log.ok('OK')
     },
@@ -1988,7 +1834,6 @@ module.exports = function (grunt) {
     'local_assert_directory_structure_is_valid',
     'local_assert_filenames_have_correct_extensions',
     'local_assert_test_folders_have_at_least_one_test_schema',
-    'local_assert_tv4_validator_has_no_negative_tests',
   ])
   grunt.registerTask('local_test_schema_validation_json', [
     'local_assert_schema-validation.json_no_duplicate_list',
@@ -2020,7 +1865,6 @@ module.exports = function (grunt) {
     'local_print_schemas_tested_in_full_strict_mode',
     'local_print_schemas_without_positive_test_files',
     'local_test_ajv',
-    'local_test_tv4_only_for_non_compliance_schema',
     'local_print_url_counts_in_catalog',
     'local_print_count_schema_versions',
   ])

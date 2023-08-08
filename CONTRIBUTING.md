@@ -104,11 +104,10 @@ Please install the EditorConfig and Prettier extensions for your IDE or code edi
 
 ### Validation mode
 
-SchemaStore supports three types of schema validation mode.
+SchemaStore supports two types of schema validation modes:
 
 - [Full strict mode](https://ajv.js.org/strict-mode.html) via AJV validator (SchemaStore default mode)
 - Not fully strict mode via AJV validator. (The json filename is present in the `ajvNotStrictMode` list in [schema-validation.json](src/schema-validation.json))
-- Validation via [tv4](https://github.com/geraintluff/tv4) (The json filename is present in the `tv4test` list in [schema-validation.json](src/schema-validation.json))
 
 ### Avoid common PR problems
 
