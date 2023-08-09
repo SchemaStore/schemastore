@@ -39,7 +39,7 @@ const countSchemasType = [
   { schemaName: 'draft without version', schemaStr: 'json-schema.org/schema', totalCount: 0, active: false }
 ]
 
-module.exports = function (grunt) {
+module.exports = function (/** @type {import('grunt')} */ grunt) {
   'use strict'
 
   function skipThisFileName(/** @type {string} */ name) {
