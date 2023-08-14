@@ -717,6 +717,57 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
+    'local_lint_schema_has_correct_metadata',
+    'Check that metadata fields like "$id" are correct.',
+    function () {
+      let countScan = 0
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(schema) {
+            countScan++
+
+            /**
+             * Old JSON Schema specification versions use the "id" key for unique
+             * identifiers, rather than "$id". See for details:
+             * https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier
+             */
+            const dollarlessIdSchemas = [
+              'http://json-schema.org/draft-03/schema#',
+              'http://json-schema.org/draft-04/schema#',
+            ]
+
+            const schemaVersion = schema.jsonObj.$schema
+            if (dollarlessIdSchemas.includes(schemaVersion)) {
+              if (
+                schema.jsonObj.id !==
+                `https://json.schemastore.org/${schema.jsonName}`
+              ) {
+                grunt.log.warn(
+                  `Missing property "id" for schema '${schema.jsonName}'`,
+                )
+              }
+            } else {
+              if (
+                schema.jsonObj.$id !==
+                `https://json.schemastore.org/${schema.jsonName}`
+              ) {
+                grunt.log.warn(
+                  `Missing property "$id" for schema '${schema.jsonName}'`,
+                )
+              }
+            }
+          },
+        },
+        {
+          fullScanAllFiles: true,
+          skipReadFile: false,
+        },
+      )
+      grunt.log.ok(`Total files scan: ${countScan}`)
+    },
+  )
+
+  grunt.registerTask(
     'lint_schema_no_smart_quotes',
     'Check that local schemas have no smart quotes',
     function () {
@@ -1907,9 +1958,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
    * The order of tasks are relevant.
    */
   grunt.registerTask('lint', [
+    'local_lint_schema_has_correct_metadata',
+    'lint_top_level_$ref_is_standalone',
     'lint_schema_no_smart_quotes',
     'lint_catalog_entry_no_schema_word',
-    'lint_top_level_$ref_is_standalone',
   ])
 
   grunt.registerTask('local_test_filesystem', [
