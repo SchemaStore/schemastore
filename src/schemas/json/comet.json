@@ -245,6 +245,19 @@
         }
       ]
     },
+    "TableDdl": {
+      "description": "Partition columns, no partitioning by default",
+      "type": "object",
+      "properties": {
+        "createSql": {
+          "type": "string"
+        },
+        "pingSql": {
+          "type": "string"
+        }
+      },
+      "required": ["createSql"]
+    },
     "TableType": {
       "type": "string",
       "oneOf": [
@@ -339,6 +352,29 @@
         }
       },
       "required": ["first", "last"]
+    },
+    "Connection": {
+      "description": "Connection",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "aka jdbc, bigquery, snowflake, redshift ..."
+        },
+        "sparkFormat": {
+          "type": "string",
+          "description": "Set only if you want to use the Spark engine"
+        },
+        "mode": {
+          "$ref": "#/definitions/WriteMode",
+          "description": "Write mode, APPEND by default"
+        },
+        "options": {
+          "$ref": "#/definitions/MapString",
+          "description": "Connection options"
+        }
+      },
+      "required": ["type"]
     },
     "RowLevelSecurity": {
       "description": "Row level security policy to apply to the output data.",
@@ -444,12 +480,135 @@
         "type": "string"
       }
     },
-    "MapArrayOfString": {
+    "MapConnection": {
       "type": "object",
       "additionalProperties": {
-        "type": "array",
-        "items": {
+        "$ref": "#/definitions/Connection"
+      }
+    },
+    "MapJdbcEngine": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/JdbcEngine"
+      }
+    },
+    "MapTableDdl": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/TableDdl"
+      }
+    },
+    "JdbcEngine": {
+      "type": "object",
+      "properties": {
+        "tables": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MapTableDdl"
+          }
+        }
+      }
+    },
+    "Privacy": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "description": "List of columns to extract. All columns by default.",
+          "$ref": "#/definitions/MapString"
+        }
+      }
+    },
+    "Internal": {
+      "type": "object",
+      "properties": {
+        "cacheStorageLevel": {
+          "description": "List of columns to extract. All columns by default.",
           "type": "string"
+        },
+        "intermediateBigqueryFormat": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "temporaryGcsBucket": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "substituteVars": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "boolean"
+        }
+      }
+    },
+    "AccessPolicies": {
+      "type": "object",
+      "properties": {
+        "apply": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "boolean"
+        },
+        "location": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "database": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "taxonomy": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        }
+      }
+    },
+    "JobScheduling": {
+      "type": "object",
+      "properties": {
+        "maxJobs": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "integer"
+        },
+        "poolName": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "mode": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "file": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        }
+      }
+    },
+    "Expectations": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "active": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "boolean"
+        }
+      }
+    },
+    "Metrics": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "string"
+        },
+        "discreteMaxCardinality": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "integer"
+        },
+        "active": {
+          "description": "List of columns to extract. All columns by default.",
+          "type": "boolean"
         }
       }
     },
@@ -519,8 +678,17 @@
           "type": "boolean",
           "description": "When outputting files, should we coalesce it to a single file. Useful when CSV is the output format."
         }
-      },
-      "required": []
+      }
+
+    },
+    "MapArrayOfString": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
     "Metadata": {
       "type": "object",
@@ -608,8 +776,103 @@
         "freshness": {
           "description": "Configure freshness checks on this dataset",
           "$ref": "#/definitions/Freshness"
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression to use for this domain/table"
+        },
+        "dagRef": {
+          "type": "string",
+          "description": "Cron expression to use for this domain/table"
         }
       }
+    },
+    "ExternalDomain": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Schema in SGBDR / Snoflake / Redshift or Dataset in BigQuery"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tables to scan in this domain"
+        }
+      }
+    },
+    "Airflow": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "DAG reference"
+        },
+        "ingest": {
+          "type": "string",
+          "description": "Cron expression to use for this domain/table"
+        }
+      }
+    },
+    "External": {
+      "type": "object",
+      "properties": {
+        "database": {
+          "type": "string",
+          "description": "Databse name of Project id in BigQuery"
+        },
+        "external": {
+          "description": "List of domains to scan",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExternalDomain"
+          }
+        }
+      }
+    },
+    "Area": {
+      "type": "object",
+      "properties": {
+        "pending": {
+          "type": "string",
+          "description": "Databse name of Project id in BigQuery"
+        },
+        "unresolved": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "archive": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "ingesting": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "accepted": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "rejected": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "replay": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "business": {
+          "description": "List of domains to scan",
+          "type": "string"
+        },
+        "hiveDatabase": {
+          "description": "List of domains to scan",
+          "type": "string"
+        }
+      }
+
     },
     "Freshness": {
       "type": "object",
@@ -714,10 +977,6 @@
         "patternSample": {
           "description": "Sample of filename matching this schema",
           "type": "string"
-        },
-        "scheduleRef": {
-          "type": "string",
-          "description": "Dag configuration to use for this table. If not specified, the default dag is used."
         }
       },
       "required": ["name", "pattern"]
@@ -892,9 +1151,63 @@
         "merge": {
           "$ref": "#/definitions/MergeOptions"
         },
-        "scheduleRef": {
+        "schedule": {
           "type": "string",
-          "description": "Dag configuration to use for this task. If not specified, the default dag is used."
+          "description": "Cron expression to use for this task"
+        },
+        "dagRef": {
+          "type": "string",
+          "description": "Cron expression to use for this domain/table"
+        }
+      },
+      "required": []
+    },
+    "Lock": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Name of the lock"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Name of the lock"
+        },
+        "pollTime": {
+          "type": "string",
+          "description": "Name of the lock"
+        },
+        "refreshTime": {
+          "type": "string",
+          "description": "Name of the lock"
+        }
+      }
+    },
+    "Audit": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Main SQL request to execute (do not forget to prefix table names with the database name to avoid conflicts)"
+        },
+        "sink": {
+          "$ref": "#/definitions/Sink",
+          "description": "Output Database (refer to a project id in BigQuery). Default to SL_DATABASE env var if set."
+        },
+        "maxErrors": {
+          "type": "string",
+          "description": "Output domain in output Area (Will be the Database name in Hive or Dataset in BigQuery)"
+        },
+        "database": {
+          "type": "string",
+          "description": "Dataset Name in output Area (Will be the Table name in Hive & BigQuery)"
+        },
+        "domain": {
+          "$ref": "#/definitions/WriteMode"
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Output table description"
         }
       },
       "required": []
@@ -1099,7 +1412,7 @@
         }
       }
     },
-    "InputRef": {
+    "RefInput": {
       "description": "Input for ref object",
       "type": "object",
       "properties": {
@@ -1118,7 +1431,7 @@
       },
       "required": ["table"]
     },
-    "OutputRef": {
+    "RefOutput": {
       "description": "Output for ref object",
       "type": "object",
       "properties": {
@@ -1144,25 +1457,238 @@
         "input": {
           "$ref": "#/definitions/RefInput",
           "description": "The input table to resolve"
+        },
+        "output": {
+          "$ref": "#/definitions/RefOutput",
+          "description": "The output table resolved with the domain and database"
         }
-      },
-      "output": {
-        "$ref": "#/definitions/RefOuput",
-        "description": "The output table resolved with the domain and database"
       },
       "required": ["input", "output"]
     },
     "Refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Ref"
+      }
+    },
+    "Application": {
       "type": "object",
       "properties": {
-        "Ref": {
-          "description": "All references",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Ref"
-          }
+        "env": {
+          "type": "string",
+          "description": "Attribute name as defined in the source dataset and as received in the file"
+        },
+        "datasets": {
+          "type": "string",
+          "description": "semantic type of the attribute"
+        },
+        "dags": {
+          "type": "string",
+          "description": "Is it an array ?"
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Should this attribute always be present in the source"
+        },
+        "metrics": {
+          "$ref": "#/definitions/Metrics"
+        },
+        "validateOnLoad": {
+          "type": "boolean",
+          "description": "Should this attribute be applied a privacy transformation at ingestion time"
+        },
+        "audit": {
+          "$ref": "#/definitions/Audit"
+        },
+        "archive": {
+          "type": "boolean",
+          "description": "free text for attribute description"
+        },
+        "sinkReplayToFile": {
+          "type": "boolean",
+          "description": "If present, the attribute is renamed with this name"
+        },
+        "lock": {
+          "$ref": "#/definitions/Lock"
+        },
+        "defaultFormat": {
+          "type": "string",
+          "description": "If present, what kind of stat should be computed for this field"
+        },
+        "defaultRejectedWriteFormat": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "defaultAuditWriteFormat": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "csvOutput": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "csvOutputExt": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "privacyOnly": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "emptyIsNull": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "validator": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "rowValidatorClass": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "treeValidatorClass": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "loadStrategyClass": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "analyze": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "hive": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "grouped": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "groupedMax": {
+          "type": "integer",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "mergeForceDistinct": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "mergeOptimizePartitionWrite": {
+          "type": "boolean",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "area": {
+          "$ref": "#/definitions/Area",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "airflow": {
+          "$ref": "#/definitions/Airflow",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "hadoop": {
+          "$ref": "#/definitions/MapString",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "connections": {
+          "$ref": "#/definitions/MapConnection",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "jdbcEngines": {
+          "$ref": "#/definitions/MapJdbcEngine",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "privacy": {
+          "$ref": "#/definitions/Privacy",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "root": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "internal": {
+          "$ref": "#/definitions/Internal",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "accessPolicies": {
+          "$ref": "#/definitions/AccessPolicies",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "scheduling": {
+          "$ref": "#/definitions/JobScheduling",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "udfs": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "expectations": {
+          "$ref": "#/definitions/Expectations",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "sqlParameterPattern": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "rejectAllOnError": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "rejectMaxRecords": {
+          "type": "integer",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "maxParCopy": {
+          "type": "integer",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "dsvOptions": {
+          "$ref": "#/definitions/MapString",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "forceViewPattern": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "forceDomainPattern": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "forceTablePattern": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "forceJobPattern": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "forceTaskPattern": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "useLocalFileSystem": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "sessionDurationServe": {
+          "type": "integer",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "database": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "tenant": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
+        },
+        "connectionRef": {
+          "type": "string",
+          "description": "Default value for this attribute when it is not present."
         }
-      }
+      },
+      "required": ["name", "type"]
     }
   },
   "description": "JSON Schema for Starlake Data Pipeline",
@@ -1175,9 +1701,6 @@
     },
     {
       "required": ["transform"]
-    },
-    {
-      "required": ["views"]
     },
     {
       "required": ["expectations"]
@@ -1199,6 +1722,15 @@
     },
     {
       "required": ["connections"]
+    },
+    {
+      "required": ["external"]
+    },
+    {
+      "required": ["application"]
+    },
+    {
+      "required": ["refs"]
     }
   ],
   "properties": {
@@ -1227,18 +1759,17 @@
       "$ref": "#/definitions/MapString",
       "description": "Expectations library defined as a map name(params) -> sql request that should return 0 record"
     },
-    "views": {
-      "$ref": "#/definitions/MapString"
-    },
-    "tables": {
-      "type": "array",
-      "description": "List of tables for each dataset in this domain.\nA domain usually contains multiple schemas. Each schema defining how the contents of the input file should be parsed.\nSee Schema for more details.",
-      "items": {
-        "$ref": "#/definitions/Table"
-      }
-    },
     "table": {
       "$ref": "#/definitions/Table"
+    },
+    "external": {
+      "$ref": "#/definitions/External"
+    },
+    "refs": {
+      "$ref": "#/definitions/Refs"
+    },
+    "application": {
+      "$ref": "#/definitions/Application"
     }
   },
   "title": "Starlake Data Pipeline",
