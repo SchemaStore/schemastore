@@ -91,7 +91,7 @@
       "type": "object",
       "properties": {
         "extend-immutable-calls": {
-          "description": "Additional callable functions to consider \"immutable\" when evaluating, e.g., the `no-mutable-default-argument` rule (`B006`).",
+          "description": "Additional callable functions to consider \"immutable\" when evaluating, e.g., the `no-mutable-default-argument` rule (`B006`) or `no-function-call-in-dataclass-defaults` rule (`RUF009`).",
           "type": ["array", "null"],
           "items": {
             "type": "string"
@@ -123,13 +123,54 @@
       },
       "additionalProperties": false
     },
+    "Flake8CopyrightOptions": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "description": "Author to enforce within the copyright notice. If provided, the author must be present immediately following the copyright notice.",
+          "type": ["string", "null"]
+        },
+        "min-file-size": {
+          "description": "A minimum file size (in bytes) required for a copyright notice to be enforced. By default, all files are validated.",
+          "type": ["integer", "null"],
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "notice-rgx": {
+          "description": "The regular expression used to match the copyright notice, compiled with the [`regex`](https://docs.rs/regex/latest/regex/) crate.\n\nDefaults to `(?i)Copyright\\s+(\\(C\\)\\s+)?\\d{4}(-\\d{4})*`, which matches the following: - `Copyright 2023` - `Copyright (C) 2023` - `Copyright 2021-2023` - `Copyright (C) 2021-2023`",
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
     "Flake8ErrMsgOptions": {
       "type": "object",
       "properties": {
         "max-string-length": {
           "description": "Maximum string length for string literals in exception messages.",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Flake8GetTextOptions": {
+      "type": "object",
+      "properties": {
+        "extend-function-names": {
+          "description": "Additional function names to consider as internationalization calls, in addition to those included in `function-names`.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "function-names": {
+          "description": "The function names to consider as internationalization calls.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
@@ -154,8 +195,26 @@
             "type": "string"
           }
         },
+        "banned-aliases": {
+          "description": "A mapping from module to its banned import aliases.",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "banned-from": {
+          "description": "A list of modules that are allowed to be imported from",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
         "extend-aliases": {
-          "description": "A mapping of modules to their conventional import aliases. These aliases will be added to the `aliases` mapping.",
+          "description": "A mapping from module to conventional import alias. These aliases will be added to the `aliases` mapping.",
           "type": ["object", "null"],
           "additionalProperties": {
             "type": "string"
@@ -346,6 +405,16 @@
       },
       "additionalProperties": false
     },
+    "ImportSection": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ImportType"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
     "ImportType": {
       "type": "string",
       "enum": [
@@ -433,18 +502,20 @@
         },
         "lines-after-imports": {
           "description": "The number of blank lines to place after imports. Use `-1` for automatic determination.",
-          "type": ["integer", "null"]
+          "type": ["integer", "null"],
+          "format": "int"
         },
         "lines-between-types": {
           "description": "The number of lines to place between \"direct\" and `import from` imports.",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
         },
         "no-lines-before": {
           "description": "A list of sections that should _not_ be delineated from the previous section via empty lines.",
           "type": ["array", "null"],
           "items": {
-            "$ref": "#/definitions/ImportType"
+            "$ref": "#/definitions/ImportSection"
           }
         },
         "order-by-type": {
@@ -469,6 +540,23 @@
             "type": "string"
           }
         },
+        "section-order": {
+          "description": "Override in which order the sections should be output. Can be used to move custom sections.",
+          "type": ["array", "null"],
+          "items": {
+            "$ref": "#/definitions/ImportSection"
+          }
+        },
+        "sections": {
+          "description": "A list of mappings from section names to modules. By default custom sections are output last, but this can be overridden with `section-order`.",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
         "single-line-exclusions": {
           "description": "One or more modules to exclude from the single line rule.",
           "type": ["array", "null"],
@@ -490,12 +578,19 @@
       },
       "additionalProperties": false
     },
+    "LineLength": {
+      "description": "The length of a line of text that is considered too long.",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0.0
+    },
     "McCabeOptions": {
       "type": "object",
       "properties": {
         "max-complexity": {
           "description": "The maximum McCabe complexity to allow before triggering `C901` errors.",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
         }
       },
@@ -524,7 +619,7 @@
           }
         },
         "ignore-names": {
-          "description": "A list of names to ignore when considering `pep8-naming` violations.",
+          "description": "A list of names (or patterns) to ignore when considering `pep8-naming` violations.",
           "type": ["array", "null"],
           "items": {
             "type": "string"
@@ -544,7 +639,7 @@
       "type": "object",
       "properties": {
         "keep-runtime-typing": {
-          "description": "Whether to avoid PEP 585 (`List[int]` -> `list[int]`) and PEP 604 (`Optional[str]` -> `str | None`) rewrites even if a file imports `from __future__ import annotations`. Note that this setting is only applicable when the target Python version is below 3.9 and 3.10 respectively, and enabling it is equivalent to disabling `use-pep585-annotation` (`UP006`) and `use-pep604-annotation` (`UP007`) entirely.",
+          "description": "Whether to avoid PEP 585 (`List[int]` -> `list[int]`) and PEP 604 (`Union[str, int]` -> `str | int`) rewrites even if a file imports `from __future__ import annotations`.\n\nThis setting is only applicable when the target Python version is below 3.9 and 3.10 respectively, and is most commonly used when working with libraries like Pydantic and FastAPI, which rely on the ability to parse type annotations at runtime. The use of `from __future__ import annotations` causes Python to treat the type annotations as strings, which typically allows for the use of language features that appear in later Python versions but are not yet supported by the current version (e.g., `str | int`). However, libraries that rely on runtime type annotations will break if the annotations are incompatible with the current Python version.\n\nFor example, while the following is valid Python 3.8 code due to the presence of `from __future__ import annotations`, the use of `str| int` prior to Python 3.10 will cause Pydantic to raise a `TypeError` at runtime:\n\n```python from __future__ import annotations\n\nimport pydantic\n\nclass Foo(pydantic.BaseModel): bar: str | int ```",
           "type": ["boolean", "null"]
         }
       },
@@ -559,8 +654,14 @@
         },
         "max-doc-length": {
           "description": "The maximum line length to allow for line-length violations within documentation (`W505`), including standalone comments.",
-          "type": ["integer", "null"],
-          "minimum": 0.0
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LineLength"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -596,6 +697,19 @@
       },
       "additionalProperties": false
     },
+    "PyflakesOptions": {
+      "type": "object",
+      "properties": {
+        "extend-generics": {
+          "description": "Additional functions or classes to consider generic, such that any subscripts should be treated as type annotation (e.g., `ForeignKey` in `django.db.models.ForeignKey[\"User\"]`.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "PylintOptions": {
       "type": "object",
       "properties": {
@@ -609,21 +723,25 @@
         "max-args": {
           "description": "Maximum number of arguments allowed for a function or method definition (see: `PLR0913`).",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
         },
         "max-branches": {
           "description": "Maximum number of branches allowed for a function or method body (see: `PLR0912`).",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
         },
         "max-returns": {
           "description": "Maximum number of return statements allowed for a function or method body (see `PLR0911`)",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
         },
         "max-statements": {
           "description": "Maximum number of statements allowed for a function or method body (see: `PLR0915`).",
           "type": ["integer", "null"],
+          "format": "uint",
           "minimum": 0.0
         }
       },
@@ -631,19 +749,19 @@
     },
     "PythonVersion": {
       "type": "string",
-      "enum": ["py37", "py38", "py39", "py310", "py311"]
+      "enum": ["py37", "py38", "py39", "py310", "py311", "py312"]
     },
     "Quote": {
       "oneOf": [
         {
-          "description": "Use single quotes.",
-          "type": "string",
-          "enum": ["single"]
-        },
-        {
           "description": "Use double quotes.",
           "type": "string",
           "enum": ["double"]
+        },
+        {
+          "description": "Use single quotes.",
+          "type": "string",
+          "enum": ["single"]
         }
       ]
     },
@@ -664,13 +782,17 @@
     "RuleSelector": {
       "type": "string",
       "enum": [
-        "ALL",
         "A",
         "A0",
         "A00",
         "A001",
         "A002",
         "A003",
+        "AIR",
+        "AIR0",
+        "AIR00",
+        "AIR001",
+        "ALL",
         "ANN",
         "ANN0",
         "ANN00",
@@ -699,6 +821,12 @@
         "ARG003",
         "ARG004",
         "ARG005",
+        "ASYNC",
+        "ASYNC1",
+        "ASYNC10",
+        "ASYNC100",
+        "ASYNC101",
+        "ASYNC102",
         "B",
         "B0",
         "B00",
@@ -734,7 +862,9 @@
         "B029",
         "B03",
         "B030",
+        "B031",
         "B032",
+        "B033",
         "B9",
         "B90",
         "B904",
@@ -743,6 +873,7 @@
         "BLE0",
         "BLE00",
         "BLE001",
+        "C",
         "C4",
         "C40",
         "C400",
@@ -762,6 +893,9 @@
         "C415",
         "C416",
         "C417",
+        "C418",
+        "C419",
+        "C9",
         "C90",
         "C901",
         "COM",
@@ -770,6 +904,8 @@
         "COM812",
         "COM818",
         "COM819",
+        "CPY",
+        "CPY001",
         "D",
         "D1",
         "D10",
@@ -836,6 +972,7 @@
         "DJ007",
         "DJ008",
         "DJ01",
+        "DJ012",
         "DJ013",
         "DTZ",
         "DTZ0",
@@ -854,6 +991,39 @@
         "E1",
         "E10",
         "E101",
+        "E111",
+        "E112",
+        "E113",
+        "E114",
+        "E115",
+        "E116",
+        "E117",
+        "E201",
+        "E202",
+        "E203",
+        "E211",
+        "E221",
+        "E222",
+        "E223",
+        "E224",
+        "E225",
+        "E226",
+        "E227",
+        "E228",
+        "E231",
+        "E241",
+        "E242",
+        "E251",
+        "E252",
+        "E261",
+        "E262",
+        "E265",
+        "E266",
+        "E271",
+        "E272",
+        "E273",
+        "E274",
+        "E275",
         "E4",
         "E40",
         "E401",
@@ -966,12 +1136,28 @@
         "F9",
         "F90",
         "F901",
+        "FA",
+        "FA1",
+        "FA10",
+        "FA100",
+        "FA102",
         "FBT",
         "FBT0",
         "FBT00",
         "FBT001",
         "FBT002",
         "FBT003",
+        "FIX",
+        "FIX0",
+        "FIX00",
+        "FIX001",
+        "FIX002",
+        "FIX003",
+        "FIX004",
+        "FLY",
+        "FLY0",
+        "FLY00",
+        "FLY002",
         "G",
         "G0",
         "G00",
@@ -997,10 +1183,18 @@
         "ICN0",
         "ICN00",
         "ICN001",
+        "ICN002",
+        "ICN003",
         "INP",
         "INP0",
         "INP00",
         "INP001",
+        "INT",
+        "INT0",
+        "INT00",
+        "INT001",
+        "INT002",
+        "INT003",
         "ISC",
         "ISC0",
         "ISC00",
@@ -1034,6 +1228,7 @@
         "NPY00",
         "NPY001",
         "NPY002",
+        "NPY003",
         "PD",
         "PD0",
         "PD00",
@@ -1052,6 +1247,18 @@
         "PD9",
         "PD90",
         "PD901",
+        "PERF",
+        "PERF1",
+        "PERF10",
+        "PERF101",
+        "PERF102",
+        "PERF2",
+        "PERF20",
+        "PERF203",
+        "PERF4",
+        "PERF40",
+        "PERF401",
+        "PERF402",
         "PGH",
         "PGH0",
         "PGH00",
@@ -1059,6 +1266,7 @@
         "PGH002",
         "PGH003",
         "PGH004",
+        "PGH005",
         "PIE",
         "PIE7",
         "PIE79",
@@ -1068,7 +1276,6 @@
         "PIE8",
         "PIE80",
         "PIE800",
-        "PIE802",
         "PIE804",
         "PIE807",
         "PIE81",
@@ -1076,12 +1283,16 @@
         "PL",
         "PLC",
         "PLC0",
+        "PLC01",
+        "PLC013",
+        "PLC0132",
+        "PLC02",
+        "PLC020",
+        "PLC0205",
+        "PLC0208",
         "PLC04",
         "PLC041",
         "PLC0414",
-        "PLC1",
-        "PLC19",
-        "PLC190",
         "PLC1901",
         "PLC3",
         "PLC30",
@@ -1097,6 +1308,13 @@
         "PLE0116",
         "PLE0117",
         "PLE0118",
+        "PLE02",
+        "PLE024",
+        "PLE0241",
+        "PLE03",
+        "PLE030",
+        "PLE0302",
+        "PLE0307",
         "PLE06",
         "PLE060",
         "PLE0604",
@@ -1117,6 +1335,9 @@
         "PLE15",
         "PLE150",
         "PLE1507",
+        "PLE17",
+        "PLE170",
+        "PLE1700",
         "PLE2",
         "PLE25",
         "PLE250",
@@ -1130,6 +1351,8 @@
         "PLR",
         "PLR0",
         "PLR01",
+        "PLR012",
+        "PLR0124",
         "PLR013",
         "PLR0133",
         "PLR02",
@@ -1165,10 +1388,19 @@
         "PLW01",
         "PLW012",
         "PLW0120",
+        "PLW0129",
+        "PLW013",
+        "PLW0131",
+        "PLW04",
+        "PLW040",
+        "PLW0406",
         "PLW06",
         "PLW060",
         "PLW0602",
         "PLW0603",
+        "PLW07",
+        "PLW071",
+        "PLW0711",
         "PLW1",
         "PLW15",
         "PLW150",
@@ -1177,6 +1409,10 @@
         "PLW29",
         "PLW290",
         "PLW2901",
+        "PLW3",
+        "PLW33",
+        "PLW330",
+        "PLW3301",
         "PT",
         "PT0",
         "PT00",
@@ -1241,6 +1477,10 @@
         "PYI0",
         "PYI00",
         "PYI001",
+        "PYI002",
+        "PYI003",
+        "PYI004",
+        "PYI005",
         "PYI006",
         "PYI007",
         "PYI008",
@@ -1248,11 +1488,33 @@
         "PYI01",
         "PYI010",
         "PYI011",
+        "PYI012",
+        "PYI013",
         "PYI014",
+        "PYI015",
+        "PYI016",
         "PYI02",
+        "PYI020",
         "PYI021",
+        "PYI024",
+        "PYI025",
+        "PYI029",
         "PYI03",
+        "PYI032",
         "PYI033",
+        "PYI034",
+        "PYI035",
+        "PYI04",
+        "PYI042",
+        "PYI043",
+        "PYI044",
+        "PYI045",
+        "PYI048",
+        "PYI05",
+        "PYI050",
+        "PYI052",
+        "PYI053",
+        "PYI054",
         "Q",
         "Q0",
         "Q00",
@@ -1284,9 +1546,19 @@
         "RUF005",
         "RUF006",
         "RUF007",
+        "RUF008",
+        "RUF009",
+        "RUF01",
+        "RUF010",
+        "RUF011",
+        "RUF012",
+        "RUF013",
         "RUF1",
         "RUF10",
         "RUF100",
+        "RUF2",
+        "RUF20",
+        "RUF200",
         "S",
         "S1",
         "S10",
@@ -1303,7 +1575,30 @@
         "S112",
         "S113",
         "S3",
+        "S30",
+        "S301",
+        "S302",
+        "S303",
+        "S304",
+        "S305",
+        "S306",
+        "S307",
+        "S308",
+        "S31",
+        "S310",
+        "S311",
+        "S312",
+        "S313",
+        "S314",
+        "S315",
+        "S316",
+        "S317",
+        "S318",
+        "S319",
         "S32",
+        "S320",
+        "S321",
+        "S323",
         "S324",
         "S5",
         "S50",
@@ -1313,7 +1608,15 @@
         "S509",
         "S6",
         "S60",
+        "S601",
+        "S602",
+        "S603",
+        "S604",
+        "S605",
+        "S606",
+        "S607",
         "S608",
+        "S609",
         "S61",
         "S612",
         "S7",
@@ -1357,12 +1660,24 @@
         "SIM4",
         "SIM40",
         "SIM401",
+        "SIM9",
+        "SIM91",
+        "SIM910",
         "SLF",
         "SLF0",
         "SLF00",
         "SLF001",
+        "SLOT",
+        "SLOT0",
+        "SLOT00",
+        "SLOT000",
+        "SLOT001",
+        "SLOT002",
+        "T",
+        "T1",
         "T10",
         "T100",
+        "T2",
         "T20",
         "T201",
         "T203",
@@ -1374,6 +1689,16 @@
         "TCH003",
         "TCH004",
         "TCH005",
+        "TD",
+        "TD0",
+        "TD00",
+        "TD001",
+        "TD002",
+        "TD003",
+        "TD004",
+        "TD005",
+        "TD006",
+        "TD007",
         "TID",
         "TID2",
         "TID25",
@@ -1393,6 +1718,7 @@
         "TRY30",
         "TRY300",
         "TRY301",
+        "TRY302",
         "TRY4",
         "TRY40",
         "TRY400",
@@ -1439,6 +1765,7 @@
         "UP036",
         "UP037",
         "UP038",
+        "UP039",
         "W",
         "W1",
         "W19",
@@ -1478,6 +1805,7 @@
       "enum": [
         "text",
         "json",
+        "json-lines",
         "junit",
         "grouped",
         "github",
@@ -1499,6 +1827,12 @@
           "enum": ["all"]
         }
       ]
+    },
+    "TabSize": {
+      "description": "The size of a tab.",
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
     },
     "Version": {
       "type": "string"
@@ -1545,6 +1879,30 @@
       "type": ["array", "null"],
       "items": {
         "type": "string"
+      }
+    },
+    "extend-fixable": {
+      "description": "A list of rule codes or prefixes to consider autofixable, in addition to those specified by `fixable`.",
+      "type": ["array", "null"],
+      "items": {
+        "$ref": "#/definitions/RuleSelector"
+      }
+    },
+    "extend-include": {
+      "description": "A list of file patterns to include when linting, in addition to those specified by `include`.\n\nInclusion are based on globs, and should be single-path patterns, like `*.pyw`, to include any file with the `.pyw` extension.\n\nFor more information on the glob syntax, refer to the [`globset` documentation](https://docs.rs/globset/latest/globset/#syntax).",
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "extend-per-file-ignores": {
+      "description": "A list of mappings from file pattern to rule codes or prefixes to exclude, in addition to any rules excluded by `per-file-ignores`.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/RuleSelector"
+        }
       }
     },
     "extend-select": {
@@ -1631,11 +1989,33 @@
         }
       ]
     },
+    "flake8-copyright": {
+      "description": "Options for the `copyright` plugin.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Flake8CopyrightOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "flake8-errmsg": {
       "description": "Options for the `flake8-errmsg` plugin.",
       "anyOf": [
         {
           "$ref": "#/definitions/Flake8ErrMsgOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "flake8-gettext": {
+      "description": "Options for the `flake8-gettext` plugin.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Flake8GetTextOptions"
         },
         {
           "type": "null"
@@ -1731,7 +2111,7 @@
       ]
     },
     "force-exclude": {
-      "description": "Whether to enforce `exclude` and `extend-exclude` patterns, even for paths that are passed to Ruff explicitly. Typically, Ruff will lint any paths passed in directly, even if they would typically be excluded. Setting `force-exclude = true` will cause Ruff to respect these exclusions unequivocally.\n\nThis is useful for [`pre-commit`](https://pre-commit.com/), which explicitly passes all changed files to the [`ruff-pre-commit`](https://github.com/charliermarsh/ruff-pre-commit) plugin, regardless of whether they're marked as excluded by Ruff's own settings.",
+      "description": "Whether to enforce `exclude` and `extend-exclude` patterns, even for paths that are passed to Ruff explicitly. Typically, Ruff will lint any paths passed in directly, even if they would typically be excluded. Setting `force-exclude = true` will cause Ruff to respect these exclusions unequivocally.\n\nThis is useful for [`pre-commit`](https://pre-commit.com/), which explicitly passes all changed files to the [`ruff-pre-commit`](https://github.com/astral-sh/ruff-pre-commit) plugin, regardless of whether they're marked as excluded by Ruff's own settings.",
       "type": ["boolean", "null"]
     },
     "format": {
@@ -1756,6 +2136,13 @@
       "description": "Avoid automatically removing unused imports in `__init__.py` files. Such imports will still be flagged, but with a dedicated message suggesting that the import is either added to the module's `__all__` symbol, or re-exported with a redundant alias (e.g., `import os as os`).",
       "type": ["boolean", "null"]
     },
+    "include": {
+      "description": "A list of file patterns to include when linting.\n\nInclusion are based on globs, and should be single-path patterns, like `*.pyw`, to include any file with the `.pyw` extension. `pyproject.toml` is included here not for configuration but because we lint whether e.g. the `[project]` matches the schema.\n\nFor more information on the glob syntax, refer to the [`globset` documentation](https://docs.rs/globset/latest/globset/#syntax).",
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    },
     "isort": {
       "description": "Options for the `isort` plugin.",
       "anyOf": [
@@ -1769,8 +2156,14 @@
     },
     "line-length": {
       "description": "The line length to use when enforcing long-lines violations (like `E501`).",
-      "type": ["integer", "null"],
-      "minimum": 0.0
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LineLength"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "mccabe": {
       "description": "Options for the `mccabe` plugin.",
@@ -1833,6 +2226,17 @@
         }
       ]
     },
+    "pyflakes": {
+      "description": "Options for the `pyflakes` plugin.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PyflakesOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "pylint": {
       "description": "Options for the `pylint` plugin.",
       "anyOf": [
@@ -1886,14 +2290,25 @@
       "type": ["boolean", "null"]
     },
     "src": {
-      "description": "The source code paths to consider, e.g., when resolving first- vs. third-party imports.\n\nAs an example: given a Python package structure like:\n\n```text my_package/ pyproject.toml src/ my_package/ __init__.py foo.py bar.py ```\n\nThe `src` directory should be included in the `src` option (e.g., `src = [\"src\"]`), such that when resolving imports, `my_package.foo` is considered a first-party import.\n\nThis field supports globs. For example, if you have a series of Python packages in a `python_modules` directory, `src = [\"python_modules/*\"]` would expand to incorporate all of the packages in that directory. User home directory and environment variables will also be expanded.",
+      "description": "The source code paths to consider, e.g., when resolving first- vs. third-party imports.\n\nAs an example: given a Python package structure like:\n\n```text my_package/ pyproject.toml src/ my_package/ __init__.py foo.py bar.py ```\n\nThe `src` directory should be included in the `src` option (e.g., `src = [\"src\"]`), such that when resolving imports, `my_package.foo` is considered a first-party import.\n\nWhen omitted, the `src` directory will typically default to the directory containing the nearest `pyproject.toml`, `ruff.toml`, or `.ruff.toml` file (the \"project root\"), unless a configuration file is explicitly provided (e.g., via the `--config` command-line flag).\n\nThis field supports globs. For example, if you have a series of Python packages in a `python_modules` directory, `src = [\"python_modules/*\"]` would expand to incorporate all of the packages in that directory. User home directory and environment variables will also be expanded.",
       "type": ["array", "null"],
       "items": {
         "type": "string"
       }
     },
+    "tab-size": {
+      "description": "The tabulation size to calculate line length.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TabSize"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "target-version": {
-      "description": "The Python version to target, e.g., when considering automatic code upgrades, like rewriting type annotations.\n\nIf omitted, the target version will be inferred from the `project.requires-python` field in the relevant `pyproject.toml` (e.g., `requires-python = \">=3.8\"`), if present.",
+      "description": "The minimum Python version to target, e.g., when considering automatic code upgrades, like rewriting type annotations.\n\nIf omitted, and Ruff is configured via a `pyproject.toml` file, the target version will be inferred from its `project.requires-python` field (e.g., `requires-python = \">=3.8\"`). If Ruff is configured via `ruff.toml` or `.ruff.toml`, no such inference will be performed.",
       "anyOf": [
         {
           "$ref": "#/definitions/PythonVersion"
@@ -1923,10 +2338,6 @@
       "items": {
         "$ref": "#/definitions/RuleSelector"
       }
-    },
-    "update-check": {
-      "description": "Enable or disable automatic update checks (overridden by the `--update-check` and `--no-update-check` command-line flags).",
-      "type": ["boolean", "null"]
     }
   },
   "title": "Options",

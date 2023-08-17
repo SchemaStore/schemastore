@@ -1,4 +1,5 @@
 {
+  "$id": "https://json.schemastore.org/bxci.schema-2.x.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "branchPattern": {
@@ -41,7 +42,8 @@
         },
         "branch_pattern": {
           "$ref": "#/definitions/branchPattern",
-          "description": "Specifies in which branches this stage will be executed"
+          "description": "Specifies in which branches this stage will be executed",
+          "default": "^master$|^release/.*$"
         },
         "groupId": {
           "type": "string",
@@ -107,6 +109,26 @@
           "type": "boolean",
           "default": true,
           "description": "Sets whether the scan should be executed synchronously (default). The Synchronous mode allows viewing scan results in Jenkins"
+        },
+        "vulnerabilityThresholdEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sets whether the scan should fail if the number of vulnerabilities is above the configured thresholds. This option is only available if the waitForResultsEnabled parameter is enabled"
+        },
+        "highThreshold": {
+          "type": "integer",
+          "default": 0,
+          "description": "Sets the maximum number of High vulnerabilities allowed"
+        },
+        "mediumThreshold": {
+          "type": "integer",
+          "default": 10,
+          "description": "Sets the maximum number of Medium vulnerabilities allowed"
+        },
+        "lowThreshold": {
+          "type": "integer",
+          "default": null,
+          "description": "Sets the maximum number of Low vulnerabilities allowed"
         }
       },
       "additionalProperties": false
@@ -120,13 +142,33 @@
         },
         "breaks_build": {
           "type": "boolean",
-          "description": "Waits for analysis result and breaks the build when the project fails for some quality gates.",
+          "description": "Waits for analysis result and breaks the build when the project fails for some quality gates",
           "default": false
+        },
+        "branch_analysis": {
+          "type": "boolean",
+          "description": "Indicates whether sonnar server supports branch analysis, to provide dedicated parameters.",
+          "default": true
+        },
+        "branch_pattern": {
+          "type": "string",
+          "description": "Indicates what branches static analysis will be performed.",
+          "examples": ["^master$|^release/.+$", "master"]
+        },
+        "image": {
+          "type": "string",
+          "description": "Prebuilt Docker image for running scan into it. If not specified, it will use the same image used for main build.",
+          "examples": ["myrepo:port/my-awesome-image:1.2.3"]
         },
         "timeout": {
           "$ref": "#/definitions/timeout",
           "description": "Seconds to wait for the result of the quality gate. Only applies when breaks_build is set to true",
           "default": 120
+        },
+        "exclusions": {
+          "type": "string",
+          "description": "Comma separated list of wildcard patterns defining files to be excluded from the SonarQube scan",
+          "examples": ["**/excluded-folder/**, **/example/*.html"]
         }
       },
       "additionalProperties": false
@@ -473,6 +515,18 @@
             "https://registry.npmjs.org"
           ]
         },
+        "credentials": {
+          "$ref": "#/definitions/credentials",
+          "description": "Jenkins credentials ID for publishing into the specified Docker registry"
+        },
+        "maven_releases_repo": {
+          "type": "string",
+          "description": "Maven repository for deploying releases"
+        },
+        "maven_snapshots_repo": {
+          "type": "string",
+          "description": "Maven repository for deploying snapshots"
+        },
         "params": {
           "type": "string",
           "description": "Optional params for npm publish or mvn deploy command.",
@@ -582,6 +636,21 @@
               "type": "boolean",
               "description": "Whether Jenkins workspace should be cleaned after the build",
               "default": true
+            },
+            "commit_time_threshold": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "const": 0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\d+[mhd]$"
+                }
+              ],
+              "description": "Commit age threshold. Disables automated builds older than this parameter. When 0, this feature is disabled",
+              "default": false,
+              "examples": [0, "2m", "30m", "1d", "30m", "10d"]
             },
             "checkmarx": {
               "$ref": "#/definitions/checkmarx",
