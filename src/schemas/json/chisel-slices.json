@@ -1,0 +1,135 @@
+{
+  "$comment": "https://github.com/canonical/chisel/tree/main#slice-definitions",
+  "$id": "https://json.schemastore.org/chisel-slices.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "A slice definition for Ubuntu Chisel tool. For details, see https://github.com/canonical/chisel/tree/main#slice-definitions.",
+  "properties": {
+    "package": {
+      "type": "string",
+      "description": "The name of the package to use for the slice.",
+      "pattern": "^[a-z0-9][a-z0-9+\\-\\.]+$",
+      "examples": ["libgcc-s1", "libunwind-13"]
+    },
+    "archive": {
+      "type": "string",
+      "description": "The name of the archive to use for the slice. Archives are defined in the chisel.yaml file.",
+      "examples": ["ubuntu"]
+    },
+    "slices": {
+      "type": "object",
+      "description": "Slice definitions for this package.",
+      "patternProperties": {
+        "^[_a-zA-Z][a-zA-Z0-9_-]*$": {
+          "description": "The name of the slice part.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "essential": {
+              "type": "array",
+              "description": "The name of the dependency slice part. The slice part is formatted as '<slice_name>_<slice_part>'.",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9+\\-\\._]+$"
+              },
+              "examples": ["libgcc-s1_libs", "ca-certificates_data"]
+            },
+            "mutate": {
+              "type": "string",
+              "description": "A Starlark expression to modify the file contents.",
+              "examples": ["foo = content.read(\"/path/to/temporary/content\")"]
+            },
+            "contents": {
+              "type": "object",
+              "description": "Files to include in the slice. Supports glob patterns.",
+              "examples": [
+                { "/lib*/ld*.so.*": {} },
+                { "/usr/share/nodejs/cjs-module-lexer/**": {} },
+                { "/path/to/moved/content": { "copy": "/bin/original" } },
+                { "/path/to/link": { "symlink": "/bin/mybin" } },
+                { "/path/to/new/dir": { "make": true } },
+                { "/path/to/file/with/text": { "text": "Some text" } },
+                {
+                  "/path/to/mutable/file/with/default/text": {
+                    "text": "FIXME",
+                    "mutable": true
+                  }
+                },
+                { "/path/to/temporary/content": { "until": "mutate" } }
+              ],
+              "patternProperties": {
+                "^.+$": {
+                  "description": "Path description.",
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "make": {
+                      "type": "boolean",
+                      "description": "Make this file or directory if it does not already exist.",
+                      "default": true
+                    },
+                    "mode": {
+                      "type": "integer",
+                      "description": "File permissions to use.",
+                      "examples": ["0o755"]
+                    },
+                    "copy": {
+                      "type": "string",
+                      "description": "Copy this file or directory from this location.",
+                      "examples": ["/path/to/original/file.txt"]
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "The contents of the file.",
+                      "examples": ["FIXME"]
+                    },
+                    "symlink": {
+                      "type": "string",
+                      "description": "Make a symlink to this file or directory.",
+                      "examples": ["/path/to/source/file.txt"]
+                    },
+                    "mutable": {
+                      "type": "boolean",
+                      "description": "If true, the file is mutable.",
+                      "default": true
+                    },
+                    "until": {
+                      "type": "string",
+                      "description": "Only keep this file until this stage.",
+                      "examples": ["mutate"],
+                      "default": "",
+                      "$comment": "Valid values: 'mutate' and ''. But most editors will not accept an empty string.",
+                      "enum": ["", "mutate"]
+                    },
+                    "arch": {
+                      "type": "array",
+                      "description": "Only include this file on specific architectures.",
+                      "uniqueItems": true,
+                      "examples": [["amd64", "arm64"]],
+                      "items": {
+                        "type": "string",
+                        "examples": [
+                          "amd64",
+                          "i386",
+                          "armhf",
+                          "arm64",
+                          "powerpc",
+                          "ppc64el",
+                          "s390x",
+                          "riscv64"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "title": "Canonical Chisel Slice Definition",
+  "type": "object"
+}
