@@ -22,11 +22,12 @@ There are various ways you can contribute:
 - Add a new JSON Schema
   - Local schema
   - Remote schema
-- Enhance existing JSON schema
+- Enhance existing JSON schemas:
   - Fix typos
-  - Fix incorrect schemas
-  - Improving constraints within existing schemas
-  - Add positive or negative tests for existing schemas
+  - Fix bugs
+  - Improve constraints
+  - Add positive/negative tests
+  - Refactor to pass under strict mode
 
 Most people want to add a new schema. For steps on how to do this, read the [How to add a new JSON Schema](#how-to-add-a-new-json-schema) section below.
 
@@ -94,13 +95,11 @@ If you are modifying JavaScript files, we also recommend:
 
 ## How-to
 
-### How to add a new JSON Schema
+### How to add a JSON Schema that's local to this repository
 
-You may also want to read [Scott Addie](https://twitter.com/Scott_Addie)'s [**Community-Driven JSON Schemas in Visual Studio 2015**](https://scottaddie.com/2016/08/02/community-driven-json-schemas-in-visual-studio-2015) blog post on how to add a new JSON schema.
+Follow these instructions if you want to add the JSON schema file directly to this repository. If you want to keep the JSON schema hosted elsewhere, see [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal).
 
 When uploading a new schema file, make sure it targets a file that is commonly used or has potential for broad uptake.
-
-Be sure to keep a single source of truth. Do not copy an external schema here; instead, [point the catalog to the external schema](#how-to-add-a-schema-that-is-self-hosted).
 
 First, clone the repository:
 
@@ -160,7 +159,7 @@ If you do not wish to use the `new_schema` Grunt task, the manual steps are list
 
 </details>
 
-Once you have created the schema and its associated testing files, you can run the Grunt task that validates that your schema is corect:
+Once you have created the schema and its associated testing files, you can run the Grunt task that validates that your schema is correct:
 
 ```sh
 cd src
@@ -169,7 +168,27 @@ npm run grunt
 
 To test a single schema, execute `npm run grunt -- --SchemaName=<schemaName.json>`.
 
-If the task succeeds, your changes are valid and you can safely create a PR.
+Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`. If the task succeeds, your changes are valid and you can safely create a PR.
+
+### How to add a JSON Schema that's self-hosted/remote/external
+
+You may wish to serve a schema from `https://json.schemastore.org/<schemaName>.json`, but keep the content of the schema file at a place you control (not this repository).
+
+See [this PR](https://github.com/SchemaStore/schemastore/pull/1211/files) as an example. Simply register your schema in the [schema catalog](src/api/json/catalog.json), with the `url` field pointing to your schema file:
+
+```json
+{
+  "name": "hydra.yml",
+  "description": "ORY Hydra configuration file",
+  "fileMatch": [
+    "hydra.json",
+    "hydra.yml",
+    "hydra.yaml",
+    "hydra.toml"
+  ],
+  "url": "https://raw.githubusercontent.com/ory/hydra/master/.schema/version.schema.json"
+},
+```
 
 ### How to add a schema with multiple versions
 
@@ -195,29 +214,9 @@ Then, use the `versions` field to list each of them. Add the latest version to t
 }
 ```
 
-### How to add a schema that is self-hosted
-
-You may wish to serve a schema from `https://json.schemastore.org/<schemaName>.json`, but keep the content of the schema file at a place you control (not this repository).
-
-See [this PR](https://github.com/SchemaStore/schemastore/pull/1211/files) as an example. Simply register your schema in the [schema catalog](src/api/json/catalog.json), with the `url` field pointing to your schema file:
-
-```json
-{
-  "name": "hydra.yml",
-  "description": "ORY Hydra configuration file",
-  "fileMatch": [
-    "hydra.json",
-    "hydra.yml",
-    "hydra.yaml",
-    "hydra.toml"
-  ],
-  "url": "https://raw.githubusercontent.com/ory/hydra/master/.schema/version.schema.json"
-},
-```
-
 ### How to move a schema from SchemaStore to somewhere that's self-hosted
 
-Simply changing the `url` field in the schema catalog is not enough. You must also:
+Simply changing the `url` field in the schema catalog (as described [here](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)) is not enough. You must also:
 
 - Keep the original schema files in the repository and point to your schema with `$ref`
 - Add an entry under `skiptest` so the remaining schema file isn't tested
@@ -229,11 +228,11 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 `$ref` from `schema_x.json` to `schema_y.json`
 
 - Both schemas must exist [locally](src/schemas/json) in SchemaStore.
-- Both schemas must have the same draft (example draft-07)
+- Both schemas must have the same draft (ex. `draft-07`)
 - `schema_y.json` must have `id` or `$id` with this value `"https://json.schemastore.org/schema_y.json"`
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
-- In [schema-validation.json](src/schema-validation.json), in `"options": []` list add
-  `"schema_x.json": {"externalSchema": ["schema_y.json"]}`
+- Within [schema-validation.json](./src/schema-validation.json), in `"options": []`, add an entry:
+  `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
 
 ### How to include a `$ref` to an external schema
 
