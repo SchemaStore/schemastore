@@ -721,6 +721,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'Check that metadata fields like "$id" are correct.',
     function () {
       let countScan = 0
+      let totalMismatchIds = 0
+      let totalMissingIds = 0
+      let totalIncorrectIds = 0
       localSchemaFileAndTestFile(
         {
           schemaOnlyScan(schema) {
@@ -738,22 +741,70 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
             const schemaVersion = schema.jsonObj.$schema
             if (dollarlessIdSchemas.includes(schemaVersion)) {
+              if (schema.jsonObj.$id) {
+                grunt.log.warn(
+                  `Bad property of '$id'; expected 'id' for this schema version`,
+                )
+                ++totalMismatchIds
+                return
+              }
+
+              if (!schema.jsonObj.id) {
+                grunt.log.warn(
+                  `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
+                )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                ++totalMissingIds
+                return
+              }
+
               if (
                 schema.jsonObj.id !==
                 `https://json.schemastore.org/${schema.jsonName}`
               ) {
                 grunt.log.warn(
-                  `Missing property "id" for schema '${schema.jsonName}'`,
+                  `Incorrect property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                console.warn(`     found value   : ${schema.jsonObj.id}`)
+                ++totalIncorrectIds
               }
             } else {
+              if (schema.jsonObj.id) {
+                grunt.log.warn(
+                  `Bad property of 'id'; expected '$id' for this schema version`,
+                )
+                ++totalMismatchIds
+                return
+              }
+
+              if (!schema.jsonObj.$id) {
+                grunt.log.warn(
+                  `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
+                )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                ++totalMissingIds
+                return
+              }
+
               if (
                 schema.jsonObj.$id !==
                 `https://json.schemastore.org/${schema.jsonName}`
               ) {
                 grunt.log.warn(
-                  `Missing property "$id" for schema '${schema.jsonName}'`,
+                  `Incorrect property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                console.warn(`     found value   : ${schema.jsonObj.$id}`)
+                ++totalIncorrectIds
               }
             }
           },
@@ -763,6 +814,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           skipReadFile: false,
         },
       )
+      grunt.log.ok(`Total missing ids: ${totalMissingIds}`)
+      grunt.log.ok(`Total mismatched ids: ${totalMismatchIds}`)
+      grunt.log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
       grunt.log.ok(`Total files scan: ${countScan}`)
     },
   )
