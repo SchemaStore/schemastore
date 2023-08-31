@@ -6,12 +6,13 @@
 - [Troubleshooting](#troubleshooting)
 - [Best practices](#best-practices)
 - [How-to](#how-to)
-  - [How to add a new JSON Schema](#how-to-add-a-new-json-schema)
+  - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
+  - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
   - [How to add a schema with multiple versions](#how-to-add-a-schema-with-multiple-versions)
-  - [How to add a schema that is self-hosted](#how-to-add-a-schema-that-is-self-hosted)
   - [How to move a schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-schema-from-schemastore-to-somewhere-thats-self-hosted)
   - [How to include a `$ref` to a SchemaStore schema](#how-to-include-a-ref-to-a-schemastore-schema)
   - [How to include a `$ref` to an external schema](#how-to-include-a-ref-to-an-external-schema)
+  - [How to validate schema in non-strict mode](#how-to-validate-schema-in-non-strict-mode)
 
 ## Introduction
 
@@ -29,7 +30,7 @@ There are various ways you can contribute:
   - Add positive/negative tests
   - Refactor to pass under strict mode
 
-Most people want to add a new schema. For steps on how to do this, read the [How to add a new JSON Schema](#how-to-add-a-new-json-schema) section below.
+Most people want to add a new schema. For steps on how to do this, read the [How to add a new JSON Schema](#how-to-add-a-json-schema-thats-local-to-this-repository) section below.
 
 If you want to contribute, but not sure what needs fixing, see the [help wanted](https://github.com/SchemaStore/schemastore/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22help+wanted%22) and [good first issue](https://github.com/SchemaStore/schemastore/issues?q=is%3Aopen+label%3A%22good+first+issue%22+sort%3Aupdated-desc) labels on GitHub.
 
@@ -237,3 +238,17 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 ### How to include a `$ref` to an external schema
 
 This currently isn't possible. This is tracked by [issue #2731](https://github.com/SchemaStore/schemastore/issues/2731).
+
+### How to validate schema in non-strict mode
+
+> **Info**
+> **Please only do this if you _must_. Validating in strict mode catches many common errors by schema authors and improves schema quality.**
+
+When validating your schema, you may encounter errors like:
+
+```txt
+>> compile              | schemas/json/prefect-deploy.json (draft-07)(FullStrictMode)
+>> Error: strict mode: use allowUnionTypes to allow union type keyword at "#/definitions/prefect_docker.deployments.steps.push_docker_image/properties/credentials" (strictTypes)
+```
+
+A full list is available at the [avj documentation](https://ajv.js.org/strict-mode.html#prevent-unexpected-validation). To disable any of the strict validation errors, please add your schema file to the `ajvNotStrictMode` field in `src/schema-validation.json`.
