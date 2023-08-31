@@ -241,8 +241,7 @@ This currently isn't possible. This is tracked by [issue #2731](https://github.c
 
 ### How to validate schema in non-strict mode
 
-> **Info**
-> **Please only do this if you _must_. Validating in strict mode catches many common errors by schema authors and improves schema quality.**
+> **Info** > **Please only do this if you _must_. Validating in strict mode catches many common errors by schema authors and improves schema quality.**
 
 When validating your schema, you may encounter errors like:
 
