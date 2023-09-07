@@ -896,11 +896,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_assert_catalog.json_validates',
     'Check that the catalog.json file passes schema validation',
     function () {
-      const catalogSchema = require(path.resolve(
-        '.',
-        schemaDir,
-        'schema-catalog.json',
-      ))
+      const catalogSchema = require(
+        path.resolve('.', schemaDir, 'schema-catalog.json'),
+      )
       const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
       if (ajvInstance.validate(catalogSchema, catalog)) {
         grunt.log.ok('catalog.json OK')
