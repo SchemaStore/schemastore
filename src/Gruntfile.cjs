@@ -16,6 +16,7 @@ const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const axios = require('axios').default
 const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
+const jsonlint = require('@prantlf/jsonlint')
 
 const temporaryPreviousTv4OnlySchemas = ['tslint.json', 'cloudify.json']
 const temporaryCoverageDir = 'temp'
@@ -947,7 +948,21 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_catalog.json_validates',
+    'local_assert_catalog.json_passes_jsonlint',
+    'Check that catalog.json passes jsonlint',
+    function () {
+      jsonlint.parse(fs.readFileSync('./api/json/catalog.json', 'utf-8'), {
+        ignoreBOM: false,
+        ignoreComments: false,
+        ignoreTrailingCommas: false,
+        allowSingleQuotedStrings: false,
+        allowDuplicateObjectKeys: false,
+      })
+    },
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_validates_against_json_schema',
     'Check that the catalog.json file passes schema validation',
     function () {
       const catalogSchema = require(
@@ -2027,7 +2042,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_assert_schema-validation.json_valid_skiptest',
   ])
   grunt.registerTask('local_test_catalog_json', [
-    'local_assert_catalog.json_validates',
+    'local_assert_catalog.json_passes_jsonlint',
+    'local_assert_catalog.json_validates_against_json_schema',
     'local_assert_catalog.json_no_duplicate_names',
     'local_assert_catalog.json_fileMatch_path',
     'local_assert_catalog.json_fileMatch_conflict',
