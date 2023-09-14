@@ -1,0 +1,437 @@
+{
+  "$id": "https://json.schemastore.org/sigrid-scope-file.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "definitions": {
+    "organization": {
+      "type": "string",
+      "pattern": "^[a-z0-9]{2,}$"
+    },
+    "system": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "20[0-9]{2}"
+        },
+        {
+          "type": "integer",
+          "minimum": 2000,
+          "exclusiveMaximum": 2100
+        }
+      ]
+    },
+    "language_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "yyyymmdd": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "20\\d{2}-?\\d{2}-?\\d{2}"
+        },
+        {
+          "type": "integer",
+          "minimum": 20000000,
+          "exclusiveMaximum": 21000000
+        }
+      ]
+    },
+    "interval": {
+      "type": "string",
+      "enum": ["week", "month"]
+    },
+    "branches": {
+      "type": "string",
+      "pattern": "^[0-9a-zA-Z]+(,[0-9a-zA-Z]+)*$"
+    },
+    "file_pattern_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "component": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "include": {
+              "$ref": "#/definitions/file_pattern_list"
+            },
+            "exclude": {
+              "$ref": "#/definitions/file_pattern_list"
+            },
+            "override": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "component_list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "include": {
+            "$ref": "#/definitions/file_pattern_list"
+          },
+          "exclude": {
+            "$ref": "#/definitions/file_pattern_list"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "language": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "#/definitions/language_name"
+            },
+            "production": {
+              "$ref": "#/definitions/component"
+            },
+            "test": {
+              "$ref": "#/definitions/component"
+            },
+            "generated": {
+              "$ref": "#/definitions/component"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/language_name"
+        }
+      ]
+    },
+    "language_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/language"
+      },
+      "minItems": 1
+    },
+    "analyzer_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pattern_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "bidirectional": {
+          "type": "boolean"
+        }
+      },
+      "required": ["source", "target"],
+      "additionalProperties": false
+    },
+    "dependency_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/dependency"
+      }
+    },
+    "architecture_group": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "annotation": {
+          "type": "string"
+        },
+        "include": {
+          "$ref": "#/definitions/file_pattern_list"
+        },
+        "exclude": {
+          "$ref": "#/definitions/file_pattern_list"
+        }
+      },
+      "required": ["name", "include"],
+      "additionalProperties": false
+    },
+    "architecture_group_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/architecture_group"
+      }
+    }
+  },
+  "description": "Analysis scope configuration file used by Sigrid (sigrid-says.com)",
+  "properties": {
+    "default_excludes": {
+      "type": "boolean",
+      "description": "When true, excludes files and directories from the analysis scope based on common conventions."
+    },
+    "exclude": {
+      "$ref": "#/definitions/file_pattern_list",
+      "description": "List of file and directory patterns to manually exclude from the analysis."
+    },
+    "component_depth": {
+      "type": "integer",
+      "description": "Directory depth that will be used to define components."
+    },
+    "component_base_dirs": {
+      "$ref": "#/definitions/file_pattern_list"
+    },
+    "components": {
+      "$ref": "#/definitions/component_list"
+    },
+    "languages": {
+      "$ref": "#/definitions/language_list",
+      "description": "A list of technologies that should be included as part of the analysis."
+    },
+    "model": {
+      "$ref": "#/definitions/model",
+      "description": "Version of the SIG quality model that should be used for the analysis."
+    },
+    "alerts": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "When true, will send alert email notifications when noteworthy events happen."
+        },
+        "recipients": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "email"
+          },
+          "description": "List of email addresses that should receive alerts."
+        }
+      },
+      "additionalProperties": false
+    },
+    "dependencychecker": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "When this *or* the 'blocklist' option is provided, OSH analysis is performed for every upload."
+        },
+        "blocklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of patterns for library names that should not be sent to external services."
+        },
+        "blacklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Deprecated, use 'blocklist' instead."
+        },
+        "transitive": {
+          "type": "boolean",
+          "description": "When true, transitive dependencies are also checked and included in the results."
+        },
+        "exclude": {
+          "$ref": "#/definitions/file_pattern_list",
+          "description": "List of file/directory patterns that should be excluded from the Open Source Health analysis."
+        }
+      },
+      "additionalProperties": false,
+      "required": []
+    },
+    "checkmarx": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Indicates that this system should be scanned for vulnerabilities using Checkmarx."
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Unique ID to identify the Checkmarx project."
+        },
+        "username": {
+          "type": "string",
+          "description": "Your Checkmarx username."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["enabled", "id"]
+    },
+    "architecture": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "When true, architecture analysis will be triggered for each incoming upload."
+        },
+        "model": {
+          "$ref": "#/definitions/model",
+          "description": "Version of the SIG Architecture Quality Model to use."
+        },
+        "exclude": {
+          "$ref": "#/definitions/file_pattern_list",
+          "description": "List of exclude patterns that applies only to Architecture Quality, not globally."
+        },
+        "custom_components": {
+          "type": "boolean",
+          "description": "Overrides automatic component detection with components defined manually in scope file."
+        },
+        "flatten_directories": {
+          "$ref": "#/definitions/file_pattern_list",
+          "description": "List of directory names that should be flattened and not considered as components during the analysis."
+        },
+        "add_dependencies": {
+          "$ref": "#/definitions/dependency_list",
+          "description": "List of manually added dependencies on top of the ones detected automatically by the analysis."
+        },
+        "remove_dependencies": {
+          "$ref": "#/definitions/dependency_list",
+          "description": "List of dependencies that manually overrides the analysis and removes them from the results."
+        },
+        "undesirable_dependencies": {
+          "$ref": "#/definitions/dependency_list",
+          "description": "List of dependencies considered undesirable, and should therefore be highlighted in the visualization."
+        },
+        "rename": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map of system elements for which to manually override the name."
+        },
+        "merge_data_stores": {
+          "type": "boolean",
+          "description": "Default is false. When true, skips automated data store detection and assumes one monolithic data store."
+        },
+        "grouping": {
+          "$ref": "#/definitions/architecture_group_list",
+          "description": "Annotate all top-level components matching the pattern, in order to divide them into logical groups."
+        },
+        "history_enabled": {
+          "type": "boolean",
+          "description": "Disables change history analysis when set to false."
+        },
+        "history": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Deprecated, use 'history_enabled' instead."
+        },
+        "history_period_months": {
+          "type": "integer",
+          "description": "Period to use for repository history analysis, default is last 12 months."
+        },
+        "history_start": {
+          "$ref": "#/definitions/yyyymmdd",
+          "description": "Repository history start date in the format 'yyyy-mm-dd', default is last year."
+        },
+        "history_end": {
+          "$ref": "#/definitions/yyyymmdd",
+          "description": "Repository history end date in the format 'yyyy-mm-dd', default is current date."
+        },
+        "history_interval": {
+          "$ref": "#/definitions/interval",
+          "description": "Either 'week' (default) or ‘month’."
+        },
+        "history_filter_outliers": {
+          "type": "boolean",
+          "description": "Filters commits with an abnormally large amount of churn from the history analysis."
+        },
+        "branch": {
+          "$ref": "#/definitions/branches",
+          "description": "Repository branch to use, comma-separated for multiple branches. Defaults to current branch."
+        },
+        "duplication": {
+          "type": "boolean",
+          "description": "Set to false to disable duplication detection, improves performance for huge systems."
+        },
+        "co_evolution": {
+          "type": "boolean",
+          "description": "Set to false to disable co-evolution detection, improves performance for huge systems."
+        },
+        "disabled_metrics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of metrics that should be removed from the analysis and set to N/A."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["enabled"]
+    },
+    "thirdpartyfindings": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "When true, third party findings analysis will be triggered for each incoming upload."
+        },
+        "disabled_analyzers": {
+          "$ref": "#/definitions/analyzer_list",
+          "description": "List of third-party analyzers that should not be ran."
+        },
+        "enabled_analyzers": {
+          "$ref": "#/definitions/analyzer_list",
+          "description": "List of third-party analyzer names that should be ran even though they are disabled by default."
+        },
+        "include": {
+          "$ref": "#/definitions/file_pattern_list",
+          "description": "List of file/directory patterns that should be included in the third party findings analysis beyond the maintainability scope and production configuration files."
+        },
+        "exclude": {
+          "$ref": "#/definitions/file_pattern_list",
+          "description": "List of file/directory patterns that should be excluded from the third party findings analysis."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["enabled"]
+    }
+  },
+  "required": ["languages"],
+  "title": "Sigrid scope configuration file",
+  "type": "object"
+}
