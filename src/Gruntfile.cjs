@@ -16,6 +16,7 @@ const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const axios = require('axios').default
 const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
+const jsonlint = require('@prantlf/jsonlint')
 
 const temporaryPreviousTv4OnlySchemas = ['tslint.json', 'cloudify.json']
 const temporaryCoverageDir = 'temp'
@@ -721,6 +722,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'Check that metadata fields like "$id" are correct.',
     function () {
       let countScan = 0
+      let totalMismatchIds = 0
+      let totalMissingIds = 0
+      let totalIncorrectIds = 0
       localSchemaFileAndTestFile(
         {
           schemaOnlyScan(schema) {
@@ -738,22 +742,70 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
             const schemaVersion = schema.jsonObj.$schema
             if (dollarlessIdSchemas.includes(schemaVersion)) {
+              if (schema.jsonObj.$id) {
+                grunt.log.warn(
+                  `Bad property of '$id'; expected 'id' for this schema version`,
+                )
+                ++totalMismatchIds
+                return
+              }
+
+              if (!schema.jsonObj.id) {
+                grunt.log.warn(
+                  `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
+                )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                ++totalMissingIds
+                return
+              }
+
               if (
                 schema.jsonObj.id !==
                 `https://json.schemastore.org/${schema.jsonName}`
               ) {
                 grunt.log.warn(
-                  `Missing property "id" for schema '${schema.jsonName}'`,
+                  `Incorrect property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                console.warn(`     found value   : ${schema.jsonObj.id}`)
+                ++totalIncorrectIds
               }
             } else {
+              if (schema.jsonObj.id) {
+                grunt.log.warn(
+                  `Bad property of 'id'; expected '$id' for this schema version`,
+                )
+                ++totalMismatchIds
+                return
+              }
+
+              if (!schema.jsonObj.$id) {
+                grunt.log.warn(
+                  `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
+                )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                ++totalMissingIds
+                return
+              }
+
               if (
                 schema.jsonObj.$id !==
                 `https://json.schemastore.org/${schema.jsonName}`
               ) {
                 grunt.log.warn(
-                  `Missing property "$id" for schema '${schema.jsonName}'`,
+                  `Incorrect property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 )
+                console.warn(
+                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+                )
+                console.warn(`     found value   : ${schema.jsonObj.$id}`)
+                ++totalIncorrectIds
               }
             }
           },
@@ -763,6 +815,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           skipReadFile: false,
         },
       )
+      grunt.log.ok(`Total missing ids: ${totalMissingIds}`)
+      grunt.log.ok(`Total mismatched ids: ${totalMismatchIds}`)
+      grunt.log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
       grunt.log.ok(`Total files scan: ${countScan}`)
     },
   )
@@ -893,14 +948,26 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_catalog.json_validates',
+    'local_assert_catalog.json_passes_jsonlint',
+    'Check that catalog.json passes jsonlint',
+    function () {
+      jsonlint.parse(fs.readFileSync('./api/json/catalog.json', 'utf-8'), {
+        ignoreBOM: false,
+        ignoreComments: false,
+        ignoreTrailingCommas: false,
+        allowSingleQuotedStrings: false,
+        allowDuplicateObjectKeys: false,
+      })
+    },
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_validates_against_json_schema',
     'Check that the catalog.json file passes schema validation',
     function () {
-      const catalogSchema = require(path.resolve(
-        '.',
-        schemaDir,
-        'schema-catalog.json',
-      ))
+      const catalogSchema = require(
+        path.resolve('.', schemaDir, 'schema-catalog.json'),
+      )
       const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
       if (ajvInstance.validate(catalogSchema, catalog)) {
         grunt.log.ok('catalog.json OK')
@@ -1975,7 +2042,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_assert_schema-validation.json_valid_skiptest',
   ])
   grunt.registerTask('local_test_catalog_json', [
-    'local_assert_catalog.json_validates',
+    'local_assert_catalog.json_passes_jsonlint',
+    'local_assert_catalog.json_validates_against_json_schema',
     'local_assert_catalog.json_no_duplicate_names',
     'local_assert_catalog.json_fileMatch_path',
     'local_assert_catalog.json_fileMatch_conflict',

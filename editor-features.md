@@ -1,14 +1,20 @@
-# Visual Studio Code
+# Editor Features
 
-This editor uses [Red Hat YAML](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) extension to enable intellisence and JSON schema validation.
+## LSPs
 
-## `title` as an expected object type
+For YAML, [`redhat-developer/yaml-language-server`](https://github.com/redhat-developer/yaml-language-server) is popular. For VSCode, this is used by the [Red Hat YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+
+For TOML, [`tamasfe/taplo`](https://github.com/tamasfe/taplo) is popular. For VSCode, this is used by the [Even Better TOML](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml) extension. Some JSON Schemas have `x-taplo` fields to improve the editing experience.
+
+## Schema Properties
+
+### `title` as an expected object type
 
 Let's say you have the following schema:
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
     "first": {
       "title": "first",
@@ -19,7 +25,4 @@ Let's say you have the following schema:
 }
 ```
 
-If integer or another incorrect value is passed to `first` than
-`Incorrect type. Expected "first".` error is shown. If `title` for this property
-is removed than `Incorrect type. Expected "schema title".` is displayed. It leads us to
-the following extension feature: **the most nested `title` is used for the error message**.
+If integer or another incorrect value is passed to `first`, then `Incorrect type. Expected "first".` error is shown. If `title` for this property is removed, then `Incorrect type. Expected "schema title".` is displayed. **The most nested `title` is used for the error message**.
