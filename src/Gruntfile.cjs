@@ -79,10 +79,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
    * @param {CbParamFn} schemaOnlyScan
    */
   async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
-    const schemas = catalog.schemas
     const responseType = 'arraybuffer'
 
-    for (const { url } of schemas) {
+    for (const { url } of catalog.schemas) {
       if (url.startsWith(urlSchemaStore)) {
         // Skip local schema
         continue
@@ -859,23 +858,45 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
-    'lint_catalog_entry_no_schema_word',
+    'local_assert_catalog.json_no_poorly_worded_fields',
     'Check that catalog.json entries do not contain the word "schema" or "json"',
     function () {
       let countScan = 0
 
       for (const entry of catalog.schemas) {
         if (
-          entry.name.toLowerCase().includes('schema') ||
-          entry.name.toLowerCase().includes('json')
-        ) {
-          ++countScan
-          grunt.log.error(
-            `Catalog entry "${entry.url}" should not contain the word "schema" or "json"`,
+          schemaValidation.catalogEntryNoLintNameOrDescription.includes(
+            entry.url,
           )
+        ) {
+          continue
+        }
+
+        const schemaName = new URL(entry.url).pathname.slice(1)
+
+        for (const property of ['name', 'description']) {
+          if (
+            /$[,. \t-]/u.test(entry?.[property]) ||
+            /[,. \t-]$/u.test(entry?.[property])
+          ) {
+            ++countScan
+
+            grunt.log.error(
+              `Catalog entry .${property}: Should not start or begin with punctuation or whitespace (${schemaName})`,
+            )
+          }
+        }
+
+        for (const property of ['name', 'description']) {
+          if (entry?.[property]?.toLowerCase()?.includes('schema')) {
+            ++countScan
+
+            grunt.log.error(
+              `Catalog entry .${property}: Should not contain the string 'schema' (${schemaName})`,
+            )
+          }
         }
       }
-
       grunt.log.writeln(`Total found files: ${countScan}`)
     },
   )
@@ -1575,6 +1596,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         'missingcatalogurl[]',
       )
       checkForDuplicateInList(
+        schemaValidation.catalogEntryNoLintNameOrDescription,
+        'catalogEntryNoLintNameOrDescription[]',
+      )
+      checkForDuplicateInList(
         schemaValidation.fileMatchConflict,
         'fileMatchConflict[]',
       )
@@ -1746,6 +1771,31 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       grunt.log.ok(
         `Total schema-validation.json items check: ${countSchemaValidationItems}`,
       )
+    },
+  )
+
+  grunt.registerTask(
+    'local_assert_schema-validation.json_no_unmatched_urls',
+    'Check if all URL field values exist in catalog.json',
+    function () {
+      let totalItems = 0
+
+      const x = (/** @type {string[]} */ schemaUrls) => {
+        schemaUrls.forEach((schemaUrl) => {
+          ++totalItems
+
+          const catalogUrls = catalog.schemas.map((item) => item.url)
+          if (!catalogUrls.includes(schemaUrl)) {
+            throwWithErrorText([
+              `No schema with URL '${schemaUrl}' found in catalog.json`,
+            ])
+          }
+        })
+      }
+
+      x(schemaValidation.catalogEntryNoLintNameOrDescription)
+
+      grunt.log.ok(`Total schema-validation.json items checked: ${totalItems}`)
     },
   )
 
@@ -2028,7 +2078,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_lint_schema_has_correct_metadata',
     'lint_top_level_$ref_is_standalone',
     'lint_schema_no_smart_quotes',
-    'lint_catalog_entry_no_schema_word',
   ])
 
   grunt.registerTask('local_test_filesystem', [
@@ -2039,12 +2088,14 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask('local_test_schema_validation_json', [
     'local_assert_schema-validation.json_no_duplicate_list',
     'local_assert_schema-validation.json_no_missing_schema_files',
+    'local_assert_schema-validation.json_no_unmatched_urls',
     'local_assert_schema-validation.json_valid_skiptest',
   ])
   grunt.registerTask('local_test_catalog_json', [
     'local_assert_catalog.json_passes_jsonlint',
     'local_assert_catalog.json_validates_against_json_schema',
     'local_assert_catalog.json_no_duplicate_names',
+    'local_assert_catalog.json_no_poorly_worded_fields',
     'local_assert_catalog.json_fileMatch_path',
     'local_assert_catalog.json_fileMatch_conflict',
     'local_assert_catalog.json_local_url_must_ref_file',
