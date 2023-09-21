@@ -1480,22 +1480,35 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           schemaOnlyScan(schema) {
             countScan++
 
+            let schemaId = ''
             const schemasWithDollarlessId = [
               'http://json-schema.org/draft-03/schema#',
               'http://json-schema.org/draft-04/schema#',
             ]
             if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
-              if (!schema.jsonObj.id) {
+              if (schema.jsonObj.id === undefined) {
                 throwWithErrorText([
                   `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 ])
               }
+              schemaId = schema.jsonObj.id
             } else {
-              if (!schema.jsonObj.$id) {
+              if (schema.jsonObj.$id === undefined) {
                 throwWithErrorText([
                   `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 ])
               }
+              schemaId = schema.jsonObj.$id
+            }
+
+            if (
+              !schemaId.startsWith('https://') &&
+              !schemaId.startsWith('http://')
+            ) {
+              throwWithErrorText([
+                schemaId,
+                `Schema id/$id must begin with 'https://' or 'http://' for schema 'src/schemas/json/${schema.jsonName}'`,
+              ])
             }
           },
         },
