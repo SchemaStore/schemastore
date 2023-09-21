@@ -881,9 +881,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           ) {
             ++countScan
 
-            grunt.log.error(
-              `Catalog entry .${property}: Should not start or begin with punctuation or whitespace (${schemaName})`,
-            )
+            throwWithErrorText([
+              `Catalog entry .${property}: Should not start or end with punctuation or whitespace (${schemaName})`,
+            ])
           }
         }
 
@@ -891,9 +891,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           if (entry?.[property]?.toLowerCase()?.includes('schema')) {
             ++countScan
 
-            grunt.log.error(
+            throwWithErrorText([
               `Catalog entry .${property}: Should not contain the string 'schema' (${schemaName})`,
-            )
+            ])
           }
         }
       }
