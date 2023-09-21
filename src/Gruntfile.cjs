@@ -15,7 +15,6 @@ const YAML = require('yaml')
 const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const axios = require('axios').default
-const findDuplicatedPropertyKeys = require('find-duplicated-property-keys')
 const jsonlint = require('@prantlf/jsonlint')
 
 const temporaryPreviousTv4OnlySchemas = ['tslint.json', 'cloudify.json']
@@ -30,14 +29,13 @@ const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
 // prettier-ignore
-const countSchemasType = [
-  { schemaName: '2020-12', schemaStr: 'json-schema.org/draft/2020-12/schema', totalCount: 0, active: true },
-  { schemaName: '2019-09', schemaStr: 'json-schema.org/draft/2019-09/schema', totalCount: 0, active: true },
-  { schemaName: 'draft-07', schemaStr: 'json-schema.org/draft-07/schema', totalCount: 0, active: true },
-  { schemaName: 'draft-06', schemaStr: 'json-schema.org/draft-06/schema', totalCount: 0, active: true },
-  { schemaName: 'draft-04', schemaStr: 'json-schema.org/draft-04/schema', totalCount: 0, active: true },
-  { schemaName: 'draft-03', schemaStr: 'json-schema.org/draft-03/schema', totalCount: 0, active: false },
-  { schemaName: 'draft without version', schemaStr: 'json-schema.org/schema', totalCount: 0, active: false }
+const SCHEMA_DIALECTS = [
+  { schemaName: '2020-12', url: 'https://json-schema.org/draft/2020-12/schema', isActive: true, isTooHigh: true },
+  { schemaName: '2019-09', url: 'https://json-schema.org/draft/2019-09/schema', isActive: true, isTooHigh: true },
+  { schemaName: 'draft-07', url: 'http://json-schema.org/draft-07/schema#', isActive: true, isTooHigh: false },
+  { schemaName: 'draft-06', url: 'http://json-schema.org/draft-06/schema#', isActive: false, isTooHigh: false },
+  { schemaName: 'draft-04', url: 'http://json-schema.org/draft-04/schema#', isActive: false, isTooHigh: false },
+  { schemaName: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
 module.exports = function (/** @type {import('grunt')} */ grunt) {
@@ -117,9 +115,15 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   }
 
   /**
+   * @typedef {Object} JsonSchema
+   * @property {string} $schema
+   * @property {string} $id
+   */
+
+  /**
    * @typedef {Object} Schema
    * @prop {Buffer | undefined} rawFile
-   * @prop {Record<string, unknown>} jsonObj
+   * @prop {Record<string, unknown> & JsonSchema} jsonObj
    * @prop {string} jsonName
    * @prop {string} urlOrFilePath
    * @prop {boolean} schemaScan
@@ -1009,28 +1013,22 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     function () {
       let countScan = 0
       const findDuplicatedProperty = (/** @type {Schema} */ schema) => {
-        countScan++
-        let result
+        ++countScan
+
         // Can only test JSON files for duplicates.
         const fileExtension = schema.urlOrFilePath.split('.').pop()
         if (fileExtension !== 'json') return
+
         try {
-          result = findDuplicatedPropertyKeys(schema.rawFile.toString())
+          jsonlint.parse(schema.rawFile, {
+            ignoreBOM: false,
+            ignoreComments: false,
+            ignoreTrailingCommas: false,
+            allowSingleQuotedStrings: false,
+            allowDuplicateObjectKeys: false,
+          })
         } catch (err) {
           throwWithErrorText([`Test file: ${schema.urlOrFilePath}`, err])
-        }
-        if (result.length > 0) {
-          const errorText = []
-          errorText.push(`Duplicate key found in: ${schema.urlOrFilePath}`)
-          for (const issue of result) {
-            errorText.push(
-              `${
-                issue.key
-              } <= This duplicate key is found. occurrence :${issue.occurrence.toString()}`,
-            )
-          }
-          errorText.push('Error in test: find-duplicated-property-keys')
-          throwWithErrorText(errorText)
         }
       }
       localSchemaFileAndTestFile(
@@ -1307,7 +1305,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_test_downgrade_schema_version',
     'Check if schema can be downgraded to a lower schema version and still pass validation',
     function () {
-      const countSchemas = countSchemasType
       let countScan = 0
 
       /**
@@ -1347,17 +1344,12 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         let versionIndexOriginal = 0
         const schemaJson = schema.jsonObj
 
-        if (!('$schema' in schemaJson)) {
-          // There is no $schema present in the file.
-          return
-        }
-
         const option = getOption(schema.jsonName)
 
         // get the present schema_version
         const schemaVersion = schemaJson.$schema
-        for (const [index, value] of countSchemas.entries()) {
-          if (schemaVersion.includes(value.schemaStr)) {
+        for (const [index, value] of SCHEMA_DIALECTS.entries()) {
+          if (schemaVersion === value.url) {
             versionIndexOriginal = index
             break
           }
@@ -1370,20 +1362,15 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         do {
           // keep trying to use the next lower schema version from the countSchemas[]
           versionIndexToBeTested++
-          const schemaVersionToBeTested = countSchemas[versionIndexToBeTested]
-          if (!schemaVersionToBeTested?.active) {
-            // Can not use this schema version. And there are no more 'active' list item left.
+          const schemaVersionToBeTested =
+            SCHEMA_DIALECTS[versionIndexToBeTested]
+          if (!schemaVersionToBeTested?.isActive) {
+            // Can not use this schema version. And there are no more 'isActive' list item left.
             break
           }
 
-          if (schemaVersionToBeTested.schemaName === 'draft-06') {
-            // Not interested in downgrading to "draft-06". Skip this one.
-            result = true
-            continue
-          }
-
           // update the schema with a new alternative $schema version
-          schemaJson.$schema = `http://${schemaVersionToBeTested.schemaStr}`
+          schemaJson.$schema = schemaVersionToBeTested.url
           // Test this new updated schema with AJV
           result = validateViaAjv(
             schemaJson,
@@ -1400,8 +1387,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
         if (recommendedIndex !== versionIndexOriginal) {
           // found a different schema version that also work.
-          const original = countSchemas[versionIndexOriginal].schemaName
-          const recommended = countSchemas[recommendedIndex].schemaName
+          const original = SCHEMA_DIALECTS[versionIndexOriginal].schemaName
+          const recommended = SCHEMA_DIALECTS[recommendedIndex].schemaName
           grunt.log.ok(
             `${schema.jsonName} (${original}) is also valid with (${recommended})`,
           )
@@ -1422,13 +1409,17 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   function showSchemaVersions() {
-    const countSchemas = countSchemasType
     let countSchemaVersionUnknown = 0
 
     const getObj_ = (schemaJson) => {
-      const schemaVersion = schemaJson?.$schema
-      return countSchemas.find((obj) => schemaVersion?.includes(obj.schemaStr))
+      const schemaVersion = schemaJson.$schema
+      return SCHEMA_DIALECTS.find((obj) => schemaVersion === obj.url)
     }
+
+    /** @type {Map<string, number>} */
+    const schemaDialectCounts = new Map(
+      SCHEMA_DIALECTS.filter((schemaDialect) => [schemaDialect.url, 0]),
+    )
 
     return {
       getObj: getObj_,
@@ -1440,7 +1431,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           // suppress possible JSON.parse exception. It will be processed as obj = undefined
         }
         if (obj) {
-          obj.totalCount++
+          schemaDialectCounts.set(obj.url, schemaDialectCounts.get(obj.url) + 1)
         } else {
           countSchemaVersionUnknown++
           grunt.log.error(
@@ -1450,9 +1441,11 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       },
       process_data_done: () => {
         // Show the all the schema version count.
-        for (const obj of countSchemas) {
+        for (const obj of SCHEMA_DIALECTS) {
           grunt.log.ok(
-            `Schemas using (${obj.schemaName}) Total files: ${obj.totalCount}`,
+            `Schemas using (${
+              obj.schemaName
+            }) Total files: ${schemaDialectCounts.get(obj.url)}`,
           )
         }
         grunt.log.ok(
@@ -1505,14 +1498,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           schemaOnlyScan(schema) {
             countScan++
 
-            const validSchemas = [
-              'http://json-schema.org/draft-03/schema#',
-              'http://json-schema.org/draft-04/schema#',
-              'http://json-schema.org/draft-06/schema#',
-              'http://json-schema.org/draft-07/schema#',
-              'https://json-schema.org/draft/2019-09/schema',
-              'https://json-schema.org/draft/2020-12/schema',
-            ]
+            const validSchemas = SCHEMA_DIALECTS.map(
+              (schemaDialect) => schemaDialect.url,
+            )
             if (!validSchemas.includes(schema.jsonObj.$schema)) {
               throwWithErrorText([
                 `Schema file has invalid or missing '$schema' keyword => ${schema.jsonName}`,
@@ -1521,10 +1509,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
             }
 
             if (!schemaValidation.highSchemaVersion.includes(schema.jsonName)) {
-              const tooHighSchemas = [
-                'https://json-schema.org/draft/2019-09/schema',
-                'https://json-schema.org/draft/2020-12/schema',
-              ]
+              const tooHighSchemas = SCHEMA_DIALECTS.filter(
+                (schemaDialect) => schemaDialect.isTooHigh,
+              ).map((schemaDialect) => schemaDialect.url)
               if (tooHighSchemas.includes(schema.jsonObj.$schema)) {
                 throwWithErrorText([
                   `Schema version is too high => in file ${schema.jsonName}`,
