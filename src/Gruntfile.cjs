@@ -726,7 +726,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     function () {
       let countScan = 0
       let totalMismatchIds = 0
-      let totalMissingIds = 0
       let totalIncorrectIds = 0
       localSchemaFileAndTestFile(
         {
@@ -738,29 +737,17 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
              * identifiers, rather than "$id". See for details:
              * https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier
              */
-            const dollarlessIdSchemas = [
+            const schemasWithDollarlessId = [
               'http://json-schema.org/draft-03/schema#',
               'http://json-schema.org/draft-04/schema#',
             ]
 
-            const schemaVersion = schema.jsonObj.$schema
-            if (dollarlessIdSchemas.includes(schemaVersion)) {
+            if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
               if (schema.jsonObj.$id) {
                 grunt.log.warn(
                   `Bad property of '$id'; expected 'id' for this schema version`,
                 )
                 ++totalMismatchIds
-                return
-              }
-
-              if (!schema.jsonObj.id) {
-                grunt.log.warn(
-                  `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
-                )
-                console.warn(
-                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
-                )
-                ++totalMissingIds
                 return
               }
 
@@ -786,17 +773,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
                 return
               }
 
-              if (!schema.jsonObj.$id) {
-                grunt.log.warn(
-                  `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
-                )
-                console.warn(
-                  `     expected value: https://json.schemastore.org/${schema.jsonName}`,
-                )
-                ++totalMissingIds
-                return
-              }
-
               if (
                 schema.jsonObj.$id !==
                 `https://json.schemastore.org/${schema.jsonName}`
@@ -818,7 +794,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           skipReadFile: false,
         },
       )
-      grunt.log.ok(`Total missing ids: ${totalMissingIds}`)
       grunt.log.ok(`Total mismatched ids: ${totalMismatchIds}`)
       grunt.log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
       grunt.log.ok(`Total files scan: ${countScan}`)
@@ -1488,7 +1463,60 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
-    'local_assert_schema_version_is_valid',
+    'local_assert_schema_has_valid_$id_field',
+    'Check that the $id field exists',
+    function () {
+      let countScan = 0
+
+      localSchemaFileAndTestFile(
+        {
+          schemaOnlyScan(schema) {
+            countScan++
+
+            let schemaId = ''
+            const schemasWithDollarlessId = [
+              'http://json-schema.org/draft-03/schema#',
+              'http://json-schema.org/draft-04/schema#',
+            ]
+            if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
+              if (schema.jsonObj.id === undefined) {
+                throwWithErrorText([
+                  `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
+                ])
+              }
+              schemaId = schema.jsonObj.id
+            } else {
+              if (schema.jsonObj.$id === undefined) {
+                throwWithErrorText([
+                  `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
+                ])
+              }
+              schemaId = schema.jsonObj.$id
+            }
+
+            if (
+              !schemaId.startsWith('https://') &&
+              !schemaId.startsWith('http://')
+            ) {
+              throwWithErrorText([
+                schemaId,
+                `Schema id/$id must begin with 'https://' or 'http://' for schema 'src/schemas/json/${schema.jsonName}'`,
+              ])
+            }
+          },
+        },
+        {
+          fullScanAllFiles: true,
+          skipReadFile: false,
+        },
+      )
+
+      grunt.log.ok(`Total files scan: ${countScan}`)
+    },
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_has_valid_$schema_field',
     'Check that the $schema version string is a correct and standard value',
     function () {
       let countScan = 0
@@ -2091,7 +2119,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask('local_test_schema', [
     'local_assert_schema_no_bom',
     'local_assert_schema_no_duplicated_property_keys',
-    'local_assert_schema_version_is_valid',
+    'local_assert_schema_has_valid_$schema_field',
+    'local_assert_schema_has_valid_$id_field',
     'local_assert_schema_passes_schemasafe_lint',
   ])
   grunt.registerTask('local_test', [
