@@ -17,7 +17,6 @@ const prettier = require('prettier')
 const axios = require('axios').default
 const jsonlint = require('@prantlf/jsonlint')
 
-const temporaryPreviousTv4OnlySchemas = ['tslint.json', 'cloudify.json']
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
 const testPositiveDir = 'test'
@@ -452,6 +451,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         ajvOptions.schemas = standAloneCodeWithMultipleSchema
       }
     }
+
     let ajvSelected
     // There are multiple AJV version for each $schema version.
     // Create the correct one.
@@ -994,6 +994,11 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         const fileExtension = schema.urlOrFilePath.split('.').pop()
         if (fileExtension !== 'json') return
 
+        // TODO: Workaround for https://github.com/prantlf/jsonlint/issues/23
+        if (schema.jsonName === 'tslint.json') {
+          return
+        }
+
         try {
           jsonlint.parse(schema.rawFile, {
             ignoreBOM: false,
@@ -1277,7 +1282,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
-    'local_test_downgrade_schema_version',
+    'local_print_downgradable_schema_versions',
     'Check if schema can be downgraded to a lower schema version and still pass validation',
     function () {
       let countScan = 0
@@ -1393,7 +1398,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
     /** @type {Map<string, number>} */
     const schemaDialectCounts = new Map(
-      SCHEMA_DIALECTS.filter((schemaDialect) => [schemaDialect.url, 0]),
+      SCHEMA_DIALECTS.map((schemaDialect) => [schemaDialect.url, 0]),
     )
 
     return {
@@ -1850,9 +1855,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       // Test folder must not exist if defined in skiptest[]
       schemaValidation.skiptest.forEach((schemaName) => {
         countSchemaValidationItems++
-        if (temporaryPreviousTv4OnlySchemas.includes(schemaName)) {
-          return
-        }
 
         const folderName = schemaName.replace('.json', '')
 
@@ -2009,7 +2011,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   )
 
   grunt.registerTask(
-    'local_show_two_list_of_full_strict_and_not_strict_AJV_schemas',
+    'local_print_strict_and_not_strict_ajv_validated_schemas',
     'Show two list of AJV',
     function () {
       // this is only for AJV schemas
@@ -2136,8 +2138,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_print_count_schema_versions',
   ])
   grunt.registerTask('local_maintenance', [
-    'local_test_downgrade_schema_version',
-    'local_show_two_list_of_full_strict_and_not_strict_AJV_schemas',
+    'local_print_downgradable_schema_versions',
+    'local_print_strict_and_not_strict_ajv_validated_schemas',
   ])
   grunt.registerTask('remote_test', [
     'remote_assert_schema_no_bom',
