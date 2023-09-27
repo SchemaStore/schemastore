@@ -1,19 +1,18 @@
 # Contributing
 
-- [Contributing](#contributing)
-  - [Introduction](#introduction)
-  - [Overview](#overview)
-  - [Recommended Extensions](#recommended-extensions)
-  - [Troubleshooting](#troubleshooting)
-  - [Best practices](#best-practices)
-  - [How-to](#how-to)
-    - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
-    - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
-    - [How to add a schema with multiple versions](#how-to-add-a-schema-with-multiple-versions)
-    - [How to move a schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-schema-from-schemastore-to-somewhere-thats-self-hosted)
-    - [How to include a `$ref` to a SchemaStore schema](#how-to-include-a-ref-to-a-schemastore-schema)
-    - [How to include a `$ref` to an external schema](#how-to-include-a-ref-to-an-external-schema)
-    - [How to validate schema in non-strict mode](#how-to-validate-schema-in-non-strict-mode)
+- [Introduction](#introduction)
+- [Overview](#overview)
+- [Recommended Extensions](#recommended-extensions)
+- [Troubleshooting](#troubleshooting)
+- [Best practices](#best-practices)
+- [How-to](#how-to)
+  - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
+  - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
+  - [How to add a schema with multiple versions](#how-to-add-a-schema-with-multiple-versions)
+  - [How to move a schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-schema-from-schemastore-to-somewhere-thats-self-hosted)
+  - [How to include a `$ref` to a SchemaStore schema](#how-to-include-a-ref-to-a-schemastore-schema)
+  - [How to include a `$ref` to an external schema](#how-to-include-a-ref-to-an-external-schema)
+  - [How to validate schema in non-strict mode](#how-to-validate-schema-in-non-strict-mode)
 
 ## Introduction
 
