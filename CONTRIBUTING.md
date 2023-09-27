@@ -1,18 +1,19 @@
 # Contributing
 
-- [Introduction](#introduction)
-- [Overview](#overview)
-- [Recommended Extensions](#recommended-extensions)
-- [Troubleshooting](#troubleshooting)
-- [Best practices](#best-practices)
-- [How-to](#how-to)
-  - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
-  - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
-  - [How to add a schema with multiple versions](#how-to-add-a-schema-with-multiple-versions)
-  - [How to move a schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-schema-from-schemastore-to-somewhere-thats-self-hosted)
-  - [How to include a `$ref` to a SchemaStore schema](#how-to-include-a-ref-to-a-schemastore-schema)
-  - [How to include a `$ref` to an external schema](#how-to-include-a-ref-to-an-external-schema)
-  - [How to validate schema in non-strict mode](#how-to-validate-schema-in-non-strict-mode)
+- [Contributing](#contributing)
+  - [Introduction](#introduction)
+  - [Overview](#overview)
+  - [Recommended Extensions](#recommended-extensions)
+  - [Troubleshooting](#troubleshooting)
+  - [Best practices](#best-practices)
+  - [How-to](#how-to)
+    - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
+    - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
+    - [How to add a schema with multiple versions](#how-to-add-a-schema-with-multiple-versions)
+    - [How to move a schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-schema-from-schemastore-to-somewhere-thats-self-hosted)
+    - [How to include a `$ref` to a SchemaStore schema](#how-to-include-a-ref-to-a-schemastore-schema)
+    - [How to include a `$ref` to an external schema](#how-to-include-a-ref-to-an-external-schema)
+    - [How to validate schema in non-strict mode](#how-to-validate-schema-in-non-strict-mode)
 
 ## Introduction
 
@@ -67,6 +68,15 @@ If you are modifying JavaScript files, we also recommend:
 ✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
 
 ✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
+
+You can also prefer our own [unofficial draft-07][unofficial-draft-07] schema with more extensive validation capabilities like:
+
+- `type`, `title`, `description` properties are required
+- empty arrays are forbidden in most cases, for instance, it's impossible to write less than 2 sub-schemas for `allOf`
+- `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
+- links to https://json-schema.org/understanding-json-schema/index.html available for almost all hints
+
+[unofficial-draft-07]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
 
 :x: **Don't forget** add test files.
 
