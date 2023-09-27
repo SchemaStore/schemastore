@@ -68,6 +68,15 @@ If you are modifying JavaScript files, we also recommend:
 
 ✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
 
+You can also prefer our own [unofficial draft-07][unofficial-draft-07] schema with more extensive validation capabilities like:
+
+- `type`, `title`, `description` properties are required
+- empty arrays are forbidden in most cases, for instance, it's impossible to write less than 2 sub-schemas for `allOf`
+- `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
+- links to https://json-schema.org/understanding-json-schema/index.html available for almost all hints
+
+[unofficial-draft-07]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
+
 :x: **Don't forget** add test files.
 
 - Always be consistent across your schema: order properties and describe in the one style.
