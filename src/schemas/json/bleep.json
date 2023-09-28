@@ -1,0 +1,521 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/oyvindberg/bleep/master/schema.json",
+  "title": "Bleep build file",
+  "description": "",
+  "type": "object",
+  "$defs": {
+    "ModuleName": {
+      "type": "string"
+    },
+    "TemplateId": {
+      "type": "string"
+    },
+    "TestFrameworkName": {
+      "type": "string"
+    },
+    "PlatformName": {
+      "type": "string",
+      "enum": [
+        "jvm",
+        "js",
+        "native"
+      ]
+    },
+    "Option": {
+      "type": "string"
+    },
+    "Options": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Option"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Option"
+          }
+        }
+      ]
+    },
+    "ProjectName": {
+      "type": "string"
+    },
+    "SourceLayout": {
+      "type": "string",
+      "enum": [
+        "none",
+        "java",
+        "normal",
+        "cross-pure",
+        "cross-full",
+        "sbt-matrix"
+      ]
+    },
+    "CompileOrder": {
+      "description": "defaulted to 'mixed'",
+      "type": "string",
+      "enum": [
+        "mixed",
+        "java->scala",
+        "scala->java"
+      ]
+    },
+    "SbtScope": {
+      "type": "string",
+      "enum": [
+        "main",
+        "test",
+        "it"
+      ]
+    },
+    "RelPath": {
+      "type": "string",
+      "pattern": "^\\.\\.?/.*$"
+    },
+    "Dependency": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DependencyShort"
+        },
+        {
+          "$ref": "#/$defs/DependencyLong"
+        }
+      ]
+    },
+    "DependencyShort": {
+      "type": "string",
+      "pattern": "^[^:]+:{1,3}[^:]+:[^:]+$"
+    },
+    "DependencyLong": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "module": {
+          "$ref": "#/$defs/DependencyShort"
+        },
+        "forceJvm": {
+          "type": "boolean"
+        },
+        "for3Use213": {
+          "type": "boolean"
+        },
+        "for213Use3": {
+          "type": "boolean"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "configuration": {
+          "type": "string"
+        },
+        "exclusions": {
+          "description": "organization in key and module name(s) in value. example: {\"org.scala-sbt\" : \"util-logging_2.13\"}, or {\"org.scala-sbt\" : [\"util-logging_2.13\", \"util-cache_2.13\"]}",
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ModuleName"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ModuleName"
+                }
+              }
+            ]
+          }
+        },
+        "publication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "ext": {
+              "type": "string"
+            },
+            "classifier": {
+              "type": "string"
+            }
+          }
+        },
+        "transitive": {
+          "type": "boolean"
+        },
+        "isSbtPlugin": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "module"
+      ]
+    },
+    "Java": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "$ref": "#/$defs/Options"
+        }
+      }
+    },
+    "Scala": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "dev"
+              ]
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "$ref": "#/$defs/Options"
+        },
+        "setup": {
+          "$ref": "#/$defs/CompileSetup"
+        },
+        "strict": {
+          "type": "boolean"
+        },
+        "compilerPlugins": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Dependency"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Dependency"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Platform": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/PlatformName"
+        },
+        "mainClass": {
+          "type": "string"
+        },
+        "jsVersion": {
+          "type": "string"
+        },
+        "jsMode": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "release"
+          ]
+        },
+        "jsKind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "commonjs",
+            "esmodule"
+          ]
+        },
+        "jsEmitSourceMaps": {
+          "type": "boolean"
+        },
+        "jsJsdom": {
+          "type": "boolean"
+        },
+        "jsNodeVersion": {
+          "type": "string"
+        },
+        "jvmOptions": {
+          "$ref": "#/$defs/Options"
+        },
+        "jvmRuntimeOptions": {
+          "$ref": "#/$defs/Options"
+        },
+        "nativeVersion": {
+          "type": "string"
+        },
+        "nativeMode": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "release"
+          ]
+        },
+        "nativeGc": {
+          "type": "string"
+        }
+      }
+    },
+    "CompileSetup": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "$ref": "#/$defs/CompileOrder"
+        },
+        "addLibraryToBootClasspath": {
+          "description": "Defaulted to true",
+          "type": "boolean"
+        },
+        "addCompilerToClasspath": {
+          "description": "Defaulted to false",
+          "type": "boolean"
+        },
+        "addExtraJarsToClasspath": {
+          "description": "Defaulted to false",
+          "type": "boolean"
+        },
+        "manageBootClasspath": {
+          "description": "Defaulted to true",
+          "type": "boolean"
+        },
+        "filterLibraryFromClasspath": {
+          "description": "Defaulted to true",
+          "type": "boolean"
+        }
+      }
+    },
+    "Jvm": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "a combination of JVM and version in this format `graalvm-java17:22.1.0`",
+          "type": "string"
+        },
+        "index": {
+          "description": "the default index is the coursier index, located at https://github.com/coursier/jvm-index/raw/master/index.json . If you need to use a JVM which is not there, you can specify another index here",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "extends": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TemplateId"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TemplateId"
+              }
+            }
+          ]
+        },
+        "cross": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Project"
+          }
+        },
+        "folder": {
+          "description": "path of project relative to build root. can be omitted if it is just the project name",
+          "$ref": "#/$defs/RelPath"
+        },
+        "dependsOn": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ProjectName"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProjectName"
+              }
+            }
+          ]
+        },
+        "source-layout": {
+          "description": "selects a standardized set of source directories",
+          "$ref": "#/$defs/SourceLayout"
+        },
+        "sbt-scope": {
+          "description": "changes src/scala to source/main/scala and so on",
+          "$ref": "#/$defs/SbtScope"
+        },
+        "sources": {
+          "description": "additional set of source directories. you should set `sbt-scope` and `source-layout` first",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RelPath"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RelPath"
+              }
+            }
+          ]
+        },
+        "resources": {
+          "description": "additional set of resource directories. you should set `sbt-scope` and `source-layout` first",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RelPath"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RelPath"
+              }
+            }
+          ]
+        },
+        "sourcegen": {
+          "description": "additional set of source directories. you should set `sbt-scope` and `source-layout` first",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Script"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Script"
+              }
+            }
+          ]
+        },
+        "dependencies": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Dependency"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Dependency"
+              }
+            }
+          ]
+        },
+        "java": {
+          "$ref": "#/$defs/Java"
+        },
+        "scala": {
+          "$ref": "#/$defs/Scala"
+        },
+        "platform": {
+          "$ref": "#/$defs/Platform"
+        },
+        "isTestProject": {
+          "type": "boolean"
+        },
+        "testFrameworks": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TestFrameworkName"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TestFrameworkName"
+              }
+            }
+          ]
+        },
+        "libraryVersionSchemes": {
+          "description": "Version scheme to use for specific modules. Same syntax as a normal dependency, but the version need to be one of these values: \"early-semver\", \"pvp\", \"semver-spec\", \"always\", and \"strict\".",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Dependency"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Dependency"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ScriptMain": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "main": {
+          "type": "string"
+        },
+        "sourceGlobs": {
+          "description": "additional set of directories to watch. These are relative to the project folder of the script project. All source and resource folders for the project are already added",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RelPath"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RelPath"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "project",
+        "main"
+      ]
+    },
+    "Script": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScriptMain"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "$version": {
+      "type": "string"
+    },
+    "jvm": {
+      "type": "object",
+      "$ref": "#/$defs/Jvm"
+    },
+    "projects": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Project"
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Script"
+      }
+    },
+    "templates": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Project"
+      }
+    }
+  },
+  "required": [
+    "$version",
+    "projects"
+  ]
+}
