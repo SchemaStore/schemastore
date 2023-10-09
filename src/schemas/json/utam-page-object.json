@@ -1,0 +1,747 @@
+{
+  "$id": "https://json.schemastore.org/utam-page-object.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "interface": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/pageObject"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "interface": {
+            "const": true
+          }
+        },
+        "required": ["interface"]
+      },
+      "then": {
+        "$ref": "#/definitions/pageObjectInterface"
+      }
+    }
+  ],
+  "definitions": {
+    "pageObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "title": "Page Object",
+      "description": "An object representing a page or a UI element in a web page",
+      "properties": {
+        "description": {
+          "$ref": "#/definitions/rootDescription"
+        },
+        "root": {
+          "$ref": "#/definitions/root"
+        },
+        "selector": {
+          "$ref": "#/definitions/selector"
+        },
+        "exposeRootElement": {
+          "$ref": "#/definitions/exposeRootElement"
+        },
+        "type": {
+          "$ref": "#/definitions/type"
+        },
+        "implements": {
+          "description": "reference to the interface implemented by the page object",
+          "type": "string"
+        },
+        "profile": {
+          "title": "Page Object Profile",
+          "description": "list of profiles that can use this page object implementation.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "contains": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "platform": {
+          "title": "Page Object Platform",
+          "description": "Declares the page context type (WebView or native).",
+          "enum": ["web", "native"],
+          "default": "web"
+        },
+        "beforeLoad": {
+          "title": "Preload Criteria",
+          "description": "The beforeLoad array sets the criteria to be satisfied before the load method completes. If you don't specify a beforeLoad array, the load method finds a root element for a regular page object, or waits for the root element to be present for a root page object), by default.",
+          "type": ["array"],
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/predicateStatement"
+              },
+              {
+                "properties": {
+                  "element": {
+                    "type": "string",
+                    "enum": ["document", "root", "navigation"]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "elements": {
+          "$ref": "#/definitions/elementsArray"
+        },
+        "methods": {
+          "title": "Methods",
+          "description": "An array of methods performing actions on this page object's elements.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/composeMethod"
+          }
+        },
+        "shadow": {
+          "title": "Shadow Boundary",
+          "description": "A shadow boundary at the root of the page object.",
+          "type": "object",
+          "properties": {
+            "elements": {
+              "$ref": "#/definitions/elementsArray"
+            }
+          },
+          "default": {
+            "elements": []
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        }
+      },
+      "dependencies": {
+        "selector": ["root"],
+        "root": ["selector"],
+        "profile": ["implements"]
+      }
+    },
+    "pageObjectInterface": {
+      "type": "object",
+      "additionalProperties": false,
+      "title": "Page Object Inferface",
+      "description": "An interace to abstract page object APIs for page objects with similar structure and function.",
+      "properties": {
+        "interface": {
+          "description": "Indicates that this page object describes an interface.",
+          "type": "boolean",
+          "default": false
+        },
+        "root": {
+          "$ref": "#/definitions/root"
+        },
+        "exposeRootElement": {
+          "$ref": "#/definitions/exposeRootElement"
+        },
+        "type": {
+          "$ref": "#/definitions/type"
+        },
+        "methods": {
+          "title": "Interface Methods",
+          "description": "An array of method declarations that page objects implementing this interface must define.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/interfaceMethod"
+          }
+        },
+        "description": {
+          "$ref": "#/definitions/rootDescription"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        }
+      }
+    },
+    "element": {
+      "title": "Element",
+      "description": "An interace to abstract page object APIs for page objects with similar structure and function.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": ["string", "array"],
+          "items": {
+            "enum": [
+              "actionable",
+              "clickable",
+              "editable",
+              "draggable",
+              "touchable"
+            ]
+          }
+        },
+        "selector": {
+          "$ref": "#/definitions/selector"
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "shadow": {
+          "type": "object",
+          "properties": {
+            "elements": {
+              "$ref": "#/definitions/elementsArray"
+            }
+          }
+        },
+        "elements": {
+          "$ref": "#/definitions/elementsArray"
+        },
+        "public": {
+          "type": "boolean"
+        },
+        "filter": {
+          "$ref": "#/definitions/filter"
+        },
+        "description": {
+          "$ref": "#/definitions/methodDescription"
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "elementsArray": {
+      "title": "Elements",
+      "description": "A nested tree of element objects.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/element"
+      }
+    },
+    "selector": {
+      "title": "Selector",
+      "description": "An object that locates an element or a list of elements at run time.",
+      "type": "object",
+      "$defs": {
+        "args": {
+          "description": "Parameters to the methods that access this element or its nested elements.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        },
+        "returnAll": {
+          "description": "Returns a list of elements",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "css": {
+              "description": "Standard CSS selector.",
+              "type": "string"
+            },
+            "args": {
+              "$ref": "#/definitions/selector/$defs/args"
+            },
+            "returnAll": {
+              "$ref": "#/definitions/selector/$defs/returnAll"
+            }
+          },
+          "required": ["css"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "accessid": {
+              "description": "Accessibility ID selector, a unique identifier for a UI element for Mobile Platform only.",
+              "type": "string"
+            },
+            "args": {
+              "$ref": "#/definitions/selector/$defs/args"
+            },
+            "returnAll": {
+              "$ref": "#/definitions/selector/$defs/returnAll"
+            }
+          },
+          "required": ["accessid"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "classchain": {
+              "description": "Class chain selector, a unique identifier for a window element from the root of the page for iOS platform only.",
+              "type": "string"
+            },
+            "args": {
+              "$ref": "#/definitions/selector/$defs/args"
+            },
+            "returnAll": {
+              "$ref": "#/definitions/selector/$defs/returnAll"
+            }
+          },
+          "required": ["classchain"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "uiautomator": {
+              "description": "A UIAutomator selector to enable search through UiSelectors for Android platform only",
+              "type": "string"
+            },
+            "args": {
+              "$ref": "#/definitions/selector/$defs/args"
+            },
+            "returnAll": {
+              "$ref": "#/definitions/selector/$defs/returnAll"
+            }
+          },
+          "required": ["uiautomator"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "pageObjectType": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "URI-like type value of the page object"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "filter": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        },
+        "apply": {
+          "type": "string"
+        },
+        "matcher": {
+          "$ref": "#/definitions/matcher"
+        },
+        "findFirst": {
+          "description": "Return only the first match result.",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "matcher": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "isTrue",
+            "isFalse",
+            "notNull",
+            "stringContains",
+            "stringEquals"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "interfaceMethod": {
+      "title": "Interface Method",
+      "description": "A declarative, interface method definition.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        },
+        "returnType": {
+          "type": ["string", "array"],
+          "items": {
+            "enum": [
+              "actionable",
+              "clickable",
+              "editable",
+              "draggable",
+              "touchable"
+            ]
+          }
+        },
+        "returnAll": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "$ref": "#/definitions/methodDescription"
+        }
+      },
+      "required": ["name"],
+      "dependencies": {
+        "returnAll": ["returnType"]
+      },
+      "additionalProperties": false
+    },
+    "composeMethod": {
+      "title": "Method",
+      "description": "A method definition, composed of element actions.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        },
+        "compose": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/action"
+          }
+        },
+        "description": {
+          "$ref": "#/definitions/methodDescription"
+        }
+      },
+      "required": ["name", "compose"],
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "title": "Element Action",
+      "description": "An action to be performed on an element.",
+      "additionalProperties": false,
+      "properties": {
+        "element": {
+          "type": "string"
+        },
+        "apply": {
+          "type": "string"
+        },
+        "applyExternal": {
+          "type": "object"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        },
+        "matcher": {
+          "type": "object",
+          "$ref": "#/definitions/matcher"
+        },
+        "chain": {
+          "type": "boolean"
+        },
+        "returnType": {
+          "type": "string",
+          "default": "void"
+        },
+        "returnAll": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["apply"]
+          },
+          "then": {
+            "not": {
+              "required": ["applyExternal"]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["applyExternal"]
+          },
+          "then": {
+            "properties": {
+              "applyExternal": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "invoke": {
+                    "type": "string"
+                  },
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/arg"
+                    }
+                  }
+                },
+                "required": ["type", "invoke"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["applyExternal"],
+            "not": {
+              "required": ["apply"]
+            }
+          }
+        }
+      ]
+    },
+    "arg": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "boolean",
+            "number",
+            "elementReference",
+            "argumentReference",
+            "function",
+            "locator",
+            "frame",
+            "pageObject",
+            "rootPageObject"
+          ]
+        },
+        "value": {
+          "type": ["integer", "string", "boolean", "number", "object"]
+        },
+        "predicate": {
+          "type": "array"
+        },
+        "args": {
+          "description": "element reference can have nested literal args (hardcoded values for its getter)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/arg"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "string",
+                "boolean",
+                "number",
+                "locator",
+                "pageObject",
+                "rootPageObject",
+                "frame",
+                "argumentReference"
+              ]
+            },
+            "name": {
+              "type": ["string"]
+            }
+          },
+          "required": ["type", "name"]
+        },
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "locator",
+                "elementReference",
+                "pageObject",
+                "rootPageObject"
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": ["integer", "string", "boolean", "number"]
+                },
+                {
+                  "type": "object",
+                  "$ref": "#/definitions/selector"
+                },
+                {
+                  "type": "object",
+                  "$ref": "#/definitions/pageObjectType"
+                }
+              ]
+            }
+          },
+          "required": ["value"]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "function"
+            },
+            "name": {
+              "type": "string"
+            },
+            "predicate": {
+              "type": ["array"],
+              "items": {
+                "$ref": "#/definitions/predicateStatement"
+              }
+            }
+          },
+          "required": ["type", "predicate"]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "predicateStatement": {
+      "$ref": "#/definitions/action"
+    },
+    "root": {
+      "type": "boolean",
+      "default": false
+    },
+    "exposeRootElement": {
+      "type": "boolean",
+      "default": true
+    },
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": ["string", "array"],
+      "items": {
+        "enum": [
+          "actionable",
+          "clickable",
+          "editable",
+          "draggable",
+          "touchable"
+        ]
+      }
+    },
+    "shadow": {
+      "type": "object",
+      "title": "Shadow Root",
+      "description": "A shadow boundary at the root of the page object.",
+      "properties": {
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/element"
+          }
+        }
+      },
+      "default": {
+        "elements": []
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/element"
+      }
+    },
+    "methods": {
+      "type": "array"
+    },
+    "rootDescription": {
+      "title": "Root element description",
+      "description": "summary of the functionality and use cases",
+      "type": ["object", "string"],
+      "properties": {
+        "text": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "author": {
+          "type": "string"
+        },
+        "deprecated": {
+          "type": "string"
+        }
+      },
+      "required": ["text"],
+      "additionalProperties": false
+    },
+    "metadata": {
+      "title": "Page Object Metadata",
+      "description": "track miscellaneous information for the page object",
+      "type": ["object"],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "teamOwner": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "methodDescription": {
+      "title": "Method description",
+      "description": "summary at the method or element level",
+      "type": ["object", "string"],
+      "properties": {
+        "text": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "return": {
+          "type": "string"
+        },
+        "throws": {
+          "type": "string"
+        },
+        "deprecated": {
+          "type": "string"
+        }
+      },
+      "required": ["text"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "interface": {
+      "type": "boolean"
+    }
+  },
+  "title": "UI Test Automation Model Page Object",
+  "type": "object"
+}

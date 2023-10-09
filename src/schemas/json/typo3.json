@@ -1,0 +1,1187 @@
+{
+  "$id": "https://json.schemastore.org/typo3.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "definitions": {
+    "enhancerRoute": {
+      "type": "object",
+      "properties": {
+        "routePath": {
+          "type": "string"
+        },
+        "_controller": {
+          "type": "string",
+          "pattern": "^([a-zA-Z0-9]{1,30})::([a-zA-Z0-9]{1,30})$"
+        },
+        "_arguments": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["routePath", "_controller"],
+      "additionalProperties": false
+    },
+    "baseVariants": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        }
+      },
+      "required": ["base", "condition"],
+      "additionalProperties": false
+    },
+    "redirects": {
+      "type": "object",
+      "properties": {
+        "autoUpdateSlugs": {
+          "description": "Automatically update slugs of all sub pages. Default: true",
+          "type": "boolean"
+        },
+        "autoCreateRedirects": {
+          "description": "Automatically create redirects for pages with a new slug (works only in LIVE workspace). Default: true",
+          "type": "boolean"
+        },
+        "redirectTTL": {
+          "description": "Time To Live in days for redirect records to be created - `0` disables TTL, no expiration. Default: 0",
+          "type": "integer"
+        },
+        "httpStatusCode": {
+          "description": "HTTP status code for the redirect, see https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections#Temporary_redirections. Default: 307",
+          "type": "integer",
+          "anyOf": [
+            {
+              "type": "integer",
+              "enum": [300, 301, 302, 303, 304, 305, 306, 307, 308]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "errorHandling": {
+      "type": "object",
+      "properties": {
+        "errorCode": {
+          "description": "Make sure to have at least 0 (not defined otherwise) configured in order to serve helpful error messages to your visitors.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "default": 404,
+              "enum": [0, 404, 403, 500, 503]
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "errorHandler": {
+          "description": "How to handle Errors",
+          "type": "string",
+          "default": "Page",
+          "enum": ["Page", "Fluid", "PHP"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "errorHandler": {
+                "const": "PHP"
+              }
+            }
+          },
+          "then": {
+            "additionalProperties": false,
+            "properties": {
+              "errorCode": {
+                "type": "integer"
+              },
+              "errorHandler": {
+                "type": "string"
+              },
+              "errorPhpClassFQCN": {
+                "description": "Fully qualified class name to a class that implements the PageErrorHandlerInterface.",
+                "type": "string"
+              }
+            },
+            "required": ["errorCode", "errorHandler", "errorPhpClassFQCN"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "errorHandler": {
+                "const": "Fluid"
+              }
+            }
+          },
+          "then": {
+            "additionalProperties": false,
+            "properties": {
+              "errorCode": {
+                "type": "integer"
+              },
+              "errorHandler": {
+                "type": "string"
+              },
+              "errorFluidTemplate": {
+                "description": "Path to the fluid template file given by absolute, relative path (from site root) or by referring the template file inside an extension with \"EXT:\" prefix.",
+                "type": "string"
+              },
+              "errorFluidTemplatesRootPath": {
+                "type": "string"
+              },
+              "errorFluidLayoutsRootPath": {
+                "type": "string"
+              },
+              "errorFluidPartialsRootPath": {
+                "type": "string"
+              }
+            },
+            "required": ["errorCode", "errorHandler", "errorFluidTemplate"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "errorHandler": {
+                "const": "Page"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "errorCode": {
+                "type": "integer"
+              },
+              "errorHandler": {
+                "type": "string"
+              },
+              "errorContentSource": {
+                "description": "Show Content from Page",
+                "examples": ["t3://page?uid=123"],
+                "type": "string"
+              }
+            },
+            "required": ["errorCode", "errorHandler", "errorContentSource"]
+          }
+        }
+      ]
+    },
+    "staticRoutes": {
+      "type": "object",
+      "properties": {
+        "route": {
+          "description": "Static Route Name",
+          "type": "string"
+        },
+        "type": {
+          "description": "Route Type",
+          "type": "string",
+          "enum": ["uri", "staticText"]
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "uri"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "description": "Page, File or URL",
+            "type": "string"
+          }
+        },
+        "required": ["source"]
+      },
+      "else": {
+        "properties": {
+          "content": {
+            "description": "Static Text",
+            "type": "string"
+          }
+        },
+        "required": ["content"]
+      },
+      "required": ["route", "type"],
+      "additionalProperties": false
+    },
+    "localeMap": {
+      "type": "object",
+      "minItems": 1,
+      "properties": {
+        "locale": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "language": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "Title",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Visible in Frontend",
+          "type": "boolean"
+        },
+        "languageId": {
+          "description": "ID of the related sys_language record",
+          "type": "integer",
+          "examples": [1]
+        },
+        "base": {
+          "description": "Use a full qualified domain \"https://www.mydomain.fr/\" or \"/fr/\". Use \"/\" to keep the main URL for the default language. Add language specific suffixes to use those, or configure complete URLs for independent domains.",
+          "type": "string",
+          "default": "/"
+        },
+        "baseVariants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/baseVariants"
+          }
+        },
+        "typo3Language": {
+          "description": "Select the language to be used from translation files. Keep default if no translation files are available. Deprecated with TYPO3 12.3",
+          "anyOf": [
+            {
+              "type": "string",
+              "default": "default",
+              "enum": [
+                "default",
+                "af",
+                "ar",
+                "bs",
+                "bg",
+                "ca",
+                "ch",
+                "cs",
+                "da",
+                "de",
+                "el",
+                "eo",
+                "es",
+                "et",
+                "eu",
+                "fa",
+                "fi",
+                "fo",
+                "fr",
+                "fr_CA",
+                "gl",
+                "he",
+                "hi",
+                "hr",
+                "hu",
+                "is",
+                "it",
+                "ja",
+                "ka",
+                "kl",
+                "km",
+                "ko",
+                "lt",
+                "lv",
+                "mi",
+                "mk",
+                "ms",
+                "nl",
+                "no",
+                "pl",
+                "pt",
+                "pt_BR",
+                "ro",
+                "ru",
+                "rw",
+                "sk",
+                "sl",
+                "sq",
+                "sr",
+                "sv",
+                "th",
+                "tr",
+                "uk",
+                "vi",
+                "zh"
+              ]
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "locale": {
+          "description": "Used for localized date and currency formats. E.g. \"de_DE\" or \"en_US.UTF-8\".",
+          "type": "string"
+        },
+        "iso-639-1": {
+          "description": "ISO 639-1 code of the Language",
+          "type": "string",
+          "enum": [
+            "ab",
+            "aa",
+            "af",
+            "ak",
+            "sq",
+            "am",
+            "ar",
+            "an",
+            "hy",
+            "as",
+            "av",
+            "ae",
+            "ay",
+            "az",
+            "bm",
+            "ba",
+            "eu",
+            "be",
+            "bn",
+            "bh",
+            "bi",
+            "bs",
+            "br",
+            "bg",
+            "my",
+            "ca",
+            "ch",
+            "ce",
+            "ny",
+            "zh",
+            "cv",
+            "kw",
+            "co",
+            "cr",
+            "hr",
+            "cs",
+            "da",
+            "dv",
+            "nl",
+            "dz",
+            "en",
+            "eo",
+            "et",
+            "ee",
+            "fo",
+            "fj",
+            "fi",
+            "fr",
+            "ff",
+            "gl",
+            "ka",
+            "de",
+            "el",
+            "gn",
+            "gu",
+            "ht",
+            "ha",
+            "he",
+            "hz",
+            "hi",
+            "ho",
+            "hu",
+            "ia",
+            "id",
+            "ie",
+            "ga",
+            "ig",
+            "ik",
+            "io",
+            "is",
+            "it",
+            "iu",
+            "ja",
+            "jv",
+            "kl",
+            "kn",
+            "kr",
+            "ks",
+            "kk",
+            "km",
+            "ki",
+            "rw",
+            "ky",
+            "kv",
+            "kg",
+            "ko",
+            "ku",
+            "kj",
+            "la",
+            "lb",
+            "lg",
+            "li",
+            "ln",
+            "lo",
+            "lt",
+            "lu",
+            "lv",
+            "gv",
+            "mk",
+            "mg",
+            "ms",
+            "ml",
+            "mt",
+            "mi",
+            "mr",
+            "mh",
+            "mn",
+            "na",
+            "nv",
+            "nd",
+            "ne",
+            "ng",
+            "nb",
+            "nn",
+            "no",
+            "ii",
+            "nr",
+            "oc",
+            "oj",
+            "cu",
+            "om",
+            "or",
+            "os",
+            "pa",
+            "pi",
+            "fa",
+            "pl",
+            "ps",
+            "pt",
+            "qu",
+            "rm",
+            "rn",
+            "ro",
+            "ru",
+            "sa",
+            "sc",
+            "sd",
+            "se",
+            "sm",
+            "sg",
+            "sr",
+            "gd",
+            "sn",
+            "si",
+            "sk",
+            "sl",
+            "so",
+            "st",
+            "es",
+            "su",
+            "sw",
+            "ss",
+            "sv",
+            "ta",
+            "te",
+            "tg",
+            "th",
+            "ti",
+            "bo",
+            "tk",
+            "tl",
+            "tn",
+            "to",
+            "tr",
+            "ts",
+            "tt",
+            "tw",
+            "ty",
+            "ug",
+            "uk",
+            "ur",
+            "uz",
+            "ve",
+            "vi",
+            "vo",
+            "wa",
+            "cy",
+            "wo",
+            "fy",
+            "xh",
+            "yi",
+            "yo",
+            "za",
+            "zu"
+          ]
+        },
+        "navigationTitle": {
+          "description": "Used within language-related menus",
+          "type": "string"
+        },
+        "hreflang": {
+          "description": "Used within for \"lang\" and \"hreflang\" attributes",
+          "type": "string"
+        },
+        "direction": {
+          "description": "Language direction for \"dir\" attribute",
+          "type": "string",
+          "enum": ["", "ltr", "rtl"]
+        },
+        "flag": {
+          "type": "string",
+          "enum": [
+            "global",
+            "ad",
+            "ae",
+            "af",
+            "ag",
+            "ai",
+            "al",
+            "am",
+            "an",
+            "ao",
+            "aq",
+            "ar",
+            "as",
+            "at",
+            "au",
+            "aw",
+            "ax",
+            "az",
+            "ba",
+            "bb",
+            "bd",
+            "be",
+            "bf",
+            "bg",
+            "bh",
+            "bi",
+            "bj",
+            "bl",
+            "bm",
+            "bn",
+            "bo",
+            "bq",
+            "br",
+            "bs",
+            "bt",
+            "bv",
+            "bw",
+            "by",
+            "bz",
+            "ca",
+            "catalonia",
+            "cc",
+            "cd",
+            "cf",
+            "cg",
+            "ch",
+            "ci",
+            "ck",
+            "cl",
+            "cm",
+            "cn",
+            "co",
+            "cr",
+            "cs",
+            "cu",
+            "cv",
+            "cw",
+            "cx",
+            "cy",
+            "cz",
+            "de",
+            "dj",
+            "dk",
+            "dm",
+            "do",
+            "dz",
+            "ec",
+            "ee",
+            "eg",
+            "eh",
+            "en-us-gb",
+            "gb-eng",
+            "er",
+            "es",
+            "et",
+            "eu",
+            "fi",
+            "fj",
+            "fk",
+            "fm",
+            "fo",
+            "fr",
+            "ga",
+            "gb",
+            "gd",
+            "ge",
+            "gf",
+            "gg",
+            "gh",
+            "gi",
+            "gl",
+            "gm",
+            "gn",
+            "gp",
+            "gq",
+            "gr",
+            "gs",
+            "gt",
+            "gu",
+            "gw",
+            "gy",
+            "hk",
+            "hm",
+            "hn",
+            "hr",
+            "ht",
+            "hu",
+            "id",
+            "ie",
+            "il",
+            "im",
+            "in",
+            "io",
+            "iq",
+            "ir",
+            "is",
+            "it",
+            "jm",
+            "jo",
+            "jp",
+            "ke",
+            "kg",
+            "kh",
+            "ki",
+            "kl",
+            "km",
+            "kn",
+            "kp",
+            "kr",
+            "kw",
+            "ky",
+            "kz",
+            "la",
+            "lb",
+            "lc",
+            "li",
+            "lk",
+            "lr",
+            "ls",
+            "lt",
+            "lu",
+            "lv",
+            "ly",
+            "ma",
+            "mc",
+            "md",
+            "me",
+            "mf",
+            "mg",
+            "mh",
+            "mi",
+            "mk",
+            "ml",
+            "mm",
+            "mn",
+            "mo",
+            "mp",
+            "mq",
+            "mr",
+            "ms",
+            "mt",
+            "mu",
+            "mv",
+            "mw",
+            "mx",
+            "my",
+            "mz",
+            "na",
+            "nc",
+            "ne",
+            "nf",
+            "ng",
+            "ni",
+            "gb-nir",
+            "nl",
+            "no",
+            "np",
+            "nr",
+            "nu",
+            "nz",
+            "om",
+            "pa",
+            "pe",
+            "pf",
+            "pg",
+            "ph",
+            "pk",
+            "pl",
+            "pm",
+            "pn",
+            "pr",
+            "ps",
+            "pt",
+            "pw",
+            "py",
+            "qa",
+            "qc",
+            "re",
+            "ro",
+            "rs",
+            "ru",
+            "rw",
+            "sa",
+            "sb",
+            "sc",
+            "gb-sct",
+            "sd",
+            "se",
+            "sg",
+            "sh",
+            "si",
+            "sj",
+            "sk",
+            "sl",
+            "sm",
+            "sn",
+            "so",
+            "sr",
+            "ss",
+            "st",
+            "sv",
+            "sx",
+            "sy",
+            "sz",
+            "tc",
+            "td",
+            "tf",
+            "tg",
+            "th",
+            "tj",
+            "tk",
+            "tl",
+            "tm",
+            "tn",
+            "to",
+            "tr",
+            "tt",
+            "tv",
+            "tw",
+            "tz",
+            "ua",
+            "ug",
+            "um",
+            "us",
+            "uy",
+            "uz",
+            "va",
+            "vc",
+            "ve",
+            "vg",
+            "vi",
+            "vn",
+            "vu",
+            "gb-wls",
+            "wf",
+            "ws",
+            "ye",
+            "yt",
+            "za",
+            "zm",
+            "zw"
+          ]
+        },
+        "websiteTitle": {
+          "description": "With this language based Website title, you can override the Website title for this language",
+          "type": "string"
+        },
+        "fallbackType": {
+          "description": "Fallback Type",
+          "type": "string",
+          "enum": ["strict", "fallback", "free"],
+          "default": "strict"
+        },
+        "fallbacks": {
+          "description": "Fallback to other Language(s) - order is important! Comma separated list",
+          "type": "string"
+        }
+      },
+      "required": ["title", "enabled", "languageId", "base", "locale"],
+      "additionalProperties": true
+    }
+  },
+  "properties": {
+    "base": {
+      "description": "Base URL. This is the URL under which this site is available",
+      "type": "string"
+    },
+    "rootPageId": {
+      "description": "ID of the page where this site begins",
+      "type": "integer"
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/language"
+      }
+    },
+    "baseVariants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/baseVariants"
+      }
+    },
+    "errorHandling": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/errorHandling"
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/staticRoutes"
+      }
+    },
+    "websiteTitle": {
+      "type": "string",
+      "description": "Default website title"
+    },
+    "routeEnhancers": {
+      "description": "routeEnhancers transform arguments into nice urls. Docs can be found at https://docs.typo3.org/m/typo3/reference-coreapi/master/en-us/ApiOverview/Routing/Index.html",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Each enhancer must have a type",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["Simple", "Plugin", "Extbase", "PageType"]
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "default": {
+            "type": "string"
+          },
+          "routePath": {
+            "type": "string"
+          },
+          "limitToPages": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "number"
+            }
+          },
+          "requirements": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "_arguments": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "aspects": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "title": "Type of aspect",
+                  "type": "string",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "LocaleModifier",
+                        "PersistedAliasMapper",
+                        "PersistedPatternMapper",
+                        "StaticRangeMapper",
+                        "StaticValueMapper"
+                      ]
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "PersistedAliasMapper"
+                      }
+                    }
+                  },
+                  "then": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "tableName": {
+                        "type": "string"
+                      },
+                      "routeFieldName": {
+                        "type": "string"
+                      },
+                      "routeValuePrefix": {
+                        "type": "string",
+                        "examples": ["", "/"],
+                        "maxLength": 1
+                      }
+                    },
+                    "required": ["type", "routeFieldName", "tableName"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "PersistedPatternMapper"
+                      }
+                    }
+                  },
+                  "then": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "tableName": {
+                        "type": "string"
+                      },
+                      "routeFieldName": {
+                        "type": "string"
+                      },
+                      "routeValuePrefix": {
+                        "type": "string",
+                        "examples": ["", "/"],
+                        "maxLength": 1
+                      }
+                    },
+                    "required": ["type", "routeFieldName", "tableName"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "LocaleModifier"
+                      }
+                    }
+                  },
+                  "then": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "string"
+                      },
+                      "localeMap": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/definitions/localeMap"
+                        }
+                      }
+                    },
+                    "required": ["type", "default", "localeMap"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "StaticRangeMapper"
+                      }
+                    }
+                  },
+                  "then": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "start": {
+                        "type": "string"
+                      },
+                      "end": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["type", "start", "end"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "StaticValueMapper"
+                      }
+                    }
+                  },
+                  "then": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "map": {
+                        "type": "object"
+                      }
+                    },
+                    "required": ["type", "map"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "Simple"
+                }
+              }
+            },
+            "then": {
+              "required": ["type", "routePath", "_arguments"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "Plugin"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "namespace": {
+                  "$comment": "plugin namespace",
+                  "type": "string"
+                }
+              },
+              "required": ["type", "namespace", "requirements"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "Extbase"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "defaults": {
+                  "type": "object"
+                },
+                "routes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/enhancerRoute"
+                  }
+                },
+                "extension": {
+                  "$comment": "extbase",
+                  "type": "string",
+                  "pattern": "^([A-Z]{1})([a-zA-Z0-9]{2,30})$"
+                },
+                "plugin": {
+                  "$comment": "extbase",
+                  "type": "string"
+                },
+                "defaultController": {
+                  "$comment": "extbase",
+                  "type": "string",
+                  "pattern": "^([a-zA-Z0-9]{1,30})::([a-zA-Z0-9]{1,30})$"
+                }
+              },
+              "required": ["type", "extension", "plugin", "defaultController"]
+            }
+          }
+        ]
+      }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "redirects": {
+          "$ref": "#/definitions/redirects"
+        }
+      },
+      "additionalProperties": true
+    },
+    "sitePackage": {
+      "type": "string",
+      "description": "Extension key for site setup (used by EXT:bolt)"
+    },
+    "solr_core_read": {
+      "type": "string",
+      "description": "EXT:solr default core for read"
+    },
+    "solr_enabled_read": {
+      "type": "boolean",
+      "description": "EXT:solr enable default solr read"
+    },
+    "solr_host_read": {
+      "type": "string",
+      "description": "EXT:solr default host for read"
+    },
+    "solr_password_read": {
+      "type": "string",
+      "description": "EXT:solr password for read"
+    },
+    "solr_username_read": {
+      "type": "string",
+      "description": "EXT:solr username for read"
+    },
+    "solr_port_read": {
+      "type": "string",
+      "description": "EXT:solr port for read"
+    },
+    "solr_scheme_read": {
+      "type": "string",
+      "description": "EXT:solr scheme for read",
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": ["http", "https", "%env(SOLR_SCHEME)%"]
+        }
+      ]
+    },
+    "solr_use_write_connection": {
+      "type": "boolean",
+      "description": "EXT:solr use write connection"
+    }
+  },
+  "required": ["base", "rootPageId", "languages"],
+  "type": "object"
+}
