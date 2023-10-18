@@ -1,0 +1,32 @@
+# example policy from official docs: https://cloudcustodian.io/docs/aws/examples/accountrootlogin.html
+policies:
+  - name: root-user-login-detected
+    resource: account
+    description: |
+      Notifies Security and Cloud Admins teams on any AWS root user console logins
+    mode:
+      type: cloudtrail
+      events:
+        - ConsoleLogin
+    filters:
+      - type: event
+        key: 'detail.userIdentity.type'
+        value_type: swap
+        op: in
+        value: Root
+    actions:
+      - type: notify
+        template: default.html
+        priority_header: 1
+        subject: 'Root User Login Detected! - [custodian {{ account }} - {{ region }}]'
+        violation_desc: 'A User Has Logged Into the AWS Console With The Root User:'
+        action_desc: |
+          Please investigate and if needed revoke the root users session along
+          with any other restrictive actions if it's an unapproved root login
+        to:
+          - CloudAdmins@Company.com
+          - SecurityTeam@Company.com
+        transport:
+          type: sqs
+          queue: https://sqs.us-east-1.amazonaws.com/12345678900/cloud-custodian-mailer
+          region: us-east-1
