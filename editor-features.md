@@ -77,7 +77,7 @@ However, that is not always possible or correct. Alternatively, use `$comment`:
     "default": ".tsbuildinfo",
     "type": ["string", "null"],
     "description": "Specify the folder for .tsbuildinfo incremental compilation files."
-  },
+  }
 }
 ```
 
