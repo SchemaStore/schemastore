@@ -47,3 +47,38 @@ Let's say you have the following schema:
 ```
 
 If integer or another incorrect value is passed to `first`, then `Incorrect type. Expected "first".` error is shown. If `title` for this property is removed, then `Incorrect type. Expected "schema title".` is displayed. **The most nested `title` is used for the error message**.
+
+### Undocumented Features
+
+The use of undocumented features in schemas is permitted. However they must be labeled as such.
+
+It is preferred to add `UNDOCUMENTED.` to the beginning of `description`.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "experimental_useBranchPrediction": {
+      "type": "string",
+      "description": "UNDOCUMENTED. Enables branch prediction in the build."
+    }
+  }
+}
+```
+
+However, that is not always possible or correct. Alternatively, use `$comment`:
+
+```json
+{
+  "type": "object",
+  "tsBuildInfoFile": {
+    "$comment": "The value of 'null' is UNDOCUMENTED.",
+    "description": "Specify the folder for .tsbuildinfo incremental compilation files.",
+    "default": ".tsbuildinfo",
+    "type": ["string", "null"],
+    "description": "Specify the folder for .tsbuildinfo incremental compilation files."
+  },
+}
+```
+
+In this case, `{ "tsBuildInfoFile": null }` is not documented. Using a string value is, however.
