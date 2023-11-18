@@ -710,31 +710,98 @@
           "description": "Assignees to set on pull requests",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "minimum": 1
+          "minItems": 1,
+          "uniqueItems": true
         },
         "commit-message": {
-          "description": "Commit message preferences",
+          "description": "Dependabot attempts to detect your commit message preferences and use similar patterns. Use this option to specify your preferences explicitly.",
           "type": "object",
           "properties": {
             "prefix": {
-              "type": "string"
+              "description": "A prefix for all commit messages. When you specify a prefix for commit messages, GitHub will automatically add a colon between the defined prefix and the commit message provided the defined prefix ends with a letter, number, closing parenthesis, or closing bracket. This means that, for example, if you end the prefix with a whitespace, there will be no colon added between the prefix and the commit message.",
+              "type": "string",
+              "maxLength": 50
             },
             "prefix-development": {
-              "type": "string"
+              "description": "A separate prefix for all commit messages that update dependencies in the Development dependency group. When you specify a value for this option, the prefix is used only for updates to dependencies in the Production dependency group. This is not supported by all package ecosystems.",
+              "type": "string",
+              "maxLength": 50
             },
             "include": {
+              "description": "Specifies that any prefix is followed by a list of the dependencies updated in the commit.",
               "type": "string",
               "enum": ["scope"],
               "default": "scope"
             }
-          }
+          },
+          "anyOf": [
+            { "required": ["prefix"] },
+            { "required": ["prefix-development"] },
+            { "required": ["include"] }
+          ],
+          "additionalProperties": false
         },
         "directory": {
           "description": "Location of package manifests",
           "type": "string",
           "default": "/"
+        },
+        "groups": {
+          "description": "Configure groups for dependencies. Each 'groups' property is arbitrary will appear in pull request titles and branch names. For example, the code snippet '{\"groups\": {\"NPM dependencies\": {\"patterns\": [\"*\"]}}}' sets the group name to 'NPM dependencies'.",
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "type": "object",
+              "properties": {
+                "dependency-type": {
+                  "description": "Specify a dependency type to be included in the group.",
+                  "type": "string",
+                  "enum": ["development", "production"]
+                },
+                "patterns": {
+                  "description": "Define strings of characters that match with a dependency name (or multiple dependency names) to include those dependencies in the group.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uniqueItems": true,
+                  "minItems": 1
+                },
+                "exclude-patterns": {
+                  "description": "Exclude certain dependencies from the group. If a dependency is excluded from a group, Dependabot will continue to raise single pull requests to update the dependency to its latest version.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uniqueItems": true,
+                  "minItems": 1
+                },
+                "update-types": {
+                  "description": "Specify the semantic versioning level to include in the group",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["major", "minor", "patch"]
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              },
+              "anyOf": [
+                { "required": ["dependency-type"] },
+                { "required": ["patterns"] },
+                { "required": ["update-types"] }
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1
         },
         "ignore": {
           "description": "Ignore certain dependencies or versions",
