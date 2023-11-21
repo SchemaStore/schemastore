@@ -645,8 +645,7 @@
         }
       }
     },
-    "package-ecosystem": {
-      "type": "string",
+    "package-ecosystem-values": {
       "enum": [
         "bundler",
         "cargo",
@@ -843,29 +842,32 @@
           "description": "Labels to set on pull requests",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
+          "minItems": 0,
+          "uniqueItems": true,
           "default": ["dependencies"]
         },
         "milestone": {
-          "description": "Milestone to set on pull requests",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "integer"
-            }
-          ]
+          "description": "Associate all pull requests raised for a package manager with a milestone. You need to specify the numeric identifier of the milestone and not its label.",
+          "type": "integer",
+          "minimum": 1
         },
         "open-pull-requests-limit": {
           "description": "Limit number of open pull requests for version updates",
           "type": "integer",
+          "minimum": 0,
           "default": 5
         },
         "package-ecosystem": {
           "description": "Package manager to use",
-          "$ref": "#/definitions/package-ecosystem"
+          "$comment": "These values are restricted by a top-level if-then-else when 'enable-beta-ecosystems' is not enabled.",
+          "type": "string",
+          "anyOf": [
+            { "$ref": "#/definitions/package-ecosystem-values" },
+            { "minLength": 1 }
+          ]
         },
         "pull-request-branch-name": {
           "description": "Pull request branch name preferences",
@@ -878,21 +880,33 @@
               "enum": ["-", "_", "/"]
             }
           },
-          "required": ["separator"]
+          "required": ["separator"],
+          "additionalProperties": false
         },
         "rebase-strategy": {
-          "description": "Disable automatic rebasing",
+          "description": "Disable automatic rebasing. 'auto' is the default and Dependabot will rebase open pull requests when changes are detected. 'disabled' will disable automatic rebasing.",
           "type": "string",
           "enum": ["auto", "disabled"],
           "default": "auto"
         },
+        "registries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
         "reviewers": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "Reviewers to set on pull requests",
-          "minimum": 1
+          "description": "Specify individual reviewers or teams of reviewers for all pull requests raised for a package manager. You must use the full team name, including the organization, as if you were @mentioning the team.",
+          "minItems": 1,
+          "uniqueItems": true
         },
         "schedule": {
           "description": "Schedule preferences",
@@ -918,11 +932,12 @@
           "required": ["interval"]
         },
         "target-branch": {
+          "description": "Specify a different branch for manifest files and for pull requests.",
           "type": "string",
-          "description": "Branch to create pull requests against"
+          "minLength": 1
         },
         "vendor": {
-          "description": "Update vendored or cached dependencies",
+          "description": "Tell Dependabot to vendor dependencies when updating them. Don't use this option if you're using 'gomod'.",
           "type": "boolean"
         },
         "versioning-strategy": {
@@ -934,11 +949,10 @@
     },
     "registry": {
       "type": "object",
-      "title": "registries",
       "description": "The top-level registries key is optional. It allows you to specify authentication details that Dependabot can use to access private package registries.",
       "additionalProperties": false,
       "patternProperties": {
-        ".*": {
+        ".+": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -959,7 +973,7 @@
               ]
             },
             "url": {
-              "description": "The URL to use to access the dependencies in this registry. The protocol is optional. If not specified, https:// is assumed. Dependabot adds or ignores trailing slashes as required.",
+              "description": "The URL to use to access the dependencies in this registry. The protocol is optional. If not specified, 'https://' is assumed. Dependabot adds or ignores trailing slashes as required.",
               "type": "string"
             },
             "username": {
@@ -999,9 +1013,10 @@
               "type": "string"
             }
           },
-          "required": ["type"]
+          "required": ["type", "url"]
         }
-      }
+      },
+      "minProperties": 1
     }
   },
   "properties": {
@@ -1024,11 +1039,37 @@
       }
     },
     "registries": {
-      "type": "object",
       "$ref": "#/definitions/registry"
     }
   },
   "required": ["version", "updates"],
   "title": "GitHub Dependabot v2 config",
-  "type": "object"
+  "type": "object",
+  "allOf": [
+    {
+      "$comment": "If 'enable-beta-ecosystems' is NOT enabled, enforce known 'package-ecosystem' values.",
+      "if": {
+        "properties": {
+          "enable-beta-ecosystems": {
+            "const": true
+          }
+        },
+        "required": ["enable-beta-ecosystems"]
+      },
+      "then": {},
+      "else": {
+        "properties": {
+          "updates": {
+            "items": {
+              "properties": {
+                "package-ecosystem": {
+                  "$ref": "#/definitions/package-ecosystem-values"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
