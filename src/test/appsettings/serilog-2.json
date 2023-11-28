@@ -1,0 +1,124 @@
+{
+  "Serilog": {
+    "Using": ["Serilog.Sinks.Console"],
+    "LevelSwitches": { "controlSwitch": "Verbose" },
+    "FilterSwitches": { "$filterSwitch": "Application = 'Sample'" },
+
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Warning",
+        "MyApp.Something.Tricky": "Verbose"
+      }
+    },
+    "WriteTo:Sublogger": {
+      "Name": "Logger",
+      "Args": {
+        "configureLogger": {
+          "MinimumLevel": "Verbose",
+          "WriteTo": [
+            {
+              "Name": "Console",
+              "Args": {
+                "outputTemplate": "[{Timestamp:HH:mm:ss} {SourceContext} [{Level}] {Message}{NewLine}{Exception}",
+                "theme": "Serilog.Sinks.SystemConsole.Themes.SystemConsoleTheme::Grayscale, Serilog.Sinks.Console"
+              }
+            }
+          ]
+        },
+        "restrictedToMinimumLevel": "Verbose",
+        "levelSwitch": "$controlSwitch"
+      }
+    },
+    "WriteTo:Async": {
+      "Name": "Async",
+      "Args": {
+        "configure": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "%TEMP%/Logs/serilog-configuration-sample.txt",
+              "outputTemplate": "{Timestamp:o} [{Level:u3}] ({Application}/{MachineName}/{ThreadId}/{ThreadName}) {Message}{NewLine}{Exception}"
+            }
+          }
+        ]
+      }
+    },
+    "WriteTo:ConditionalSink": {
+      "Name": "Conditional",
+      "Args": {
+        "expression": "@Level in ['Error', 'Fatal']",
+        "configureSink": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "%TEMP%/Logs/serilog-configuration-sample-errors.txt",
+              "formatter": {
+                "type": "Serilog.Formatting.Compact.CompactJsonFormatter, Serilog.Formatting.Compact",
+                "valueFormatter": {
+                  "typeTagName": "customTypeTag"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "Enrich": [
+      "FromLogContext",
+      "WithThreadId",
+      {
+        "Name": "AtLevel",
+        "Args": {
+          "enrichFromLevel": "Error",
+          "configureEnricher": ["WithThreadName"]
+        }
+      },
+      {
+        "Name": "When",
+        "Args": {
+          "expression": "Application = 'Sample'",
+          "configureEnricher": ["WithMachineName"]
+        }
+      }
+    ],
+    "Properties": {
+      "Application": "Sample"
+    },
+    "Destructure": [
+      {
+        "Name": "With",
+        "Args": { "policy": "Sample.CustomPolicy, Sample" }
+      },
+      {
+        "Name": "ToMaximumDepth",
+        "Args": { "maximumDestructuringDepth": 3 }
+      },
+      {
+        "Name": "ToMaximumStringLength",
+        "Args": { "maximumStringLength": 10 }
+      },
+      {
+        "Name": "ToMaximumCollectionCount",
+        "Args": { "maximumCollectionCount": 5 }
+      }
+    ],
+    "Filter": [
+      {
+        "Name": "ControlledBy",
+        "Args": {
+          "switch": "$filterSwitch"
+        }
+      },
+      {
+        "Name": "With",
+        "Args": {
+          "filter": {
+            "type": "Sample.CustomFilter, Sample",
+            "levelFilter": "Verbose"
+          }
+        }
+      }
+    ]
+  }
+}
