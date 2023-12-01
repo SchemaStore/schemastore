@@ -1,0 +1,44 @@
+name: CI
+
+# Reference documentation: https://docs.github.com/en/actions/reference
+
+# See https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
+on:
+  push:
+    branches: [main]
+
+jobs:
+  main:
+    name: deploy to
+    runs-on: ubuntu-20.04
+    env:
+      GH_REF: github.com/w3c/wcag.git
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+      - name: Setup Java
+        # see https://github.com/actions/setup-java#supported-distributions
+        # note that this also deploys ant
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+      - name: before_install
+        run: |
+          tar -xzvf lib/apache-ant-1.10.6-bin.tar.gz
+          export PATH=`pwd`/apache-ant-1.10.6/bin:$PATH
+      - name: script
+        run: |
+          mkdir output
+          git clone --depth=1 --branch=gh-pages https://github.com/w3c/wcag.git output
+          curl https://labs.w3.org/spec-generator/?type=respec"&"url=https://raw.githack.com/w3c/wcag/main/guidelines/index.html -o output/guidelines/22/index.html -f  --retry 3
+          curl https://labs.w3.org/spec-generator/?type=respec"&"url=https://raw.githack.com/w3c/wcag/main/requirements/22/index.html -o output/requirements/22/index.html -f  --retry 3
+          curl https://labs.w3.org/spec-generator/?type=respec"&"url=https://raw.githack.com/w3c/wcag/main/conformance-challenges/index.html -o output/conformance-challenges/index.html -f  --retry 3
+          ant deploy
+      - name: deploy
+        run: .github/scripts/deploy.sh
+        env:
+          BRANCH: gh-pages
+          LOCAL_DIR: output
+          GITHUB_TOKEN: ${{ secrets.W3CGRUNTBOT_TOKEN }}
+
