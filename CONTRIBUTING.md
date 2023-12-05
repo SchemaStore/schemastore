@@ -58,11 +58,6 @@ If you are modifying JavaScript files, we also recommend:
 
 - [ESLint](https://eslint.org) to automatically show JavaScript issues
 
-## Troubleshooting
-
-- There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
-- The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
-
 ## Best practices
 
 ✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
@@ -97,11 +92,15 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
   `Whether to ignore a theme configuration for the current site` for `Jekyll`.
 - Always add documentation url to descriptions when available in the following
   format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
-- Don't add undocumented properties or features to the schema.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
 [draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
+
+## Troubleshooting
+
+- There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
+- The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
 
 ## How-to
 
