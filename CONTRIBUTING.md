@@ -1,4 +1,4 @@
-# Contributing
+# Contributing <!-- omit from toc -->
 
 - [Introduction](#introduction)
 - [Overview](#overview)
@@ -8,11 +8,12 @@
 - [How-to](#how-to)
   - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
   - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
-  - [How to add a schema with multiple versions](#how-to-add-a-schema-with-multiple-versions)
-  - [How to move a schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-schema-from-schemastore-to-somewhere-thats-self-hosted)
-  - [How to include a `$ref` to a SchemaStore schema](#how-to-include-a-ref-to-a-schemastore-schema)
-  - [How to include a `$ref` to an external schema](#how-to-include-a-ref-to-an-external-schema)
-  - [How to validate schema in non-strict mode](#how-to-validate-schema-in-non-strict-mode)
+  - [How to add a JSON Schema with multiple versions](#how-to-add-a-json-schema-with-multiple-versions)
+  - [How to move a JSON Schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-json-schema-from-schemastore-to-somewhere-thats-self-hosted)
+  - [How to add a `$ref` to a JSON Schema that's hosted in this repository](#how-to-add-a-ref-to-a-json-schema-thats-hosted-in-this-repository)
+  - [How to add a `$ref` to a JSON Schema that's self-hosted](#how-to-add-a-ref-to-a-json-schema-thats-self-hosted)
+  - [How to validate a JSON Schema](#how-to-validate-a-json-schema)
+  - [How to ignore validation errors in a JSON Schema](#how-to-ignore-validation-errors-in-a-json-schema)
 
 ## Introduction
 
@@ -57,16 +58,18 @@ If you are modifying JavaScript files, we also recommend:
 
 - [ESLint](https://eslint.org) to automatically show JavaScript issues
 
-## Troubleshooting
-
-- There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
-- The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
-
 ## Best practices
 
 ✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
 
 ✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
+
+There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses JSON Schema to validate your JSON Schema. It checks that:
+
+- `type`, `title`, `description` properties are required
+- There are no empty arrays. For instance, it's impossible to write less than 2 sub-schemas for `allOf`
+- `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
+- It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
 
 :x: **Don't forget** add test files.
 
@@ -89,10 +92,15 @@ If you are modifying JavaScript files, we also recommend:
   `Whether to ignore a theme configuration for the current site` for `Jekyll`.
 - Always add documentation url to descriptions when available in the following
   format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
-- Don't add undocumented properties or features to the schema.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
+[draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
+
+## Troubleshooting
+
+- There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
+- The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
 
 ## How-to
 
@@ -191,9 +199,9 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/1211/files) as an 
 },
 ```
 
-### How to add a schema with multiple versions
+### How to add a JSON Schema with multiple versions
 
-Refer to this [`agripparc` PR](https://github.com/SchemaStore/schemastore/pull/1950/files) as an example. First, your schema names should be postfixed with the version number.
+Refer to this [`agripparc` PR](https://github.com/SchemaStore/schemastore/pull/1950/files) as an example. First, your schema names should be suffix with the version number.
 
 - `src/schemas/json/agripparc-1.2.json`
 - `src/schemas/json/agripparc-1.3.json`
@@ -215,7 +223,7 @@ Then, use the `versions` field to list each of them. Add the latest version to t
 }
 ```
 
-### How to move a schema from SchemaStore to somewhere that's self-hosted
+### How to move a JSON Schema from SchemaStore to somewhere that's self-hosted
 
 Simply changing the `url` field in the schema catalog (as described [here](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)) is not enough. You must also:
 
@@ -224,7 +232,7 @@ Simply changing the `url` field in the schema catalog (as described [here](#how-
 
 See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a full example.
 
-### How to include a `$ref` to a SchemaStore schema
+### How to add a `$ref` to a JSON Schema that's hosted in this repository
 
 `$ref` from `schema_x.json` to `schema_y.json`
 
@@ -235,19 +243,55 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 - Within [schema-validation.json](./src/schema-validation.json), in `"options": []`, add an entry:
   `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
 
-### How to include a `$ref` to an external schema
+### How to add a `$ref` to a JSON Schema that's self-hosted
 
 This currently isn't possible. This is tracked by [issue #2731](https://github.com/SchemaStore/schemastore/issues/2731).
 
-### How to validate schema in non-strict mode
+### How to validate a JSON Schema
 
-> **Info** > **Please only do this if you _must_. Validating in strict mode catches many common errors by schema authors and improves schema quality.**
+This repository validations JSON Schemas in multiple ways:
 
-When validating your schema, you may encounter errors like:
+- "Meta validation"
+  - Check there are no unused files or directories
+  - Check that schema is valid JSON
+  - Check that the entry in `catalog.json` is valid
+  - etc.
+- AJV strict mode validation
+  - Checks schema to prevent any unexpected behaviors or silently ignored mistakes
+  - Fixing strict mode errors does not change validation results, it only serves to improve schema quality
+  - More info at [Ajv Strict mode docs](https://ajv.js.org/strict-mode.html#strict-schema)
+- Schema validation
+  - Actually uses the schema against any test files
+  - Checks that schemas properly constrain the object as schema authors intended
+
+To validate all schemas, run:
+
+```console
+npm run grunt
+```
+
+Because there are hundreds of schemas, you may only want to validate a single one to save time. To do this, run:
+
+```console
+npm run grunt -- --SchemaName=<schemaName.json>
+```
+
+For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `npm run grunt -- --SchemaName=ava.json`
+
+### How to ignore validation errors in a JSON Schema
+
+> **Note**
+> Please only do this if you _must_. Validating in strict mode catches many common errors by schema authors and improves schema quality.
+
+Sometimes, the build fails due to a failed validation check. See a list of validation checks [here](#how-to-validate-a-json-schema). An error may look like:
 
 ```txt
 >> compile              | schemas/json/prefect-deploy.json (draft-07)(FullStrictMode)
 >> Error: strict mode: use allowUnionTypes to allow union type keyword at "#/definitions/prefect_docker.deployments.steps.push_docker_image/properties/credentials" (strictTypes)
 ```
 
-A full list is available at the [avj documentation](https://ajv.js.org/strict-mode.html#prevent-unexpected-validation). To disable any of the strict validation errors, please add your schema file to the `ajvNotStrictMode` field in `src/schema-validation.json`.
+To ignore most validation errors, you need to modify `src/schema-validation.json`:
+
+- If a strict error fails, you need to add your JSON Schema to the `ajvNotStrictMode` array
+- If you are getting "unknown format" or "unknown keyword" errors, you need to add your JSON Schema to the `options` array
+- If you are using a recent version of the JSON Schema specification, you will need to add your JSON Schema to the `highSchemaVersion` array
