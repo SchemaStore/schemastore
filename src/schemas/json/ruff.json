@@ -576,6 +576,10 @@
             "type": "string"
           }
         },
+        "from-first": {
+          "description": "Whether to place `import from` imports before straight imports when sorting.\n\nFor example, by default, imports will be sorted such that straight imports appear before `import from` imports, as in: ```python import os import sys from typing import List ```\n\nSetting `from-first = true` will instead sort such that `import from` imports appear before straight imports, as in: ```python from typing import List import os import sys ```",
+          "type": ["boolean", "null"]
+        },
         "known-first-party": {
           "description": "A list of modules to consider first-party, regardless of whether they can be identified as such via introspection of the local filesystem.\n\nSupports glob patterns. For more information on the glob syntax, refer to the [`globset` documentation](https://docs.rs/globset/latest/globset/#syntax).",
           "type": ["array", "null"],
@@ -597,6 +601,14 @@
             "type": "string"
           }
         },
+        "length-sort": {
+          "description": "Sort imports by their string length, such that shorter imports appear before longer imports. For example, by default, imports will be sorted alphabetically, as in: ```python import collections import os ```\n\nSetting `length-sort = true` will instead sort such that shorter imports appear before longer imports, as in: ```python import os import collections ```",
+          "type": ["boolean", "null"]
+        },
+        "length-sort-straight": {
+          "description": "Sort straight imports by their string length. Similar to `length-sort`, but applies only to straight imports and doesn't affect `from` imports.",
+          "type": ["boolean", "null"]
+        },
         "lines-after-imports": {
           "description": "The number of blank lines to place after imports. Use `-1` for automatic determination.\n\nWhen using the formatter, only the values `-1`, `1`, and `2` are compatible because it enforces at least one empty and at most two empty lines after imports.",
           "type": ["integer", "null"],
@@ -614,6 +626,10 @@
           "items": {
             "$ref": "#/definitions/ImportSection"
           }
+        },
+        "no-sections": {
+          "description": "Put all imports into the same section bucket.\n\nFor example, rather than separating standard library and third-party imports, as in: ```python import os import sys\n\nimport numpy import pandas ```\n\nSetting `no-sections = true` will instead group all imports into a single section: ```python import os import numpy import pandas import sys ```",
+          "type": ["boolean", "null"]
         },
         "order-by-type": {
           "description": "Order imports by type, which is determined by case, in addition to alphabetically.",
@@ -1157,7 +1173,7 @@
       "type": "object",
       "properties": {
         "classmethod-decorators": {
-          "description": "A list of decorators that, when applied to a method, indicate that the method should be treated as a class method (in addition to the builtin `@classmethod`).\n\nFor example, Ruff will expect that any method decorated by a decorator in this list takes a `cls` argument as its first argument.\n\nExpects to receive a list of fully-qualified names (e.g., `pydantic.validator`, rather than `validator`).",
+          "description": "A list of decorators that, when applied to a method, indicate that the method should be treated as a class method (in addition to the builtin `@classmethod`).\n\nFor example, Ruff will expect that any method decorated by a decorator in this list takes a `cls` argument as its first argument.\n\nExpects to receive a list of fully-qualified names (e.g., `pydantic.validator`, rather than `validator`) or alternatively a plain name which is then matched against the last segment in case the decorator itself consists of a dotted name.",
           "type": ["array", "null"],
           "items": {
             "type": "string"
@@ -1178,7 +1194,7 @@
           }
         },
         "staticmethod-decorators": {
-          "description": "A list of decorators that, when applied to a method, indicate that the method should be treated as a static method (in addition to the builtin `@staticmethod`).\n\nFor example, Ruff will expect that any method decorated by a decorator in this list has no `self` or `cls` argument.\n\nExpects to receive a list of fully-qualified names (e.g., `belay.Device.teardown`, rather than `teardown`).",
+          "description": "A list of decorators that, when applied to a method, indicate that the method should be treated as a static method (in addition to the builtin `@staticmethod`).\n\nFor example, Ruff will expect that any method decorated by a decorator in this list has no `self` or `cls` argument.\n\nExpects to receive a list of fully-qualified names (e.g., `belay.Device.teardown`, rather than `teardown`) or alternatively a plain name which is then matched against the last segment in case the decorator itself consists of a dotted name.",
           "type": ["array", "null"],
           "items": {
             "type": "string"
@@ -1233,7 +1249,7 @@
       "type": "object",
       "properties": {
         "convention": {
-          "description": "Whether to use Google-style or NumPy-style conventions or the [PEP 257](https://peps.python.org/pep-0257/) defaults when analyzing docstring sections.\n\nEnabling a convention will force-disable any rules that are not included in the specified convention. As such, the intended use is to enable a convention and then selectively disable any additional rules on top of it.\n\nFor example, to use Google-style conventions but avoid requiring documentation for every function parameter:\n\n```toml [tool.ruff.lint] # Enable all `pydocstyle` rules, limiting to those that adhere to the # Google convention via `convention = \"google\"`, below. select = [\"D\"]\n\n# On top of the Google convention, disable `D417`, which requires # documentation for every function parameter. ignore = [\"D417\"]\n\n[tool.ruff.lint.pydocstyle] convention = \"google\" ```\n\nAs conventions force-disable all rules not included in the convention, enabling _additional_ rules on top of a convention is currently unsupported.",
+          "description": "Whether to use Google-style or NumPy-style conventions or the [PEP 257](https://peps.python.org/pep-0257/) defaults when analyzing docstring sections.\n\nEnabling a convention will disable all rules that are not included in the specified convention. As such, the intended workflow is to enable a convention and then selectively enable or disable any additional rules on top of it.\n\nFor example, to use Google-style conventions but avoid requiring documentation for every function parameter:\n\n```toml [tool.ruff.lint] # Enable all `pydocstyle` rules, limiting to those that adhere to the # Google convention via `convention = \"google\"`, below. select = [\"D\"]\n\n# On top of the Google convention, disable `D417`, which requires # documentation for every function parameter. ignore = [\"D417\"]\n\n[tool.ruff.lint.pydocstyle] convention = \"google\" ```\n\nTo enable an additional rule that's excluded from the convention, select the desired rule via its fully qualified rule code (e.g., `D400` instead of `D4` or `D40`):\n\n```toml [tool.ruff.lint] # Enable D400 on top of the Google convention. extend-select = [\"D400\"]\n\n[tool.ruff.lint.pydocstyle] convention = \"google\" ```",
           "anyOf": [
             {
               "$ref": "#/definitions/Convention"
@@ -1276,6 +1292,14 @@
     "PylintOptions": {
       "type": "object",
       "properties": {
+        "allow-dunder-method-names": {
+          "description": "Dunder methods name to allow, in addition to the default set from the Python standard library (see: `PLW3201`).",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
         "allow-magic-value-types": {
           "description": "Constant types to ignore when used as \"magic values\" (see: `PLR2004`).",
           "type": ["array", "null"],
@@ -1297,6 +1321,12 @@
         },
         "max-branches": {
           "description": "Maximum number of branches allowed for a function or method body (see: `PLR0912`).",
+          "type": ["integer", "null"],
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "max-positional-args": {
+          "description": "Maximum number of positional arguments allowed for a function or method definition (see: `PLR0917`).\n\nIf not specified, defaults to the value of `max-args`.",
           "type": ["integer", "null"],
           "format": "uint",
           "minimum": 0.0
@@ -1760,11 +1790,15 @@
         "FURB13",
         "FURB131",
         "FURB132",
+        "FURB136",
         "FURB14",
         "FURB140",
         "FURB145",
         "FURB148",
+        "FURB15",
+        "FURB152",
         "FURB16",
+        "FURB163",
         "FURB168",
         "FURB169",
         "FURB17",
@@ -1964,6 +1998,8 @@
         "PLE0704",
         "PLE1",
         "PLE11",
+        "PLE113",
+        "PLE1132",
         "PLE114",
         "PLE1142",
         "PLE12",
@@ -2001,6 +2037,8 @@
         "PLR0133",
         "PLR02",
         "PLR020",
+        "PLR0202",
+        "PLR0203",
         "PLR0206",
         "PLR04",
         "PLR040",
@@ -2014,16 +2052,21 @@
         "PLR0913",
         "PLR0915",
         "PLR0916",
+        "PLR0917",
         "PLR1",
         "PLR17",
         "PLR170",
         "PLR1701",
+        "PLR1704",
         "PLR1706",
         "PLR171",
         "PLR1711",
         "PLR1714",
         "PLR172",
         "PLR1722",
+        "PLR173",
+        "PLR1733",
+        "PLR1736",
         "PLR2",
         "PLR20",
         "PLR200",
@@ -2220,6 +2263,7 @@
         "Q001",
         "Q002",
         "Q003",
+        "Q004",
         "RET",
         "RET5",
         "RET50",
@@ -2280,6 +2324,7 @@
         "S2",
         "S20",
         "S201",
+        "S202",
         "S3",
         "S30",
         "S301",
@@ -2326,6 +2371,7 @@
         "S608",
         "S609",
         "S61",
+        "S611",
         "S612",
         "S7",
         "S70",
