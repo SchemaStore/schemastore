@@ -13,7 +13,7 @@ There are language servers that use schemas from [SchemaStore](https://www.schem
 
 - [`tamasfe/taplo`](https://github.com/tamasfe/taplo)
   - Used by the VSCode [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
-    - Reads the `x-taplo` field to enhance the editing experience.
+  - Reads the `x-taplo` field to enhance the editing experience.
 
 ## Schema Properties
 

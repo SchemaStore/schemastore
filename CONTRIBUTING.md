@@ -3,11 +3,12 @@
 - [Introduction](#introduction)
 - [Overview](#overview)
 - [Recommended Extensions](#recommended-extensions)
-- [Troubleshooting](#troubleshooting)
 - [Best practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
 - [How-to](#how-to)
-  - [How to add a JSON Schema that's local to this repository](#how-to-add-a-json-schema-thats-local-to-this-repository)
+  - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
   - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
+  - [How to edit an existing JSON Schema](#how-to-edit-an-existing-json-schema)
   - [How to add a JSON Schema with multiple versions](#how-to-add-a-json-schema-with-multiple-versions)
   - [How to move a JSON Schema from SchemaStore to somewhere that's self-hosted](#how-to-move-a-json-schema-from-schemastore-to-somewhere-thats-self-hosted)
   - [How to add a `$ref` to a JSON Schema that's hosted in this repository](#how-to-add-a-ref-to-a-json-schema-thats-hosted-in-this-repository)
@@ -104,7 +105,7 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 
 ## How-to
 
-### How to add a JSON Schema that's local to this repository
+### How to add a JSON Schema that's hosted in this repository
 
 Follow these instructions if you want to add the JSON schema file directly to this repository. If you want to keep the JSON schema hosted elsewhere, see [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal).
 
@@ -168,16 +169,7 @@ If you do not wish to use the `new_schema` Grunt task, the manual steps are list
 
 </details>
 
-Once you have created the schema and its associated testing files, you can run the Grunt task that validates that your schema is correct:
-
-```sh
-cd src
-npm run grunt
-```
-
-To test a single schema, execute `npm run grunt -- --SchemaName=<schemaName.json>`.
-
-Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`. If the task succeeds, your changes are valid and you can safely create a PR.
+Finally, validate your changes. See [How to Validate a JSON Schema](#how-to-validate-a-json-schema) for details.
 
 ### How to add a JSON Schema that's self-hosted/remote/external
 
@@ -198,6 +190,21 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/1211/files) as an 
   "url": "https://raw.githubusercontent.com/ory/hydra/master/.schema/version.schema.json"
 },
 ```
+
+### How to edit an existing JSON Schema
+
+First, clone the repository:
+
+```sh
+git clone https://github.com/SchemaStore/schemastore
+cd schemastore
+```
+
+Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](src/package.json).
+
+Now, modify the schema you intend to modify. Schemas are located under `src/schemas/json`.
+
+Finally, validate your changes. See [How to Validate a JSON Schema](#how-to-validate-a-json-schema) for details.
 
 ### How to add a JSON Schema with multiple versions
 
@@ -277,6 +284,8 @@ npm run grunt -- --SchemaName=<schemaName.json>
 ```
 
 For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `npm run grunt -- --SchemaName=ava.json`
+
+Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`. If the task succeeds, your changes are valid and you can safely create a PR.
 
 ### How to ignore validation errors in a JSON Schema
 
