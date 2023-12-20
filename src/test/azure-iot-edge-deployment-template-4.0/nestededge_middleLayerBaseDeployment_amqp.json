@@ -2,37 +2,71 @@
   "modulesContent": {
     "$edgeAgent": {
       "properties.desired": {
-        "schemaVersion": "1.1",
-        "runtime": {
-          "type": "docker",
-          "settings": {
-            "minDockerVersion": "v1.25",
-            "loggingOptions": ""
+        "modules": {
+          "IoTEdgeAPIProxy": {
+            "env": {
+              "NGINX_DEFAULT_PORT": {
+                "value": "443"
+              }
+            },
+            "restartPolicy": "always",
+            "settings": {
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"443/tcp\": [{\"HostPort\": \"443\"}]}}}",
+              "image": "$upstream:443/microsoft/azureiotedge-api-proxy:<Build.BuildNumber>-linux-<Architecture>"
+            },
+            "startupOrder": 3,
+            "status": "running",
+            "type": "docker",
+            "version": "1.0"
+          },
+          "relayer1": {
+            "env": {
+              "EnableTrcReporting": {
+                "value": false
+              },
+              "inputName": {
+                "value": "input1"
+              },
+              "outputName": {
+                "value": "output1"
+              },
+              "transportType": {
+                "value": "Amqp"
+              }
+            },
+            "restartPolicy": "always",
+            "settings": {
+              "createOptions": "",
+              "image": "$upstream:443/microsoft/azureiotedge-relayer:<Build.BuildNumber>-linux-<Architecture>"
+            },
+            "status": "running",
+            "type": "docker",
+            "version": "1.0"
           }
         },
+        "runtime": {
+          "settings": {
+            "loggingOptions": "",
+            "minDockerVersion": "v1.25"
+          },
+          "type": "docker"
+        },
+        "schemaVersion": "1.1",
         "systemModules": {
           "edgeAgent": {
-            "type": "docker",
-            "settings": {
-              "image": "$upstream:443/microsoft/azureiotedge-agent:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": "{\"HostConfig\":{\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}}}"
-            },
             "env": {
               "UpstreamProtocol": {
                 "value": "amqp"
               }
-            }
+            },
+            "settings": {
+              "createOptions": "{\"HostConfig\":{\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}}}",
+              "image": "$upstream:443/microsoft/azureiotedge-agent:<Build.BuildNumber>-linux-<Architecture>"
+            },
+            "type": "docker"
           },
           "edgeHub": {
-            "type": "docker",
-            "settings": {
-              "image": "$upstream:443/microsoft/azureiotedge-hub:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"8883/tcp\": [{\"HostPort\": \"8883\"}],\"5671/tcp\": [{\"HostPort\": \"5671\"}]}}}"
-            },
             "env": {
-              "experimentalFeatures__enabled": {
-                "value": "true"
-              },
               "DeviceScopeCacheRefreshDelaySecs": {
                 "value": 0
               },
@@ -41,77 +75,43 @@
               },
               "SslProtocols": {
                 "value": "tls1.2"
+              },
+              "experimentalFeatures__enabled": {
+                "value": "true"
               }
             },
-            "status": "running",
-            "restartPolicy": "always"
-          }
-        },
-        "modules": {
-          "IoTEdgeAPIProxy": {
-            "version": "1.0",
-            "type": "docker",
-            "status": "running",
             "restartPolicy": "always",
-            "startupOrder": 3,
             "settings": {
-              "image": "$upstream:443/microsoft/azureiotedge-api-proxy:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"443/tcp\": [{\"HostPort\": \"443\"}]}}}"
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"8883/tcp\": [{\"HostPort\": \"8883\"}],\"5671/tcp\": [{\"HostPort\": \"5671\"}]}}}",
+              "image": "$upstream:443/microsoft/azureiotedge-hub:<Build.BuildNumber>-linux-<Architecture>"
             },
-            "env": {
-              "NGINX_DEFAULT_PORT": {
-                "value": "443"
-              }
-            }
-          },
-          "relayer1": {
-            "version": "1.0",
-            "type": "docker",
             "status": "running",
-            "restartPolicy": "always",
-            "env": {
-              "transportType": {
-                "value": "Amqp"
-              },
-              "inputName": {
-                "value": "input1"
-              },
-              "outputName": {
-                "value": "output1"
-              },
-              "EnableTrcReporting": {
-                "value": false
-              }
-            },
-            "settings": {
-              "image": "$upstream:443/microsoft/azureiotedge-relayer:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": ""
-            }
+            "type": "docker"
           }
         }
       }
     },
     "$edgeHub": {
       "properties.desired": {
-        "schemaVersion": "1.2",
-        "routes": {
-          "ToRelayer1": "FROM /messages/* WHERE $connectionDeviceId = \"L3LeafToRelayer1\" INTO BrokeredEndpoint(\"/modules/relayer1/inputs/input1\")",
-          "ToUpstream": "FROM /messages/* INTO $upstream"
-        },
-        "storeAndForwardConfiguration": {
-          "timeToLiveSecs": 7200
-        },
         "mqttBroker": {
           "authorizations": [
             {
-              "identities": ["{{iot:identity}}"],
               "allow": [
                 {
                   "operations": ["mqtt:connect"]
                 }
-              ]
+              ],
+              "identities": ["{{iot:identity}}"]
             }
           ]
+        },
+        "routes": {
+          "ToRelayer1": "FROM /messages/* WHERE $connectionDeviceId = \"L3LeafToRelayer1\" INTO BrokeredEndpoint(\"/modules/relayer1/inputs/input1\")",
+          "ToUpstream": "FROM /messages/* INTO $upstream"
+        },
+        "schemaVersion": "1.2",
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
         }
       }
     }

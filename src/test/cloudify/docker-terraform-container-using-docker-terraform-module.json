@@ -12,65 +12,206 @@
     "plugin:cloudify-docker-plugin"
   ],
   "inputs": {
-    "docker_host": {
-      "type": "string",
-      "required": true
-    },
-    "docker_user": {
-      "type": "string",
-      "required": true
-    },
-    "terraform_source": {
-      "type": "string",
-      "default": "https://github.com/cloudify-community/terraform-example.git"
-    },
-    "container_volume": {
-      "description": "volume that will be mapped to container",
-      "type": "string",
-      "default": "/terraform"
-    },
-    "terraform_version": {
-      "description": "Terraform version to prepare image for",
-      "type": "string",
-      "default": "0.11.7"
-    },
-    "terraform_plugins": {
-      "description": "List of Plugins URLs to install on terraform container",
-      "type": "list",
-      "default": [
-        "https://releases.hashicorp.com/terraform-provider-aws/2.49.0/terraform-provider-aws_2.49.0_linux_amd64.zip"
-      ]
-    },
-    "image_tag": {
-      "description": "Tag for the image to build",
-      "type": "string",
-      "default": "terraform:"
-    },
     "aws_access_key_id": {
-      "type": "string",
       "default": {
         "get_secret": "aws_access_key_id"
-      }
-    },
-    "aws_secret_access_key": {
-      "type": "string",
-      "default": {
-        "get_secret": "aws_secret_access_key"
-      }
+      },
+      "type": "string"
     },
     "aws_region_name": {
-      "type": "string",
-      "default": "us-east-1"
+      "default": "us-east-1",
+      "type": "string"
+    },
+    "aws_secret_access_key": {
+      "default": {
+        "get_secret": "aws_secret_access_key"
+      },
+      "type": "string"
+    },
+    "container_volume": {
+      "default": "/terraform",
+      "description": "volume that will be mapped to container",
+      "type": "string"
+    },
+    "docker_host": {
+      "required": true,
+      "type": "string"
+    },
+    "docker_user": {
+      "required": true,
+      "type": "string"
+    },
+    "image_tag": {
+      "default": "terraform:",
+      "description": "Tag for the image to build",
+      "type": "string"
     },
     "public_key": {
       "default": {
         "get_secret": "agent_key_public"
       }
+    },
+    "terraform_plugins": {
+      "default": [
+        "https://releases.hashicorp.com/terraform-provider-aws/2.49.0/terraform-provider-aws_2.49.0_linux_amd64.zip"
+      ],
+      "description": "List of Plugins URLs to install on terraform container",
+      "type": "list"
+    },
+    "terraform_source": {
+      "default": "https://github.com/cloudify-community/terraform-example.git",
+      "type": "string"
+    },
+    "terraform_version": {
+      "default": "0.11.7",
+      "description": "Terraform version to prepare image for",
+      "type": "string"
     }
   },
   "node_templates": {
+    "docker_terraform_container": {
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "stop": {
+            "inputs": {
+              "stop_command": {
+                "concat": [
+                  "terraform destroy -auto-approve -no-color -var-file ",
+                  {
+                    "get_attribute": [
+                      "docker_terraform_container_files",
+                      "variables_file"
+                    ]
+                  },
+                  " ",
+                  {
+                    "get_attribute": [
+                      "docker_terraform_container_files",
+                      "storage_dir"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "properties": {
+        "client_config": {
+          "docker_host": {
+            "get_input": "docker_host"
+          },
+          "docker_rest_port": 2375
+        },
+        "resource_config": {
+          "container_args": {
+            "command": {
+              "get_attribute": [
+                "docker_terraform_container_files",
+                "terraform_container_command_arg"
+              ]
+            },
+            "environment": {
+              "AWS_ACCESS_KEY_ID": {
+                "get_input": "aws_access_key_id"
+              },
+              "AWS_DEFAULT_REGION": {
+                "get_input": "aws_region_name"
+              },
+              "AWS_SECRET_ACCESS_KEY": {
+                "get_input": "aws_secret_access_key"
+              }
+            },
+            "stdin_open": true,
+            "volumes": [
+              {
+                "get_input": "container_volume"
+              }
+            ],
+            "volumes_mapping": [
+              {
+                "get_attribute": [
+                  "docker_terraform_container_files",
+                  "destination"
+                ]
+              }
+            ],
+            "working_dir": {
+              "get_attribute": [
+                "docker_terraform_container_files",
+                "storage_dir"
+              ]
+            }
+          },
+          "image_tag": {
+            "concat": [
+              {
+                "get_input": "image_tag"
+              },
+              {
+                "get_input": "terraform_version"
+              }
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "target": "docker_terraform_image",
+          "type": "cloudify.relationships.depends_on"
+        },
+        {
+          "target": "docker_terraform_container_files",
+          "type": "cloudify.relationships.depends_on"
+        }
+      ],
+      "type": "cloudify.nodes.docker.container"
+    },
+    "docker_terraform_container_files": {
+      "properties": {
+        "docker_machine": {
+          "container_volume": {
+            "get_input": "container_volume"
+          },
+          "docker_ip": {
+            "get_input": "docker_host"
+          },
+          "docker_key": {
+            "get_secret": "agent_key_private"
+          },
+          "docker_user": {
+            "get_input": "docker_user"
+          }
+        },
+        "resource_config": {
+          "backend": {},
+          "environment_variables": {
+            "AWS_ACCESS_KEY_ID": {
+              "get_input": "aws_access_key_id"
+            },
+            "AWS_DEFAULT_REGION": {
+              "get_input": "aws_region_name"
+            },
+            "AWS_SECRET_ACCESS_KEY": {
+              "get_input": "aws_secret_access_key"
+            }
+          },
+          "source": "",
+          "variables": {
+            "aws_region": {
+              "get_input": "aws_region_name"
+            },
+            "key_name": "terraform",
+            "public_key": {
+              "get_input": "public_key"
+            }
+          }
+        },
+        "terraform_plugins": []
+      },
+      "type": "cloudify.nodes.docker.terraform_module"
+    },
     "docker_terraform_image": {
-      "type": "cloudify.nodes.docker.image",
       "properties": {
         "client_config": {
           "docker_host": {
@@ -104,149 +245,8 @@
             ]
           }
         }
-      }
-    },
-    "docker_terraform_container_files": {
-      "type": "cloudify.nodes.docker.terraform_module",
-      "properties": {
-        "docker_machine": {
-          "docker_ip": {
-            "get_input": "docker_host"
-          },
-          "docker_user": {
-            "get_input": "docker_user"
-          },
-          "docker_key": {
-            "get_secret": "agent_key_private"
-          },
-          "container_volume": {
-            "get_input": "container_volume"
-          }
-        },
-        "terraform_plugins": [],
-        "resource_config": {
-          "source": "",
-          "backend": {},
-          "variables": {
-            "aws_region": {
-              "get_input": "aws_region_name"
-            },
-            "key_name": "terraform",
-            "public_key": {
-              "get_input": "public_key"
-            }
-          },
-          "environment_variables": {
-            "AWS_ACCESS_KEY_ID": {
-              "get_input": "aws_access_key_id"
-            },
-            "AWS_SECRET_ACCESS_KEY": {
-              "get_input": "aws_secret_access_key"
-            },
-            "AWS_DEFAULT_REGION": {
-              "get_input": "aws_region_name"
-            }
-          }
-        }
-      }
-    },
-    "docker_terraform_container": {
-      "type": "cloudify.nodes.docker.container",
-      "properties": {
-        "client_config": {
-          "docker_host": {
-            "get_input": "docker_host"
-          },
-          "docker_rest_port": 2375
-        },
-        "resource_config": {
-          "image_tag": {
-            "concat": [
-              {
-                "get_input": "image_tag"
-              },
-              {
-                "get_input": "terraform_version"
-              }
-            ]
-          },
-          "container_args": {
-            "command": {
-              "get_attribute": [
-                "docker_terraform_container_files",
-                "terraform_container_command_arg"
-              ]
-            },
-            "stdin_open": true,
-            "working_dir": {
-              "get_attribute": [
-                "docker_terraform_container_files",
-                "storage_dir"
-              ]
-            },
-            "environment": {
-              "AWS_ACCESS_KEY_ID": {
-                "get_input": "aws_access_key_id"
-              },
-              "AWS_SECRET_ACCESS_KEY": {
-                "get_input": "aws_secret_access_key"
-              },
-              "AWS_DEFAULT_REGION": {
-                "get_input": "aws_region_name"
-              }
-            },
-            "volumes": [
-              {
-                "get_input": "container_volume"
-              }
-            ],
-            "volumes_mapping": [
-              {
-                "get_attribute": [
-                  "docker_terraform_container_files",
-                  "destination"
-                ]
-              }
-            ]
-          }
-        }
       },
-      "relationships": [
-        {
-          "type": "cloudify.relationships.depends_on",
-          "target": "docker_terraform_image"
-        },
-        {
-          "type": "cloudify.relationships.depends_on",
-          "target": "docker_terraform_container_files"
-        }
-      ],
-      "interfaces": {
-        "cloudify.interfaces.lifecycle": {
-          "stop": {
-            "inputs": {
-              "stop_command": {
-                "concat": [
-                  "terraform destroy -auto-approve -no-color -var-file ",
-                  {
-                    "get_attribute": [
-                      "docker_terraform_container_files",
-                      "variables_file"
-                    ]
-                  },
-                  " ",
-                  {
-                    "get_attribute": [
-                      "docker_terraform_container_files",
-                      "storage_dir"
-                    ]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
+      "type": "cloudify.nodes.docker.image"
     }
   },
   "tosca_definitions_version": "cloudify_dsl_1_3"

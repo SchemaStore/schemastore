@@ -1,31 +1,5 @@
 {
   "Production": {
-    "tasks": [
-      "clean",
-      {
-        "artifact-download": {
-          "name": "AllPackages",
-          "destination": "/workdir"
-        }
-      },
-      {
-        "script": {
-          "interpreter": "cmd",
-          "scripts": ["echo 'hello world'", "echo \"I'm done\""]
-        }
-      }
-    ],
-    "variables": {
-      "variableName": "variableValue"
-    },
-    "triggers": [
-      {
-        "environment-success": "Staging"
-      },
-      {
-        "cron": "0 0 0 ? * *"
-      }
-    ],
     "notifications": [
       {
         "events": "deployment-failed",
@@ -38,30 +12,38 @@
           }
         ]
       }
-    ]
-  },
-  "QA": {
+    ],
     "tasks": [
       "clean",
       {
         "artifact-download": {
-          "destination": "/workdir"
+          "destination": "/workdir",
+          "name": "AllPackages"
         }
       },
       {
-        "script": ["echo 'hello world'", "echo \"I'm done\""]
-      },
-      {
-        "artifact-download": {
-          "artifacts": [
-            {
-              "name": "my-artifacts",
-              "destination": "/my-artifacts"
-            }
-          ]
+        "script": {
+          "interpreter": "cmd",
+          "scripts": ["echo 'hello world'", "echo \"I'm done\""]
         }
       }
     ],
+    "triggers": [
+      {
+        "environment-success": "Staging"
+      },
+      {
+        "cron": "0 0 0 ? * *"
+      }
+    ],
+    "variables": {
+      "variableName": "variableValue"
+    }
+  },
+  "QA": {
+    "docker": {
+      "image": "docker-image-name"
+    },
     "final-tasks": [
       {
         "script": ["echo \"let's clean it up\""]
@@ -70,34 +52,13 @@
         "artifact-download": {
           "artifacts": [
             {
-              "name": "my-artifacts",
-              "destination": "/my-artifacts"
+              "destination": "/my-artifacts",
+              "name": "my-artifacts"
             },
             {
               "name": "their-artifacts"
             }
           ]
-        }
-      }
-    ],
-    "requirements": ["isDragonLazy"],
-    "docker": {
-      "image": "docker-image-name"
-    },
-    "variables": {
-      "variableName": "variableValue"
-    },
-    "triggers": [
-      "build-success",
-      {
-        "stage-success": {
-          "stage": "Stage 2"
-        }
-      },
-      {
-        "stage-success": {
-          "stage": "Stage 3",
-          "branch": "develop-branch"
         }
       }
     ],
@@ -121,9 +82,76 @@
           }
         ]
       }
-    ]
+    ],
+    "requirements": ["isDragonLazy"],
+    "tasks": [
+      "clean",
+      {
+        "artifact-download": {
+          "destination": "/workdir"
+        }
+      },
+      {
+        "script": ["echo 'hello world'", "echo \"I'm done\""]
+      },
+      {
+        "artifact-download": {
+          "artifacts": [
+            {
+              "destination": "/my-artifacts",
+              "name": "my-artifacts"
+            }
+          ]
+        }
+      }
+    ],
+    "triggers": [
+      "build-success",
+      {
+        "stage-success": {
+          "stage": "Stage 2"
+        }
+      },
+      {
+        "stage-success": {
+          "branch": "develop-branch",
+          "stage": "Stage 3"
+        }
+      }
+    ],
+    "variables": {
+      "variableName": "variableValue"
+    }
   },
   "Staging": {
+    "docker": {
+      "image": "docker-image-name",
+      "use-default-volumes": false,
+      "volumes": {
+        "${bamboo.tmp.directory}": "${bamboo.tmp.directory}",
+        "${bamboo.working.directory}": "${bamboo.working.directory}"
+      }
+    },
+    "notifications": [
+      {
+        "events": [
+          "deployment-failed",
+          "deployment-finished",
+          "deployment-started-and-finished"
+        ],
+        "recipients": [
+          {
+            "users": ["admin", "joe"]
+          },
+          {
+            "groups": ["bamboo-admin", "bamboo-users"]
+          },
+          {
+            "emails": ["admin@gmail.com", "joe@gmail.com"]
+          }
+        ]
+      }
+    ],
     "tasks": [
       "clean",
       {
@@ -136,17 +164,6 @@
       },
       "artifact-download"
     ],
-    "docker": {
-      "image": "docker-image-name",
-      "volumes": {
-        "${bamboo.working.directory}": "${bamboo.working.directory}",
-        "${bamboo.tmp.directory}": "${bamboo.tmp.directory}"
-      },
-      "use-default-volumes": false
-    },
-    "variables": {
-      "variableName": "variableValue"
-    },
     "triggers": [
       {
         "stage-success": "dragons stage"
@@ -157,26 +174,9 @@
         }
       }
     ],
-    "notifications": [
-      {
-        "recipients": [
-          {
-            "users": ["admin", "joe"]
-          },
-          {
-            "groups": ["bamboo-admin", "bamboo-users"]
-          },
-          {
-            "emails": ["admin@gmail.com", "joe@gmail.com"]
-          }
-        ],
-        "events": [
-          "deployment-failed",
-          "deployment-finished",
-          "deployment-started-and-finished"
-        ]
-      }
-    ]
+    "variables": {
+      "variableName": "variableValue"
+    }
   },
   "deployment": {
     "name": "Deployment project name",
@@ -184,10 +184,10 @@
   },
   "environments": ["QA", "Staging", "Production"],
   "release-naming": {
-    "next-version-name": "0.${bamboo.buildNumber}.${bamboo.quickCompileMavenGoals.experimental}",
     "applies-to-branches": true,
     "auto-increment": true,
-    "auto-increment-variables": ["quickCompileMavenGoals.experimental"]
+    "auto-increment-variables": ["quickCompileMavenGoals.experimental"],
+    "next-version-name": "0.${bamboo.buildNumber}.${bamboo.quickCompileMavenGoals.experimental}"
   },
   "version": 2
 }
