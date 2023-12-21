@@ -1,5 +1,6 @@
 <!-- markdownlint-disable no-inline-html -->
 <!-- markdownlint-disable no-emphasis-as-heading -->
+
 # Contributing <!-- omit from toc -->
 
 - [Introduction](#introduction)
