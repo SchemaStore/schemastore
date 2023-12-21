@@ -8,7 +8,6 @@
       "description": "Path pattern specifications for build.wheel-data",
       "items": {
         "anyOf": [
-          { "type": "string" },
           {
             "type": "object",
             "additionalProperties": false,
@@ -23,7 +22,8 @@
                 "description": "If specified, the relative paths of the matched files will be calculated based on this directory, otherwise the files will be flattened and installed directly under the scheme directory"
               }
             }
-          }
+          },
+          { "type": "string" }
         ]
       },
       "x-taplo": {
@@ -32,75 +32,124 @@
         }
       }
     },
-    "pdm-script": {
+    "env-vars": {
+      "type": "object",
+      "description": "Environment variables applied when running the script",
+      "additionalProperties": { "type": "string" }
+    },
+    "env-file": {
       "anyOf": [
         {
           "type": "object",
-
           "properties": {
-            "cmd": {
-              "anyOf": [
-                { "type": "string" },
-                {
-                  "type": "array",
-                  "items": { "type": "string" }
-                }
-              ],
-              "description": "Command that can be run from PDM's environment",
-              "examples": [
-                "flask run -p 54321",
-                ["flask", "run", "-p", "54321"]
-              ]
-            },
-            "call": {
+            "override": {
               "type": "string",
-              "description": "Call to a python callable",
-              "examples": [
-                "foo_package.bar_module:main",
-                "foo_package.bar_module:main('dev')"
-              ]
+              "description": "Path to a file with env vars. Existing vars will be overwritten"
             },
-            "shell": {
-              "type": "string",
-              "description": "Command that will be run in a shell environment",
-              "examples": ["cat error.log|grep CRITICAL > critical.log"]
-            },
-            "composite": {
-              "type": "array",
-              "items": { "type": "string" },
+            "additionalProperties": false
+          }
+        },
+        {
+          "type": "string",
+          "description": "Path to a file with env vars. Existing vars will not be overwritten"
+        }
+      ]
+    },
 
-              "description": "List of PDM scripts that should be run with this script",
-              "examples": [
-                ["lint", "test"],
-                ["lint mypackage/", "test -v tests/"]
-              ]
-            },
-            "env": {
+    "pdm-script": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
               "type": "object",
-              "description": "Environment variables applied to the script",
-              "additionalProperties": { "type": "string" }
-            },
-            "env_file": {
-              "anyOf": [
-                {
+              "required": ["call"],
+              "additionalProperties": false,
+              "properties": {
+                "call": {
                   "type": "string",
-                  "description": "Path to a file with env vars. Existing vars will not be overwritten"
+                  "description": "Call to a python callable",
+                  "examples": [
+                    "foo_package.bar_module:main",
+                    "foo_package.bar_module:main('dev')"
+                  ]
                 },
-                {
-                  "type": "object",
-                  "properties": {
-                    "override": {
-                      "type": "string",
-                      "description": "Path to a file with env vars. Existing vars will be overwritten"
-                    },
-                    "additionalProperties": false
-                  }
+                "env": {
+                  "$ref": "#/definitions/env-vars"
+                },
+                "env_file": {
+                  "$ref": "#/definitions/env-file"
                 }
-              ]
-            }
-          },
+              }
+            },
+            {
+              "type": "object",
+              "required": ["cmd"],
+              "additionalProperties": false,
+              "properties": {
+                "cmd": {
+                  "anyOf": [
+                    { "type": "string" },
+                    {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  ],
+                  "description": "Command that can be run from PDM's environment",
+                  "examples": [
+                    "flask run -p 54321",
+                    ["flask", "run", "-p", "54321"]
+                  ]
+                },
+                "env": {
+                  "$ref": "#/definitions/env-vars"
+                },
+                "env_file": {
+                  "$ref": "#/definitions/env-file"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["shell"],
+              "additionalProperties": false,
+              "properties": {
+                "shell": {
+                  "type": "string",
+                  "description": "Command that will be run in a shell environment",
+                  "examples": ["cat error.log|grep CRITICAL > critical.log"]
+                },
+                "env": {
+                  "$ref": "#/definitions/env-vars"
+                },
+                "env_file": {
+                  "$ref": "#/definitions/env-file"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["composite"],
+              "additionalProperties": false,
+              "properties": {
+                "composite": {
+                  "type": "array",
+                  "items": { "type": "string" },
 
-          "additionalProperties": false
+                  "description": "List of PDM scripts that should be run with this script",
+                  "examples": [
+                    ["lint", "test"],
+                    ["lint mypackage/", "test -v tests/"]
+                  ]
+                },
+                "env": {
+                  "$ref": "#/definitions/env-vars"
+                },
+                "env_file": {
+                  "$ref": "#/definitions/env-file"
+                }
+              }
+            }
+          ]
         },
         { "type": "string" }
       ],
@@ -114,6 +163,7 @@
       "type": "object",
       "description": "Package source",
       "required": ["name", "url"],
+
       "properties": {
         "name": {
           "type": "string",
@@ -390,8 +440,17 @@
 
       "properties": {
         "_": {
-          "$ref": "#/definitions/pdm-script",
-          "description": "Shared options for all scripts\nhttps://pdm-project.org/latest/usage/scripts/#shared-options"
+          "type": "object",
+
+          "description": "Shared options for all scripts\nhttps://pdm-project.org/latest/usage/scripts/#shared-options",
+          "properties": {
+            "env": {
+              "$ref": "#/definitions/env-vars"
+            },
+            "env_file": { "$ref": "#/definitions/env-file" }
+          },
+
+          "additionalProperties": false
         },
         "post_init": { "$ref": "#/definitions/pdm-script" },
         "pre_install": { "$ref": "#/definitions/pdm-script" },
