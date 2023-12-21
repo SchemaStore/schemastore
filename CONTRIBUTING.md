@@ -1,10 +1,16 @@
+<!-- markdownlint-disable no-inline-html -->
+<!-- markdownlint-disable no-emphasis-as-heading -->
 # Contributing <!-- omit from toc -->
 
 - [Introduction](#introduction)
 - [Overview](#overview)
 - [Recommended Extensions](#recommended-extensions)
 - [Best practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
+- [On](#on)
+- [Goal](#goal)
+  - [Undocumented Features](#undocumented-features)
+  - [API Compatibility](#api-compatibility)
+  - [Troubleshooting](#troubleshooting)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
   - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
@@ -32,7 +38,7 @@ There are various ways you can contribute:
   - Add positive/negative tests
   - Refactor to pass under strict mode
 
-Most people want to add a new schema. For steps on how to do this, read the [How to add a new JSON Schema](#how-to-add-a-json-schema-thats-local-to-this-repository) section below.
+Most people want to add a new schema. For steps on how to do this, read the [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository) section below.
 
 If you want to contribute, but not sure what needs fixing, see the [help wanted](https://github.com/SchemaStore/schemastore/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22help+wanted%22) and [good first issue](https://github.com/SchemaStore/schemastore/issues?q=is%3Aopen+label%3A%22good+first+issue%22+sort%3Aupdated-desc) labels on GitHub.
 
@@ -72,10 +78,9 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 - `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
 - It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
 
-:x: **Don't forget** add test files.
+❌ **Don't forget** add test files.
 
 - Always be consistent across your schema: order properties and describe in the one style.
-- Always use `$comment` to note about something to developers. You can refer to some issues here.
 - Always use `title` when property type is an object to enhance editor experience which use
   this property to show errors (like VS Code). [Why](./editor-features.md)?
 - Always use `description`, `type`, `additionalProperties`.
@@ -98,7 +103,74 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
 [draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
 
-## Troubleshooting
+## On
+
+## Goal
+
+The goal of JSON Schemas in this repository is to correctly validate schemas that are used by the actual tools. That means, if a property is undocumented or deprecated, it should still be included in the schema.
+
+### Undocumented Features
+
+The use of undocumented features in schemas is permitted and encouraged. However they must be labeled as such.
+
+It is preferred to add `UNDOCUMENTED.` to the beginning of `description`.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "experimental_useBranchPrediction": {
+      "type": "string",
+      "description": "UNDOCUMENTED. Enables branch prediction in the build."
+    }
+  }
+}
+```
+
+However, that is not always possible or correct. Alternatively, use `$comment`:
+
+```json
+{
+  "type": "object",
+  "tsBuildInfoFile": {
+    "$comment": "The value of 'null' is UNDOCUMENTED.",
+    "description": "Specify the folder for .tsbuildinfo incremental compilation files.",
+    "default": ".tsbuildinfo",
+    "type": ["string", "null"],
+    "description": "Specify the folder for .tsbuildinfo incremental compilation files."
+  }
+}
+```
+
+In this case, `{ "tsBuildInfoFile": null }` is not documented. Using a string value is, however.
+
+Note that JSON Schema draft `2019-09` adds support for a `deprecated` field. While this would be the best option, most schemas in this repository are `draft-07` - and as a result, Editors and IDEs may not use it.
+
+### API Compatibility
+
+Care must be taken to reduce breaking changes; some include:
+
+**1. Preserving schema names**
+
+When renaming a schema name, the old version must continue to exist. Its content will look something like:
+
+```json
+{
+  "$ref": "https://json.schemastore.org/NEWNAME.json"
+}
+```
+
+**2. Preserving schema paths**
+
+Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate-pyproject), accept passing in subpaths for validation like so:
+
+```sh
+validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/propert
+```
+
+This means that renames in subschema paths aren't zero-cost. If a rename is necessary, keep the old path and `$ref` where necessary.
+
+### Troubleshooting
 
 - There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
 - The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
