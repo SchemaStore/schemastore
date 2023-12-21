@@ -3,6 +3,35 @@
   "$id": "https://json.schemastore.org/partial-pdm.json",
   "$comment": "PDM table in pyproject.toml",
   "definitions": {
+    "wheel-data-array": {
+      "type": "array",
+      "description": "Path pattern specifications for build.wheel-data",
+      "items": {
+        "anyOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path pattern of included files"
+              },
+              "relative-to": {
+                "type": "string",
+                "description": "If specified, the relative paths of the matched files will be calculated based on this directory, otherwise the files will be flattened and installed directly under the scheme directory"
+              }
+            }
+          }
+        ]
+      },
+      "x-taplo": {
+        "links": {
+          "key": "https://backend.pdm-project.org/build_config/#wheel-data-files"
+        }
+      }
+    },
     "pdm-script": {
       "anyOf": [
         {
@@ -14,8 +43,7 @@
                 { "type": "string" },
                 {
                   "type": "array",
-                  "items": { "type": "string" },
-                  "additionalItems": false
+                  "items": { "type": "string" }
                 }
               ],
               "description": "Command that can be run from PDM's environment",
@@ -40,7 +68,7 @@
             "composite": {
               "type": "array",
               "items": { "type": "string" },
-              "additionalItems": false,
+
               "description": "List of PDM scripts that should be run with this script",
               "examples": [
                 ["lint", "test"],
@@ -71,12 +99,7 @@
               ]
             }
           },
-          "oneOf": [
-            { "type": "object", "required": ["cmd"] },
-            { "type": "object", "required": ["call"] },
-            { "type": "object", "required": ["shell"] },
-            { "type": "object", "required": ["composite"] }
-          ],
+
           "additionalProperties": false
         },
         { "type": "string" }
@@ -121,8 +144,8 @@
         "exclude_packages": {
           "type": "array",
           "items": { "type": "string" },
-          "additionalItems": false,
-          "description": "Glob patterns of packages that should not be used from this source",
+
+          "description": "Glob patterns of packages that should not be used from this source. Ignored if include_packages configuration is present",
           "examples": [["foo", "foo-*"]],
           "x-taplo": {
             "links": {
@@ -133,7 +156,7 @@
         "include_packages": {
           "type": "array",
           "items": { "type": "string" },
-          "additionalItems": false,
+
           "description": "Glob patterns of the only packages that should be used from this source",
           "examples": [["foo", "foo-*"]],
           "x-taplo": {
@@ -143,14 +166,7 @@
           }
         }
       },
-      "allOf": [
-        {
-          "not": {
-            "type": "object",
-            "required": ["include_packages", "exclude_packages"]
-          }
-        }
-      ],
+
       "additionalProperties": false,
       "x-taplo": {
         "links": {
@@ -366,8 +382,7 @@
         "links": {
           "key": "https://pdm-project.org/latest/usage/config/#configure-the-package-indexes"
         }
-      },
-      "additionalItems": false
+      }
     },
     "scripts": {
       "type": "object",
@@ -404,11 +419,187 @@
     "version": {
       "type": "object",
       "description": "Dynamic version options for PDM-backend",
-      "properties": {},
+      "required": ["source"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Dynamic version source",
+          "enum": ["file", "scm", "call"],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/metadata/#dynamic-project-version"
+            }
+          }
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to python file to read version from (file source)",
+          "examples": ["mypackage/__init__.py"],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/metadata/#read-from-a-static-string-in-the-given-file-path"
+            }
+          }
+        },
+        "tag_regex": {
+          "type": "string",
+          "description": "Regex for reading version from source control tag (scm source)",
+          "examples": [
+            "^(?:D*)?(?P<version>([1-9][0-9]*!)?(0|[1-9][0-9]*)(.(0|[1-9][0-9]*))*((a|b|c|rc)(0|[1-9][0-9]*))?(.post(0|[1-9][0-9]*))?(.dev(0|[1-9][0-9]*))?$)$"
+          ],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/metadata/#read-from-scm-tag-supporting-git-and-hg"
+            }
+          }
+        },
+        "getter": {
+          "type": "string",
+          "description": "Python callable for reading version",
+          "examples": [
+            "mypackage.version.get_version",
+            "mypackage.version.get_version('dev')"
+          ],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/metadata/#get-with-a-specific-function"
+            }
+          }
+        },
+        "write_to": {
+          "type": "string",
+          "description": "File path a generated version should be written to",
+          "examples": ["foo/version.txt", "foo/_version.py"],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/metadata/#writing-dynamic-version-to-file"
+            }
+          }
+        },
+        "write_template": {
+          "type": "string",
+          "description": "Template to use for generated version file",
+          "examples": ["__version__ = '{}'"],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/metadata/#writing-dynamic-version-to-file"
+            }
+          }
+        }
+      },
       "additionalProperties": false,
       "x-taplo": {
         "links": {
           "key": "https://backend.pdm-project.org/metadata/#dynamic-project-version"
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "description": "Configuration related to the build process with pdm-backend",
+      "properties": {
+        "includes": {
+          "type": "array",
+          "description": "Path patterns of files to be included in the package",
+          "items": { "type": "string" },
+          "examples": [["mypackage/", "script.py"]],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#include-or-exclude-files"
+            }
+          }
+        },
+        "excludes": {
+          "type": "array",
+          "description": "Path patterns of files to be excluded from package",
+          "items": { "type": "string" },
+          "examples": [["**/*.json"]],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#include-or-exclude-files"
+            }
+          }
+        },
+        "source-includes": {
+          "type": "array",
+          "description": "Path patterns of files that are needed for building but not meant to be copied to the site-packages directory",
+          "items": { "type": "string" },
+          "examples": [["scripts/", "tests/"]],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#include-or-exclude-files"
+            }
+          }
+        },
+        "package-dir": {
+          "type": "string",
+          "description": "Directory where packages are located. The default value is src if src/ is found and . otherwise",
+          "examples": ["mysrc", "src", "."],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#the-src-layout"
+            }
+          }
+        },
+        "custom-hook": {
+          "type": "string",
+          "description": "Python file that should be run before every build",
+          "default": "pdm_build.py",
+          "examples": ["build.py"],
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#local-build-hooks"
+            }
+          }
+        },
+        "run-setuptools": {
+          "type": "boolean",
+          "description": "Whether to auto-generate setup.py and run setuptools with it. Useful for building C extensions",
+          "default": false,
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#run-setuptools"
+            }
+          }
+        },
+        "is-purelib": {
+          "type": "boolean",
+          "description": "Whether builds should be platform specific",
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#is-purelib"
+            }
+          }
+        },
+        "editable-backend": {
+          "type": "string",
+          "description": "Format of editable wheels",
+          "enum": ["path", "editables"],
+          "default": "path",
+          "x-taplo": {
+            "links": {
+              "key": "https://backend.pdm-project.org/build_config/#choose-the-editable-build-format"
+            }
+          }
+        },
+        "wheel-data": {
+          "type": "object",
+          "description": "Configuration for additional files to be written to a user's site-packages directory",
+          "additionalProperties": false,
+          "properties": {
+            "scripts": { "$ref": "#/definitions/wheel-data-array" },
+            "purelib": { "$ref": "#/definitions/wheel-data-array" },
+            "platlib": { "$ref": "#/definitions/wheel-data-array" },
+            "include": { "$ref": "#/definitions/wheel-data-array" },
+            "platinclude": { "$ref": "#/definitions/wheel-data-array" },
+            "data": { "$ref": "#/definitions/wheel-data-array" }
+          }
+        }
+      },
+      "additionalProperties": false,
+      "x-taplo": {
+        "links": {
+          "key": "https://backend.pdm-project.org/build_config/#specify-the-package-files"
         }
       }
     }
