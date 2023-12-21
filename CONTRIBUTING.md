@@ -165,7 +165,7 @@ When renaming a schema name, the old version must continue to exist. Its content
 Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate-pyproject), accept passing in subpaths for validation like so:
 
 ```sh
-validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/propert
+validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/properties
 ```
 
 This means that renames in subschema paths aren't zero-cost. If a rename is necessary, keep the old path and `$ref` where necessary.
