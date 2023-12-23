@@ -31,7 +31,7 @@ Visual Studio Code [allows specifying](https://code.visualstudio.com/docs/langua
 
 ### `title` as an expected object type
 
-Let's say you have the following schema:
+Consider the following schema:
 
 ```json
 {
