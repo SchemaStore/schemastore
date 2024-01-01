@@ -22,6 +22,7 @@
   - [How to add a `$ref` to a JSON Schema that's self-hosted](#how-to-add-a-ref-to-a-json-schema-thats-self-hosted)
   - [How to validate a JSON Schema](#how-to-validate-a-json-schema)
   - [How to ignore validation errors in a JSON Schema](#how-to-ignore-validation-errors-in-a-json-schema)
+  - [How to name schemas that are subschemas (`partial-`)](#how-to-name-schemas-that-are-subschemas-partial-)
 
 ## Introduction
 
@@ -377,3 +378,17 @@ To ignore most validation errors, you need to modify `src/schema-validation.json
 - If a strict error fails, you need to add your JSON Schema to the `ajvNotStrictMode` array
 - If you are getting "unknown format" or "unknown keyword" errors, you need to add your JSON Schema to the `options` array
 - If you are using a recent version of the JSON Schema specification, you will need to add your JSON Schema to the `highSchemaVersion` array
+
+### How to name schemas that are subschemas (`partial-`)
+
+Often, it is useful to extract a subschema into its own file. This can make it easier to write tests, find schemas pertaining to a particular project, and logically separate extremely large schemas. The `partial-` prefix makes it easier to for IDEs identify these schemas (and ignore them since they do not correspond to a file. `fileMatch: []` does not cover this case).
+
+A subschema should be extracted to its own file based on the following rules:
+
+- If a schema represents an existing project that could be its own file, then simply use that file for the "subschema". In other places, `$ref` that file where appropriate.
+  - For example, [mypy](https://mypy-lang.org) reads configuration from both `mypy.ini` and `pyproject.toml`'s `tool.mypy` key. Because `mypy.ini` is its own file, then name the schema `mypy.json` like you usually would.
+  - Same with [Prettier](https://prettier.io). It reads from `.prettierrc.json` (among other files) and `package.json`'s `prettier` key.
+- If the schema cannot be its own file, then extracting the subschema may be an improvement
+  - For example, [Poetry](https://python-poetry.org) reads configuration _only_ from `pyproject.toml`'s `tool.poetry` key. Because the Poetry subschema is relatively complex and a large project, it has been extracted to its own file, `partial-poetry.json`.
+
+Use your best judgement; if the project or schema is small, then the drawbacks of extracting the subschema to its own file likely outweigh the benefits.
