@@ -2,7 +2,7 @@
 
 ## Language Servers
 
-There are language servers that use schemas from [SchemaStore](https://www.schemastore.org).
+There are language servers that use schemas from [SchemaStore](https://www.schemastore.org)..
 
 ### YAML
 
