@@ -1,0 +1,124 @@
+{
+  "Serilog": {
+    "Destructure": [
+      {
+        "Args": { "policy": "Sample.CustomPolicy, Sample" },
+        "Name": "With"
+      },
+      {
+        "Args": { "maximumDestructuringDepth": 3 },
+        "Name": "ToMaximumDepth"
+      },
+      {
+        "Args": { "maximumStringLength": 10 },
+        "Name": "ToMaximumStringLength"
+      },
+      {
+        "Args": { "maximumCollectionCount": 5 },
+        "Name": "ToMaximumCollectionCount"
+      }
+    ],
+    "Enrich": [
+      "FromLogContext",
+      "WithThreadId",
+      {
+        "Args": {
+          "configureEnricher": ["WithThreadName"],
+          "enrichFromLevel": "Error"
+        },
+        "Name": "AtLevel"
+      },
+      {
+        "Args": {
+          "configureEnricher": ["WithMachineName"],
+          "expression": "Application = 'Sample'"
+        },
+        "Name": "When"
+      }
+    ],
+    "Filter": [
+      {
+        "Args": {
+          "switch": "$filterSwitch"
+        },
+        "Name": "ControlledBy"
+      },
+      {
+        "Args": {
+          "filter": {
+            "levelFilter": "Verbose",
+            "type": "Sample.CustomFilter, Sample"
+          }
+        },
+        "Name": "With"
+      }
+    ],
+    "FilterSwitches": { "$filterSwitch": "Application = 'Sample'" },
+
+    "LevelSwitches": { "controlSwitch": "Verbose" },
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Warning",
+        "MyApp.Something.Tricky": "Verbose"
+      }
+    },
+    "Properties": {
+      "Application": "Sample"
+    },
+    "Using": ["Serilog.Sinks.Console"],
+    "WriteTo:Async": {
+      "Args": {
+        "configure": [
+          {
+            "Args": {
+              "outputTemplate": "{Timestamp:o} [{Level:u3}] ({Application}/{MachineName}/{ThreadId}/{ThreadName}) {Message}{NewLine}{Exception}",
+              "path": "%TEMP%/Logs/serilog-configuration-sample.txt"
+            },
+            "Name": "File"
+          }
+        ]
+      },
+      "Name": "Async"
+    },
+    "WriteTo:ConditionalSink": {
+      "Args": {
+        "configureSink": [
+          {
+            "Args": {
+              "formatter": {
+                "type": "Serilog.Formatting.Compact.CompactJsonFormatter, Serilog.Formatting.Compact",
+                "valueFormatter": {
+                  "typeTagName": "customTypeTag"
+                }
+              },
+              "path": "%TEMP%/Logs/serilog-configuration-sample-errors.txt"
+            },
+            "Name": "File"
+          }
+        ],
+        "expression": "@Level in ['Error', 'Fatal']"
+      },
+      "Name": "Conditional"
+    },
+    "WriteTo:Sublogger": {
+      "Args": {
+        "configureLogger": {
+          "MinimumLevel": "Verbose",
+          "WriteTo": [
+            {
+              "Args": {
+                "outputTemplate": "[{Timestamp:HH:mm:ss} {SourceContext} [{Level}] {Message}{NewLine}{Exception}",
+                "theme": "Serilog.Sinks.SystemConsole.Themes.SystemConsoleTheme::Grayscale, Serilog.Sinks.Console"
+              },
+              "Name": "Console"
+            }
+          ]
+        },
+        "levelSwitch": "$controlSwitch",
+        "restrictedToMinimumLevel": "Verbose"
+      },
+      "Name": "Logger"
+    }
+  }
+}

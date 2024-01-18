@@ -1,28 +1,9 @@
 {
   "Build binaries": {
-    "key": "BB",
-    "tasks": [
-      {
-        "script": {
-          "interpreter": "/bin/sh",
-          "scripts": [
-            "echo 'echo success' > script.sh",
-            "echo 'success' > output.log"
-          ]
-        }
-      },
-      {
-        "inject-variables": {
-          "file": "folder\\file.txt",
-          "scope": "RESULT",
-          "namespace": "myspace"
-        }
-      }
-    ],
     "artifacts": [
       {
-        "name": "Binaries",
         "location": ".",
+        "name": "Binaries",
         "pattern": "script.sh",
         "required": true,
         "shared": true
@@ -38,75 +19,94 @@
         "pattern": "**/*"
       }
     ],
+    "docker": {
+      "image": "ubuntu",
+      "use-default-volumes": true
+    },
+    "key": "BB",
+    "other": {
+      "clean-working-dir": true
+    },
     "requirements": [
       "hasDocker",
       {
         "operating.system": "linux"
       }
     ],
-    "docker": {
-      "image": "ubuntu",
-      "use-default-volumes": true
-    },
-    "other": {
-      "clean-working-dir": true
-    }
+    "tasks": [
+      {
+        "script": {
+          "interpreter": "/bin/sh",
+          "scripts": [
+            "echo 'echo success' > script.sh",
+            "echo 'success' > output.log"
+          ]
+        }
+      },
+      {
+        "inject-variables": {
+          "file": "folder\\file.txt",
+          "namespace": "myspace",
+          "scope": "RESULT"
+        }
+      }
+    ]
   },
   "Cleanup": {
     "key": "CLEAN"
   },
   "Deploy": {
-    "tasks": [],
-    "final-tasks": [],
     "artifacts": [],
+    "final-tasks": [],
+    "other": {},
     "requirements": [],
-    "other": {}
+    "tasks": []
   },
   "Integration tests": {
-    "key": "IT",
-    "tasks": [
-      "clean",
-      {
-        "script": ["touch report.xml"]
-      }
-    ],
+    "docker": "postgres",
     "final-tasks": [
       {
         "test-parser": "testng"
       },
       {
         "test-parser": {
-          "type": "mocha",
-          "test-results": ["mocha-1.json", "mocha-2.json"]
+          "test-results": ["mocha-1.json", "mocha-2.json"],
+          "type": "mocha"
         }
       },
       {
         "test-parser": {
-          "type": "mstest",
-          "test-results": ["tests1\\results.trx", "tests2\\results.trx"]
+          "test-results": ["tests1\\results.trx", "tests2\\results.trx"],
+          "type": "mstest"
         }
       },
       {
         "inject-variables": "tests.txt"
       }
     ],
-    "docker": "postgres"
+    "key": "IT",
+    "tasks": [
+      "clean",
+      {
+        "script": ["touch report.xml"]
+      }
+    ]
   },
   "Unit tests": {
+    "final-tasks": [
+      {
+        "test-parser": {
+          "ignore-time": true,
+          "test-results": "report.xml",
+          "type": "junit"
+        }
+      }
+    ],
     "key": "UT",
     "tasks": [
       {
         "script": {
           "scripts": ["touch report.xml"]
-        }
-      }
-    ],
-    "final-tasks": [
-      {
-        "test-parser": {
-          "type": "junit",
-          "test-results": "report.xml",
-          "ignore-time": true
         }
       }
     ]
@@ -125,14 +125,15 @@
   },
   "docker": {
     "image": "oracle",
+    "use-default-volumes": false,
     "volumes": {
       "/home/user": "/home/user",
       "/opt": "/opt"
-    },
-    "use-default-volumes": false
+    }
   },
   "notifications": [
     {
+      "events": ["plan-failed", "job-error"],
       "recipients": [
         {
           "users": ["admin"]
@@ -140,11 +141,9 @@
         {
           "emails": ["admin@example.com"]
         }
-      ],
-      "events": ["plan-failed", "job-error"]
+      ]
     },
     {
-      "recipients": ["responsible", "watchers"],
       "events": [
         {
           "plan-failed": 3
@@ -154,10 +153,10 @@
             "first-only": false
           }
         }
-      ]
+      ],
+      "recipients": ["responsible", "watchers"]
     },
     {
-      "recipients": ["committers"],
       "events": [
         {
           "plan-failed": {
@@ -175,13 +174,14 @@
         "job-hung",
         "job-queue-timeout",
         "job-queued-without-capable-agents"
-      ]
+      ],
+      "recipients": ["committers"]
     }
   ],
   "plan": {
-    "project-key": "PROJ",
     "key": "PLAN",
-    "name": "My Plan"
+    "name": "My Plan",
+    "project-key": "PROJ"
   },
   "stages": [
     {
@@ -189,15 +189,15 @@
     },
     {
       "Run tests": {
-        "manual": false,
         "final": false,
-        "jobs": ["Unit tests", "Integration tests"]
+        "jobs": ["Unit tests", "Integration tests"],
+        "manual": false
       }
     },
     {
       "Deploy": {
-        "manual": true,
-        "jobs": ["Deploy"]
+        "jobs": ["Deploy"],
+        "manual": true
       }
     },
     {

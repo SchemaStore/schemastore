@@ -1,0 +1,250 @@
+# Example generators.yaml
+# A .json schema for editor autocompletion is in ../support/generators_yaml_schema.json.
+
+# The solution is used to generate a .ans for each generated .in which doesn't
+# yet have a corresponding .ans. If there are generators that don't write a .ans
+# file themselves, a solution must be specified.
+# This should read the input from stdin and write to stdout.
+#
+# This must be the absolute path to the solution, starting in the problem root.
+#
+# TOOLING: may pick a default if not specified, but should raise a warning.
+solution: /submissions/accepted/sol.py
+
+# The visualizer is used when no suitable image was generated already.
+# This should read `testcase.in` and/or `testcase.ans` from the current working
+# directory, and write `testcase.ext` for an extension in:
+# .png, .jpg, .svg
+#
+# This must be the absolute path, starting in the problem root.
+#
+# TOOLING: may provide a flag to make running this optional, as it can be slow
+# and usually isn't required.
+visualizer: /visualizers/vis.py
+
+# Optionally, a salt for generating the {seed} variables. Will be prepended to
+# the command being run.
+random_salt: abcd
+
+# We support three types of generators:
+# - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
+#   be compiled if required and run the same way as submissions.
+# - Directories, like generators/gen containing files:
+#   - generators/gen/tree.cpp
+#   - generators/gen/lib.h
+#   This will be compiled and run the same way as directory validators. Build
+#   and run scripts may be used, as explained in ../spec/problem_package_format#programs.
+# - 'implicit' generators whose dependencies are specified in the `generators:`
+#   key below. The dependencies may refer to any files relative to generators/.
+#   The generator will be built and run as if they formed a separate directory.
+#   The first item in the list will be used as entry point.
+#   E.g. the first example below would be equivalent to the two files
+#   - generators/tree/tree.py
+#   - generators/tree/lib.py
+#
+# For each generator name specified in a command to generate a .in
+# file, we first check if this name is a key in the `generators:` dictionary below. If so,
+# the corresponding generator is used. If not, we will use the generator with that
+# file/directory name in the `generators/` directory directly.
+generators:
+  # A generator that depends on two files, lib.py and tree.py, directly in the
+  # generators directory.
+  tree:
+    - tree.py
+    - lib.py
+  # Another generator that also depends on the same lib.py.
+  graph:
+    - graph.py
+    - lib.py
+  # This also works for other languages.
+  a:
+    - a.cpp
+    - a.h
+  # Single-file generators may be specified, but can also be referred to as
+  # b.cpp directly.
+  b:
+    - b.cpp
+  # It is allowed, but not required, to explicitly list single-file generators
+  # as well. Names must not contain `.`, so `c.py` as a name is disallowed here.
+  cpy:
+    - c.py
+    - lib.py
+
+# The data: keyword contains the list of test cases and test data groups.
+# Note that this is different from the data/ directory, which is where the keys
+# of this top-level data: dictionary will be written.
+data:
+  # Introduce the `sample` directory.
+  sample:
+    data:
+      '1': tree --n 12 # runs the tree generator introduced above with given arguments
+
+      '2':
+        in: 23 foo # generates the test case input file data/2.in with contents "23 foo"
+      # The copy key indicates a manual testcase that will be copied
+      # from the given directory into the target testcase. The given directory
+      # must not start with a /, not include an extension and will be relative to generators/.
+      '3':
+        copy: manual_cases/sample/3
+      # Small testcases can be specified explicitly:
+      '4':
+        in: 1 0
+        # Values must be a strings, so `1` is wrapped in quotes.
+        ans: '1'
+        desc: Right identity for addition
+        hint: Make sure addition with zero also works
+      # Use YAML multiline syntax for multiline testcases
+      # The pipe | preserves newlines, but strips indentation whitespace.
+      # See also https://yaml-multiline.info/
+      '5':
+        in: |
+          10 13
+          0 0
+          -5 1
+        ans: |
+          23
+          0
+          -4
+  # Every testcase present in the directory must be listed.
+  # TOOLING: may still allow unlisted testcases and warn about them.
+  #'6':
+
+  secret:
+    data:
+      # Types of generator programs.
+      '01':
+        in: '3' # string is written to 01.in.
+      '02': greedy.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
+      '03': dir 5 # directories are OK, just like validators
+      '04': tree 5 # keys from the global generators: dictionary may also be used.
+      '05':
+        generate: tree 6 # same as above, but with different argument
+
+      # Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
+      06-string: tree "a b"
+      # This will pass two arguments: a and b, using YAML multiline string syntax.
+      # Passing arguments containing whitespace is not possible.
+      07-string: |
+        tree
+        a
+        b
+
+      # The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
+      # string will be replaced by an integer hash of the entire command in [0, 2^31).
+      # The regex may match at most once.
+      # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
+      08-random-1: graph {seed}
+      #09-random-1a: graph {seed}           # It's an error to use the exact same command twice.
+      10-random-2: graph {seed:2} # Different seed, because of extra `2`
+      11-random-3: graph seed={seed:2} # Different seed, because command isn't the same.
+      #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
+
+      # No key (testcase or testgroup) may be a prefix of another key.
+      #01-second: graph 6                     # Collision with rule 01 above.
+      #hard_cases_group-01: graph 7           # Collision with hard_cases_group below.
+
+      # Commands are only allowed to read and write files of the form
+      # `testcase.<ext>`, where <ext> is a known file extension in
+      # .in, .ans, .hint, .desc, .png, .jpg, .svg.
+      # Any such written files will be saved.
+      #
+      # In case a generator program writes testcase.in, its stdout will be ignored.
+      # In case testcase.in is not created, stdout will be used as the input for the testcase.
+      #
+      # The generator below generates and writes both testcase.in and testcase.ans, and
+      # the optionally specified `solution:` will not be called.
+      '12': write_in_and_ans.py
+
+      # To override the global/testgroup configuration on a per-testcase basis,
+      # a dictionary may be used. This allows the solution: and visualizer: keys,
+      # as well as the generate: key which contains the command to execute.
+      13_no_visualizer:
+        generate: large_case_generator.py 1000000
+        solution: /generators/gnu_multi_precision.cpp
+        visualizer: # Empty to disable the visualizer here.
+        random_salt: '123'
+
+      # An entry must include *some* key that produces an in-file,
+      # either by using 'in', 'copy', or 'generate'
+      # 14_no_input_produced: # this is an error
+      #   solution: /submissions/accepted/foo.py
+      #   desc: add two numbers
+      #   hint: check for maxint!
+
+      # Introduce a testgroup.
+      # The top-level `data:` key is always assumed to be a directory.
+      hard_cases_group:
+        # Directories may contain a testdata.yaml that will be written as specified.
+        testdata.yaml:
+          on_reject: break
+          accept_score: '25'
+          range: 0 25
+          grader_flags: min
+
+        # To enable automatic numbering of testcases, data: may also contain a list of
+        # single-element dictionaries instead of a single dictionary. In this case,
+        # testcases and/or groups will be numbered in the order they appear, starting at
+        # 1. The system will determine the required number of digits to use and numbers
+        # will be zero-padded accordingly, using a dash as separator from the given name
+        # (when the given name is not empty). Each dictionary in the list must contain a
+        # single item.
+        #
+        # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
+        # and alphabetical for dictionaries.
+        data:
+          # 01.in
+          - '': tree empty
+          # 02-a.in
+          - a: tree a
+          # 03-a.in
+          - a: tree a
+          # 04-b.in
+          - b: tree b
+          # 05-g
+          - g: tree g
+          # 06-h
+          - h: tree h
+          # 07-h
+          - i: tree i
+          # 08-h
+          - j: tree j
+          # 09-h
+          - k: tree k
+          # When mixing testcases and testgroups within a testgroup, testgroups
+          # must be last.
+          # Testgroup numbers are always prefixed with g when they are numbered.
+          # g1-numbered_testgroup
+          - numbered_testgroup:
+              data:
+                # 10-c
+                - c: tree c
+                # 11-d
+                - d: tree d
+          # g2-named_testgroup
+          - named_testgroup:
+              data:
+                # e
+                e: tree e
+                # f
+                f: tree f
+
+# The above data: list is equivalent to the map:
+#data:
+#  01-a: tree a
+#  01-b: tree b
+#  02-testgroup:
+#    data:
+#      1-c: tree c
+#      1-d: tree d
+#  03-e: tree e
+#  04-f: tree f
+#  05-g: tree g
+#  06-h: tree h
+#  07-i: tree i
+#  08-j: tree j
+#  09-k: tree k
+#  10-l: tree l
+
+# Unknown keys are allowed inside directory dictionaries for tooling-specific
+# extensions. This includes both the global scope and explicit directories.
+unknown_key: tool_specific_config

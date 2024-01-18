@@ -12,25 +12,24 @@
     ]
   },
   "global": {
-    "scrape_interval": "15s",
     "evaluation_interval": "30s",
     "external_labels": {
-      "monitor": "codelab",
-      "foo": "bar"
+      "foo": "bar",
+      "monitor": "codelab"
     },
-    "query_log_file": "query.log"
+    "query_log_file": "query.log",
+    "scrape_interval": "15s"
   },
   "remote_read": [
     {
-      "url": "http://remote1/read",
       "headers": {
         "User-Agent": "Prometheus"
       },
       "name": "remote-read-0",
-      "read_recent": true
+      "read_recent": true,
+      "url": "http://remote1/read"
     },
     {
-      "url": "http://remote3/read",
       "read_recent": false,
       "required_matchers": {
         "job": "special"
@@ -38,42 +37,42 @@
       "tls_config": {
         "cert_file": "valid_cert_file",
         "key_file": "valid_key_file"
-      }
+      },
+      "url": "http://remote3/read"
     }
   ],
   "remote_write": [
     {
-      "url": "http://remote1/push",
       "headers": {
         "User-Agent": "Prometheus"
       },
-      "write_relabel_configs": [
-        {
-          "source_labels": ["__name__"],
-          "regex": "expensive.*",
-          "action": "drop"
-        }
-      ],
-      "name": "remote-write-0",
-      "send_exemplars": true,
       "metadata_config": {
         "send_interval": "2m"
-      }
+      },
+      "name": "remote-write-0",
+      "send_exemplars": true,
+      "url": "http://remote1/push",
+      "write_relabel_configs": [
+        {
+          "action": "drop",
+          "regex": "expensive.*",
+          "source_labels": ["__name__"]
+        }
+      ]
     },
     {
-      "url": "http://remote2/push",
       "tls_config": {
         "cert_file": "valid_cert_file",
         "key_file": "valid_key_file"
-      }
+      },
+      "url": "http://remote2/push"
     }
   ],
   "rule_files": ["first.rules", "my/*.rules"],
   "scrape_config_files": ["first.yml", "scrape_configs/*.yml"],
   "scrape_configs": [
     {
-      "job_name": "prometheus",
-      "honor_labels": true,
+      "bearer_token_file": "valid_token_file",
       "file_sd_configs": [
         {
           "files": ["foo/*.slow.json", "foo/*.slow.yml", "single/file.yml"],
@@ -83,21 +82,14 @@
           "files": ["bar/*.yaml"]
         }
       ],
-      "static_configs": [
-        {
-          "targets": ["localhost:9090", "localhost:9191"],
-          "labels": {
-            "my": "label",
-            "your": "label"
-          }
-        }
-      ],
+      "honor_labels": true,
+      "job_name": "prometheus",
       "relabel_configs": [
         {
-          "source_labels": ["job", "__meta_dns_name"],
           "regex": "(.*)some-[regex]",
-          "target_label": "job",
-          "replacement": "foo-${1}"
+          "replacement": "foo-${1}",
+          "source_labels": ["job", "__meta_dns_name"],
+          "target_label": "job"
         },
         {
           "source_labels": ["abc"],
@@ -113,47 +105,58 @@
           "target_label": "abc"
         }
       ],
-      "bearer_token_file": "valid_token_file"
+      "static_configs": [
+        {
+          "labels": {
+            "my": "label",
+            "your": "label"
+          },
+          "targets": ["localhost:9090", "localhost:9191"]
+        }
+      ]
     },
     {
-      "job_name": "service-x",
       "basic_auth": {
-        "username": "admin_name",
-        "password": "multiline\nmysecret\ntest"
+        "password": "multiline\nmysecret\ntest",
+        "username": "admin_name"
       },
-      "scrape_interval": "50s",
-      "scrape_timeout": "5s",
-      "sample_limit": 1000,
-      "metrics_path": "/my_path",
-      "scheme": "https",
       "dns_sd_configs": [
         {
-          "refresh_interval": "15s",
           "names": [
             "first.dns.address.domain.com",
             "second.dns.address.domain.com"
-          ]
+          ],
+          "refresh_interval": "15s"
         },
         {
           "names": ["first.dns.address.domain.com"]
         }
       ],
+      "job_name": "service-x",
+      "metric_relabel_configs": [
+        {
+          "action": "drop",
+          "regex": "expensive_metric.*",
+          "source_labels": ["__name__"]
+        }
+      ],
+      "metrics_path": "/my_path",
       "relabel_configs": [
         {
-          "source_labels": ["job"],
+          "action": "drop",
           "regex": "(.*)some-[regex]",
-          "action": "drop"
+          "source_labels": ["job"]
         },
         {
-          "source_labels": ["__address__"],
+          "action": "hashmod",
           "modulus": 8,
-          "target_label": "__tmp_hash",
-          "action": "hashmod"
+          "source_labels": ["__address__"],
+          "target_label": "__tmp_hash"
         },
         {
-          "source_labels": ["__tmp_hash"],
+          "action": "keep",
           "regex": 1,
-          "action": "keep"
+          "source_labels": ["__tmp_hash"]
         },
         {
           "action": "labelmap",
@@ -168,92 +171,89 @@
           "regex": "k"
         }
       ],
-      "metric_relabel_configs": [
-        {
-          "source_labels": ["__name__"],
-          "regex": "expensive_metric.*",
-          "action": "drop"
-        }
-      ]
+      "sample_limit": 1000,
+      "scheme": "https",
+      "scrape_interval": "50s",
+      "scrape_timeout": "5s"
     },
     {
-      "job_name": "service-y",
       "consul_sd_configs": [
         {
-          "server": "localhost:1234",
-          "token": "mysecret",
-          "services": ["nginx", "cache", "mysql"],
-          "tags": ["canary", "v1"],
+          "allow_stale": true,
           "node_meta": {
             "rack": "123"
           },
-          "allow_stale": true,
           "scheme": "https",
+          "server": "localhost:1234",
+          "services": ["nginx", "cache", "mysql"],
+          "tags": ["canary", "v1"],
           "tls_config": {
             "ca_file": "valid_ca_file",
             "cert_file": "valid_cert_file",
-            "key_file": "valid_key_file",
-            "insecure_skip_verify": false
-          }
+            "insecure_skip_verify": false,
+            "key_file": "valid_key_file"
+          },
+          "token": "mysecret"
         }
       ],
+      "job_name": "service-y",
       "relabel_configs": [
         {
-          "source_labels": ["__meta_sd_consul_tags"],
-          "separator": ",",
           "regex": "label:([^=]+)=([^,]+)",
-          "target_label": "${1}",
-          "replacement": "${2}"
+          "replacement": "${2}",
+          "separator": ",",
+          "source_labels": ["__meta_sd_consul_tags"],
+          "target_label": "${1}"
         }
       ]
     },
     {
+      "bearer_token": "mysecret",
       "job_name": "service-z",
       "tls_config": {
         "cert_file": "valid_cert_file",
         "key_file": "valid_key_file"
-      },
-      "bearer_token": "mysecret"
+      }
     },
     {
       "job_name": "service-kubernetes",
       "kubernetes_sd_configs": [
         {
-          "role": "endpoints",
           "api_server": "https://localhost:1234",
+          "basic_auth": {
+            "password": "mysecret",
+            "username": "myusername"
+          },
+          "role": "endpoints",
           "tls_config": {
             "cert_file": "valid_cert_file",
             "key_file": "valid_key_file"
-          },
-          "basic_auth": {
-            "username": "myusername",
-            "password": "mysecret"
           }
         }
       ]
     },
     {
+      "basic_auth": {
+        "password_file": "valid_password_file",
+        "username": "myusername"
+      },
       "job_name": "service-kubernetes-namespaces",
       "kubernetes_sd_configs": [
         {
-          "role": "endpoints",
           "api_server": "https://localhost:1234",
           "namespaces": {
             "names": ["default"]
-          }
+          },
+          "role": "endpoints"
         }
-      ],
-      "basic_auth": {
-        "username": "myusername",
-        "password_file": "valid_password_file"
-      }
+      ]
     },
     {
       "job_name": "service-marathon",
       "marathon_sd_configs": [
         {
-          "servers": ["https://marathon.example.com:443"],
           "auth_token": "mysecret",
+          "servers": ["https://marathon.example.com:443"],
           "tls_config": {
             "cert_file": "valid_cert_file",
             "key_file": "valid_key_file"
@@ -262,13 +262,9 @@
       ]
     },
     {
-      "job_name": "service-ec2",
       "ec2_sd_configs": [
         {
-          "region": "us-east-1",
           "access_key": "access",
-          "secret_key": "mysecret",
-          "profile": "profile",
           "filters": [
             {
               "name": "tag:environment",
@@ -278,30 +274,34 @@
               "name": "tag:service",
               "values": ["web", "db"]
             }
-          ]
+          ],
+          "profile": "profile",
+          "region": "us-east-1",
+          "secret_key": "mysecret"
         }
-      ]
+      ],
+      "job_name": "service-ec2"
     },
     {
-      "job_name": "service-azure",
       "azure_sd_configs": [
         {
-          "environment": "AzurePublicCloud",
           "authentication_method": "OAuth",
-          "subscription_id": "11AAAA11-A11A-111A-A111-1111A1111A11",
-          "tenant_id": "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2",
           "client_id": "333333CC-3C33-3333-CCC3-33C3CCCCC33C",
           "client_secret": "mysecret",
-          "port": 9100
+          "environment": "AzurePublicCloud",
+          "port": 9100,
+          "subscription_id": "11AAAA11-A11A-111A-A111-1111A1111A11",
+          "tenant_id": "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2"
         }
-      ]
+      ],
+      "job_name": "service-azure"
     },
     {
       "job_name": "service-nerve",
       "nerve_sd_configs": [
         {
-          "servers": ["localhost"],
-          "paths": ["/monitoring"]
+          "paths": ["/monitoring"],
+          "servers": ["localhost"]
         }
       ]
     },
@@ -315,8 +315,8 @@
       ]
     },
     {
-      "job_name": "badfederation",
       "honor_timestamps": false,
+      "job_name": "badfederation",
       "metrics_path": "/federate",
       "static_configs": [
         {
@@ -342,11 +342,11 @@
           "endpoint": "triton.example.com",
           "port": 9163,
           "refresh_interval": "1m",
-          "version": 1,
           "tls_config": {
             "cert_file": "valid_cert_file",
             "key_file": "valid_key_file"
-          }
+          },
+          "version": 1
         }
       ]
     },
@@ -354,10 +354,10 @@
       "job_name": "service-openstack",
       "openstack_sd_configs": [
         {
-          "role": "instance",
-          "region": "RegionOne",
           "port": 80,
           "refresh_interval": "1m",
+          "region": "RegionOne",
+          "role": "instance",
           "tls_config": {
             "ca_file": "valid_ca_file",
             "cert_file": "valid_cert_file",
@@ -366,5 +366,13 @@
         }
       ]
     }
-  ]
+  ],
+  "storage": {
+    "exemplars": {
+      "max_exemplars": 200000
+    },
+    "tsdb": {
+      "out_of_order_time_window": "10m"
+    }
+  }
 }

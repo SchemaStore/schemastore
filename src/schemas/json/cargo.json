@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/cargo.json",
   "definitions": {
     "Build": {
       "title": "Build",
@@ -277,9 +278,9 @@
     },
     "Package": {
       "title": "Package",
-      "description": "The only fields required by Cargo are [`name`](https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field) and\n[`version`](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field). If publishing to a registry, the registry may\nrequire additional fields. See the notes below and [the publishing chapter](https://doc.rust-lang.org/cargo/reference/publishing.html) for requirements for publishing to [crates.io](https://crates.io/).",
+      "description": "The only field required by Cargo is [`name`](https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field).\n If publishing to a registry, the registry may\nrequire additional fields. See the notes below and [the publishing chapter](https://doc.rust-lang.org/cargo/reference/publishing.html) for requirements for publishing to [crates.io](https://crates.io/).",
       "type": "object",
-      "required": ["name", "version"],
+      "required": ["name"],
       "properties": {
         "authors": {
           "anyOf": [
@@ -465,6 +466,11 @@
           "description": "Cargo by default will warn about unused keys in `Cargo.toml` to assist in\ndetecting typos and such. The `package.metadata` table, however, is completely\nignored by Cargo and will not be warned about. This section can be used for\ntools which would like to store package configuration in `Cargo.toml`. For\nexample:\n\n```toml\n[package]\nname = \"...\"\n# ...\n\n# Metadata used when generating an Android APK, for example.\n[package.metadata.android]\npackage-name = \"my-awesome-android-app\"\nassets = \"path/to/static\"\n```\n",
           "type": "object",
           "additionalProperties": true,
+          "properties": {
+            "playdate": {
+              "$ref": "#/definitions/PlaydateMetadata"
+            }
+          },
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-metadata-table"
@@ -1068,6 +1074,18 @@
             }
           }
         },
+        "dependencies": {
+          "description": "The `workspace.dependencies` table is where you define dependencies to be\ninherited by members of a workspace.\n\nSpecifying a workspace dependency is similar to [package dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) except:\n- Dependencies from this table cannot be declared as `optional`\n- [`features`][features] declared in this table are additive with the `features` from `[dependencies]`\n\nYou can then [inherit the workspace dependency as a package dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace)\n\nExample:\n```toml\n# [PROJECT_DIR]/Cargo.toml\n[workspace]\nmembers = [\"bar\"]\n\n[workspace.dependencies]\ncc = \"1.0.73\"\nrand = \"0.8.5\"\nregex = { version = \"1.6.0\", default-features = false, features = [\"std\"] }\n```\n\n```toml\n# [PROJECT_DIR]/bar/Cargo.toml\n[package]\nname = \"bar\"\nversion = \"0.2.0\"\n\n[dependencies]\nregex = { workspace = true, features = [\"unicode\"] }\n\n[build-dependencies]\ncc.workspace = true\n\n[dev-dependencies]\nrand.workspace = true\n```",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Dependency"
+          },
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
+            }
+          }
+        },
         "exclude": {
           "description": "The `exclude` key can be used to prevent paths from being included in a\nworkspace. This can be useful if some path dependencies aren't desired to be\nin the workspace at all, or using a glob pattern and you want to remove a\ndirectory.",
           "type": "array",
@@ -1118,7 +1136,7 @@
           "$ref": "#/definitions/Resolver"
         },
         "package": {
-          "description": "The `workspace.package` table is where you define keys that can be inherited by members of a workspace.",
+          "description": "The `workspace.package` table is where you define keys that can be\ninherited by members of a workspace. These keys can be inherited by\ndefining them in the member package with `{key}.workspace = true`.\n\nKeys that are supported:\n\n|                |                 |\n|----------------|-----------------|\n| `authors`      | `categories`    |\n| `description`  | `documentation` |\n| `edition`      | `exclude`       |\n| `homepage`     | `include`       |\n| `keywords`     | `license`       |\n| `license-file` | `publish`       |\n| `readme`       | `repository`    |\n| `rust-version` | `version`       |\n\n- `license-file` and `readme` are relative to the workspace root\n- `include` and `exclude` are relative to your package root\n\nExample:\n```toml\n# [PROJECT_DIR]/Cargo.toml\n[workspace]\nmembers = [\"bar\"]\n\n[workspace.package]\nversion = \"1.2.3\"\nauthors = [\"Nice Folks\"]\ndescription = \"A short description of my package\"\ndocumentation = \"https://example.com/bar\"\n```\n\n```toml\n# [PROJECT_DIR]/bar/Cargo.toml\n[package]\nname = \"bar\"\nversion.workspace = true\nauthors.workspace = true\ndescription.workspace = true\ndocumentation.workspace = true\n```",
           "type": "object",
           "properties": {
             "authors": {
@@ -1172,7 +1190,7 @@
           },
           "x-taplo": {
             "links": {
-              "key": "https://doc.rust-lang.org/nightly/cargo/reference/workspaces.html#the-workspacepackage-table"
+              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-package-table"
             }
           }
         }
@@ -1343,7 +1361,7 @@
       "type": "string",
       "x-taplo": {
         "links": {
-          "key": "https://doc.rust-lang.org/nightly/cargo/reference/manifest.html#the-rust-version-field"
+          "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"
         }
       }
     },
@@ -1355,6 +1373,237 @@
         "workspace": {
           "type": "boolean",
           "enum": [true]
+        }
+      }
+    },
+    "PlaydateMetadata": {
+      "title": "Playdate Package Metadata",
+      "description": "Metadata and build configuration.",
+      "type": "object",
+      "required": ["bundle-id"],
+      "properties": {
+        "bundle-id": {
+          "type": "string",
+          "description": "A unique identifier for your game, in reverse DNS notation.",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          }
+        },
+        "name": {
+          "type": "string",
+          "description": "A game version number, formatted any way you wish, that is displayed to players. It is not used to compute when updates should occur.",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          }
+        },
+        "author": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          }
+        },
+        "description": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          }
+        },
+        "version": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          }
+        },
+        "build-number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          },
+          "description": "A monotonically-increasing integer value used to indicate a unique version of your game. This can be set using an automated build process like Continuous Integration to avoid having to set the value by hand.\n\nFor sideloaded games, buildNumber is required and is used to determine when a newer version is available to download."
+        },
+        "image-path": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          },
+          "description": "A directory of images that will be used by the launcher.\n\nMore in [official documentation](https://sdk.play.date/#pdxinfo)."
+        },
+        "launch-sound-path": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          },
+          "description": "Should point to the path of a short audio file to be played as the game launch animation is taking place.\n\nMore in [official documentation](https://sdk.play.date/#pdxinfo)."
+        },
+        "content-warning": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          },
+          "description": "Optional. A content warning that displays when the user launches your game for the first time. The user will have the option of backing out and not launching your game if they choose."
+        },
+        "content-warning2": {
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://sdk.play.date/#pdxinfo"
+            }
+          },
+          "description": "Optional. A second content warning that displays on a second screen when the user launches your game for the first time. The user will have the option of backing out and not launching your game if they choose.\n\nNote: `content-warning2` will only display if a `content-warning` attribute is also specified.\n\nThe string displayed on the content warning screen can only be so long before it will be truncated with an \"…\" character. Be sure to keep this in mind when designing your `content-warning` and `content-warning2` text."
+        },
+        "assets": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PlaydateMetadataAssetsMap"
+            },
+            {
+              "$ref": "#/definitions/PlaydateMetadataAssetsArray"
+            }
+          ]
+        },
+        "dev-assets": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PlaydateMetadataAssetsMap"
+            },
+            {
+              "$ref": "#/definitions/PlaydateMetadataAssetsArray"
+            }
+          ]
+        },
+        "options": {
+          "$ref": "#/definitions/PlaydateMetadataOptions"
+        },
+        "support": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "x-taplo": {
+        "initKeys": [
+          "bundle-id",
+          "name",
+          "description",
+          "author",
+          "image-path",
+          "launch-sound-path"
+        ],
+        "links": {
+          "key": "https://sdk.play.date/#pdxinfo"
+        }
+      },
+      "x-taplo-info": {
+        "authors": ["Alex Koz. (https://github.com/boozook)"]
+      },
+      "x-for": "playdate"
+    },
+    "PlaydateMetadataAssetsArray": {
+      "type": "array",
+      "title": "Assets list",
+      "description": "List of paths to include.",
+      "uniqueItems": true,
+      "items": {
+        "title": "Path",
+        "description": "Path to include.",
+        "type": "string"
+      },
+      "x-taplo": {
+        "links": {
+          "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-list"
+        }
+      }
+    },
+    "PlaydateMetadataAssetsMap": {
+      "type": "object",
+      "title": "Assets rules",
+      "description": "Rules used to resolve paths to include.",
+      "properties": {
+        "options": {
+          "$ref": "#/definitions/PlaydateMetadataAssetsOptions"
+        }
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "title": "Path",
+            "description": "Path of files to include. Can be absolute, relative to the crate root, or/and glob.\n\nLeft hand is where to put files, path in the resulting package.\n\nRight hand is a path or pattern to match files to include."
+          },
+          {
+            "type": "boolean",
+            "title": "Include",
+            "description": "Include or exclude the file or glob-pattern."
+          }
+        ]
+      },
+      "x-taplo": {
+        "links": {
+          "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-table"
+        }
+      }
+    },
+    "PlaydateMetadataAssetsOptions": {
+      "type": "object",
+      "title": "Assets Configuration",
+      "description": "Options for assets paths resolution and how to build assets collection",
+      "additionalProperties": false,
+      "properties": {
+        "overwrite": {
+          "type": "boolean",
+          "description": "Allow overwriting existing files."
+        },
+        "follow-symlinks": {
+          "type": "boolean"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["copy", "link"]
+        },
+        "dependencies": {
+          "type": "boolean",
+          "description": "Allow build assets for dependencies."
+        }
+      },
+      "x-taplo": {
+        "links": {
+          "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-options"
+        }
+      }
+    },
+    "PlaydateMetadataOptions": {
+      "type": "object",
+      "title": "Configuration",
+      "description": "Package build options.",
+      "additionalProperties": true,
+      "properties": {
+        "assets": {
+          "$ref": "#/definitions/PlaydateMetadataAssetsOptions"
+        }
+      },
+      "x-taplo": {
+        "links": {
+          "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#options"
         }
       }
     }
@@ -1380,8 +1629,8 @@
       "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
       "type": "array",
       "items": {
-        "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
         "$ref": "#/definitions/Target",
+        "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
         "x-taplo": {
           "links": {
             "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#benchmarks"
@@ -1398,8 +1647,8 @@
       "description": "Binary targets are executable programs that can be run after being compiled.\nThe default binary filename is `src/main.rs`, which defaults to the name of\nthe package. Additional binaries are stored in the [`src/bin/`\ndirectory](https://doc.rust-lang.org/cargo/guide/project-layout.html). The settings for each binary can be [customized](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target) in the `[[bin]]` tables in `Cargo.toml`.\n\nBinaries can use the public API of the package's library. They are also linked\nwith the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) defined in `Cargo.toml`.\n\nYou can run individual binaries with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with the `--bin\n<bin-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html) can be used to copy the executable to a\ncommon location.\n\n```toml\n# Example of customizing binaries in Cargo.toml.\n[[bin]]\nname = \"cool-tool\"\ntest = false\nbench = false\n\n[[bin]]\nname = \"frobnicator\"\nrequired-features = [\"frobnicate\"]\n```",
       "type": "array",
       "items": {
-        "description": "Binary targets are executable programs that can be run after being compiled.\nThe default binary filename is `src/main.rs`, which defaults to the name of\nthe package. Additional binaries are stored in the [`src/bin/`\ndirectory](https://doc.rust-lang.org/cargo/guide/project-layout.html). The settings for each binary can be [customized](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target) in the `[[bin]]` tables in `Cargo.toml`.\n\nBinaries can use the public API of the package's library. They are also linked\nwith the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) defined in `Cargo.toml`.\n\nYou can run individual binaries with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with the `--bin\n<bin-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html) can be used to copy the executable to a\ncommon location.\n\n```toml\n# Example of customizing binaries in Cargo.toml.\n[[bin]]\nname = \"cool-tool\"\ntest = false\nbench = false\n\n[[bin]]\nname = \"frobnicator\"\nrequired-features = [\"frobnicate\"]\n```",
         "$ref": "#/definitions/Target",
+        "description": "Binary targets are executable programs that can be run after being compiled.\nThe default binary filename is `src/main.rs`, which defaults to the name of\nthe package. Additional binaries are stored in the [`src/bin/`\ndirectory](https://doc.rust-lang.org/cargo/guide/project-layout.html). The settings for each binary can be [customized](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target) in the `[[bin]]` tables in `Cargo.toml`.\n\nBinaries can use the public API of the package's library. They are also linked\nwith the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) defined in `Cargo.toml`.\n\nYou can run individual binaries with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with the `--bin\n<bin-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html) can be used to copy the executable to a\ncommon location.\n\n```toml\n# Example of customizing binaries in Cargo.toml.\n[[bin]]\nname = \"cool-tool\"\ntest = false\nbench = false\n\n[[bin]]\nname = \"frobnicator\"\nrequired-features = [\"frobnicate\"]\n```",
         "x-taplo": {
           "links": {
             "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#binaries"
@@ -1484,8 +1733,8 @@
       "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
       "type": "array",
       "items": {
-        "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
         "$ref": "#/definitions/Target",
+        "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
         "x-taplo": {
           "links": {
             "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#examples"
@@ -1570,8 +1819,8 @@
       "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
       "type": "array",
       "items": {
-        "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
         "$ref": "#/definitions/Target",
+        "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
         "x-taplo": {
           "links": {
             "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests"

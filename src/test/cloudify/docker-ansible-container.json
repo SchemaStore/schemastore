@@ -12,45 +12,144 @@
     "plugin:cloudify-docker-plugin"
   ],
   "inputs": {
-    "docker_host": {
-      "type": "string",
-      "required": true
-    },
-    "docker_user": {
-      "type": "string",
-      "required": true
-    },
     "ansible_host": {
-      "type": "string",
-      "required": true
+      "required": true,
+      "type": "string"
     },
     "ansible_user": {
-      "type": "string",
-      "required": true
-    },
-    "playbook_path": {
-      "type": "string",
-      "default": "apache2/playbook.yaml"
-    },
-    "container_volume": {
-      "description": "volume that will be mapped to container",
-      "type": "string",
-      "default": "/ansible-playbooks"
+      "required": true,
+      "type": "string"
     },
     "ansible_version": {
+      "default": "2.9.5",
       "description": "Ansible version to prepare image for",
-      "type": "string",
-      "default": "2.9.5"
+      "type": "string"
+    },
+    "container_volume": {
+      "default": "/ansible-playbooks",
+      "description": "volume that will be mapped to container",
+      "type": "string"
+    },
+    "docker_host": {
+      "required": true,
+      "type": "string"
+    },
+    "docker_user": {
+      "required": true,
+      "type": "string"
     },
     "image_tag": {
+      "default": "ansible:",
       "description": "Tag for the image to build",
-      "type": "string",
-      "default": "ansible:"
+      "type": "string"
+    },
+    "playbook_path": {
+      "default": "apache2/playbook.yaml",
+      "type": "string"
     }
   },
   "node_templates": {
+    "docker_ansible_container": {
+      "properties": {
+        "client_config": {
+          "docker_host": {
+            "get_input": "docker_host"
+          },
+          "docker_rest_port": 2375
+        },
+        "resource_config": {
+          "container_args": {
+            "command": {
+              "get_attribute": [
+                "docker_ansible_container_files",
+                "ansible_container_command_arg"
+              ]
+            },
+            "environment": {
+              "ANSIBLE_HOST_KEY_CHECKING": false,
+              "ANSIBLE_INVALID_TASK_ATTRIBUTE_FAILED": false
+            },
+            "volumes": [
+              {
+                "get_input": "container_volume"
+              }
+            ],
+            "volumes_mapping": [
+              {
+                "get_attribute": [
+                  "docker_ansible_container_files",
+                  "destination"
+                ]
+              }
+            ],
+            "working_dir": {
+              "get_input": "container_volume"
+            }
+          },
+          "image_tag": {
+            "concat": [
+              {
+                "get_input": "image_tag"
+              },
+              {
+                "get_input": "ansible_version"
+              }
+            ]
+          }
+        }
+      },
+      "relationships": [
+        {
+          "target": "docker_ansible_image",
+          "type": "cloudify.relationships.depends_on"
+        },
+        {
+          "target": "docker_ansible_container_files",
+          "type": "cloudify.relationships.depends_on"
+        }
+      ],
+      "type": "cloudify.nodes.docker.container"
+    },
+    "docker_ansible_container_files": {
+      "properties": {
+        "resource_config": {
+          "ansible_sources": {
+            "ansible_become": true,
+            "ansible_host": {
+              "get_input": "ansible_host"
+            },
+            "ansible_ssh_common_args": "-o StrictHostKeyChecking=no",
+            "ansible_ssh_private_key_file": {
+              "get_secret": "agent_key_private"
+            },
+            "ansible_user": {
+              "get_input": "ansible_user"
+            },
+            "container_volume": {
+              "get_input": "container_volume"
+            },
+            "playbook_path": {
+              "get_input": "playbook_path"
+            }
+          },
+          "destination": "",
+          "docker_machine": {
+            "docker_ip": {
+              "get_input": "docker_host"
+            },
+            "docker_key": {
+              "get_secret": "agent_key_private"
+            },
+            "docker_user": {
+              "get_input": "docker_user"
+            }
+          },
+          "source": "https://github.com/cloudify-community/blueprint-examples/releases/download/5.0.5-28/hello-world-example.zip"
+        }
+      },
+      "type": "cloudify.nodes.docker.container_files"
+    },
     "docker_ansible_image": {
-      "type": "cloudify.nodes.docker.image",
       "properties": {
         "client_config": {
           "docker_host": {
@@ -79,107 +178,8 @@
             ]
           }
         }
-      }
-    },
-    "docker_ansible_container_files": {
-      "type": "cloudify.nodes.docker.container_files",
-      "properties": {
-        "resource_config": {
-          "docker_machine": {
-            "docker_ip": {
-              "get_input": "docker_host"
-            },
-            "docker_user": {
-              "get_input": "docker_user"
-            },
-            "docker_key": {
-              "get_secret": "agent_key_private"
-            }
-          },
-          "source": "https://github.com/cloudify-community/blueprint-examples/releases/download/5.0.5-28/hello-world-example.zip",
-          "destination": "",
-          "ansible_sources": {
-            "container_volume": {
-              "get_input": "container_volume"
-            },
-            "playbook_path": {
-              "get_input": "playbook_path"
-            },
-            "ansible_host": {
-              "get_input": "ansible_host"
-            },
-            "ansible_user": {
-              "get_input": "ansible_user"
-            },
-            "ansible_ssh_private_key_file": {
-              "get_secret": "agent_key_private"
-            },
-            "ansible_ssh_common_args": "-o StrictHostKeyChecking=no",
-            "ansible_become": true
-          }
-        }
-      }
-    },
-    "docker_ansible_container": {
-      "type": "cloudify.nodes.docker.container",
-      "properties": {
-        "client_config": {
-          "docker_host": {
-            "get_input": "docker_host"
-          },
-          "docker_rest_port": 2375
-        },
-        "resource_config": {
-          "image_tag": {
-            "concat": [
-              {
-                "get_input": "image_tag"
-              },
-              {
-                "get_input": "ansible_version"
-              }
-            ]
-          },
-          "container_args": {
-            "command": {
-              "get_attribute": [
-                "docker_ansible_container_files",
-                "ansible_container_command_arg"
-              ]
-            },
-            "working_dir": {
-              "get_input": "container_volume"
-            },
-            "environment": {
-              "ANSIBLE_HOST_KEY_CHECKING": false,
-              "ANSIBLE_INVALID_TASK_ATTRIBUTE_FAILED": false
-            },
-            "volumes": [
-              {
-                "get_input": "container_volume"
-              }
-            ],
-            "volumes_mapping": [
-              {
-                "get_attribute": [
-                  "docker_ansible_container_files",
-                  "destination"
-                ]
-              }
-            ]
-          }
-        }
       },
-      "relationships": [
-        {
-          "type": "cloudify.relationships.depends_on",
-          "target": "docker_ansible_image"
-        },
-        {
-          "type": "cloudify.relationships.depends_on",
-          "target": "docker_ansible_container_files"
-        }
-      ]
+      "type": "cloudify.nodes.docker.image"
     }
   },
   "tosca_definitions_version": "cloudify_dsl_1_3"
