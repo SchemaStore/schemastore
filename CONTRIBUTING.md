@@ -390,5 +390,7 @@ A subschema should be extracted to its own file based on the following rules:
   - Same with [Prettier](https://prettier.io). It reads from `.prettierrc.json` (among other files) and `package.json`'s `prettier` key.
 - If the schema cannot be its own file, then extracting the subschema may be an improvement
   - For example, [Poetry](https://python-poetry.org) reads configuration _only_ from `pyproject.toml`'s `tool.poetry` key. Because the Poetry subschema is relatively complex and a large project, it has been extracted to its own file, `partial-poetry.json`.
+- If the schema must exist locally to workaround issue #2731, then the subschema should be extracted
+  - In a top-level `$comment`, you must add the date at which you copied the original. See #3526 for an example
 
 Use your best judgement; if the project or schema is small, then the drawbacks of extracting the subschema to its own file likely outweigh the benefits.

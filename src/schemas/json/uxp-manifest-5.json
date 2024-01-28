@@ -1,0 +1,635 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/uxp-manifest-5.json",
+  "title": "Adobe UXP plug-in manifest",
+  "type": "object",
+  "required": ["id", "name", "version", "manifestVersion", "entrypoints"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Plug-in ID",
+      "description": "A unique identifier for this plug-in. A globally unique ID may be obtained from Adobe's Developer Distribution portal\nhttps://developer.adobe.com/distribute/home",
+      "type": "string",
+      "examples": ["3cc45790", "com.author.development.id"]
+    },
+    "name": {
+      "title": "Plug-in name",
+      "description": "The name of this plug-in. It should match the project name from Adobe's Developer Distribution portal",
+      "type": "string",
+      "examples": ["My Plug-in"]
+    },
+    "version": {
+      "title": "Plug-in version",
+      "description": "The current version number of this plug-in, in the format \"major.minor.patch\", where \"minor\" and \"patch\" are optional",
+      "type": "string",
+      "pattern": "^\\d{1,2}(\\.\\d{1,2})?(\\.\\d{1,2})?$"
+    },
+    "manifestVersion": {
+      "title": "Manifest version",
+      "description": "The version of this UXP manifest file (5)",
+      "type": "integer",
+      "const": 5,
+      "default": 5
+    },
+    "main": {
+      "title": "Main entry point",
+      "description": "Relative path to the plug-in initialization file, which must be either a JavaScript program or an HTML document",
+      "type": "string",
+      "default": "main.js"
+    },
+    "icons": {
+      "$comment": "There are old reports of a bug that forces you to specify 48x48 dimensions instead.",
+      "title": "Plug-in icons",
+      "description": "An icon representing the plug-in as a whole, adapted to different themes. Must be of the \"pluginList\" species and 24x24 in size",
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/definitions/iconDefinition",
+            "type": "object"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "species": {
+                "const": ["pluginList"],
+                "default": ["pluginList"]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "host": {
+      "title": "Host program",
+      "description": "The host program(s) this plug-in is intended to run on. An array may only be provided during development; a single host must be specified when submitting to the plug-in marketplace",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/hostDefinition",
+          "type": "object"
+        },
+        {
+          "type": "array",
+          "items": { "$ref": "#/definitions/hostDefinition", "type": "object" }
+        }
+      ]
+    },
+    "entrypoints": {
+      "title": "Entry points",
+      "description": "A list of commands and panels that this plug-in provides",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "id", "label"],
+        "properties": {
+          "type": {
+            "title": "Entry point type",
+            "type": "string",
+            "enum": ["command", "panel"]
+          },
+          "id": {
+            "title": "Entry point ID",
+            "description": "A unique identifier associated with this entry point",
+            "type": "string"
+          },
+          "label": {
+            "title": "Entry point label",
+            "description": "A textual label associated with this entry point that will be displayed to the user",
+            "oneOf": [
+              {
+                "type": "string",
+                "examples": ["My entry point"]
+              },
+              {
+                "$ref": "#/definitions/localizedString"
+              }
+            ]
+          }
+        },
+        "oneOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "command"
+                }
+              }
+            },
+            "then": {
+              "additionalProperties": false,
+              "properties": {
+                "type": true,
+                "id": true,
+                "label": true,
+                "shortcut": {
+                  "title": "Keyboard shortcut",
+                  "description": "This feature is only available for Adobe XD plug-ins. The keyboard shortcuts used to invoke this command, in the format \"(modifier)+(key)\", with several modifiers allowed. Only case-insensitive letters and numbers may be used for the key. If the shortcut is already taken by the host app or another plug-in, it will be ignored.",
+                  "type": "object",
+                  "properties": {
+                    "mac": {
+                      "title": "macOS shortcut",
+                      "description": "Modifiers may include \"Cmd\", \"Ctrl\", \"Opt\", \"Alt\", and \"Shift\". The shortcut must contain \"Cmd\" or \"Ctrl\"",
+                      "type": "string",
+                      "examples": ["Cmd+Shift+Y", "Ctrl+7"],
+                      "allOf": [
+                        {
+                          "pattern": "^((Cmd|Ctrl|Opt|Alt|Shift)\\+)+[a-zA-Z0-9]$"
+                        },
+                        { "pattern": "Cmd|Ctrl" }
+                      ]
+                    },
+                    "win": {
+                      "title": "Windows shortcut",
+                      "description": "Modifiers may include \"Ctrl\", \"Alt\", and \"Shift\". The shortcut must contain \"Ctrl\"",
+                      "type": "string",
+                      "examples": ["Ctrl+Alt+B", "Ctrl+6"],
+                      "allOf": [
+                        { "pattern": "^((Ctrl|Alt|Shift)\\+)+[a-zA-Z0-9]$" },
+                        { "pattern": "Ctrl" }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "else": false
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "panel"
+                }
+              }
+            },
+            "then": {
+              "additionalProperties": false,
+              "properties": {
+                "type": true,
+                "id": true,
+                "label": true,
+                "minimumSize": {
+                  "$ref": "#/definitions/sizeSpecifier",
+                  "type": "object",
+                  "title": "Minimum panel size",
+                  "description": "The minimum dimensions to which the panel may be resized. The host app may not honor the minimum width depending on context."
+                },
+                "maximumSize": {
+                  "$ref": "#/definitions/sizeSpecifier",
+                  "type": "object",
+                  "title": "Maximum panel size",
+                  "description": "The maximum dimensions to which the panel may be resized. The host app may not honor the maximum width depending on context."
+                },
+                "preferredDockedSize": {
+                  "$ref": "#/definitions/sizeSpecifier",
+                  "type": "object",
+                  "title": "Preferred panel size when docked",
+                  "description": "The preferred dimensions of the panel when it is docked. This is only a preference and may not be honored."
+                },
+                "preferredFloatingSize": {
+                  "$ref": "#/definitions/sizeSpecifier",
+                  "type": "object",
+                  "title": "Preferred panel size when floating",
+                  "description": "The preferred dimensions of the panel when it is floating. This is only a preference and may not be honored."
+                },
+                "icons": {
+                  "title": "Panel icons",
+                  "description": "The icon representing this panel, adapted to different themes. Must be of the \"toolbar\" species and 23x23 in size",
+                  "type": "array",
+                  "items": {
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/iconDefinition",
+                        "type": "object"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "species": {
+                            "const": ["toolbar"],
+                            "default": ["toolbar"]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "shortcut": false
+              }
+            },
+            "else": false
+          },
+          {
+            "properties": {
+              "type": {
+                "not": { "enum": ["command", "panel"] }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "requiredPermissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {
+          "title": "Network access",
+          "description": "Allows the plug-in to access the network",
+          "type": "object",
+          "required": ["domains"],
+          "additionalProperties": false,
+          "properties": {
+            "domains": {
+              "title": "Allowed domain names",
+              "description": "A list of host names that the plug-in may send requests to, or \"all\"",
+              "oneOf": [
+                {
+                  "description": "A list of host names that the plug-in may send requests to",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "examples": [
+                      "localhost",
+                      "https://unsplash.com",
+                      "https://*.adobe.com"
+                    ]
+                  }
+                },
+                {
+                  "description": "Specifies that the plug-in may send requests to any host name",
+                  "type": "string",
+                  "const": "all"
+                }
+              ]
+            }
+          }
+        },
+        "clipboard": {
+          "title": "Clipboard access",
+          "description": "Allows the plug-in to access the clipboard",
+          "type": "string",
+          "oneOf": [
+            {
+              "const": "read",
+              "description": "Allows the plug-in to read from the clipboard"
+            },
+            {
+              "const": "readAndWrite",
+              "description": "Allows the plug-in to read from and write to the clipboard"
+            }
+          ],
+          "examples": ["read"]
+        },
+        "localFileSystem": {
+          "title": "Local file system access",
+          "description": "Allows the plug-in to access the local file system",
+          "type": "string",
+          "default": "plugin",
+          "oneOf": [
+            {
+              "const": "plugin",
+              "description": "Allows the plug-in to access its own storage only through the \"plugin:\", \"plugin-data:\", and \"plugin-temp:\" URI schemes"
+            },
+            {
+              "const": "request",
+              "description": "Allows the plug-in to access files chosen by the user through a file picker interface"
+            },
+            {
+              "const": "fullAccess",
+              "description": "Gives the plug-in full access to the file system"
+            }
+          ]
+        },
+        "launchProcess": {
+          "title": "Process launching",
+          "description": "Allows the plug-in to launch external processes through associated schemes and file extensions",
+          "required": ["schemes", "extensions"],
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemes": {
+              "$comment": "The InDesign docs call this property 'schemas'...",
+              "title": "Allowed URI schemes",
+              "description": "A list of URI schemes that the plug-in may launch",
+              "type": "array",
+              "items": { "type": "string" },
+              "examples": [
+                ["http", "https"],
+                ["mailto", "file"]
+              ]
+            },
+            "extensions": {
+              "title": "Allowed file extensions",
+              "description": "A list of allowed file extensions that the plug-in may launch when using the \"file://\" schema",
+              "type": "array",
+              "items": { "type": "string" },
+              "examples": [["pdf", "png", "jpg"]]
+            }
+          }
+        },
+        "allowCodeGenerationFromStrings": {
+          "title": "String-based evaluation",
+          "description": "Allows the plug-in to evaluate code from strings, including JavaScript eval() and HTML inline event handlers",
+          "type": "boolean",
+          "default": false
+        },
+        "ipc": {
+          "title": "Inter-plugin communication",
+          "description": "Allows the plug-in to communicate with other plug-ins",
+          "type": "object",
+          "required": ["enablePluginCommunication"],
+          "additionalProperties": false,
+          "properties": {
+            "enablePluginCommunication": {
+              "description": "Enables this permission",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "examples": [{ "enablePluginCommunication": true }]
+        },
+        "webview": {
+          "title": "WebView support",
+          "description": "This feature is only available from UXP 6.0. Allows the plug-in to use WebViews\nhttps://developer.adobe.com/photoshop/uxp/2022/guides/uxp_guide/uxp-misc/manifest-v5/#webviews",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allow", "domains"],
+          "properties": {
+            "allow": {
+              "description": "Enables this permission",
+              "type": "string",
+              "const": "yes"
+            },
+            "domains": {
+              "title": "Allowed domain names",
+              "description": "A list of host names that the plug-in may request within WebViews",
+              "type": "array",
+              "items": { "type": "string" },
+              "examples": [["https://*.adobe.com", "https://*.google.com"]]
+            }
+          }
+        },
+        "enableUserInfo": {
+          "title": "User identification",
+          "description": "This feature is only available from UXP 7.3. Allows the plug-in to identify the current user's Creative Cloud account\nhttps://developer.adobe.com/photoshop/uxp/2022/guides/uxp_guide/uxp-misc/manifest-v5/#guid",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "featureFlags": {
+      "title": "Experimental feature flags",
+      "description": "Enables specific experimental features for this plug-in\nhttps://developer.adobe.com/indesign/uxp/plugins/concepts/manifest/#featureflags",
+      "type": "object",
+      "properties": {
+        "enableSWCSupport": {
+          "title": "Enable Spectrum Web Components",
+          "description": "Enables the usage of Spectrum Web Components as custom HTML elements\nhttps://developer.adobe.com/photoshop/uxp/2022/uxp-api/reference-spectrum/swc/",
+          "type": "boolean",
+          "examples": [true]
+        },
+        "enableFillAsCustomAttribute": {
+          "title": "Enable CSS variables for \"fill\" attribute",
+          "description": "Enables the usage of CSS variables (custom attributes) for the \"fill\" attribute in SVG elements",
+          "type": "boolean",
+          "examples": [true]
+        }
+      }
+    },
+    "strings": {
+      "title": "Localized strings",
+      "description": "Specifies a set of localized strings that may be reused in other parts of the manifest file by specifying the string name as a value (for example \"'label': 'my-string'\"), such as panel menus and command names\nhttps://developer.adobe.com/indesign/uxp/plugins/concepts/manifest/#stringsdefinition",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/localizedString" },
+      "examples": [
+        {
+          "my-menu-label": {
+            "default": "Menu Label",
+            "fr": "Etiquette de Menu",
+            "de": "Menübezeichnung"
+          }
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "hostDefinition": {
+      "type": "object",
+      "required": ["app", "minVersion"],
+      "properties": {
+        "app": {
+          "title": "App",
+          "description": "The host program",
+          "type": "string",
+          "oneOf": [
+            { "title": "Adobe Photoshop", "const": "PS" },
+            { "title": "Adobe InDesign", "const": "ID" },
+            { "title": "Adobe XD", "const": "XD" }
+          ]
+        },
+        "minVersion": {
+          "title": "Minimum version",
+          "description": "The minimum host version required to run this plug-in. At least two segments must be specified",
+          "type": "string",
+          "pattern": "^\\d{1,2}\\.\\d{1,2}(\\.\\d{1,2})?$",
+          "examples": ["19.1"]
+        },
+        "maxVersion": {
+          "title": "Maximum version",
+          "description": "The maximum host version supported by this plug-in. At least two segments (\"x.y\") must be specified",
+          "type": "string",
+          "pattern": "^\\d{1,2}\\.\\d{1,2}(\\.\\d{1,2})?$",
+          "examples": ["23.7.1"]
+        }
+      },
+      "if": {
+        "properties": {
+          "app": {
+            "const": "PS"
+          }
+        }
+      },
+      "then": {
+        "additionalProperties": false,
+        "properties": {
+          "app": true,
+          "minVersion": true,
+          "maxVersion": true,
+          "data": {
+            "title": "Host-specific information",
+            "description": "Photoshop-specific configuration for executing this plug-in\nhttps://developer.adobe.com/photoshop/uxp/2022/guides/uxp_guide/uxp-misc/manifest-v4/photoshop-manifest/",
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "apiVersion": {
+                "title": "UXP interface version",
+                "description": "Specifies the execution model for plug-in actions that modify the document state\nhttps://developer.adobe.com/photoshop/uxp/2022/guides/uxp_guide/uxp-misc/manifest-v4/photoshop-manifest/#apiversion",
+                "type": "integer",
+                "default": 2,
+                "oneOf": [
+                  {
+                    "const": 1,
+                    "title": "Deprecated, original execution model"
+                  },
+                  {
+                    "const": 2,
+                    "title": "New, modal-based execution model"
+                  }
+                ]
+              },
+              "loadEvent": {
+                "title": "Plug-in initialization event",
+                "description": "Specifies at which point the plug-in is initialized\nhttps://developer.adobe.com/photoshop/uxp/2022/guides/uxp_guide/uxp-misc/manifest-v4/photoshop-manifest/#loadevent",
+                "type": "string",
+                "default": "use",
+                "oneOf": [
+                  {
+                    "const": "use",
+                    "description": "Specifies that this plug-in is initialized when one of its entry points must be made available"
+                  },
+                  {
+                    "const": "startup",
+                    "description": "Specifies that this plug-in is initialized as soon as the host program starts up, which may hinder start-up performance"
+                  }
+                ]
+              },
+              "enableMenuRecording": {
+                "title": "Enable recording actions for panel menus",
+                "description": "Determines whether panel menu items may be recorded into an action by the user\nhttps://developer.adobe.com/photoshop/uxp/2022/guides/uxp_guide/uxp-misc/manifest-v4/photoshop-manifest/#enablemenurecording",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "additionalProperties": false,
+        "properties": { "app": true, "minVersion": true, "maxVersion": true }
+      }
+    },
+    "iconDefinition": {
+      "type": "object",
+      "required": ["width", "height", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "title": "Icon width",
+          "description": "The icon width in logical pixels",
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "title": "Icon height",
+          "description": "The icon's height in logical pixels",
+          "type": "integer",
+          "minimum": 1
+        },
+        "path": {
+          "title": "Base icon path",
+          "description": "Relative base path of the icon files, excluding the \"@1x\" scale descriptor. For example, use \"icons/icons.png\" for the true file names \"icons/icons@1x.png\" and \"icons/icons@2x.png\"",
+          "type": "string",
+          "examples": ["assets/icons/my-icon.png"]
+        },
+        "scale": {
+          "title": "Available icon scales",
+          "description": "A list of image scales provided. The image file names must suffix the base name with \"@(scale)x\"; for example, \"icons/icon@1x.png\" and \"icons/icon@2x.png\" for scales [1, 2]",
+          "type": "array",
+          "items": { "type": "number" },
+          "examples": [[1, 1.25, 1.5, 1.75, 2]],
+          "uniqueItems": true,
+          "minItems": 1,
+          "default": [1]
+        },
+        "theme": {
+          "title": "Supported themes",
+          "description": "A list of user interface themes that contrast well enough with this icon",
+          "default": ["all"],
+          "examples": [["lightest", "darkest"]],
+          "oneOf": [
+            {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": ["lightest", "light", "dark", "darkest"]
+              }
+            },
+            {
+              "type": "array",
+              "const": ["all"]
+            }
+          ]
+        },
+        "species": {
+          "$comment": "This is an array type but providing several species seems unintended (and meaningless)",
+          "title": "Icon species",
+          "description": "Specifies the contexts in which this icon should be displayed",
+          "type": "array",
+          "oneOf": [
+            {
+              "description": "Specifies that this icon is suitable for display anywhere",
+              "const": ["generic"]
+            },
+            {
+              "description": "Specifies that this icon represents a panel and is suitable for display in a toolbar. Must have a size of 23x23 (46x46 for 200% scale)",
+              "const": ["toolbar"]
+            },
+            {
+              "description": "Specifies that this icon represents the plug-in as a whole and is suitable for display in the user's plug-in list. Must have a size of 24x24 (48x48 for 200% scale)",
+              "const": ["pluginList"]
+            }
+          ]
+        }
+      }
+    },
+    "localizedString": {
+      "description": "Specifies a localized text string",
+      "examples": [
+        {
+          "default": "Hello",
+          "de": "Hallo"
+        },
+        {
+          "default": "Menu Label",
+          "fr": "Etiquette de Menu",
+          "de": "Menübezeichnung"
+        }
+      ],
+      "type": "object",
+      "required": ["default"],
+      "additionalProperties": {
+        "title": "Translation",
+        "description": "The string as translated to a language",
+        "type": "string"
+      },
+      "properties": {
+        "default": {
+          "title": "Default string",
+          "description": "The default string in case the user's language is unsupported",
+          "type": "string"
+        }
+      }
+    },
+    "sizeSpecifier": {
+      "type": "object",
+      "required": ["width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "description": "The width dimension in pixels",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "description": "The height dimension in pixels",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}
