@@ -505,9 +505,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
    * @returns {getOptionReturn}
    */
   function getOption(jsonName) {
-    const options = schemaValidation.options.find((item) => jsonName in item)?.[
-      jsonName
-    ]
+    const options = schemaValidation.options[jsonName]
 
     // collect the unknownFormat list
     const unknownFormatsList = options?.unknownFormat ?? []
@@ -1124,8 +1122,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
       // Check if allCatalogLocalJsonFiles[] have the actual schema filename.
       const schemaFileCompare = (x) => {
-        // skip testing if present in "missingcatalogurl"
-        if (!schemaValidation.missingcatalogurl.includes(x.jsonName)) {
+        // skip testing if present in "missingCatalogUrl"
+        if (!schemaValidation.missingCatalogUrl.includes(x.jsonName)) {
           countScan++
           const found = allCatalogLocalJsonFiles.includes(x.jsonName)
           if (!found) {
@@ -1626,8 +1624,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       )
       checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
       checkForDuplicateInList(
-        schemaValidation.missingcatalogurl,
-        'missingcatalogurl[]',
+        schemaValidation.missingCatalogUrl,
+        'missingCatalogUrl[]',
       )
       checkForDuplicateInList(
         schemaValidation.catalogEntryNoLintNameOrDescription,
@@ -1644,15 +1642,14 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
       // Check for duplicate in options[]
       const checkList = []
-      for (const item of schemaValidation.options) {
-        const schemaName = Object.keys(item).pop()
+      for (const schemaName in schemaValidation.options) {
         if (checkList.includes(schemaName)) {
           throwWithErrorText([
             `Duplicate schema name found in options[] schema-validation.json => ${schemaName}`,
           ])
         }
         // Check for all values inside one option object
-        const optionValues = Object.values(item).pop()
+        const optionValues = schemaValidation.options[schemaName]
         checkForDuplicateInList(
           optionValues?.unknownKeywords,
           `${schemaName} unknownKeywords[]`,
@@ -1788,11 +1785,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       }
       x(schemaValidation.ajvNotStrictMode)
       x(schemaValidation.skiptest)
-      x(schemaValidation.missingcatalogurl)
+      x(schemaValidation.missingCatalogUrl)
       x(schemaValidation.highSchemaVersion)
 
-      for (const item of schemaValidation.options) {
-        const schemaName = Object.keys(item).pop()
+      for (const schemaName in schemaValidation.options) {
         if (schemaName !== 'readme_example.json') {
           countSchemaValidationItems++
           if (!schemasToBeTested.includes(schemaName)) {
@@ -1851,11 +1847,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         })
       }
       x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
-      x(schemaValidation.missingcatalogurl, 'missingcatalogurl')
+      x(schemaValidation.missingCatalogUrl, 'missingCatalogUrl')
       x(schemaValidation.highSchemaVersion, 'highSchemaVersion')
 
-      for (const item of schemaValidation.options) {
-        const schemaName = Object.keys(item).pop()
+      for (const schemaName in schemaValidation.options) {
         if (schemaName !== 'readme_example.json') {
           countSchemaValidationItems++
           if (schemaValidation.skiptest.includes(schemaName)) {
