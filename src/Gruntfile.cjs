@@ -16,6 +16,7 @@ const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const axios = require('axios').default
 const jsonlint = require('@prantlf/jsonlint')
+const jsoncParser = require('jsonc-parser')
 
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
@@ -23,7 +24,9 @@ const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = require('./api/json/catalog.json')
-const schemaValidation = require('./schema-validation.json')
+const schemaValidation = jsoncParser.parse(
+  fs.readFileSync('./schema-validation.json', 'utf-8'),
+)
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
@@ -871,11 +874,22 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
             ++countScan
 
             throwWithErrorText([
-              `Catalog entry .${property}: Should not contain the string 'schema' (${schemaName})`,
+              `Catalog entry .${property}: Should not contain the string 'schema'. In most cases, this word is extraneous and the meaning is implied (${schemaName})`,
+            ])
+          }
+        }
+
+        for (const property of ['name', 'description']) {
+          if (entry?.[property]?.toLowerCase()?.includes('\n')) {
+            ++countScan
+
+            throwWithErrorText([
+              `Catalog entry .${property}: Should not contain a newline character. In editors like VSCode, the newline is not rendered. (${schemaName})`,
             ])
           }
         }
       }
+
       grunt.log.writeln(`Total found files: ${countScan}`)
     },
   )
