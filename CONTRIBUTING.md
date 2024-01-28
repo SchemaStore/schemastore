@@ -381,7 +381,7 @@ To ignore most validation errors, you need to modify `src/schema-validation.json
 
 ### How to name schemas that are subschemas (`partial-`)
 
-Often, it is useful to extract a subschema into its own file. This can make it easier to write tests, find schemas pertaining to a particular project, and logically separate extremely large schemas. The `partial-` prefix makes it easier to for IDEs identify these schemas (and ignore them since they do not correspond to a file. `fileMatch: []` does not cover this case).
+Often, it is useful to extract a subschema into its own file. This can make it easier to write tests, find schemas pertaining to a particular project, and logically separate extremely large schemas. The `partial-` prefix makes it easier for SchemaStore developers and subschema consumers to identify that the schema is a subschema.
 
 A subschema should be extracted to its own file based on the following rules:
 
