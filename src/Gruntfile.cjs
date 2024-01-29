@@ -284,7 +284,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
             try {
               // { bigint: false } or else toml variable like 'a = 3' will return as 'a = 3n'
               // This creates an error because the schema expect an integer 3 and not 3n
-              return TOML.parse(buffer.toString(), { bigint: false })
+              return TOML.parse(buffer.toString(), { bigint: false, joiner: "\n" })
             } catch (err) {
               throwWithErrorText([
                 `Can't read/decode toml file: ${testFileNameWithPath}`,
