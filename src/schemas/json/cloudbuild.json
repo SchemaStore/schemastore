@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/cloudbuild",
+  "$comment": "See the Cloud Build config schema at https://cloud.google.com/build/docs/build-config-file-schema for the definitions.",
   "definitions": {
     "BuildStep": {
       "description": "A step in the build pipeline.",
@@ -19,7 +20,7 @@
           "description": "Specify that a build step failure can be ignored when that step returns a particular exit code.",
           "type": "array",
           "items": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "waitFor": {
@@ -59,12 +60,8 @@
           }
         },
         "timeout": {
-          "type": "string",
-          "description": "Time limit for executing this build step. If not defined, the step has no\ntime limit and will be allowed to continue to run until either it completes\nor the build itself times out.",
-          "format": "google-duration",
-          "pattern": "^\\d+(\\.\\d{0,9})?s$",
-          "default": "600s",
-          "examples": ["3.5s"]
+          "$ref": "#/definitions/Timeout",
+          "description": "Time limit for executing this build step. If not defined, the step has no\ntime limit and will be allowed to continue to run until either it completes\nor the build itself times out."
         },
         "id": {
           "description": "Unique identifier for this build step, used in `wait_for` to\nreference this build step as a dependency.",
@@ -86,6 +83,7 @@
     "BuildOptions": {
       "description": "Optional arguments to enable specific features of builds.",
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "machineType": {
           "enum": [
@@ -148,9 +146,18 @@
             "Build logs should not be streamed to Google Cloud Storage; they will be\nwritten when the build is completed."
           ]
         },
-        "workerPool": {
-          "description": "Option to specify a `WorkerPool` for the build. User specifies the pool\nwith the format \"[WORKERPOOL_PROJECT_ID]/[WORKERPOOL_NAME]\".\nThis is an experimental field.",
-          "type": "string"
+        "pool": {
+          "description": "Set the value of this field to the resource name of the private pool to run the build.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "Required. The full resource name of the private pool of the form 'projects/$PRIVATEPOOL_PROJECT_ID/locations/$REGION/workerPools/$PRIVATEPOOL_ID'.",
+              "type": "string",
+              "pattern": "^projects/\\w+/locations/\\w+/workerPools/\\w+$"
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name"]
         },
         "env": {
           "description": "A list of global environment variable definitions that will exist for all\nbuild steps in this build. If a variable is defined in both globally and in\na build step, the variable will use the build step value.\n\nThe elements are of the form \"KEY=VALUE\" for the environment variable \"KEY\"\nbeing given the value \"VALUE\".",
@@ -177,6 +184,14 @@
             "Turn off all logging. No build logs will be captured."
           ]
         },
+        "defaultLogsBucketBehavior": {
+          "description": "Configure Cloud Build to create a default logs bucket within your own project in the same region as your build.",
+          "type": "string",
+          "enumDescriptions": [
+            "Configure Cloud Build to use regionalized, user-owned logs"
+          ],
+          "enum": ["REGIONAL_USER_OWNED_BUCKET"]
+        },
         "requestedVerifyOption": {
           "description": "Requested verifiability options.",
           "type": "string",
@@ -195,10 +210,13 @@
             "Do not fail the build if error in substitutions checks."
           ]
         },
+        "dynamicSubstitutions": {
+          "description": "Use this option to explicitly enable or disable bash parameter expansion in substitutions.\nIf your build is invoked by a trigger, the `dynamicSubstitutions` field is\nalways set to `true` and does not need to be specified in your build config file.\nIf your build is invoked manually, you must set the `dynamicSubstitutions` field to `true` for bash parameter expansions to be interpreted when running your build.",
+          "type": "boolean"
+        },
         "diskSizeGb": {
           "description": "Requested disk size for the VM that runs the build. Note that this is *NOT*\n\"disk free\"; some of the space will be used by the operating system and\nbuild utilities. Also note that this is the minimum disk size that will be\nallocated for the build -- the build may run with a larger disk than\nrequested. At present, the maximum disk size is 1000GB; builds that request\nmore than the maximum are rejected with an error.",
-          "format": "int64",
-          "type": "string"
+          "type": "integer"
         },
         "secretEnv": {
           "description": "A list of global environment variables, which are encrypted using a Cloud\nKey Management Service crypto key. These values must be specified in the\nbuild's `Secret`. These variables will be available to all build steps\nin this build.",
@@ -233,7 +251,6 @@
         "secretEnv": {
           "type": "object",
           "additionalProperties": {
-            "format": "byte",
             "type": "string"
           },
           "description": "Map of environment variable name to its encrypted value.\n\nSecret environment variables must be unique across all of a build's\nsecrets, and must be used by at least one build step. Values can be at most\n64 KB in size. There can be at most 100 secret values across all of a\nbuild's secrets."
@@ -261,8 +278,7 @@
       "properties": {
         "generation": {
           "type": "string",
-          "description": "Google Cloud Storage generation for the object. If the generation is\nomitted, the latest generation will be used.",
-          "format": "int64"
+          "description": "Google Cloud Storage generation for the object. If the generation is\nomitted, the latest generation will be used."
         },
         "bucket": {
           "description": "Google Cloud Storage bucket containing the source (see\n[Bucket Name\nRequirements](https://cloud.google.com/storage/docs/bucket-naming#requirements)).",
@@ -312,11 +328,25 @@
           "$ref": "#/definitions/ArtifactObjects",
           "description": "A list of objects to be uploaded to Cloud Storage upon successful\ncompletion of all build steps.\n\nFiles in the workspace matching specified paths globs will be uploaded to\nthe specified Cloud Storage location using the builder service account's\ncredentials.\n\nThe location and generation of the uploaded objects will be stored in the\nBuild resource's results field.\n\nIf any objects fail to be pushed, the build is marked FAILURE."
         },
-        "images": {
-          "description": "A list of images to be pushed upon the successful completion of all build\nsteps.\n\nThe images will be pushed using the builder service account's credentials.\n\nThe digests of the pushed images will be stored in the Build resource's\nresults field.\n\nIf any of the images fail to be pushed, the build is marked FAILURE.",
+        "mavenArtifacts": {
+          "description": "Allows you to upload non-container Java artifacts to Maven repositories in Artifact Registry.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/MavenArtifacts"
+          }
+        },
+        "pythonPackages": {
+          "description": "Allows you to upload Python packages to Artifact Registry.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PythonPackages"
+          }
+        },
+        "npmPackages": {
+          "description": "Uploads your built NPM packages to supported repositories..",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NpmPackages"
           }
         }
       }
@@ -338,6 +368,69 @@
         }
       }
     },
+    "MavenArtifacts": {
+      "description": "Allows you to upload non-container Java artifacts to Maven repositories in Artifact Registry.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "description": "Required. Name of the Artifact Registry repository to store Java artifacts.",
+          "type": "string"
+        },
+        "path": {
+          "description": "Required. The application file path.",
+          "type": "string"
+        },
+        "artifactId": {
+          "description": "Required. Name of your package file created from your build step",
+          "type": "string"
+        },
+        "groupId": {
+          "description": "Required. Uniquely identifies your project across all Maven projects, in the format `com.mycompany.app`.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Required. The version number for your application.",
+          "type": "string"
+        }
+      },
+      "required": ["repository", "path", "artifactId", "groupId", "version"]
+    },
+    "PythonPackages": {
+      "description": "Allows you to upload Python packages to Artifact Registry.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "description": "Required. Name of the Artifact Registry repository to store the Python package.",
+          "type": "string"
+        },
+        "paths": {
+          "description": "Required. The package file paths.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["repository", "paths"]
+    },
+    "NpmPackages": {
+      "description": "Uploads your built NPM packages to supported repositories.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "description": "Required. Name of the Artifact Registry repository to store the NPM package.",
+          "type": "string"
+        },
+        "packagePath": {
+          "description": "Required. The path for the local directory containing the NPM package that you\nwant to upload to Artifact Registry.\nGoogle recommends using an absolute path.\nYour `packagePath` value can be `.` to use the current working directory, but the field cannot be omitted or left empty.\nThis directory must contain a `package.json` file.",
+          "type": "string"
+        }
+      },
+      "required": ["repository", "packagePath"]
+    },
     "Volume": {
       "description": "Volume describes a Docker container volume which is mounted into build steps\nin order to persist files across build step execution.",
       "type": "object",
@@ -351,6 +444,12 @@
           "type": "string"
         }
       }
+    },
+    "Timeout": {
+      "type": "string",
+      "description": "Time limit for executing the build or particular build step. The `timeout` field of a build step specifies the amount of time the step is allowed to run,\nand the `timeout` field of a build specifies the amount of time the build is allowed to run.",
+      "pattern": "^\\d+(\\.\\d{0,9})?s$",
+      "examples": ["3.5s"]
     }
   },
   "description": "A build resource in the Cloud Build API.\n\nAt a high level, a `Build` describes where to find source code, how to build\nit (for example, the builder image to run on the source), and where to store\nthe built artifacts.\n\nFields can include the following variables, which will be expanded when the\nbuild is created:\n\n- $PROJECT_ID: the project ID of the build.\n- $BUILD_ID: the autogenerated ID of the build.\n- $REPO_NAME: the source repository name specified by RepoSource.\n- $BRANCH_NAME: the branch name specified by RepoSource.\n- $TAG_NAME: the tag name specified by RepoSource.\n- $REVISION_ID or $COMMIT_SHA: the commit SHA specified by RepoSource or\n  resolved from the specified branch or tag.\n- $SHORT_SHA: first 7 characters of $REVISION_ID or $COMMIT_SHA.",
@@ -371,7 +470,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Tags for annotation of a `Build`. These are not docker tags."
+      "description": "Tags for organizing and filtering builds."
     },
     "substitutions": {
       "additionalProperties": {
@@ -400,12 +499,9 @@
       "description": "Artifacts produced by the build that should be uploaded upon\nsuccessful completion of all build steps."
     },
     "timeout": {
-      "description": "Amount of time that this build should be allowed to run, to second\ngranularity. If this amount of time elapses, work on the build will cease\nand the build status will be `TIMEOUT`.\n\nDefault time is ten minutes.",
-      "format": "google-duration",
-      "type": "string",
-      "pattern": "^\\d+(\\.\\d{0,9})?s$",
-      "default": "600s",
-      "examples": ["3.5s"]
+      "$ref": "#/definitions/Timeout",
+      "description": "Amount of time that this build should be allowed to run, to second\ngranularity. If this amount of time elapses, work on the build will cease\nand the build status will be `TIMEOUT`",
+      "default": "600s"
     },
     "secrets": {
       "description": "Secrets to decrypt using Cloud Key Management Service.",
@@ -418,6 +514,13 @@
       "description": "Use this field to specify the IAM service account to use at build time.",
       "type": "string",
       "pattern": "^projects/\\w+/serviceAccounts/\\w+$"
+    },
+    "queueTtl": {
+      "description": "Specifies the amount of time a build can be queued.\nIf a build is in the queue for longer than the value set in `queueTtl`, the build expires and the build status is set to `EXPIRED`.",
+      "type": "string",
+      "pattern": "^\\d+(\\.\\d{0,9})?s$",
+      "examples": ["3.5s"],
+      "default": "3600s"
     }
   },
   "required": ["steps"],
