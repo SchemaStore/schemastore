@@ -6,9 +6,8 @@
 - [Introduction](#introduction)
 - [Overview](#overview)
 - [Recommended Extensions](#recommended-extensions)
-- [Best practices](#best-practices)
-- [On](#on)
-- [Goal](#goal)
+- [Schema Authoring](#schema-authoring)
+  - [Best practices](#best-practices)
   - [Undocumented Features](#undocumented-features)
   - [API Compatibility](#api-compatibility)
   - [Troubleshooting](#troubleshooting)
@@ -67,7 +66,11 @@ If you are modifying JavaScript files, we also recommend:
 
 - [ESLint](https://eslint.org) to automatically show JavaScript issues
 
-## Best practices
+## Schema Authoring
+
+The goal of JSON Schemas in this repository is to correctly validate schemas that are used by the actual tools. That means, if a property is undocumented or deprecated, it should still be included in the schema.
+
+### Best practices
 
 ✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
 
@@ -104,12 +107,6 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
 [draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
-
-## On
-
-## Goal
-
-The goal of JSON Schemas in this repository is to correctly validate schemas that are used by the actual tools. That means, if a property is undocumented or deprecated, it should still be included in the schema.
 
 ### Undocumented Features
 
@@ -381,7 +378,7 @@ To ignore most validation errors, you need to modify `src/schema-validation.json
 
 ### How to name schemas that are subschemas (`partial-`)
 
-Often, it is useful to extract a subschema into its own file. This can make it easier to write tests, find schemas pertaining to a particular project, and logically separate extremely large schemas. The `partial-` prefix makes it easier to for IDEs identify these schemas (and ignore them since they do not correspond to a file. `fileMatch: []` does not cover this case).
+Often, it is useful to extract a subschema into its own file. This can make it easier to write tests, find schemas pertaining to a particular project, and logically separate extremely large schemas. The `partial-` prefix makes it easier for SchemaStore developers and subschema consumers to identify that the schema is a subschema.
 
 A subschema should be extracted to its own file based on the following rules:
 
