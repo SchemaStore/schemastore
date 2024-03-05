@@ -48,7 +48,8 @@
     "max-same-issues": 0,
     "new": true,
     "new-from-patch": "path/to/patch/file",
-    "new-from-rev": "HEAD"
+    "new-from-rev": "HEAD",
+    "whole-files": true
   },
   "linters": {
     "disable": [
@@ -141,6 +142,7 @@
       "rowserrcheck",
       "scopelint",
       "sloglint",
+      "spancheck",
       "sqlclosecheck",
       "staticcheck",
       "structcheck",
@@ -257,6 +259,7 @@
       "rowserrcheck",
       "scopelint",
       "sloglint",
+      "spancheck",
       "sqlclosecheck",
       "staticcheck",
       "structcheck",
@@ -353,18 +356,8 @@
               "pkg": "github.com/pkg/errors"
             }
           ],
-          "files": ["$all", "!**/*_a _file.go"],
-          "listMode": "strict"
-        },
-        "tests": {
-          "deny": [
-            {
-              "desc": "Please use standard library for tests",
-              "pkg": "github.com/stretchr/testify"
-            }
-          ],
-          "files": ["$test"],
-          "listMode": "lax"
+          "files": ["!**/*_a _file.go"],
+          "list-mode": "lax"
         }
       }
     },
@@ -403,6 +396,7 @@
     "exhaustive": {
       "check": ["switch", "map"],
       "check-generated": true,
+      "default-case-required": true,
       "default-signifies-exhaustive": true,
       "explicit-exhaustive-map": true,
       "explicit-exhaustive-switch": true,
@@ -414,9 +408,9 @@
       "struct-patterns": ["*.Test", "example.com/package.ExampleStruct"]
     },
     "exhaustruct": {
-      "exclude": ["cobra\\.Command$"],
+      "exclude": [".+/cobra\\.Command$"],
       "include": [
-        ".*\\.Test",
+        ".+\\.Test",
         "example\\.com/package\\.ExampleStruct[\\d]{1,2}"
       ]
     },
@@ -450,7 +444,8 @@
         "default",
         "prefix(github.com/org/project)",
         "blank",
-        "dot"
+        "dot",
+        "alias"
       ],
       "skip-generated": false
     },
@@ -469,6 +464,7 @@
     },
     "goconst": {
       "ignore-calls": false,
+      "ignore-strings": "foo.+",
       "ignore-tests": true,
       "match-constant": false,
       "max": 2,
@@ -503,11 +499,17 @@
         "captLocal": {
           "paramsOnly": false
         },
+        "commentedOutCode": {
+          "minLength": 50
+        },
         "elseif": {
           "skipBalanced": false
         },
         "hugeParam": {
           "sizeThreshold": 70
+        },
+        "ifElseChain": {
+          "minThreshold": 4
         },
         "nestingReduce": {
           "bodyWidth": 4
@@ -897,6 +899,9 @@
       "no-extra-aliases": true,
       "no-unaliased": true
     },
+    "inamedparam": {
+      "skip-single-param": true
+    },
     "interfacebloat": {
       "max": 5
     },
@@ -932,7 +937,8 @@
     },
     "misspell": {
       "ignore-words": ["someword"],
-      "locale": "US"
+      "locale": "US",
+      "mode": "restricted"
     },
     "musttag": {
       "functions": [
@@ -968,6 +974,12 @@
       "ignore-missing": true,
       "ignore-missing-subtests": true
     },
+    "perfsprint": {
+      "err-error": true,
+      "errorf": false,
+      "int-conversion": false,
+      "sprintf1": false
+    },
     "prealloc": {
       "for-loops": true,
       "range-loops": false,
@@ -989,6 +1001,12 @@
         "UnitAbbreviations"
       ],
       "strict": true
+    },
+    "protogetter": {
+      "replace-first-arg-in-append": true,
+      "skip-any-generated": true,
+      "skip-files": ["*.pb.go", "*/vendor/*", "/full/path/to/file.go"],
+      "skip-generated-by": ["protoc-gen-go-my-own-generator"]
     },
     "reassign": {
       "patterns": [".*"]
@@ -1146,6 +1164,18 @@
           "severity": "warning"
         },
         {
+          "arguments": ["short"],
+          "disabled": false,
+          "name": "enforce-repeated-arg-type-style",
+          "severity": "warning"
+        },
+        {
+          "arguments": ["make"],
+          "disabled": false,
+          "name": "enforce-slice-style",
+          "severity": "warning"
+        },
+        {
           "disabled": false,
           "name": "error-naming",
           "severity": "warning"
@@ -1235,7 +1265,7 @@
         {
           "arguments": ["crypto/md5", "crypto/sha1"],
           "disabled": false,
-          "name": "imports-blacklist",
+          "name": "imports-blocklist",
           "severity": "warning"
         },
         {
@@ -1247,6 +1277,12 @@
           "arguments": [80],
           "disabled": false,
           "name": "line-length-limit",
+          "severity": "warning"
+        },
+        {
+          "arguments": [3],
+          "disabled": false,
+          "name": "max-control-nesting",
           "severity": "warning"
         },
         {
@@ -1440,8 +1476,16 @@
     "sloglint": {
       "args-on-sep-lines": true,
       "attr-only": true,
+      "context-only": true,
+      "key-naming-case": "snake",
       "kv-only": true,
-      "no-raw-keys": true
+      "no-mixed-args": false,
+      "no-raw-keys": true,
+      "static-msg": true
+    },
+    "spancheck": {
+      "checks": ["end", "record-error", "set-status"],
+      "ignore-check-signatures": ["telemetry.RecordError"]
     },
     "staticcheck": {
       "checks": ["all"],
@@ -1538,23 +1582,49 @@
       "all": false
     },
     "testifylint": {
-      "enable": [
+      "disable": [
+        "blank-import",
         "bool-compare",
         "compares",
         "empty",
         "error-is-as",
         "error-nil",
         "expected-actual",
+        "go-require",
         "float-compare",
         "len",
+        "nil-compare",
         "require-error",
         "suite-dont-use-pkg",
         "suite-extra-assert-call",
-        "suite-thelper"
+        "suite-thelper",
+        "useless-assert"
+      ],
+      "disable-all": true,
+      "enable": [
+        "blank-import",
+        "bool-compare",
+        "compares",
+        "empty",
+        "error-is-as",
+        "error-nil",
+        "expected-actual",
+        "go-require",
+        "float-compare",
+        "len",
+        "nil-compare",
+        "require-error",
+        "suite-dont-use-pkg",
+        "suite-extra-assert-call",
+        "suite-thelper",
+        "useless-assert"
       ],
       "enable-all": true,
       "expected-actual": {
         "pattern": "^expected"
+      },
+      "require-error": {
+        "fn-pattern": "^(Errorf?|NoErrorf?)$"
       },
       "suite-extra-assert-call": {
         "mode": "require"
@@ -1648,6 +1718,7 @@
         ".Errorf(",
         "errors.New(",
         "errors.Unwrap(",
+        "errors.Join(",
         ".Wrap(",
         ".Wrapf(",
         ".WithMessage(",
@@ -1676,16 +1747,19 @@
     "path-prefix": "",
     "print-issued-lines": false,
     "print-linter-name": false,
-    "sort-results": false,
+    "sort-results": true,
     "uniq-by-line": false
   },
   "run": {
     "allow-parallel-runners": false,
+    "allow-serial-runners": true,
     "build-tags": ["mytag"],
     "concurrency": 4,
     "go": "1.19",
     "issues-exit-code": 2,
     "modules-download-mode": "readonly",
+    "print-resources-usage": true,
+    "show-stats": true,
     "skip-dirs": ["src/external_libs", "autogenerated_by_my_lib"],
     "skip-dirs-use-default": false,
     "skip-files": [".*\\.my\\.go$", "lib/bad.go"],
