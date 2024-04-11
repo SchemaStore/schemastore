@@ -8,6 +8,7 @@
 - [Recommended Extensions](#recommended-extensions)
 - [Schema Authoring](#schema-authoring)
   - [Best practices](#best-practices)
+    - [Avoiding overconstraint](#avoiding-overconstraint)
   - [Undocumented Features](#undocumented-features)
   - [API Compatibility](#api-compatibility)
   - [Troubleshooting](#troubleshooting)
@@ -107,6 +108,13 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
 [draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
+
+#### Avoiding overconstraint
+
+Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. False positives are likely as due to their complexity and abundance of implementations; and, when there is an error, the error message isn't helpful. Such cases can include:
+
+- cron regexes
+- string-embedded DSLs
 
 ### Undocumented Features
 
