@@ -115,6 +115,7 @@ Sometimes, constraints do more harm than good. For example, [cron strings](http:
 
 - cron regexes
 - string-embedded DSLs
+- SSH URLs, HTTPS URLs, and other complex URIs
 
 ### Undocumented Features
 
