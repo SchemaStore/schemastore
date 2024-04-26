@@ -57,7 +57,19 @@
                   "description": "commit message에 주어진 문자열을 포함한 경우만 빌드"
                 }
               }
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [""],
+              "description": "Push 빌드의 paths 조건",
+              "minItems": 1
             }
+          },
+          "dependencies": {
+            "paths": ["branches"]
           },
           "additionalProperties": false
         },
@@ -70,7 +82,7 @@
               "items": {
                 "type": "string"
               },
-              "default": ["*"],
+              "default": [""],
               "description": "PR빌드의 target 브랜치 조건",
               "minItems": 1
             },
@@ -102,15 +114,42 @@
               "description": "PR 이벤트 타입",
               "minItems": 1
             },
-            "commit": {
-              "type": "object",
-              "description": "Commit 조건",
-              "properties": {
-                "message-contain": {
-                  "type": "string",
-                  "description": "커밋 메시지가 지정된 문자열을 포함하면 빌드를 실행"
-                }
-              }
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [""],
+              "description": "PullRequest 빌드의 paths 조건",
+              "minItems": 1
+            }
+          },
+          "dependencies": {
+            "paths": ["branches"]
+          },
+          "additionalProperties": false
+        },
+        "manual": {
+          "type": "object",
+          "description": "수동빌드 대상을 위한 조건",
+          "properties": {
+            "branches": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [""],
+              "description": "수동빌드의 대상이 되는 브랜치 조건",
+              "minItems": 1
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [""],
+              "description": "수동빌드의 대상이 되는 태그 조건",
+              "minItems": 1
             }
           },
           "additionalProperties": false
@@ -142,7 +181,16 @@
           "default": ["shell"],
           "items": {
             "type": "string",
-            "enum": ["shell", "gradle", "npm", "docker", "yarn", "maven"]
+            "enum": [
+              "shell",
+              "gradle",
+              "npm",
+              "docker",
+              "yarn",
+              "maven",
+              "java",
+              "sbt"
+            ]
           }
         },
         "no-proxy-hosts": {
@@ -184,6 +232,12 @@
             }
           }
         },
+        "git-clone": {
+          "type": "string",
+          "description": "git clone시 depth를 주기위한 옵션",
+          "default": "shallow",
+          "pattern": "^(shallow|deep|shallow:[0-9]+)$"
+        },
         "max-execution-time": {
           "type": "string",
           "description": "최대 실행시간 (e.g. '1h', '100m')",
@@ -197,6 +251,9 @@
           "properties": {
             "app-center-release": {
               "$ref": "#/definitions/app-center-release"
+            },
+            "app-center-releases": {
+              "$ref": "#/definitions/app-center-releases"
             },
             "git-ops": {
               "$ref": "#/definitions/git-ops"
@@ -214,7 +271,7 @@
           "type": "string",
           "description": "docker image",
           "default": "+@basebox",
-          "pattern": "^(\\+@[a-z0-9-]+|\\+\\/[a-z0-9-]+|[a-z0-9/.-]+)(:[a-z0-9\\-]+)?$"
+          "pattern": "^(\\+@[a-z0-9-]+|\\+\\/[a-z0-9/-]+|[a-z0-9/._-]+)(:[a-z0-9A-Z._-]+)?$"
         },
         "resources": {
           "description": "실행에 사용할 리소스 크기 설정",
@@ -274,6 +331,26 @@
           "description": "실행환경 플랫폼",
           "default": "k8s",
           "enum": ["k8s", "macos"]
+        },
+        "selectors": {
+          "type": "array",
+          "description": "platform: macos 일때 사용할 agent를 선택",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "agent label 값"
+              },
+              "pattern": {
+                "type": "string",
+                "default": "*",
+                "description": "agent value를 pattern 으로 지정"
+              }
+            }
+          }
         }
       }
     },
@@ -300,6 +377,41 @@
             "type": "string",
             "description": "@<user>, @@<group>, corp@@<corpcode>",
             "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$"
+          }
+        }
+      }
+    },
+    "app-center-releases": {
+      "type": "array",
+      "description": "artifact로 지정된 .apk/.ipa 파일을 appcenter로 릴리즈",
+      "items": {
+        "type": "object",
+        "description": "appcenter release 설정",
+        "required": ["app-id", "release-group-tags"],
+        "additionalProperties": false,
+        "properties": {
+          "app-id": {
+            "type": "string",
+            "description": "App ID",
+            "pattern": "[a-zA-Z0-9_-]+"
+          },
+          "release-group-tags": {
+            "type": "array",
+            "description": "릴리즈 그룹에 대한 Tag들을 지정",
+            "items": {
+              "type": "string",
+              "description": "릴리즈 그룹에 대한 Tag 값",
+              "pattern": "[a-zA-Z0-9_-]+"
+            }
+          },
+          "testers": {
+            "type": "array",
+            "description": "테스터 지정(@<user>, @@<group>, corp@@<corpcode>)",
+            "items": {
+              "type": "string",
+              "description": "@<user>, @@<group>, corp@@<corpcode>",
+              "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$"
+            }
           }
         }
       }
@@ -342,6 +454,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "sync-git-tag": {
+          "type": "boolean",
+          "description": "manifest repo에 git tag를 동기화할지 여부. push tag 빌드일때만 동작",
+          "default": false
         }
       }
     }

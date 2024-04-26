@@ -45,6 +45,26 @@ module.exports = {
       },
     },
     {
+      files: 'src/schema-validation.json',
+      options: {
+        $schema: null,
+        $id: null,
+        $comment: null,
+        jsonRecursiveSort: true,
+        jsonSortOrder: JSON.stringify({
+          ajvNotStrictMode: null,
+          fileMatchConflict: null,
+          highSchemaVersion: null,
+          missingCatalogUrl: null,
+          skiptest: null,
+          catalogEntryNoLintNameOrDescription: null,
+          options: null,
+          '/^[^\\d+]/': 'lexical',
+          '/^\\d+/': 'numeric',
+        }),
+      },
+    },
+    {
       files: 'src/{test,negative_test}/**',
       options: {
         jsonRecursiveSort: true,

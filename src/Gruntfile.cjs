@@ -16,6 +16,7 @@ const schemasafe = require('@exodus/schemasafe')
 const prettier = require('prettier')
 const axios = require('axios').default
 const jsonlint = require('@prantlf/jsonlint')
+const jsoncParser = require('jsonc-parser')
 
 const temporaryCoverageDir = 'temp'
 const schemaDir = 'schemas/json'
@@ -23,7 +24,9 @@ const testPositiveDir = 'test'
 const testNegativeDir = 'negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = require('./api/json/catalog.json')
-const schemaValidation = require('./schema-validation.json')
+const schemaValidation = jsoncParser.parse(
+  fs.readFileSync('./schema-validation.json', 'utf-8'),
+)
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
 const foldersNegativeTest = fs.readdirSync(testNegativeDir)
@@ -284,7 +287,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
             try {
               // { bigint: false } or else toml variable like 'a = 3' will return as 'a = 3n'
               // This creates an error because the schema expect an integer 3 and not 3n
-              return TOML.parse(buffer.toString(), { bigint: false })
+              return TOML.parse(buffer.toString(), {
+                bigint: false,
+                joiner: '\n',
+              })
             } catch (err) {
               throwWithErrorText([
                 `Can't read/decode toml file: ${testFileNameWithPath}`,
@@ -502,9 +508,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
    * @returns {getOptionReturn}
    */
   function getOption(jsonName) {
-    const options = schemaValidation.options.find((item) => jsonName in item)?.[
-      jsonName
-    ]
+    const options = schemaValidation.options[jsonName]
 
     // collect the unknownFormat list
     const unknownFormatsList = options?.unknownFormat ?? []
@@ -871,11 +875,22 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
             ++countScan
 
             throwWithErrorText([
-              `Catalog entry .${property}: Should not contain the string 'schema' (${schemaName})`,
+              `Catalog entry .${property}: Should not contain the string 'schema'. In most cases, this word is extraneous and the meaning is implied (${schemaName})`,
+            ])
+          }
+        }
+
+        for (const property of ['name', 'description']) {
+          if (entry?.[property]?.toLowerCase()?.includes('\n')) {
+            ++countScan
+
+            throwWithErrorText([
+              `Catalog entry .${property}: Should not contain a newline character. In editors like VSCode, the newline is not rendered. (${schemaName})`,
             ])
           }
         }
       }
+
       grunt.log.writeln(`Total found files: ${countScan}`)
     },
   )
@@ -1110,8 +1125,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
       // Check if allCatalogLocalJsonFiles[] have the actual schema filename.
       const schemaFileCompare = (x) => {
-        // skip testing if present in "missingcatalogurl"
-        if (!schemaValidation.missingcatalogurl.includes(x.jsonName)) {
+        // skip testing if present in "missingCatalogUrl"
+        if (!schemaValidation.missingCatalogUrl.includes(x.jsonName)) {
           countScan++
           const found = allCatalogLocalJsonFiles.includes(x.jsonName)
           if (!found) {
@@ -1612,8 +1627,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       )
       checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
       checkForDuplicateInList(
-        schemaValidation.missingcatalogurl,
-        'missingcatalogurl[]',
+        schemaValidation.missingCatalogUrl,
+        'missingCatalogUrl[]',
       )
       checkForDuplicateInList(
         schemaValidation.catalogEntryNoLintNameOrDescription,
@@ -1630,15 +1645,14 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
       // Check for duplicate in options[]
       const checkList = []
-      for (const item of schemaValidation.options) {
-        const schemaName = Object.keys(item).pop()
+      for (const schemaName in schemaValidation.options) {
         if (checkList.includes(schemaName)) {
           throwWithErrorText([
             `Duplicate schema name found in options[] schema-validation.json => ${schemaName}`,
           ])
         }
         // Check for all values inside one option object
-        const optionValues = Object.values(item).pop()
+        const optionValues = schemaValidation.options[schemaName]
         checkForDuplicateInList(
           optionValues?.unknownKeywords,
           `${schemaName} unknownKeywords[]`,
@@ -1774,11 +1788,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       }
       x(schemaValidation.ajvNotStrictMode)
       x(schemaValidation.skiptest)
-      x(schemaValidation.missingcatalogurl)
+      x(schemaValidation.missingCatalogUrl)
       x(schemaValidation.highSchemaVersion)
 
-      for (const item of schemaValidation.options) {
-        const schemaName = Object.keys(item).pop()
+      for (const schemaName in schemaValidation.options) {
         if (schemaName !== 'readme_example.json') {
           countSchemaValidationItems++
           if (!schemasToBeTested.includes(schemaName)) {
@@ -1837,11 +1850,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         })
       }
       x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
-      x(schemaValidation.missingcatalogurl, 'missingcatalogurl')
+      x(schemaValidation.missingCatalogUrl, 'missingCatalogUrl')
       x(schemaValidation.highSchemaVersion, 'highSchemaVersion')
 
-      for (const item of schemaValidation.options) {
-        const schemaName = Object.keys(item).pop()
+      for (const schemaName in schemaValidation.options) {
         if (schemaName !== 'readme_example.json') {
           countSchemaValidationItems++
           if (schemaValidation.skiptest.includes(schemaName)) {
