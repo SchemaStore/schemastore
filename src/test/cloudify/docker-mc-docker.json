@@ -5,9 +5,27 @@
     "plugin:cloudify-fabric-plugin"
   ],
   "inputs": {
+    "infra_archive": {
+      "default": "https://github.com/cloudify-community/blueprint-examples/releases/download/5.0.5-10/virtual-machine.zip",
+      "description": "URL of infra zip file.\n",
+      "type": "string"
+    },
+    "infra_deployment_id": {
+      "default": {
+        "concat": [
+          "infra-",
+          {
+            "get_input": "infra_name"
+          }
+        ]
+      },
+      "description": "The blueprint name, the deployment name."
+    },
+    "infra_exists": {
+      "default": false,
+      "description": "Whether a getting started infrastructure blueprint has already been uploaded to the manager or not.\n"
+    },
     "infra_name": {
-      "description": "Name of infrastructure blueprint to deploy.\n",
-      "type": "string",
       "constraints": [
         {
           "valid_values": [
@@ -20,40 +38,103 @@
             "gcp"
           ]
         }
-      ]
-    },
-    "infra_archive": {
-      "description": "URL of infra zip file.\n",
-      "type": "string",
-      "default": "https://github.com/cloudify-community/blueprint-examples/releases/download/5.0.5-10/virtual-machine.zip"
-    },
-    "infra_exists": {
-      "description": "Whether a getting started infrastructure blueprint has already been uploaded to the manager or not.\n",
-      "default": false
-    },
-    "infra_deployment_id": {
-      "description": "The blueprint name, the deployment name.",
-      "default": {
-        "concat": [
-          "infra-",
-          {
-            "get_input": "infra_name"
-          }
-        ]
-      }
+      ],
+      "description": "Name of infrastructure blueprint to deploy.\n",
+      "type": "string"
     }
   },
   "node_templates": {
+    "docker": {
+      "interfaces": {
+        "cloudify.interfaces.lifecycle": {
+          "create": {
+            "implementation": "fabric.fabric_plugin.tasks.run_script",
+            "inputs": {
+              "fabric_env": {
+                "host_string": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "endpoint"
+                  ]
+                },
+                "key": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "key_content"
+                  ]
+                },
+                "user": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "user"
+                  ]
+                }
+              },
+              "script_path": "scripts/install_docker.sh",
+              "use_sudo": true
+            }
+          },
+          "delete": {
+            "implementation": "fabric.fabric_plugin.tasks.run_script",
+            "inputs": {
+              "fabric_env": {
+                "host_string": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "endpoint"
+                  ]
+                },
+                "key": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "key_content"
+                  ]
+                },
+                "user": {
+                  "get_capability": [
+                    {
+                      "get_input": "infra_deployment_id"
+                    },
+                    "user"
+                  ]
+                }
+              },
+              "script_path": "scripts/uninstall_docker.sh",
+              "use_sudo": true
+            }
+          }
+        }
+      },
+      "relationships": [
+        {
+          "target": "infrastructure",
+          "type": "cloudify.relationships.depends_on"
+        }
+      ],
+      "type": "cloudify.nodes.ApplicationServer"
+    },
     "infrastructure": {
-      "type": "cloudify.nodes.Component",
       "properties": {
         "resource_config": {
           "blueprint": {
-            "id": {
-              "get_input": "infra_deployment_id"
-            },
             "blueprint_archive": {
               "get_input": "infra_archive"
+            },
+            "external_resource": {
+              "get_input": "infra_exists"
+            },
+            "id": {
+              "get_input": "infra_deployment_id"
             },
             "main_file_name": {
               "concat": [
@@ -62,9 +143,6 @@
                 },
                 ".yaml"
               ]
-            },
-            "external_resource": {
-              "get_input": "infra_exists"
             }
           },
           "deployment": {
@@ -73,86 +151,8 @@
             }
           }
         }
-      }
-    },
-    "docker": {
-      "type": "cloudify.nodes.ApplicationServer",
-      "interfaces": {
-        "cloudify.interfaces.lifecycle": {
-          "create": {
-            "implementation": "fabric.fabric_plugin.tasks.run_script",
-            "inputs": {
-              "script_path": "scripts/install_docker.sh",
-              "fabric_env": {
-                "host_string": {
-                  "get_capability": [
-                    {
-                      "get_input": "infra_deployment_id"
-                    },
-                    "endpoint"
-                  ]
-                },
-                "user": {
-                  "get_capability": [
-                    {
-                      "get_input": "infra_deployment_id"
-                    },
-                    "user"
-                  ]
-                },
-                "key": {
-                  "get_capability": [
-                    {
-                      "get_input": "infra_deployment_id"
-                    },
-                    "key_content"
-                  ]
-                }
-              },
-              "use_sudo": true
-            }
-          },
-          "delete": {
-            "implementation": "fabric.fabric_plugin.tasks.run_script",
-            "inputs": {
-              "script_path": "scripts/uninstall_docker.sh",
-              "fabric_env": {
-                "host_string": {
-                  "get_capability": [
-                    {
-                      "get_input": "infra_deployment_id"
-                    },
-                    "endpoint"
-                  ]
-                },
-                "user": {
-                  "get_capability": [
-                    {
-                      "get_input": "infra_deployment_id"
-                    },
-                    "user"
-                  ]
-                },
-                "key": {
-                  "get_capability": [
-                    {
-                      "get_input": "infra_deployment_id"
-                    },
-                    "key_content"
-                  ]
-                }
-              },
-              "use_sudo": true
-            }
-          }
-        }
       },
-      "relationships": [
-        {
-          "type": "cloudify.relationships.depends_on",
-          "target": "infrastructure"
-        }
-      ]
+      "type": "cloudify.nodes.Component"
     }
   },
   "outputs": {
