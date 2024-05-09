@@ -1,441 +1,703 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://json.schemastore.org/task.json",
-  "$comment": "Generated with typescript-json-schema on March 24, 2023 from https://code.visualstudio.com/docs/editor/tasks-appendix",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$comment": "Officially maintained at https://taskfile.dev/schema.json",
+  "title": "Taskfile YAML Schema",
+  "description": "Schema for Taskfile files.",
   "definitions": {
-    "BackgroundMatcher": {
-      "description": "A description to track the start and end of a background task.",
-      "properties": {
-        "activeOnStart": {
-          "description": "If set to true the watcher is in active mode when the task\nstarts. This is equals of issuing a line that matches the\nbeginPattern.",
-          "type": "boolean"
-        },
-        "beginsPattern": {
-          "description": "If matched in the output the start of a background task is signaled.",
-          "type": "string"
-        },
-        "endsPattern": {
-          "description": "If matched in the output the end of a background task is signaled.",
-          "type": "string"
-        }
-      },
-      "type": "object"
+    "env": {
+      "$ref": "#/definitions/vars"
     },
-    "BaseTaskConfiguration": {
-      "properties": {
-        "args": {
-          "description": "The arguments passed to the command. Can be omitted.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "command": {
-          "description": "The command to be executed. Can be an external program or a shell\ncommand.",
-          "type": "string"
-        },
-        "isBackground": {
-          "description": "Specifies whether a global command is a background task.",
-          "type": "boolean"
-        },
-        "options": {
-          "$ref": "#/definitions/CommandOptions",
-          "description": "The command options used when the command is executed. Can be omitted."
-        },
-        "presentation": {
-          "$ref": "#/definitions/PresentationOptions",
-          "description": "The presentation options."
-        },
-        "problemMatcher": {
+    "tasks": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProblemMatcher"
+              "type": "string"
             },
             {
+              "type": "array",
               "items": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/ProblemMatcher"
-                  },
+                "oneOf": [
                   {
                     "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/task_call"
                   }
                 ]
-              },
-              "type": "array"
+              }
             },
             {
-              "type": "string"
+              "$ref": "#/definitions/task"
             }
-          ],
-          "description": "The problem matcher to be used if a global command is executed (e.g. no tasks\nare defined). A tasks.json file can either contain a global problemMatcher\nproperty or a tasks property but not both."
-        },
-        "tasks": {
-          "description": "The configuration of the available tasks. A tasks.json file can either\ncontain a global problemMatcher property or a tasks property but not both.",
-          "items": {
-            "$ref": "#/definitions/TaskDescription"
-          },
-          "type": "array"
-        },
-        "type": {
-          "description": "The type of a custom task. Tasks of type \"shell\" are executed\ninside a shell (e.g. bash, cmd, powershell, ...)",
-          "enum": ["process", "shell", "npm"],
-          "type": "string"
+          ]
         }
-      },
-      "type": "object"
+      }
     },
-    "CommandOptions": {
-      "description": "Options to be passed to the external program or shell",
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "cwd": {
-          "description": "The current working directory of the executed program or shell.\nIf omitted the current workspace's root is used.",
+        "cmds": {
+          "$ref": "#/definitions/cmds",
+          "description": "A list of commands to be executed."
+        },
+        "cmd": {
+          "$ref": "#/definitions/cmd",
+          "description": "The command to be executed."
+        },
+        "deps": {
+          "$ref": "#/definitions/deps",
+          "description": "A list of dependencies of this task. Tasks defined here will run in parallel before this task."
+        },
+        "label": {
+          "description": "Overrides the name of the task in the output when a task is run. Supports variables.",
           "type": "string"
+        },
+        "desc": {
+          "description": "A short description of the task. This is displayed when calling `task --list`.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "A prompt that will be presented before a task is run. Declining will cancel running the current and any subsequent tasks.",
+          "type": "string"
+        },
+        "summary": {
+          "description": "A longer description of the task. This is displayed when calling `task --summary [task]`.",
+          "type": "string"
+        },
+        "aliases": {
+          "description": "A list of alternative names by which the task can be called.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "description": "A list of sources to check before running this task. Relevant for `checksum` and `timestamp` methods. Can be file paths or star globs.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/glob"
+          }
+        },
+        "generates": {
+          "description": "A list of files meant to be generated by this task. Relevant for `timestamp` method. Can be file paths or star globs.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/glob"
+          }
+        },
+        "status": {
+          "description": "A list of commands to check if this task should run. The task is skipped otherwise. This overrides `method`, `sources` and `generates`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preconditions": {
+          "description": "A list of commands to check if this task should run. If a condition is not met, the task will error.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/precondition"
+          }
+        },
+        "dir": {
+          "description": "The directory in which this task should run. Defaults to the current working directory.",
+          "type": "string"
+        },
+        "set": {
+          "description": "Enables POSIX shell options for all of a task's commands. See https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/set"
+          }
+        },
+        "shopt": {
+          "description": "Enables Bash shell options for all of a task's commands. See https://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/shopt"
+          }
+        },
+        "vars": {
+          "$ref": "#/definitions/vars",
+          "description": "A set of variables that can be used in the task."
         },
         "env": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "The environment of the executed program or shell. If omitted\nthe parent process' environment is used.",
-          "type": "object"
+          "$ref": "#/definitions/env",
+          "description": "A set of environment variables that will be made available to shell commands."
         },
-        "shell": {
-          "description": "Configuration of the shell when task type is `shell`",
-          "properties": {
-            "args": {
-              "description": "The arguments to be passed to the shell executable to run in command mode\n(e.g ['-c'] for bash or ['/S', '/C'] for cmd.exe).",
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "executable": {
-              "description": "The shell to use.",
-              "type": "string"
-            }
-          },
-          "type": "object"
-        }
-      },
-      "type": "object"
-    },
-    "PresentationOptions": {
-      "properties": {
-        "clear": {
-          "description": "Controls whether the terminal is cleared before this task is run.\nDefaults to `false`.",
-          "type": "boolean"
-        },
-        "echo": {
-          "description": "Controls whether the command associated with the task is echoed\nin the user interface. Defaults to `true`.",
-          "type": "boolean"
-        },
-        "focus": {
-          "description": "Controls whether the panel showing the task output is taking focus.\nDefaults to `false`.",
-          "type": "boolean"
-        },
-        "group": {
-          "description": "Controls whether the task is executed in a specific terminal\ngroup using split panes. Tasks in the same group (specified by a string value)\nwill use split terminals to present instead of a new terminal panel.",
-          "type": "string"
-        },
-        "panel": {
-          "description": "Controls if the task panel is used for this task only (dedicated),\nshared between tasks (shared) or if a new panel is created on\nevery task execution (new). Defaults to `shared`.",
-          "enum": ["dedicated", "new", "shared"],
-          "type": "string"
-        },
-        "reveal": {
-          "description": "Controls whether the task output is reveal in the user interface.\nDefaults to `always`.",
-          "enum": ["always", "never", "silent"],
-          "type": "string"
-        },
-        "showReuseMessage": {
-          "description": "Controls whether to show the `Terminal will be reused by tasks,\npress any key to close it` message.",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "ProblemMatcher": {
-      "description": "A description of a problem matcher that detects problems\nin build output.",
-      "properties": {
-        "background": {
-          "$ref": "#/definitions/BackgroundMatcher",
-          "description": "Additional information used to detect when a background task (like a watching task in Gulp)\nis active."
-        },
-        "base": {
-          "description": "The name of a base problem matcher to use. If specified the\nbase problem matcher will be used as a template and properties\nspecified here will replace properties of the base problem\nmatcher",
-          "type": "string"
-        },
-        "fileLocation": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "string"
-            }
-          ],
-          "description": "Defines how filename reported in a problem pattern\nshould be read. Valid values are:\n - \"absolute\": the filename is always treated absolute.\n - \"relative\": the filename is always treated relative to\n   the current working directory. This is the default.\n - [\"relative\", \"path value\"]: the filename is always\n   treated relative to the given path value.\n - \"autodetect\": the filename is treated relative to\n   the current workspace directory, and if the file\n   does not exist, it is treated as absolute.\n - [\"autodetect\", \"path value\"]: the filename is treated\n   relative to the given path value, and if it does not\n   exist, it is treated as absolute."
-        },
-        "owner": {
-          "description": "The owner of the produced VS Code problem. This is typically\nthe identifier of a VS Code language service if the problems are\nto be merged with the one produced by the language service\nor 'external'. Defaults to 'external' if omitted.",
-          "type": "string"
-        },
-        "pattern": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ProblemPattern"
-            },
-            {
-              "items": {
-                "$ref": "#/definitions/ProblemPattern"
-              },
-              "type": "array"
-            },
-            {
-              "type": "string"
-            }
-          ],
-          "description": "The name of a predefined problem pattern, the inline definition\nof a problem pattern or an array of problem patterns to match\nproblems spread over multiple lines."
-        },
-        "severity": {
-          "description": "The severity of the VS Code problem produced by this problem matcher.\n\nValid values are:\n  \"error\": to produce errors.\n  \"warning\": to produce warnings.\n  \"info\": to produce infos.\n\nThe value is used if a pattern doesn't specify a severity match group.\nDefaults to \"error\" if omitted.",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "ProblemPattern": {
-      "properties": {
-        "code": {
-          "description": "The match group index of the problem's code.\n\nDefaults to undefined. No code is captured.",
-          "type": "number"
-        },
-        "column": {
-          "description": "The match group index of the problem's column in the source file.",
-          "type": "number"
-        },
-        "endColumn": {
-          "description": "The match group index of the problem's end column in the source file.\n\nDefaults to undefined. No end column is captured.",
-          "type": "number"
-        },
-        "endLine": {
-          "description": "The match group index of the problem's end line in the source file.\n\nDefaults to undefined. No end line is captured.",
-          "type": "number"
-        },
-        "file": {
-          "description": "The match group index of the filename.",
-          "type": "number"
-        },
-        "kind": {
-          "description": "Whether the pattern matches a problem for the whole file or for a location\ninside a file.\n\nDefaults to \"location\".",
-          "enum": ["file", "location"],
-          "type": "string"
-        },
-        "line": {
-          "description": "The match group index of the problem's line in the source file.\nCan only be omitted if location is specified.",
-          "type": "number"
-        },
-        "location": {
-          "description": "The match group index of the problem's location. Valid location\npatterns are: (line), (line,column) and (startLine,startColumn,endLine,endColumn).\nIf omitted the line and column properties are used.",
-          "type": "number"
-        },
-        "loop": {
-          "description": "Specifies if the last pattern in a multi line problem matcher should\nloop as long as it does match a line consequently. Only valid on the\nlast problem pattern in a multi line problem matcher.",
-          "type": "boolean"
-        },
-        "message": {
-          "description": "The match group index of the message. Defaults to 0.",
-          "type": "number"
-        },
-        "regexp": {
-          "description": "The regular expression to find a problem in the console output of an\nexecuted task.",
-          "type": "string"
-        },
-        "severity": {
-          "description": "The match group index of the problem's severity.\n\nDefaults to undefined. In this case the problem matcher's severity\nis used.",
-          "type": "number"
-        }
-      },
-      "type": "object"
-    },
-    "RunOptions": {
-      "description": "A description to when and how run a task.",
-      "properties": {
-        "reevaluateOnRerun": {
-          "description": "Controls how variables are evaluated when a task is executed through\nthe Rerun Last Task command.\nThe default is `true`, meaning that variables will be re-evaluated when\na task is rerun. When set to `false`, the resolved variable values from\nthe previous run of the task will be used.",
-          "type": "boolean"
-        },
-        "runOn": {
-          "description": "Specifies when a task is run.\n\nValid values are:\n  \"default\": The task will only be run when executed through the Run Task command.\n  \"folderOpen\": The task will be run when the containing folder is opened.",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "TaskDescription": {
-      "description": "The description of a task.",
-      "properties": {
-        "args": {
-          "description": "Additional arguments passed to the command. Should be used if type\nis \"process\".",
+        "dotenv": {
+          "description": "A list of `.env` file paths to be parsed.",
+          "type": "array",
           "items": {
             "type": "string"
-          },
-          "type": "array"
+          }
         },
-        "command": {
-          "description": "The command to execute. If the type is \"shell\" it should be the full\ncommand line including any additional arguments passed to the command.",
+        "silent": {
+          "description": "Hides task name and command from output. The command's output will still be redirected to `STDOUT` and `STDERR`. When combined with the `--list` flag, task descriptions will be hidden.",
+          "type": "boolean",
+          "default": false
+        },
+        "interactive": {
+          "description": "Tells task that the command is interactive.",
+          "type": "boolean",
+          "default": false
+        },
+        "internal": {
+          "description": "Stops a task from being callable on the command line. It will also be omitted from the output when used with `--list`.",
+          "type": "boolean",
+          "default": false
+        },
+        "method": {
+          "description": "Defines which method is used to check the task is up-to-date. `timestamp` will compare the timestamp of the sources and generates files. `checksum` will check the checksum (You probably want to ignore the .task folder in your .gitignore file). `none` skips any validation and always run the task.",
+          "type": "string",
+          "enum": ["none", "checksum", "timestamp"],
+          "default": "none"
+        },
+        "prefix": {
+          "description": "Defines a string to prefix the output of tasks running in parallel. Only used when the output mode is `prefixed`.",
           "type": "string"
         },
-        "group": {
+        "ignore_error": {
+          "description": "Continue execution if errors happen while executing commands.",
+          "type": "boolean"
+        },
+        "run": {
+          "$ref": "#/definitions/run",
+          "description": "Specifies whether the task should run again or not if called more than once. Available options: `always`, `once` and `when_changed`."
+        },
+        "platforms": {
+          "description": "Specifies which platforms the task should be run on.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requires": {
+          "$ref": "#/definitions/requires_obj",
+          "description": "A list of variables which should be set if this task is to run, if any of these variables are unset the task will error and not run"
+        },
+        "watch": {
+          "description": "Configures a task to run in watch mode automatically.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "cmds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/cmd"
+      }
+    },
+    "cmd": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/cmd_call"
+        },
+        {
+          "$ref": "#/definitions/task_call"
+        },
+        {
+          "$ref": "#/definitions/defer_call"
+        },
+        {
+          "$ref": "#/definitions/for_cmds_call"
+        }
+      ]
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/task_call"
+          },
+          {
+            "$ref": "#/definitions/for_deps_call"
+          }
+        ]
+      }
+    },
+    "set": {
+      "type": "string",
+      "enum": [
+        "allexport",
+        "a",
+        "errexit",
+        "e",
+        "noexec",
+        "n",
+        "noglob",
+        "f",
+        "nounset",
+        "u",
+        "xtrace",
+        "x",
+        "pipefail"
+      ]
+    },
+    "shopt": {
+      "type": "string",
+      "enum": ["expand_aliases", "globstar", "nullglob"]
+    },
+    "vars": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
           "anyOf": [
             {
+              "type": [
+                "boolean",
+                "integer",
+                "null",
+                "number",
+                "string",
+                "object",
+                "array"
+              ]
+            },
+            {
+              "$ref": "#/definitions/var_subkey"
+            }
+          ]
+        }
+      }
+    },
+    "var_subkey": {
+      "type": "object",
+      "properties": {
+        "sh": {
+          "type": "string",
+          "description": "The value will be treated as a command and the output assigned to the variable"
+        },
+        "ref": {
+          "type": "string",
+          "description": "The value will be used to lookup the value of another variable which will then be assigned to this variable"
+        },
+        "map": {
+          "type": "object",
+          "description": "The value will be treated as a literal map type and stored in the variable"
+        },
+        "json": {
+          "type": "string",
+          "description": "The value will parsed as a JSON string and stored in the variable"
+        },
+        "yaml": {
+          "type": "string",
+          "description": "The value will parsed as a YAML string and stored in the variable"
+        },
+        "additionalProperties": false
+      }
+    },
+    "task_call": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "description": "Name of the task to run",
+          "type": "string"
+        },
+        "vars": {
+          "$ref": "#/definitions/vars",
+          "description": "Values passed to the task called"
+        },
+        "silent": {
+          "description": "Hides task name and command from output. The command's output will still be redirected to `STDOUT` and `STDERR`.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["task"]
+    },
+    "cmd_call": {
+      "type": "object",
+      "properties": {
+        "cmd": {
+          "description": "Command to run",
+          "type": "string"
+        },
+        "silent": {
+          "description": "Silent mode disables echoing of command before Task runs it",
+          "type": "boolean"
+        },
+        "set": {
+          "description": "Enables POSIX shell options for this command. See https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/set"
+          }
+        },
+        "shopt": {
+          "description": "Enables Bash shell options for this command. See https://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/shopt"
+          }
+        },
+        "ignore_error": {
+          "description": "Prevent command from aborting the execution of task even after receiving a status code of 1",
+          "type": "boolean"
+        },
+        "platforms": {
+          "description": "Specifies which platforms the command should be run on.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": ["cmd"]
+    },
+    "defer_call": {
+      "type": "object",
+      "properties": {
+        "defer": {
+          "description": "Run a command when the task completes. This command will run even when the task fails",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
               "properties": {
-                "isDefault": {
-                  "type": "boolean"
-                },
-                "kind": {
-                  "enum": ["build", "test"],
+                "task": {
+                  "description": "Name of the task to defer",
                   "type": "string"
                 }
               },
-              "type": "object"
-            },
-            {
-              "enum": ["build", "test"],
-              "type": "string"
+              "additionalProperties": false
             }
-          ],
-          "description": "Defines the group to which this task belongs. Also supports to mark\na task as the default task in a group."
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": ["defer"]
+    },
+    "for_cmds_call": {
+      "type": "object",
+      "properties": {
+        "for": {
+          "$ref": "#/definitions/for"
         },
-        "isBackground": {
-          "description": "Whether the executed command is kept alive and runs in the background.",
+        "cmd": {
+          "description": "Command to run",
+          "type": "string"
+        },
+        "silent": {
+          "description": "Silent mode disables echoing of command before Task runs it",
           "type": "boolean"
         },
-        "label": {
-          "description": "The task's name",
+        "task": {
+          "description": "Task to run",
           "type": "string"
         },
-        "presentation": {
-          "$ref": "#/definitions/PresentationOptions",
-          "description": "The presentation options."
-        },
-        "problemMatcher": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ProblemMatcher"
-            },
-            {
-              "items": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/ProblemMatcher"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "type": "string"
-            }
-          ],
-          "description": "The problem matcher(s) to use to capture problems in the tasks\noutput."
-        },
-        "runOptions": {
-          "$ref": "#/definitions/RunOptions",
-          "description": "Defines when and how a task is run."
-        },
-        "type": {
-          "description": "The type of a custom task. Tasks of type \"shell\" are executed\ninside a shell (e.g. bash, cmd, powershell, ...)",
-          "enum": ["process", "shell", "npm"],
-          "type": "string"
+        "vars": {
+          "$ref": "#/definitions/vars",
+          "description": "Values passed to the task called"
         }
       },
-      "type": "object"
-    }
-  },
-  "properties": {
-    "args": {
-      "description": "The arguments passed to the command. Can be omitted.",
-      "items": {
-        "type": "string"
+      "oneOf": [{ "required": ["cmd"] }, { "required": ["task"] }],
+      "additionalProperties": false,
+      "required": ["for"]
+    },
+    "for_deps_call": {
+      "type": "object",
+      "properties": {
+        "for": {
+          "$ref": "#/definitions/for"
+        },
+        "silent": {
+          "description": "Silent mode disables echoing of command before Task runs it",
+          "type": "boolean"
+        },
+        "task": {
+          "description": "Task to run",
+          "type": "string"
+        },
+        "vars": {
+          "$ref": "#/definitions/vars",
+          "description": "Values passed to the task called"
+        }
       },
-      "type": "array"
+      "oneOf": [{ "required": ["cmd"] }, { "required": ["task"] }],
+      "additionalProperties": false,
+      "required": ["for"]
     },
-    "command": {
-      "description": "The command to be executed. Can be an external program or a shell\ncommand.",
-      "type": "string"
-    },
-    "isBackground": {
-      "description": "Specifies whether a global command is a background task.",
-      "type": "boolean"
-    },
-    "linux": {
-      "$ref": "#/definitions/BaseTaskConfiguration",
-      "description": "Linux specific task configuration"
-    },
-    "options": {
-      "$ref": "#/definitions/CommandOptions",
-      "description": "The command options used when the command is executed. Can be omitted."
-    },
-    "osx": {
-      "$ref": "#/definitions/BaseTaskConfiguration",
-      "description": "macOS specific task configuration"
-    },
-    "presentation": {
-      "$ref": "#/definitions/PresentationOptions",
-      "description": "The presentation options."
-    },
-    "problemMatcher": {
+    "for": {
       "anyOf": [
         {
-          "$ref": "#/definitions/ProblemMatcher"
+          "$ref": "#/definitions/for_list"
         },
         {
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/ProblemMatcher"
-              },
-              {
-                "type": "string"
-              }
-            ]
-          },
-          "type": "array"
+          "$ref": "#/definitions/for_attribute"
         },
         {
+          "$ref": "#/definitions/for_var"
+        }
+      ]
+    },
+    "for_list": {
+      "description": "A list of values to iterate over",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "for_attribute": {
+      "description": "The task attribute to iterate over",
+      "type": "string",
+      "enum": ["sources"]
+    },
+    "for_var": {
+      "description": "Which variables to iterate over. The variable will be split using any whitespace character by default. This can be changed by using the `split` attribute.",
+      "type": "object",
+      "properties": {
+        "var": {
+          "description": "Name of the variable to iterate over",
+          "type": "string"
+        },
+        "split": {
+          "description": "String to split the variable on",
+          "type": "string"
+        },
+        "as": {
+          "description": "What the loop variable should be named",
+          "default": "ITEM",
           "type": "string"
         }
-      ],
-      "description": "The problem matcher to be used if a global command is executed (e.g. no tasks\nare defined). A tasks.json file can either contain a global problemMatcher\nproperty or a tasks property but not both."
-    },
-    "tasks": {
-      "description": "The configuration of the available tasks. A tasks.json file can either\ncontain a global problemMatcher property or a tasks property but not both.",
-      "items": {
-        "$ref": "#/definitions/TaskDescription"
       },
-      "type": "array"
+      "additionalProperties": false,
+      "required": ["var"]
     },
-    "type": {
-      "description": "The type of a custom task. Tasks of type \"shell\" are executed\ninside a shell (e.g. bash, cmd, powershell, ...)",
-      "enum": ["process", "shell", "npm"],
-      "type": "string"
+    "precondition": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/precondition_obj"
+        }
+      ]
     },
-    "version": {
-      "description": "The configuration's version number",
-      "enum": ["2.0.0"],
-      "type": "string"
+    "precondition_obj": {
+      "type": "object",
+      "properties": {
+        "sh": {
+          "description": "Command to run. If that command returns 1, the condition will fail",
+          "type": "string"
+        },
+        "msg": {
+          "description": "Failure message to display when the condition fails",
+          "type": "string"
+        }
+      }
     },
-    "windows": {
-      "$ref": "#/definitions/BaseTaskConfiguration",
-      "description": "Windows specific task configuration"
+    "glob": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/glob_obj"
+        }
+      ]
+    },
+    "glob_obj": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "description": "File or glob pattern to exclude from the list",
+          "type": "string"
+        }
+      }
+    },
+    "run": {
+      "type": "string",
+      "enum": ["always", "once", "when_changed"]
+    },
+    "outputString": {
+      "type": "string",
+      "enum": ["interleaved", "prefixed", "group"],
+      "default": "interleaved"
+    },
+    "outputObject": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "object",
+          "properties": {
+            "begin": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "error_only": {
+              "description": "Swallows command output on zero exit code",
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    "requires_obj": {
+      "type": "object",
+      "properties": {
+        "vars": {
+          "description": "List of variables that must be defined for the task to run",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
-  "type": "object"
+  "allOf": [
+    {
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "Specify the Taskfile format that this file conforms to.",
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|[1-9]\\d*)(?:\\.(0|[1-9]\\d*))?(?:\\.(0|[1-9]\\d*))?(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+            },
+            {
+              "type": "number",
+              "enum": [3]
+            }
+          ]
+        },
+        "output": {
+          "description": "Defines how the STDOUT and STDERR are printed when running tasks in parallel. The interleaved output prints lines in real time (default). The group output will print the entire output of a command once, after it finishes, so you won't have live feedback for commands that take a long time to run. The prefix output will prefix every line printed by a command with [task-name] as the prefix, but you can customize the prefix for a command with the prefix: attribute.",
+          "anyOf": [
+            { "$ref": "#/definitions/outputString" },
+            { "$ref": "#/definitions/outputObject" }
+          ]
+        },
+        "method": {
+          "description": "Defines which method is used to check the task is up-to-date. (default: checksum)",
+          "type": "string",
+          "enum": ["none", "checksum", "timestamp"],
+          "default": "checksum"
+        },
+        "includes": {
+          "description": "Imports tasks from the specified taskfiles. The tasks described in the given Taskfiles will be available with the informed namespace.",
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "taskfile": {
+                      "description": "The path for the Taskfile or directory to be included. If a directory, Task will look for files named `Taskfile.yml` or `Taskfile.yaml` inside that directory. If a relative path, resolved relative to the directory containing the including Taskfile.",
+                      "type": "string"
+                    },
+                    "dir": {
+                      "description": "The working directory of the included tasks when run.",
+                      "type": "string"
+                    },
+                    "optional": {
+                      "description": "If `true`, no errors will be thrown if the specified file does not exist.",
+                      "type": "boolean"
+                    },
+                    "internal": {
+                      "description": "Stops any task in the included Taskfile from being callable on the command line. These commands will also be omitted from the output when used with `--list`.",
+                      "type": "boolean"
+                    },
+                    "aliases": {
+                      "description": "Alternative names for the namespace of the included Taskfile.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "vars": {
+                      "$ref": "#/definitions/vars",
+                      "description": "A set of variables to apply to the included Taskfile."
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "vars": {
+          "$ref": "#/definitions/vars",
+          "description": "A set of global variables."
+        },
+        "env": {
+          "$ref": "#/definitions/env",
+          "description": "A set of global environment variables."
+        },
+        "tasks": {
+          "$ref": "#/definitions/tasks",
+          "description": "A set of task definitions."
+        },
+        "silent": {
+          "description": "Default 'silent' options for this Taskfile. If `false`, can be overridden with `true` in a task by task basis.",
+          "type": "boolean"
+        },
+        "set": {
+          "description": "Enables POSIX shell options for all commands in the Taskfile. See https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/set"
+          }
+        },
+        "shopt": {
+          "description": "Enables Bash shell options for all commands in the Taskfile. See https://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/shopt"
+          }
+        },
+        "dotenv": {
+          "type": "array",
+          "description": "A list of `.env` file paths to be parsed.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "run": {
+          "$ref": "#/definitions/run",
+          "description": "Default 'run' option for this Taskfile. Available options: `always`, `once` and `when_changed`."
+        },
+        "interval": {
+          "description": "Sets a different watch interval when using `--watch`, the default being 5 seconds. This string should be a valid Go duration: https://pkg.go.dev/time#ParseDuration.",
+          "type": "string",
+          "pattern": "^[0-9]+(?:m|s|ms)$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["version"],
+      "anyOf": [
+        {
+          "required": ["includes"]
+        },
+        {
+          "required": ["tasks"]
+        },
+        {
+          "required": ["includes", "tasks"]
+        }
+      ]
+    }
+  ]
 }
