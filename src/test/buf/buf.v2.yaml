@@ -1,58 +1,70 @@
 # via https://buf.build/docs/configuration/v2/buf-yaml
+
 version: v2
+# The v2 buf.yaml file specifies a local workspace, which consists of at least one module.
+# The buf.yaml file should be placed at the root directory of the workspace, which
+# should generally be the root of your source control repository.
 modules:
-  # Basic configuration: local directory with corresponding BSR repository.
+  # Each module entry defines a path, which must be relative to the directory where the
+  # buf.yaml is located. You can also specify files or directories to exclude from a module.
+  # Directories across modules cannot overlap. For example, "a" and "a/b" cannot be two paths
+  # to modules in a given workspace.
   - path: proto/foo
+    # Modules can also optionally specify their Buf Schema Repository name if it exists.
     name: buf.build/acme/foo
-  # Local directory & repository, but excluding a directory and a specific .proto file.
-  # Note that the paths for exclusion are relative to the buf.yaml file.
+  # Excluding a subdirectory and a specific .proto file. Note that the paths for exclusion
+  # are relative to the buf.yaml file.
   - path: proto/bar
     name: buf.build/acme/bar
     excludes:
       - proto/bar/a
-      - proto/bar/b/c.proto
-    # Lint configuration for this module only. This rule set completely replaces the workspace defaults.
+      - proto/bar/b/e.proto
+    # A module can have its own lint and breaking configuration, which overrides the default
+    # lint and breaking configuration in its entirety for that module. All values from the
+    # default configuration are overridden and no rules are merged.
     lint:
       use:
         - DEFAULT
       except:
         - IMPORT_USED
       ignore:
-        - proto/bar/b/c.proto
+        - proto/bar/c
       ignore_only:
         ENUM_ZERO_VALUE_SUFFIX:
-          - proto/bar/d
-          - proto/bar/e/f.proto
-      disallow_comment_ignores: false # The default behavior of this key has changed from v1
+          - proto/bar/a
+          - proto/bar/b/f.proto
+      # v1 configurations had an allow_comment_ignores option to opt-in to comment ignores.
+      #
+      # In v2, we allow comment ignores by default, and allow opt-out from comment ignores
+      # with the disallow_comment_ignores option.
+      disallow_comment_ignores: false
       enum_zero_value_suffix: _UNSPECIFIED
       rpc_allow_same_request_response: false
       rpc_allow_google_protobuf_empty_requests: false
       rpc_allow_google_protobuf_empty_responses: false
       service_suffix: Service
-    # Breaking changes configuration for this module only. This rule set completely replaces the workspace defaults.
+    # Breaking configuration for this module only. Behaves the same as a module-level
+    # lint configuration.
     breaking:
       use:
         - FILE
       except:
         - EXTENSION_MESSAGE_NO_DELETE
-      ignore:
-        - proto/bar/a
-        - proto/bar/b/c.proto
-      ignore_only:
-        ENUM_ZERO_VALUE_SUFFIX:
-          - proto/bar/d
-          - proto/bar/e/f.proto
       ignore_unstable_packages: true
-# Module dependencies available to all modules in the workspace. Modules within the workspace
-# shouldn't be listed here. The resolution of these dependencies is stored in the buf.lock file.
+# Dependencies shared by all modules in the workspace. Must be modules hosted in the Buf Schema Registry.
+# The resolution of these dependencies is stored in the buf.lock file.
 deps:
-  - buf.build/google/googleapis
-  - buf.build/grpc/grpc
-# Default lint configuration for all modules in the workspace.
+  - buf.build/acme/paymentapis # The latest accepted commit.
+  - buf.build/acme/pkg:47b927cbb41c4fdea1292bafadb8976f # The '47b927cbb41c4fdea1292bafadb8976f' commit.
+  - buf.build/googleapis/googleapis:v1beta1.1.0 # The 'v1beta1.1.0' label.
+# The default lint configuration for any modules that don't have a specific lint configuration.
+#
+# If this section isn't present, AND a module does not have a specific lint configuration, the default
+# lint configuration is used for the module.
 lint:
   use:
     - DEFAULT
-# Default breaking changes configuration for all modules in the workspace.
+# Default breaking configuration. It behaves the same as the default lint configuration.
 breaking:
   use:
     - FILE
