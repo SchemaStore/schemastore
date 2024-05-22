@@ -7,10 +7,11 @@ set -e
 # files ourselves (which defeats the point of pre-commit's plugin system).
 
 if (($# == 0)); then
-    # There are no staged files - there is nothing to do here.
-    exit 0
+	# There are no staged files - there is nothing to do here.
+	exit 0
 fi
 
 cd src
 set -- "${@/#/../}" # Prepends '../' to each staged file
+echo VV "$@" VV
 prettier --no-color --log-level=warn --write "$@"
