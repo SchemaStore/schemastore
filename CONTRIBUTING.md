@@ -144,8 +144,7 @@ However, that is not always possible or correct. Alternatively, use `$comment`:
     "$comment": "The value of 'null' is UNDOCUMENTED.",
     "description": "Specify the folder for .tsbuildinfo incremental compilation files.",
     "default": ".tsbuildinfo",
-    "type": ["string", "null"],
-    "description": "Specify the folder for .tsbuildinfo incremental compilation files."
+    "type": ["string", "null"]
   }
 }
 ```
