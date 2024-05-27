@@ -48,10 +48,6 @@ More information [here](https://taplo.tamasfe.dev/configuration/developing-schem
 - `x-intellij-html-description`
 - `x-intellij-enum-metadata`
 
-### Unknown
-
-- `x-for`
-
 ## Schema Properties
 
 ### `title` as an expected object type

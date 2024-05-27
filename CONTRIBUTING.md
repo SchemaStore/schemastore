@@ -198,10 +198,9 @@ git clone https://github.com/SchemaStore/schemastore
 cd schemastore
 ```
 
-Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](src/package.json). Now, install dependencies and run the `new_schema` Grunt task:
+Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new_schema` Grunt task:
 
 ```sh
-cd src
 npm install
 npm run grunt new_schema
 ```
@@ -280,7 +279,7 @@ git clone https://github.com/SchemaStore/schemastore
 cd schemastore
 ```
 
-Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](src/package.json).
+Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json).
 
 Now, modify the schema you intend to modify. Schemas are located under `src/schemas/json`.
 

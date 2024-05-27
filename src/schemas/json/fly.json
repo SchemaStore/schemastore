@@ -2,71 +2,6 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/fly.json",
   "definitions": {
-    "vm": {
-      "type": "array",
-      "x-taplo": {
-        "links": {
-          "key": "https://fly.io/docs/reference/configuration/#the-vm-section"
-        }
-      },
-      "items": {
-        "type": "object",
-        "properties": {
-          "size": {
-            "type": "string",
-            "enum": [
-              "shared-cpu-1x",
-              "shared-cpu-2x",
-              "shared-cpu-4x",
-              "shared-cpu-8x",
-              "performance-1x",
-              "performance-2x",
-              "performance-4x",
-              "performance-8x",
-              "performance-16x"
-            ]
-          },
-          "memory": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              }
-            ]
-          },
-          "cpus": {
-            "type": "integer",
-            "enum": [1, 2, 4, 8, 16]
-          },
-          "cpu_kind": {
-            "type": "string",
-            "enum": ["shared", "performance"]
-          },
-          "gpus": {
-            "type": "integer",
-            "enum": [1, 2, 4, 8]
-          },
-          "gpu_kind": {
-            "type": "string",
-            "enum": ["a10", "a100-40gb", "a100-80gb", "l40s"]
-          },
-          "kernel_args": {
-            "type": "string"
-          },
-          "host_dedication_id": {
-            "type": "string"
-          },
-          "processes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
     "statics": {
       "type": "object",
       "required": ["guest_path", "url_prefix"],
@@ -99,6 +34,21 @@
           "description": "The port this application listens on to communicate with clients. The default is 8080. We recommend applications use the default.",
           "type": "integer",
           "default": 8080
+        },
+        "auto_stop_machines": {
+          "description": "Whether to automatically stop an application’s Machines when there’s excess capacity, per region. If there’s only one Machine in a region, then the Machine is stopped if it has no traffic. The Fly Proxy runs a process to automatically stop Machines every few minutes. The default if not set is false.",
+          "type": "boolean",
+          "default": false
+        },
+        "auto_start_machines": {
+          "description": "Whether to automatically start an application’s Machines when a new request is made to the application and there’s no excess capacity, per region. If there’s only one Machine in a region, then it’s started whenever a request is made to the application. The default if not set is true.",
+          "type": "boolean",
+          "default": true
+        },
+        "min_machines_running": {
+          "description": "The number of Machines to keep running, in the primary region only, when auto_stop_machines = true.",
+          "type": "integer",
+          "default": 0
         },
         "concurrency": {
           "type": "object",
@@ -154,9 +104,72 @@
                 "type": "integer",
                 "description": "The port to accept traffic on. Valid ports: 1-65535"
               },
+              "start_port": {
+                "type": "integer"
+              },
+              "end_port": {
+                "type": "integer"
+              },
+
               "force_https": {
                 "type": "boolean",
                 "description": "Force HTTP connections to HTTPS. `force_https` requires the `http` handler in the `handlers` section."
+              },
+              "http_options": {
+                "type": "object",
+                "properties": {
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "pristine": {
+                        "type": "boolean"
+                      },
+                      "headers": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "oneOf": [
+                            { "type": "boolean" },
+                            { "type": "string" },
+                            { "type": "array", "items": { "type": "string" } }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "h2_backend": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "proxy_proto_options": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "default": "v1"
+                  }
+                }
+              },
+              "tls_options": {
+                "type": "object",
+                "properties": {
+                  "alpn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "versions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "default_self_signed": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
               }
             }
           }
@@ -295,6 +308,71 @@
     "app": {
       "description": "Fly.io application name",
       "type": "string"
+    },
+    "vm": {
+      "type": "array",
+      "x-taplo": {
+        "links": {
+          "key": "https://fly.io/docs/reference/configuration/#the-vm-section"
+        }
+      },
+      "items": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "string",
+            "enum": [
+              "shared-cpu-1x",
+              "shared-cpu-2x",
+              "shared-cpu-4x",
+              "shared-cpu-8x",
+              "performance-1x",
+              "performance-2x",
+              "performance-4x",
+              "performance-8x",
+              "performance-16x"
+            ]
+          },
+          "memory": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "cpus": {
+            "type": "integer",
+            "enum": [1, 2, 4, 8, 16]
+          },
+          "cpu_kind": {
+            "type": "string",
+            "enum": ["shared", "performance"]
+          },
+          "gpus": {
+            "type": "integer",
+            "enum": [1, 2, 4, 8]
+          },
+          "gpu_kind": {
+            "type": "string",
+            "enum": ["a10", "a100-40gb", "a100-80gb", "l40s"]
+          },
+          "kernel_args": {
+            "type": "string"
+          },
+          "host_dedication_id": {
+            "type": "string"
+          },
+          "processes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
     },
     "kill_timeout": {
       "description": "Seconds to wait before forcing a VM process to exit. Default is 5 seconds.",
