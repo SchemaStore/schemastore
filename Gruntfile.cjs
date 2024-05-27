@@ -18,14 +18,14 @@ const axios = require('axios').default
 const jsonlint = require('@prantlf/jsonlint')
 const jsoncParser = require('jsonc-parser')
 
-const temporaryCoverageDir = 'temp'
-const schemaDir = 'schemas/json'
-const testPositiveDir = 'test'
-const testNegativeDir = 'negative_test'
+const temporaryCoverageDir = './temp'
+const schemaDir = './src/schemas/json'
+const testPositiveDir = './src/test'
+const testNegativeDir = './src/negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
-const catalog = require('./api/json/catalog.json')
+const catalog = require('./src/api/json/catalog.json')
 const schemaValidation = jsoncParser.parse(
-  fs.readFileSync('./schema-validation.json', 'utf-8'),
+  fs.readFileSync('./src/schema-validation.json', 'utf-8'),
 )
 const schemasToBeTested = fs.readdirSync(schemaDir)
 const foldersPositiveTest = fs.readdirSync(testPositiveDir)
@@ -966,7 +966,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_assert_catalog.json_passes_jsonlint',
     'Check that catalog.json passes jsonlint',
     function () {
-      jsonlint.parse(fs.readFileSync('./api/json/catalog.json', 'utf-8'), {
+      jsonlint.parse(fs.readFileSync('./src/api/json/catalog.json', 'utf-8'), {
         ignoreBOM: false,
         ignoreComments: false,
         ignoreTrailingCommas: false,
@@ -1973,6 +1973,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           }
 
           // Prettify the JavaScript module code
+          // TODO: https://github.com/prettier/prettier/pull/12788
           const prettierOptions = prettier.resolveConfig.sync(process.cwd())
           fs.writeFileSync(
             javaScriptCoverageNameWithPath,
