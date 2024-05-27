@@ -47,11 +47,11 @@ module.exports = {
     {
       files: 'src/schema-validation.json',
       options: {
-        $schema: null,
-        $id: null,
-        $comment: null,
         jsonRecursiveSort: true,
         jsonSortOrder: JSON.stringify({
+          $schema: null,
+          $id: null,
+          $comment: null,
           ajvNotStrictMode: null,
           fileMatchConflict: null,
           highSchemaVersion: null,
