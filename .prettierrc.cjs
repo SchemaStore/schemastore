@@ -1,4 +1,4 @@
-/** @type {import('./src/node_modules/prettier').Config} */
+/** @type {import('prettier').Config} */
 module.exports = {
   plugins: ['prettier-plugin-sort-json'],
   semi: false,
