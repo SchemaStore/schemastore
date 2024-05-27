@@ -1,6 +1,7 @@
 /** @type {import('prettier').Config} */
 module.exports = {
-  plugins: ['prettier-plugin-sort-json'],
+  // pre-commit.ci fails without `require.resolve()`.
+  plugins: [require.resolve('prettier-plugin-sort-json')],
   semi: false,
   singleQuote: true,
   trailingComma: 'all',
