@@ -17,6 +17,7 @@ const prettier = require('prettier')
 const axios = require('axios').default
 const jsonlint = require('@prantlf/jsonlint')
 const jsoncParser = require('jsonc-parser')
+const chalk = require('chalk')
 
 const temporaryCoverageDir = './temp'
 const schemaDir = './src/schemas/json'
@@ -39,6 +40,18 @@ const SCHEMA_DIALECTS = [
   { schemaName: 'draft-04', url: 'http://json-schema.org/draft-04/schema#', isActive: false, isTooHigh: false },
   { schemaName: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
+
+const log = {
+  ok(/** @type {string=} */ msg = 'OK') {
+    console.log(chalk.green('>>') + ' ' + msg)
+  },
+  error(/** @type {string=} */ msg = 'ERROR') {
+    console.log(chalk.red('>>') + ' ' + msg)
+  },
+  writeln(/** @type {string=} */ msg = '') {
+    console.log(msg)
+  }
+}
 
 module.exports = function (/** @type {import('grunt')} */ grunt) {
   'use strict'
@@ -65,13 +78,13 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
    * @param {string[]} errorText
    */
   function throwWithErrorText(errorText) {
-    grunt.log.writeln()
-    grunt.log.writeln()
-    grunt.log.writeln('################ Error message')
+    log.writeln()
+    log.writeln()
+    log.writeln('################ Error message')
     for (const text of errorText) {
-      grunt.log.error(text)
+      log.error(text)
     }
-    grunt.log.writeln('##############################')
+    log.writeln('##############################')
     throw new Error('See error message above this line.')
   }
 
@@ -99,18 +112,18 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           }
           schemaOnlyScan(schema)
           if (showLog) {
-            grunt.log.ok(url)
+            log.ok(url)
           }
         } else {
           if (showLog) {
-            grunt.log.error(url, response.status)
+            log.error(url, response.status)
           }
         }
       } catch (error) {
         if (showLog) {
-          grunt.log.writeln('')
-          grunt.log.error(url, error.name, error.message)
-          grunt.log.writeln('')
+          log.writeln('')
+          log.error(url, error.name, error.message)
+          log.writeln('')
         }
       }
     }
@@ -600,8 +613,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         ])
       }
       countSchema++
-      grunt.log.writeln()
-      grunt.log.ok(
+      log.writeln()
+      log.ok(
         `${textPassSchema}${schema.urlOrFilePath} (${schemaVersionStr})${fullStrictModeStr}`,
       )
     }
@@ -614,7 +627,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       processTestFile(
         schema,
         () => {
-          grunt.log.ok(`${textPositivePassTest}${schema.urlOrFilePath}`)
+          log.ok(`${textPositivePassTest}${schema.urlOrFilePath}`)
         },
         () => {
           throwWithErrorText([
@@ -645,14 +658,14 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           text = text.concat(` (Schema: ${validate.errors[0].schemaPath})`)
           text = text.concat(` (Test: ${validate.errors[0].instancePath})`)
           text = text.concat(` (Message): ${validate.errors[0].message})`)
-          grunt.log.ok(text)
+          log.ok(text)
         },
       )
     }
 
     const processSchemaFileDone = () => {
-      grunt.log.writeln()
-      grunt.log.writeln(`Total schemas validated with AJV: ${countSchema}`)
+      log.writeln()
+      log.writeln(`Total schemas validated with AJV: ${countSchema}`)
       countSchema = 0
     }
 
@@ -748,7 +761,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
             if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
               if (schema.jsonObj.$id) {
-                grunt.log.warn(
+                log.error(
                   `Bad property of '$id'; expected 'id' for this schema version`,
                 )
                 ++totalMismatchIds
@@ -759,7 +772,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
                 schema.jsonObj.id !==
                 `https://json.schemastore.org/${schema.jsonName}`
               ) {
-                grunt.log.warn(
+                log.error(
                   `Incorrect property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 )
                 console.warn(
@@ -770,7 +783,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
               }
             } else {
               if (schema.jsonObj.id) {
-                grunt.log.warn(
+                log.error(
                   `Bad property of 'id'; expected '$id' for this schema version`,
                 )
                 ++totalMismatchIds
@@ -781,7 +794,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
                 schema.jsonObj.$id !==
                 `https://json.schemastore.org/${schema.jsonName}`
               ) {
-                grunt.log.warn(
+                log.error(
                   `Incorrect property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
                 )
                 console.warn(
@@ -798,9 +811,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           skipReadFile: false,
         },
       )
-      grunt.log.ok(`Total mismatched ids: ${totalMismatchIds}`)
-      grunt.log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
-      grunt.log.ok(`Total files scan: ${countScan}`)
+      log.ok(`Total mismatched ids: ${totalMismatchIds}`)
+      log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
+      log.ok(`Total files scan: ${countScan}`)
     },
   )
 
@@ -823,7 +836,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
               const smartQuotes = ['‘', '’', '“', '”']
               for (const quote of smartQuotes) {
                 if (line.includes(quote)) {
-                  grunt.log.error(
+                  log.error(
                     `Schema file should not have a smart quote: ${
                       schema.urlOrFilePath
                     }:${++i}`,
@@ -836,7 +849,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         { fullScanAllFiles: true, skipReadFile: false },
       )
 
-      grunt.log.writeln(`Total files scan: ${countScan}`)
+      log.writeln(`Total files scan: ${countScan}`)
     },
   )
 
@@ -891,7 +904,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         }
       }
 
-      grunt.log.writeln(`Total found files: ${countScan}`)
+      log.writeln(`Total found files: ${countScan}`)
     },
   )
 
@@ -909,7 +922,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         },
         { skipReadFile: false },
       )
-      grunt.log.ok('local AJV schema passed')
+      log.ok('local AJV schema passed')
     },
   )
 
@@ -924,8 +937,8 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         x.testSchemaFile(testSchemaFile)
         countScan++
       })
-      grunt.log.writeln()
-      grunt.log.writeln(`Total schemas validated with AJV: ${countScan}`)
+      log.writeln()
+      log.writeln(`Total schemas validated with AJV: ${countScan}`)
       done()
     },
   )
@@ -946,7 +959,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         { fullScanAllFiles: true, skipReadFile: false },
       )
 
-      grunt.log.ok(
+      log.ok(
         `no BOM file found in all schema files. Total files scan: ${countScan}`,
       )
     },
@@ -985,7 +998,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       )
       const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
       if (ajvInstance.validate(catalogSchema, catalog)) {
-        grunt.log.ok('catalog.json OK')
+        log.ok('catalog.json OK')
       } else {
         throwWithErrorText([
           `(Schema file) keywordLocation: ${ajvInstance.errors[0].schemaPath}`,
@@ -1034,7 +1047,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         },
         { skipReadFile: false },
       )
-      grunt.log.ok(
+      log.ok(
         `No duplicated property key found in JSON files. Total files scan: ${countScan}`,
       )
     },
@@ -1064,7 +1077,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         { skipReadFile: false, ignoreSkiptest: true },
       )
 
-      grunt.log.ok(`All urls tested OK. Total: ${countScan}`)
+      log.ok(`All urls tested OK. Total: ${countScan}`)
     },
   )
 
@@ -1102,7 +1115,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           ])
         }
       })
-      grunt.log.ok(`All local url tested OK. Total: ${countScan}`)
+      log.ok(`All local url tested OK. Total: ${countScan}`)
     },
   )
 
@@ -1142,7 +1155,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         { schemaOnlyScan: schemaFileCompare },
         { fullScanAllFiles: true },
       )
-      grunt.log.ok(
+      log.ok(
         `All local schema files have URL link in catalog. Total: ${countScan}`,
       )
     },
@@ -1171,7 +1184,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           fileMatchCollection = fileMatchCollection.concat(filtered)
         }
       }
-      grunt.log.ok('No new fileMatch conflict detected.')
+      log.ok('No new fileMatch conflict detected.')
     },
   )
 
@@ -1191,7 +1204,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           }
         })
       }
-      grunt.log.ok('fileMatch path OK')
+      log.ok('fileMatch path OK')
     },
   )
 
@@ -1221,7 +1234,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           fullScanAllFiles: true,
         },
       )
-      grunt.log.ok(
+      log.ok(
         `All schema and test filename have the correct file extension. Total files scan: ${countScan}`,
       )
     },
@@ -1238,20 +1251,20 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           !foldersPositiveTest.includes(schemaFileName.replace('.json', ''))
         ) {
           countMissingTest++
-          grunt.log.ok(`(No positive test file present): ${schemaFileName}`)
+          log.ok(`(No positive test file present): ${schemaFileName}`)
         }
       })
       if (countMissingTest > 0) {
         const percent = (countMissingTest / schemasToBeTested.length) * 100
-        grunt.log.writeln()
-        grunt.log.writeln(
+        log.writeln()
+        log.writeln(
           `${Math.round(percent)}% of schemas do not have tests.`,
         )
-        grunt.log.ok(
+        log.ok(
           `Schemas that have no positive test files. Total files: ${countMissingTest}`,
         )
       } else {
-        grunt.log.ok('All schemas have positive test')
+        log.ok('All schemas have positive test')
       }
     },
   )
@@ -1292,7 +1305,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           ])
         }
       })
-      grunt.log.ok('OK')
+      log.ok('OK')
     },
   )
 
@@ -1384,22 +1397,22 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           // found a different schema version that also work.
           const original = SCHEMA_DIALECTS[versionIndexOriginal].schemaName
           const recommended = SCHEMA_DIALECTS[recommendedIndex].schemaName
-          grunt.log.ok(
+          log.ok(
             `${schema.jsonName} (${original}) is also valid with (${recommended})`,
           )
         }
       }
 
-      grunt.log.writeln()
-      grunt.log.ok(
+      log.writeln()
+      log.ok(
         'Check if a lower $schema version will also pass the schema validation test',
       )
       localSchemaFileAndTestFile(
         { schemaOnlyScan: testLowerSchemaVersion },
         { skipReadFile: false },
       )
-      grunt.log.writeln()
-      grunt.log.ok(`Total files scan: ${countScan}`)
+      log.writeln()
+      log.ok(`Total files scan: ${countScan}`)
     },
   )
 
@@ -1429,7 +1442,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           schemaDialectCounts.set(obj.url, schemaDialectCounts.get(obj.url) + 1)
         } else {
           countSchemaVersionUnknown++
-          grunt.log.error(
+          log.error(
             `$schema is unknown in the file: ${schema.urlOrFilePath}`,
           )
         }
@@ -1437,13 +1450,13 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       process_data_done: () => {
         // Show the all the schema version count.
         for (const obj of SCHEMA_DIALECTS) {
-          grunt.log.ok(
+          log.ok(
             `Schemas using (${
               obj.schemaName
             }) Total files: ${schemaDialectCounts.get(obj.url)}`,
           )
         }
-        grunt.log.ok(
+        log.ok(
           `$schema unknown. Total files: ${countSchemaVersionUnknown}`,
         )
       },
@@ -1531,7 +1544,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         },
       )
 
-      grunt.log.ok(`Total files scan: ${countScan}`)
+      log.ok(`Total files scan: ${countScan}`)
     },
   )
 
@@ -1576,7 +1589,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         },
       )
 
-      grunt.log.ok(`Total files scan: ${countScan}`)
+      log.ok(`Total files scan: ${countScan}`)
     },
   )
 
@@ -1606,7 +1619,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           skipReadFile: false,
         },
       )
-      grunt.log.ok(`Total files scan: ${countScan}`)
+      log.ok(`Total files scan: ${countScan}`)
     },
   )
 
@@ -1668,7 +1681,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         checkList.push(schemaName)
       }
 
-      grunt.log.ok('OK')
+      log.ok('OK')
     },
   )
 
@@ -1715,7 +1728,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       }
       x(foldersPositiveTest)
       x(foldersNegativeTest)
-      grunt.log.ok(`Total test folders: ${countTestFolders}`)
+      log.ok(`Total test folders: ${countTestFolders}`)
     },
   )
 
@@ -1732,13 +1745,13 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       })
       const totalCount = countScanURLExternal + countScanURLInternal
       const percentExternal = (countScanURLExternal / totalCount) * 100
-      grunt.log.ok(`${countScanURLInternal} SchemaStore URL`)
-      grunt.log.ok(
+      log.ok(`${countScanURLInternal} SchemaStore URL`)
+      log.ok(
         `${countScanURLExternal} External URL (${Math.round(
           percentExternal,
         )}%)`,
       )
-      grunt.log.ok(`${totalCount} Total URL`)
+      log.ok(`${totalCount} Total URL`)
     },
   )
 
@@ -1757,10 +1770,10 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         const countFullStrictSchema =
           countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
         const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
-        grunt.log.ok(
+        log.ok(
           'Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.',
         )
-        grunt.log.ok(
+        log.ok(
           `${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(
             percent,
           )}%)`,
@@ -1801,7 +1814,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           }
         }
       }
-      grunt.log.ok(
+      log.ok(
         `Total schema-validation.json items check: ${countSchemaValidationItems}`,
       )
     },
@@ -1828,7 +1841,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
       x(schemaValidation.catalogEntryNoLintNameOrDescription)
 
-      grunt.log.ok(`Total schema-validation.json items checked: ${totalItems}`)
+      log.ok(`Total schema-validation.json items checked: ${totalItems}`)
     },
   )
 
@@ -1881,7 +1894,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
           ])
         }
       })
-      grunt.log.ok(
+      log.ok(
         `Total schema-validation.json items check: ${countSchemaValidationItems}`,
       )
     },
@@ -2019,7 +2032,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         ])
       }
       generateCoverage(schemaNameToBeCoverage)
-      grunt.log.ok('OK')
+      log.ok('OK')
     },
   )
 
@@ -2073,13 +2086,13 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       }
 
       const listSchema = (mode, list) => {
-        grunt.log.writeln('------------------------------------')
-        grunt.log.writeln(`Schemas in ${mode} strict mode:`)
+        log.writeln('------------------------------------')
+        log.writeln(`Schemas in ${mode} strict mode:`)
         list.forEach((schemaName) => {
           // Write it is JSON list format. For easy copy to schema-validation.json
-          grunt.log.writeln(`"${schemaName}",`)
+          log.writeln(`"${schemaName}",`)
         })
-        grunt.log.ok(`Total schemas check ${mode} strict mode: ${list.length}`)
+        log.ok(`Total schemas check ${mode} strict mode: ${list.length}`)
       }
 
       localSchemaFileAndTestFile(
@@ -2091,9 +2104,9 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
 
       listSchema('Full', schemaInFullStrictMode)
       listSchema('Not', schemaInNotStrictMode)
-      grunt.log.writeln()
-      grunt.log.writeln('------------------------------------')
-      grunt.log.ok(
+      log.writeln()
+      log.writeln('------------------------------------')
+      log.ok(
         `Total all schemas check: ${
           schemaInFullStrictMode.length + schemaInNotStrictMode.length
         }`,
