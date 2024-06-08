@@ -20,6 +20,7 @@ const jsoncParser = require('jsonc-parser')
 const chalk = require('chalk')
 const minimist = require('minimist')
 
+'use strict'
 const temporaryCoverageDir = './temp'
 const schemaDir = './src/schemas/json'
 const testPositiveDir = './src/test'
@@ -57,9 +58,6 @@ const log = {
 const argv = minimist(process.argv.slice(2), {
   boolean: ['lint']
 })
-
-module.exports = function (/** @type {import('grunt')} */ grunt) {
-  'use strict'
 
 function skipThisFileName(/** @type {string} */ name) {
   // This macOS file must always be ignored.
@@ -680,6 +678,54 @@ function ajv() {
   }
 }
 
+function showSchemaVersions() {
+  let countSchemaVersionUnknown = 0
+
+  const getObj_ = (schemaJson) => {
+    const schemaVersion = schemaJson.$schema
+    return SCHEMA_DIALECTS.find((obj) => schemaVersion === obj.url)
+  }
+
+  /** @type {Map<string, number>} */
+  const schemaDialectCounts = new Map(
+    SCHEMA_DIALECTS.map((schemaDialect) => [schemaDialect.url, 0]),
+  )
+
+  return {
+    getObj: getObj_,
+    process_data: (/** @type {Schema} */ schema) => {
+      let obj
+      try {
+        obj = getObj_(schema.jsonObj)
+      } catch (err) {
+        // suppress possible JSON.parse exception. It will be processed as obj = undefined
+      }
+      if (obj) {
+        schemaDialectCounts.set(obj.url, schemaDialectCounts.get(obj.url) + 1)
+      } else {
+        countSchemaVersionUnknown++
+        log.error(
+          `$schema is unknown in the file: ${schema.urlOrFilePath}`,
+        )
+      }
+    },
+    process_data_done: () => {
+      // Show the all the schema version count.
+      for (const obj of SCHEMA_DIALECTS) {
+        log.ok(
+          `Schemas using (${
+            obj.schemaName
+          }) Total files: ${schemaDialectCounts.get(obj.url)}`,
+        )
+      }
+      log.ok(
+        `$schema unknown. Total files: ${countSchemaVersionUnknown}`,
+      )
+    },
+  }
+}
+
+module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'new_schema',
     'Create a new schemas and associated files',
@@ -1418,53 +1464,6 @@ function ajv() {
       log.ok(`Total files scan: ${countScan}`)
     },
   )
-
-  function showSchemaVersions() {
-    let countSchemaVersionUnknown = 0
-
-    const getObj_ = (schemaJson) => {
-      const schemaVersion = schemaJson.$schema
-      return SCHEMA_DIALECTS.find((obj) => schemaVersion === obj.url)
-    }
-
-    /** @type {Map<string, number>} */
-    const schemaDialectCounts = new Map(
-      SCHEMA_DIALECTS.map((schemaDialect) => [schemaDialect.url, 0]),
-    )
-
-    return {
-      getObj: getObj_,
-      process_data: (/** @type {Schema} */ schema) => {
-        let obj
-        try {
-          obj = getObj_(schema.jsonObj)
-        } catch (err) {
-          // suppress possible JSON.parse exception. It will be processed as obj = undefined
-        }
-        if (obj) {
-          schemaDialectCounts.set(obj.url, schemaDialectCounts.get(obj.url) + 1)
-        } else {
-          countSchemaVersionUnknown++
-          log.error(
-            `$schema is unknown in the file: ${schema.urlOrFilePath}`,
-          )
-        }
-      },
-      process_data_done: () => {
-        // Show the all the schema version count.
-        for (const obj of SCHEMA_DIALECTS) {
-          log.ok(
-            `Schemas using (${
-              obj.schemaName
-            }) Total files: ${schemaDialectCounts.get(obj.url)}`,
-          )
-        }
-        log.ok(
-          `$schema unknown. Total files: ${countSchemaVersionUnknown}`,
-        )
-      },
-    }
-  }
 
   grunt.registerTask(
     'local_print_count_schema_versions',
