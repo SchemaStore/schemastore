@@ -729,7 +729,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'new_schema',
     'Create a new schemas and associated files',
-    async function () {
+    async function taskNewSchema () {
       const done = this.async()
 
       const rl = readline.createInterface({
@@ -789,7 +789,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_lint_schema_has_correct_metadata',
     'Check that metadata fields like "$id" are correct.',
-    function () {
+    function lintSchemaHasCorrectMetadata () {
       let countScan = 0
       let totalMismatchIds = 0
       let totalIncorrectIds = 0
@@ -869,7 +869,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'lint_schema_no_smart_quotes',
     'Check that local schemas have no smart quotes',
-    function () {
+    function lintSchemaNoSmartQuotes () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
@@ -905,7 +905,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_no_poorly_worded_fields',
     'Check that catalog.json entries do not contain the word "schema" or "json"',
-    function () {
+    function assertCatalogJsonHasNoPoorlyWordedFields () {
       let countScan = 0
 
       for (const entry of catalog.schemas) {
@@ -960,7 +960,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_test_ajv',
     'Use AJV to validate local schemas in ./test/',
-    function () {
+    function testAjv () {
       const x = ajv()
       localSchemaFileAndTestFile(
         {
@@ -978,7 +978,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'remote_test_ajv',
     'Use AJV to validate remote schemas',
-    async function () {
+    async function remoteTestAjv () {
       const done = this.async()
       const x = ajv()
       let countScan = 0
@@ -995,7 +995,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema_no_bom',
     'Check that local schema files do not have a BOM (Byte Order Mark)',
-    function () {
+    function assertSchemaHasNoBom () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
@@ -1017,7 +1017,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'remote_assert_schema_no_bom',
     'Check that remote schema files do not have a BOM (Byte Order Mark)',
-    async function () {
+    async function remoteAssertSchemaHasNoBom () {
       const done = this.async()
       await remoteSchemaFile(testSchemaFileForBOM, false)
       done()
@@ -1027,7 +1027,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_passes_jsonlint',
     'Check that catalog.json passes jsonlint',
-    function () {
+    function assertCatalogJsonPassesJsonLint () {
       jsonlint.parse(fs.readFileSync('./src/api/json/catalog.json', 'utf-8'), {
         ignoreBOM: false,
         ignoreComments: false,
@@ -1041,7 +1041,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_validates_against_json_schema',
     'Check that the catalog.json file passes schema validation',
-    function () {
+    function assertCatalogJsonValidatesAgainstJsonSchema () {
       const catalogSchema = require(
         path.resolve('.', schemaDir, 'schema-catalog.json'),
       )
@@ -1062,7 +1062,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema_no_duplicated_property_keys',
     'Check that schemas have no duplicated property keys',
-    function () {
+    function assertSchemaHasNoDuplicatedPropertyKeys () {
       let countScan = 0
       const findDuplicatedProperty = (/** @type {Schema} */ schema) => {
         ++countScan
@@ -1105,7 +1105,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'lint_top_level_$ref_is_standalone',
     'Check that top level $ref properties of schemas are be the only property',
-    function () {
+    function lintTopLevelRefIsStandalone () {
       let countScan = 0
       localSchemaFileAndTestFile(
         {
@@ -1133,7 +1133,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_local_url_must_ref_file',
     'Check that local urls must reference a file that exists',
-    function () {
+    function assertCatalogJsonLocalUrlsMustRefFile () {
       const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
       let countScan = 0
 
@@ -1171,7 +1171,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_includes_all_schemas',
     'Check that local schemas have a url reference in catalog.json',
-    function () {
+    function assertCatalogJsonIncludesAllSchemas () {
       let countScan = 0
       const allCatalogLocalJsonFiles = []
 
@@ -1213,7 +1213,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_fileMatch_conflict',
     'Check for duplicate fileMatch entries (note: app.json and *app.json conflicting will not be detected)',
-    function () {
+    function assertCatalogJsonHasNoFileMatchConflict () {
       const fileMatchConflict = schemaValidation.fileMatchConflict
       let fileMatchCollection = []
       // Collect all the "fileMatch" and put it in fileMatchCollection[]
@@ -1240,7 +1240,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_fileMatch_path',
     'Ensure that fileMatch patterns include a directory separator that consistently starts with **/',
-    function () {
+    function assertCatalogJsonHasCorrectFileMatchPath () {
       for (const schema of catalog.schemas) {
         schema.fileMatch?.forEach((fileMatchItem) => {
           if (fileMatchItem.includes('/')) {
@@ -1260,7 +1260,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_filenames_have_correct_extensions',
     'Check that local test schemas have a valid filename extension',
-    function () {
+    function assertFilenamesHaveCorrectExtensions () {
       const schemaFileExtension = ['.json']
       const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
       let countScan = 0
@@ -1292,7 +1292,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_print_schemas_without_positive_test_files',
     'Check that local test schemas always have a positive test file (unless listed in skipTest)',
-    function () {
+    function printSchemasWithoutPositiveTestFiles () {
       let countMissingTest = 0
       // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
       schemasToBeTested.forEach((schemaFileName) => {
@@ -1321,7 +1321,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_directory_structure_is_valid',
     'Check if schema and test directory structure are valid',
-    function () {
+    function assertDirectoryStructureIsValid () {
       schemasToBeTested.forEach((name) => {
         if (
           !skipThisFileName(name) &&
@@ -1361,7 +1361,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_print_downgradable_schema_versions',
     'Check if schema can be downgraded to a lower schema version and still pass validation',
-    function () {
+    function printDowngradableSchemaVersions () {
       let countScan = 0
 
       /**
@@ -1468,7 +1468,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_print_count_schema_versions',
     'Print the schema versions and their usage frequencies',
-    function () {
+    function printCountSchemaVersions () {
       const x = showSchemaVersions()
       localSchemaFileAndTestFile(
         {
@@ -1486,7 +1486,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'remote_print_count_schema_versions',
     'Print the schema versions and their usage frequencies',
-    async function () {
+    async function remotePrintCountSchemaVersions () {
       const done = this.async()
       const x = showSchemaVersions()
       await remoteSchemaFile((schema) => {
@@ -1500,7 +1500,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema_has_valid_$id_field',
     'Check that the $id field exists',
-    function () {
+    function assertSchemaHasValidIdField () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
@@ -1553,7 +1553,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema_has_valid_$schema_field',
     'Check that the $schema version string is a correct and standard value',
-    function () {
+    function assertSchemaHasValidSchemaField () {
       let countScan = 0
 
       localSchemaFileAndTestFile(
@@ -1598,7 +1598,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema_passes_schemasafe_lint',
     'Check that local schemas pass the SchemaSafe lint',
-    function () {
+    function assertSchemaPassesSchemaSafeLint () {
       if (!argv.lint) {
         return
       }
@@ -1628,7 +1628,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema-validation.json_no_duplicate_list',
     'Check if options list is unique in schema-validation.json',
-    function () {
+    function assertSchemaValidationHasNoDuplicateLists () {
       function checkForDuplicateInList(list, listName) {
         if (list) {
           if (new Set(list).size !== list.length) {
@@ -1690,7 +1690,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_catalog.json_no_duplicate_names',
     'Ensure there are no duplicate names in the catalog.json file',
-    function () {
+    function assertCatalogJsonHasNoDuplicateNames () {
       /** @type {string[]} */
       const schemaNames = catalog.schemas.map((entry) => entry.name)
       /** @type {string[]} */
@@ -1714,7 +1714,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_test_folders_have_at_least_one_test_schema',
     'Check if schema file is missing',
-    function () {
+    function assertTestFoldersHaveAtLeastOneTestSchema () {
       let countTestFolders = 0
       const x = (listFolders) => {
         listFolders.forEach((folderName) => {
@@ -1737,7 +1737,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_print_url_counts_in_catalog',
     'Show statistic info of the catalog',
-    function () {
+    function printUrlCountsInCatalog () {
       let countScanURLExternal = 0
       let countScanURLInternal = 0
       getUrlFromCatalog((catalogUrl) => {
@@ -1760,7 +1760,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_print_schemas_tested_in_full_strict_mode',
     'Show statistic how many full strict schema there are',
-    function () {
+    function printSchemasTestedInFullStrictMode () {
       let countSchemaScanViaAJV = 0
       localSchemaFileAndTestFile({
         schemaOnlyScan() {
@@ -1787,7 +1787,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema-validation.json_no_missing_schema_files',
     'Check if all schema JSON files are present',
-    function () {
+    function assertSchemaValidationJsonHasNoMissingSchemaFiles () {
       let countSchemaValidationItems = 0
       const x = (list) => {
         list.forEach((schemaName) => {
@@ -1825,7 +1825,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema-validation.json_no_unmatched_urls',
     'Check if all URL field values exist in catalog.json',
-    function () {
+    function assertSchemaValidationJsonHasNoUnmatchedUrls() {
       let totalItems = 0
 
       const x = (/** @type {string[]} */ schemaUrls) => {
@@ -1850,7 +1850,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_assert_schema-validation.json_valid_skiptest',
     'schemas in skiptest[] list must not be present anywhere else',
-    function () {
+    function assertSchemaValidationJsonHasValidSkipTest() {
       let countSchemaValidationItems = 0
       const x = (list, listName) => {
         list.forEach((schemaName) => {
@@ -1905,7 +1905,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_coverage',
     'Run one selected schema in coverage mode',
-    function () {
+    function taskCoverage() {
       const javaScriptCoverageName = 'schema.json.translated.to.js'
       const javaScriptCoverageNameWithPath = path.join(
         __dirname,
@@ -2041,7 +2041,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
   grunt.registerTask(
     'local_print_strict_and_not_strict_ajv_validated_schemas',
     'Show two list of AJV',
-    function () {
+    function printStrictAndNotStrictAjvValidatedSchemas() {
       // this is only for AJV schemas
       const schemaVersion = showSchemaVersions()
       const schemaInFullStrictMode = []
