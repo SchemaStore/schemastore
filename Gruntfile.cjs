@@ -725,10 +725,6 @@ function showSchemaVersions() {
   }
 }
 
-module.exports = function (/** @type {import('grunt')} */ grunt) {
-  grunt.registerTask(
-    'new_schema',
-    'Create a new schemas and associated files',
 async function taskNewSchema () {
   const done = this.async()
 
@@ -783,12 +779,8 @@ async function taskNewSchema () {
 }`)
 
   done()
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_lint_schema_has_correct_metadata',
-    'Check that metadata fields like "$id" are correct.',
 function lintSchemaHasCorrectMetadata () {
   let countScan = 0
   let totalMismatchIds = 0
@@ -863,12 +855,8 @@ function lintSchemaHasCorrectMetadata () {
   log.ok(`Total mismatched ids: ${totalMismatchIds}`)
   log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
   log.ok(`Total files scan: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'lint_schema_no_smart_quotes',
-    'Check that local schemas have no smart quotes',
 function lintSchemaNoSmartQuotes () {
   let countScan = 0
 
@@ -899,12 +887,8 @@ function lintSchemaNoSmartQuotes () {
   )
 
   log.writeln(`Total files scan: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_no_poorly_worded_fields',
-    'Check that catalog.json entries do not contain the word "schema" or "json"',
 function assertCatalogJsonHasNoPoorlyWordedFields () {
   let countScan = 0
 
@@ -954,12 +938,8 @@ function assertCatalogJsonHasNoPoorlyWordedFields () {
   }
 
   log.writeln(`Total found files: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_test_ajv',
-    'Use AJV to validate local schemas in ./test/',
 function testAjv () {
   const x = ajv()
   localSchemaFileAndTestFile(
@@ -972,12 +952,8 @@ function testAjv () {
     { skipReadFile: false },
   )
   log.ok('local AJV schema passed')
-},
-  )
+}
 
-  grunt.registerTask(
-    'remote_test_ajv',
-    'Use AJV to validate remote schemas',
 async function remoteTestAjv () {
   const done = this.async()
   const x = ajv()
@@ -989,12 +965,8 @@ async function remoteTestAjv () {
   log.writeln()
   log.writeln(`Total schemas validated with AJV: ${countScan}`)
   done()
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema_no_bom',
-    'Check that local schema files do not have a BOM (Byte Order Mark)',
 function assertSchemaHasNoBom () {
   let countScan = 0
 
@@ -1011,22 +983,14 @@ function assertSchemaHasNoBom () {
   log.ok(
     `no BOM file found in all schema files. Total files scan: ${countScan}`,
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'remote_assert_schema_no_bom',
-    'Check that remote schema files do not have a BOM (Byte Order Mark)',
 async function remoteAssertSchemaHasNoBom () {
   const done = this.async()
   await remoteSchemaFile(testSchemaFileForBOM, false)
   done()
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_passes_jsonlint',
-    'Check that catalog.json passes jsonlint',
 function assertCatalogJsonPassesJsonLint () {
   jsonlint.parse(fs.readFileSync('./src/api/json/catalog.json', 'utf-8'), {
     ignoreBOM: false,
@@ -1035,12 +999,8 @@ function assertCatalogJsonPassesJsonLint () {
     allowSingleQuotedStrings: false,
     allowDuplicateObjectKeys: false,
   })
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_validates_against_json_schema',
-    'Check that the catalog.json file passes schema validation',
 function assertCatalogJsonValidatesAgainstJsonSchema () {
   const catalogSchema = require(
     path.resolve('.', schemaDir, 'schema-catalog.json'),
@@ -1056,12 +1016,8 @@ function assertCatalogJsonValidatesAgainstJsonSchema () {
       '"Catalog ERROR"',
     ])
   }
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema_no_duplicated_property_keys',
-    'Check that schemas have no duplicated property keys',
 function assertSchemaHasNoDuplicatedPropertyKeys () {
   let countScan = 0
   const findDuplicatedProperty = (/** @type {Schema} */ schema) => {
@@ -1099,12 +1055,8 @@ function assertSchemaHasNoDuplicatedPropertyKeys () {
   log.ok(
     `No duplicated property key found in JSON files. Total files scan: ${countScan}`,
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'lint_top_level_$ref_is_standalone',
-    'Check that top level $ref properties of schemas are be the only property',
 function lintTopLevelRefIsStandalone () {
   let countScan = 0
   localSchemaFileAndTestFile(
@@ -1127,12 +1079,8 @@ function lintTopLevelRefIsStandalone () {
   )
 
   log.ok(`All urls tested OK. Total: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_local_url_must_ref_file',
-    'Check that local urls must reference a file that exists',
 function assertCatalogJsonLocalUrlsMustRefFile () {
   const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
   let countScan = 0
@@ -1165,12 +1113,8 @@ function assertCatalogJsonLocalUrlsMustRefFile () {
     }
   })
   log.ok(`All local url tested OK. Total: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_includes_all_schemas',
-    'Check that local schemas have a url reference in catalog.json',
 function assertCatalogJsonIncludesAllSchemas () {
   let countScan = 0
   const allCatalogLocalJsonFiles = []
@@ -1207,12 +1151,8 @@ function assertCatalogJsonIncludesAllSchemas () {
   log.ok(
     `All local schema files have URL link in catalog. Total: ${countScan}`,
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_fileMatch_conflict',
-    'Check for duplicate fileMatch entries (note: app.json and *app.json conflicting will not be detected)',
 function assertCatalogJsonHasNoFileMatchConflict () {
   const fileMatchConflict = schemaValidation.fileMatchConflict
   let fileMatchCollection = []
@@ -1234,12 +1174,8 @@ function assertCatalogJsonHasNoFileMatchConflict () {
     }
   }
   log.ok('No new fileMatch conflict detected.')
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_fileMatch_path',
-    'Ensure that fileMatch patterns include a directory separator that consistently starts with **/',
 function assertCatalogJsonHasCorrectFileMatchPath () {
   for (const schema of catalog.schemas) {
     schema.fileMatch?.forEach((fileMatchItem) => {
@@ -1254,12 +1190,8 @@ function assertCatalogJsonHasCorrectFileMatchPath () {
     })
   }
   log.ok('fileMatch path OK')
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_filenames_have_correct_extensions',
-    'Check that local test schemas have a valid filename extension',
 function assertFilenamesHaveCorrectExtensions () {
   const schemaFileExtension = ['.json']
   const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
@@ -1286,12 +1218,8 @@ function assertFilenamesHaveCorrectExtensions () {
   log.ok(
     `All schema and test filename have the correct file extension. Total files scan: ${countScan}`,
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_print_schemas_without_positive_test_files',
-    'Check that local test schemas always have a positive test file (unless listed in skipTest)',
 function printSchemasWithoutPositiveTestFiles () {
   let countMissingTest = 0
   // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
@@ -1315,12 +1243,8 @@ function printSchemasWithoutPositiveTestFiles () {
   } else {
     log.ok('All schemas have positive test')
   }
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_directory_structure_is_valid',
-    'Check if schema and test directory structure are valid',
 function assertDirectoryStructureIsValid () {
   schemasToBeTested.forEach((name) => {
     if (
@@ -1355,12 +1279,8 @@ function assertDirectoryStructureIsValid () {
     }
   })
   log.ok('OK')
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_print_downgradable_schema_versions',
-    'Check if schema can be downgraded to a lower schema version and still pass validation',
 function printDowngradableSchemaVersions () {
   let countScan = 0
 
@@ -1462,12 +1382,8 @@ function printDowngradableSchemaVersions () {
   )
   log.writeln()
   log.ok(`Total files scan: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_print_count_schema_versions',
-    'Print the schema versions and their usage frequencies',
 function printCountSchemaVersions () {
   const x = showSchemaVersions()
   localSchemaFileAndTestFile(
@@ -1480,12 +1396,8 @@ function printCountSchemaVersions () {
       skipReadFile: false,
     },
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'remote_print_count_schema_versions',
-    'Print the schema versions and their usage frequencies',
 async function remotePrintCountSchemaVersions () {
   const done = this.async()
   const x = showSchemaVersions()
@@ -1494,12 +1406,8 @@ async function remotePrintCountSchemaVersions () {
   }, false)
   x.process_data_done()
   done()
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema_has_valid_$id_field',
-    'Check that the $id field exists',
 function assertSchemaHasValidIdField () {
   let countScan = 0
 
@@ -1547,12 +1455,8 @@ function assertSchemaHasValidIdField () {
   )
 
   log.ok(`Total files scan: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema_has_valid_$schema_field',
-    'Check that the $schema version string is a correct and standard value',
 function assertSchemaHasValidSchemaField () {
   let countScan = 0
 
@@ -1592,12 +1496,8 @@ function assertSchemaHasValidSchemaField () {
   )
 
   log.ok(`Total files scan: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema_passes_schemasafe_lint',
-    'Check that local schemas pass the SchemaSafe lint',
 function assertSchemaPassesSchemaSafeLint () {
   if (!argv.lint) {
     return
@@ -1622,12 +1522,8 @@ function assertSchemaPassesSchemaSafeLint () {
     },
   )
   log.ok(`Total files scan: ${countScan}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema-validation.json_no_duplicate_list',
-    'Check if options list is unique in schema-validation.json',
 function assertSchemaValidationHasNoDuplicateLists () {
   function checkForDuplicateInList(list, listName) {
     if (list) {
@@ -1684,12 +1580,8 @@ function assertSchemaValidationHasNoDuplicateLists () {
   }
 
   log.ok('OK')
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_catalog.json_no_duplicate_names',
-    'Ensure there are no duplicate names in the catalog.json file',
 function assertCatalogJsonHasNoDuplicateNames () {
   /** @type {string[]} */
   const schemaNames = catalog.schemas.map((entry) => entry.name)
@@ -1708,12 +1600,8 @@ function assertCatalogJsonHasNoDuplicateNames () {
       `Found duplicates: ${JSON.stringify(duplicateSchemaNames)}`,
     ])
   }
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_test_folders_have_at_least_one_test_schema',
-    'Check if schema file is missing',
 function assertTestFoldersHaveAtLeastOneTestSchema () {
   let countTestFolders = 0
   const x = (listFolders) => {
@@ -1731,12 +1619,8 @@ function assertTestFoldersHaveAtLeastOneTestSchema () {
   x(foldersPositiveTest)
   x(foldersNegativeTest)
   log.ok(`Total test folders: ${countTestFolders}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_print_url_counts_in_catalog',
-    'Show statistic info of the catalog',
 function printUrlCountsInCatalog () {
   let countScanURLExternal = 0
   let countScanURLInternal = 0
@@ -1754,12 +1638,8 @@ function printUrlCountsInCatalog () {
     )}%)`,
   )
   log.ok(`${totalCount} Total URL`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_print_schemas_tested_in_full_strict_mode',
-    'Show statistic how many full strict schema there are',
 function printSchemasTestedInFullStrictMode () {
   let countSchemaScanViaAJV = 0
   localSchemaFileAndTestFile({
@@ -1781,12 +1661,8 @@ function printSchemasTestedInFullStrictMode () {
       )}%)`,
     )
   }
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema-validation.json_no_missing_schema_files',
-    'Check if all schema JSON files are present',
 function assertSchemaValidationJsonHasNoMissingSchemaFiles () {
   let countSchemaValidationItems = 0
   const x = (list) => {
@@ -1819,12 +1695,8 @@ function assertSchemaValidationJsonHasNoMissingSchemaFiles () {
   log.ok(
     `Total schema-validation.json items check: ${countSchemaValidationItems}`,
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema-validation.json_no_unmatched_urls',
-    'Check if all URL field values exist in catalog.json',
 function assertSchemaValidationJsonHasNoUnmatchedUrls() {
   let totalItems = 0
 
@@ -1844,12 +1716,8 @@ function assertSchemaValidationJsonHasNoUnmatchedUrls() {
   x(schemaValidation.catalogEntryNoLintNameOrDescription)
 
   log.ok(`Total schema-validation.json items checked: ${totalItems}`)
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_assert_schema-validation.json_valid_skiptest',
-    'schemas in skiptest[] list must not be present anywhere else',
 function assertSchemaValidationJsonHasValidSkipTest() {
   let countSchemaValidationItems = 0
   const x = (list, listName) => {
@@ -1899,12 +1767,8 @@ function assertSchemaValidationJsonHasValidSkipTest() {
   log.ok(
     `Total schema-validation.json items check: ${countSchemaValidationItems}`,
   )
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_coverage',
-    'Run one selected schema in coverage mode',
 function taskCoverage() {
   const javaScriptCoverageName = 'schema.json.translated.to.js'
   const javaScriptCoverageNameWithPath = path.join(
@@ -2035,12 +1899,8 @@ function taskCoverage() {
   }
   generateCoverage(schemaNameToBeCoverage)
   log.ok('OK')
-},
-  )
+}
 
-  grunt.registerTask(
-    'local_print_strict_and_not_strict_ajv_validated_schemas',
-    'Show two list of AJV',
 function printStrictAndNotStrictAjvValidatedSchemas() {
   // this is only for AJV schemas
   const schemaVersion = showSchemaVersions()
@@ -2113,7 +1973,217 @@ function printStrictAndNotStrictAjvValidatedSchemas() {
       schemaInFullStrictMode.length + schemaInNotStrictMode.length
     }`,
   )
-},
+}
+
+module.exports = function (/** @type {import('grunt')} */ grunt) {
+  grunt.registerTask(
+    'new_schema',
+    'Create a new schemas and associated files',
+    taskNewSchema,
+  )
+
+  grunt.registerTask(
+    'local_lint_schema_has_correct_metadata',
+    'Check that metadata fields like "$id" are correct.',
+    lintSchemaHasCorrectMetadata,
+  )
+
+  grunt.registerTask(
+    'lint_schema_no_smart_quotes',
+    'Check that local schemas have no smart quotes',
+    lintSchemaNoSmartQuotes,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_no_poorly_worded_fields',
+    'Check that catalog.json entries do not contain the word "schema" or "json"',
+    assertCatalogJsonHasNoPoorlyWordedFields,
+  )
+
+  grunt.registerTask(
+    'local_test_ajv',
+    'Use AJV to validate local schemas in ./test/',
+    testAjv,
+  )
+
+  grunt.registerTask(
+    'remote_test_ajv',
+    'Use AJV to validate remote schemas',
+    remoteTestAjv,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_no_bom',
+    'Check that local schema files do not have a BOM (Byte Order Mark)',
+    assertSchemaHasNoBom,
+  )
+
+  grunt.registerTask(
+    'remote_assert_schema_no_bom',
+    'Check that remote schema files do not have a BOM (Byte Order Mark)',
+    remoteAssertSchemaHasNoBom,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_passes_jsonlint',
+    'Check that catalog.json passes jsonlint',
+    assertCatalogJsonPassesJsonLint,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_validates_against_json_schema',
+    'Check that the catalog.json file passes schema validation',
+    assertCatalogJsonValidatesAgainstJsonSchema,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_no_duplicated_property_keys',
+    'Check that schemas have no duplicated property keys',
+    assertSchemaHasNoDuplicatedPropertyKeys,
+  )
+
+  grunt.registerTask(
+    'lint_top_level_$ref_is_standalone',
+    'Check that top level $ref properties of schemas are be the only property',
+    lintTopLevelRefIsStandalone,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_local_url_must_ref_file',
+    'Check that local urls must reference a file that exists',
+    assertCatalogJsonLocalUrlsMustRefFile,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_includes_all_schemas',
+    'Check that local schemas have a url reference in catalog.json',
+    assertCatalogJsonIncludesAllSchemas,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_fileMatch_conflict',
+    'Check for duplicate fileMatch entries (note: app.json and *app.json conflicting will not be detected)',
+    assertCatalogJsonHasNoFileMatchConflict,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_fileMatch_path',
+    'Ensure that fileMatch patterns include a directory separator that consistently starts with **/',
+    assertCatalogJsonHasCorrectFileMatchPath,
+  )
+
+  grunt.registerTask(
+    'local_assert_filenames_have_correct_extensions',
+    'Check that local test schemas have a valid filename extension',
+    assertFilenamesHaveCorrectExtensions,
+  )
+
+  grunt.registerTask(
+    'local_print_schemas_without_positive_test_files',
+    'Check that local test schemas always have a positive test file (unless listed in skipTest)',
+    printSchemasWithoutPositiveTestFiles,
+  )
+
+  grunt.registerTask(
+    'local_assert_directory_structure_is_valid',
+    'Check if schema and test directory structure are valid',
+    assertDirectoryStructureIsValid,
+  )
+
+  grunt.registerTask(
+    'local_print_downgradable_schema_versions',
+    'Check if schema can be downgraded to a lower schema version and still pass validation',
+    printDowngradableSchemaVersions
+  )
+
+  grunt.registerTask(
+    'local_print_count_schema_versions',
+    'Print the schema versions and their usage frequencies',
+    printCountSchemaVersions,
+  )
+
+  grunt.registerTask(
+    'remote_print_count_schema_versions',
+    'Print the schema versions and their usage frequencies',
+    remotePrintCountSchemaVersions,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_has_valid_$id_field',
+    'Check that the $id field exists',
+    assertSchemaHasValidIdField,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_has_valid_$schema_field',
+    'Check that the $schema version string is a correct and standard value',
+    assertSchemaHasValidSchemaField,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema_passes_schemasafe_lint',
+    'Check that local schemas pass the SchemaSafe lint',
+    assertSchemaPassesSchemaSafeLint,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema-validation.json_no_duplicate_list',
+    'Check if options list is unique in schema-validation.json',
+    assertSchemaValidationHasNoDuplicateLists,
+  )
+
+  grunt.registerTask(
+    'local_assert_catalog.json_no_duplicate_names',
+    'Ensure there are no duplicate names in the catalog.json file',
+    assertCatalogJsonHasNoDuplicateNames,
+  )
+
+  grunt.registerTask(
+    'local_assert_test_folders_have_at_least_one_test_schema',
+    'Check if schema file is missing',
+    assertTestFoldersHaveAtLeastOneTestSchema,
+  )
+
+  grunt.registerTask(
+    'local_print_url_counts_in_catalog',
+    'Show statistic info of the catalog',
+    printUrlCountsInCatalog,
+  )
+
+  grunt.registerTask(
+    'local_print_schemas_tested_in_full_strict_mode',
+    'Show statistic how many full strict schema there are',
+    printSchemasTestedInFullStrictMode,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema-validation.json_no_missing_schema_files',
+    'Check if all schema JSON files are present',
+    assertSchemaValidationJsonHasNoMissingSchemaFiles,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema-validation.json_no_unmatched_urls',
+    'Check if all URL field values exist in catalog.json',
+    assertSchemaValidationJsonHasNoUnmatchedUrls,
+  )
+
+  grunt.registerTask(
+    'local_assert_schema-validation.json_valid_skiptest',
+    'schemas in skiptest[] list must not be present anywhere else',
+    assertSchemaValidationJsonHasValidSkipTest,
+  )
+
+  grunt.registerTask(
+    'local_coverage',
+    'Run one selected schema in coverage mode',
+    taskCoverage,
+  )
+
+  grunt.registerTask(
+    'local_print_strict_and_not_strict_ajv_validated_schemas',
+    'Show two list of AJV',
+    printStrictAndNotStrictAjvValidatedSchemas,
   )
 
   /**
