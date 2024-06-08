@@ -18,6 +18,7 @@ const axios = require('axios').default
 const jsonlint = require('@prantlf/jsonlint')
 const jsoncParser = require('jsonc-parser')
 const chalk = require('chalk')
+const minimist = require('minimist')
 
 const temporaryCoverageDir = './temp'
 const schemaDir = './src/schemas/json'
@@ -52,6 +53,10 @@ const log = {
     console.log(msg)
   }
 }
+
+const argv = minimist(process.argv.slice(2), {
+  boolean: ['lint']
+})
 
 module.exports = function (/** @type {import('grunt')} */ grunt) {
   'use strict'
@@ -191,7 +196,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       processOnlyThisOneSchemaFile = undefined,
     } = {},
   ) {
-    const schemaNameOption = grunt.option('SchemaName')
+    const schemaNameOption = argv.schemaName
     if (processOnlyThisOneSchemaFile === undefined && schemaNameOption) {
       processOnlyThisOneSchemaFile = schemaNameOption
       const file = path.join(schemaDir, processOnlyThisOneSchemaFile)
@@ -341,8 +346,6 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
         ])
       }
 
-      // Test file may have BOM. This must be removed.
-      grunt.file.preserveBOM = false // Strip BOM from file
       filesInsideOneTestFolder.forEach(function (testFileFullPathName) {
         // forbidden to add extra folder inside the specific test folder
         if (!fs.lstatSync(testFileFullPathName).isFile()) {
@@ -1597,7 +1600,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
     'local_assert_schema_passes_schemasafe_lint',
     'Check that local schemas pass the SchemaSafe lint',
     function () {
-      if (!grunt.option.flags().includes('--lint')) {
+      if (!argv.lint) {
         return
       }
       let countScan = 0
@@ -2025,7 +2028,7 @@ module.exports = function (/** @type {import('grunt')} */ grunt) {
       }
 
       // Generate the schema via option parameter 'SchemaName'
-      const schemaNameToBeCoverage = grunt.option('SchemaName')
+      const schemaNameToBeCoverage = argv.SchemaName
       if (!schemaNameToBeCoverage) {
         throwWithErrorText([
           'Must start "make" file with schema name parameter.',
