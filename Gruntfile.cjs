@@ -56,7 +56,7 @@ const log = {
 }
 
 const argv = minimist(process.argv.slice(2), {
-  boolean: ['lint'],
+  boolean: ['help', 'lint'],
 })
 
 function skipThisFileName(/** @type {string} */ name) {
@@ -721,6 +721,25 @@ function showSchemaVersions() {
   }
 }
 
+/**
+ * @param {() => void} fn
+ */
+function applyGruntAsyncPolyfillAndRun(fn) {
+  return new Promise((resolve, reject) => {
+    const polyfilledFunction = fn.bind({
+      async() {
+        return resolve
+      },
+    })
+
+    try {
+      polyfilledFunction()
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
 async function taskNewSchema() {
   const done = this.async()
 
@@ -775,6 +794,59 @@ async function taskNewSchema() {
 }`)
 
   done()
+}
+
+function taskLint() {
+  lintSchemaHasCorrectMetadata()
+  lintTopLevelRefIsStandalone()
+  lintSchemaNoSmartQuotes()
+}
+
+function taskCheck() {
+  // Check filesystem
+  assertDirectoryStructureIsValid()
+  assertFilenamesHaveCorrectExtensions()
+  assertTestFoldersHaveAtLeastOneTestSchema()
+
+  // Check schema-validation.json
+  assertSchemaValidationHasNoDuplicateLists()
+  assertSchemaValidationJsonHasNoMissingSchemaFiles()
+  assertSchemaValidationJsonHasNoUnmatchedUrls()
+  assertSchemaValidationJsonHasValidSkipTest()
+
+  // Check catalog.json
+  assertCatalogJsonPassesJsonLint()
+  assertCatalogJsonValidatesAgainstJsonSchema()
+  assertCatalogJsonHasNoDuplicateNames()
+  assertCatalogJsonHasNoPoorlyWordedFields()
+  assertCatalogJsonHasCorrectFileMatchPath()
+  assertCatalogJsonHasNoFileMatchConflict()
+  assertCatalogJsonLocalUrlsMustRefFile()
+  assertCatalogJsonIncludesAllSchemas()
+
+  // Check test schema
+  assertSchemaHasNoBom()
+  assertSchemaHasNoDuplicatedPropertyKeys()
+  assertSchemaHasValidSchemaField()
+  assertSchemaHasValidIdField()
+  assertSchemaPassesSchemaSafeLint()
+
+  printSchemasTestedInFullStrictMode()
+  printSchemasWithoutPositiveTestFiles()
+  testAjv()
+  printUrlCountsInCatalog()
+  printCountSchemaVersions()
+}
+
+async function taskCheckRemote() {
+  await applyGruntAsyncPolyfillAndRun(remoteAssertSchemaHasNoBom)
+  await applyGruntAsyncPolyfillAndRun(remoteTestAjv)
+  await applyGruntAsyncPolyfillAndRun(remotePrintCountSchemaVersions)
+}
+
+async function taskMaintenance() {
+  printDowngradableSchemaVersions()
+  printStrictAndNotStrictAjvValidatedSchemas()
 }
 
 function lintSchemaHasCorrectMetadata() {
@@ -1951,6 +2023,72 @@ function printStrictAndNotStrictAjvValidatedSchemas() {
       schemaInFullStrictMode.length + schemaInNotStrictMode.length
     }`,
   )
+}
+
+/**
+ * If this file was ran directly with node (eg. `node ./Gruntfile.cjs`), rather than
+ * executing like `grunt default`. This opt-in codepath aims to make transitioning
+ * away from Grunt more gradual and better-tested.
+ */
+if (path.basename(process.argv[1]) !== 'grunt') {
+  const helpMenu = `USAGE:
+  node ./Gruntfile.cjs <taskName|functionName>
+
+TASKS:
+  new-schema: Create a new JSON schema
+  lint: Run less-important checks on schemas
+  check: Run all build checks
+  check-remote: Run all build checks for remote schemas
+  maintenance: Run maintenance checks
+
+EXAMPLES:
+  node ./Gruntfile.cjs coverage
+  `
+
+  if (!argv._[0]) {
+    console.error(helpMenu)
+    console.error(`${chalk.red('Error:')} No argument given`)
+    process.exit(1)
+  }
+  if (argv.help) {
+    console.info(helpMenu)
+    process.exit(0)
+  }
+
+  if (typeof argv._[0] === 'function') {
+    const functionName = argv._[0]
+    functionName()
+
+    /**
+     * The rest of the file is Grunt-specific. Don't execute so we "return" early.
+     */
+    process.exit()
+  } else {
+    const taskName = argv._[0]
+    const taskMapping = {
+      'new-schema': () => applyGruntAsyncPolyfillAndRun(taskNewSchema),
+      lint: taskLint,
+      check: taskCheck,
+      'check-remote': taskCheckRemote,
+      maintenance: taskMaintenance,
+      build: taskCheck, // Undocumented alias.
+    }
+    if (!(taskName in taskMapping)) {
+      console.error(`Unknown task name: ${taskName}`)
+      process.exit(1)
+    }
+
+    // eslint-disable-next-line promise/always-return
+    Promise.resolve(taskMapping[taskName]()).then(() => {
+      process.exit()
+    }).catch((err) => {
+      console.error(err)
+      process.exit(1)
+    })
+  }
+
+  // TODO: Top-Level Await to enable single `process.exit` invocation,
+  // avoiding deprecation warning from Grunt.
 }
 
 module.exports = function (/** @type {import('grunt')} */ grunt) {
