@@ -194,7 +194,7 @@ function localSchemaFileAndTestFile(
     processOnlyThisOneSchemaFile = undefined,
   } = {},
 ) {
-  const schemaNameOption = argv.schemaName
+  const schemaNameOption = argv.SchemaName
   if (processOnlyThisOneSchemaFile === undefined && schemaNameOption) {
     processOnlyThisOneSchemaFile = schemaNameOption
     const file = path.join(schemaDir, processOnlyThisOneSchemaFile)
@@ -721,28 +721,7 @@ function showSchemaVersions() {
   }
 }
 
-/**
- * @param {() => void} fn
- */
-function applyGruntAsyncPolyfillAndRun(fn) {
-  return new Promise((resolve, reject) => {
-    const polyfilledFunction = fn.bind({
-      async() {
-        return resolve
-      },
-    })
-
-    try {
-      polyfilledFunction()
-    } catch (err) {
-      reject(err)
-    }
-  })
-}
-
 async function taskNewSchema() {
-  const done = this.async()
-
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -792,8 +771,6 @@ async function taskNewSchema() {
 "fileMatch": ["${schemaName}.yml", "${schemaName}.yaml"],
 "url": "https://json.schemastore.org/${schemaName}.json"
 }`)
-
-  done()
 }
 
 function taskLint() {
@@ -839,9 +816,9 @@ function taskCheck() {
 }
 
 async function taskCheckRemote() {
-  await applyGruntAsyncPolyfillAndRun(remoteAssertSchemaHasNoBom)
-  await applyGruntAsyncPolyfillAndRun(remoteTestAjv)
-  await applyGruntAsyncPolyfillAndRun(remotePrintCountSchemaVersions)
+  await remoteAssertSchemaHasNoBom()
+  await remoteTestAjv()
+  await remotePrintCountSchemaVersions()
 }
 
 async function taskMaintenance() {
@@ -1021,7 +998,6 @@ function testAjv() {
 }
 
 async function remoteTestAjv() {
-  const done = this.async()
   const x = ajv()
   let countScan = 0
   await remoteSchemaFile((testSchemaFile) => {
@@ -1030,7 +1006,6 @@ async function remoteTestAjv() {
   })
   log.writeln()
   log.writeln(`Total schemas validated with AJV: ${countScan}`)
-  done()
 }
 
 function assertSchemaHasNoBom() {
@@ -1052,9 +1027,7 @@ function assertSchemaHasNoBom() {
 }
 
 async function remoteAssertSchemaHasNoBom() {
-  const done = this.async()
   await remoteSchemaFile(testSchemaFileForBOM, false)
-  done()
 }
 
 function assertCatalogJsonPassesJsonLint() {
@@ -1457,13 +1430,11 @@ function printCountSchemaVersions() {
 }
 
 async function remotePrintCountSchemaVersions() {
-  const done = this.async()
   const x = showSchemaVersions()
   await remoteSchemaFile((schema) => {
     x.process_data(schema)
   }, false)
   x.process_data_done()
-  done()
 }
 
 function assertSchemaHasValidIdField() {
@@ -2025,24 +1996,20 @@ function printStrictAndNotStrictAjvValidatedSchemas() {
   )
 }
 
-/**
- * If this file was ran directly with node (eg. `node ./Gruntfile.cjs`), rather than
- * executing like `grunt default`. This opt-in codepath aims to make transitioning
- * away from Grunt more gradual and better-tested.
- */
-if (path.basename(process.argv[1]) !== 'grunt') {
+{
   const helpMenu = `USAGE:
-  node ./Gruntfile.cjs <taskName|functionName>
+  node ./cli.js <taskName|functionName>
 
 TASKS:
   new-schema: Create a new JSON schema
   lint: Run less-important checks on schemas
   check: Run all build checks
   check-remote: Run all build checks for remote schemas
+  coverage: Generate code coverage for a schema
   maintenance: Run maintenance checks
 
 EXAMPLES:
-  node ./Gruntfile.cjs coverage
+  node ./cli.js check
   `
 
   if (!argv._[0]) {
@@ -2055,310 +2022,19 @@ EXAMPLES:
     process.exit(0)
   }
 
-  if (typeof argv._[0] === 'function') {
-    const functionName = argv._[0]
-    functionName()
-
-    /**
-     * The rest of the file is Grunt-specific. Don't execute so we "return" early.
-     */
-    process.exit()
-  } else {
-    const taskName = argv._[0]
-    const taskMapping = {
-      'new-schema': () => applyGruntAsyncPolyfillAndRun(taskNewSchema),
-      lint: taskLint,
-      check: taskCheck,
-      'check-remote': taskCheckRemote,
-      maintenance: taskMaintenance,
-      build: taskCheck, // Undocumented alias.
-    }
-    if (!(taskName in taskMapping)) {
-      console.error(`Unknown task name: ${taskName}`)
-      process.exit(1)
-    }
-
-    // eslint-disable-next-line promise/always-return
-    Promise.resolve(taskMapping[taskName]()).then(() => {
-      process.exit()
-    }).catch((err) => {
-      console.error(err)
-      process.exit(1)
-    })
+  const taskMapping = {
+    'new-schema': taskNewSchema,
+    lint: taskLint,
+    check: taskCheck,
+    'check-remote': taskCheckRemote,
+    coverage: taskCoverage,
+    maintenance: taskMaintenance,
+    build: taskCheck, // Undocumented alias.
   }
-
-  // TODO: Top-Level Await to enable single `process.exit` invocation,
-  // avoiding deprecation warning from Grunt.
-}
-
-module.exports = function (/** @type {import('grunt')} */ grunt) {
-  grunt.registerTask(
-    'new_schema',
-    'Create a new schemas and associated files',
-    taskNewSchema,
-  )
-
-  grunt.registerTask(
-    'local_lint_schema_has_correct_metadata',
-    'Check that metadata fields like "$id" are correct.',
-    lintSchemaHasCorrectMetadata,
-  )
-
-  grunt.registerTask(
-    'lint_schema_no_smart_quotes',
-    'Check that local schemas have no smart quotes',
-    lintSchemaNoSmartQuotes,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_no_poorly_worded_fields',
-    'Check that catalog.json entries do not contain the word "schema" or "json"',
-    assertCatalogJsonHasNoPoorlyWordedFields,
-  )
-
-  grunt.registerTask(
-    'local_test_ajv',
-    'Use AJV to validate local schemas in ./test/',
-    testAjv,
-  )
-
-  grunt.registerTask(
-    'remote_test_ajv',
-    'Use AJV to validate remote schemas',
-    remoteTestAjv,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_no_bom',
-    'Check that local schema files do not have a BOM (Byte Order Mark)',
-    assertSchemaHasNoBom,
-  )
-
-  grunt.registerTask(
-    'remote_assert_schema_no_bom',
-    'Check that remote schema files do not have a BOM (Byte Order Mark)',
-    remoteAssertSchemaHasNoBom,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_passes_jsonlint',
-    'Check that catalog.json passes jsonlint',
-    assertCatalogJsonPassesJsonLint,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_validates_against_json_schema',
-    'Check that the catalog.json file passes schema validation',
-    assertCatalogJsonValidatesAgainstJsonSchema,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_no_duplicated_property_keys',
-    'Check that schemas have no duplicated property keys',
-    assertSchemaHasNoDuplicatedPropertyKeys,
-  )
-
-  grunt.registerTask(
-    'lint_top_level_$ref_is_standalone',
-    'Check that top level $ref properties of schemas are be the only property',
-    lintTopLevelRefIsStandalone,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_local_url_must_ref_file',
-    'Check that local urls must reference a file that exists',
-    assertCatalogJsonLocalUrlsMustRefFile,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_includes_all_schemas',
-    'Check that local schemas have a url reference in catalog.json',
-    assertCatalogJsonIncludesAllSchemas,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_fileMatch_conflict',
-    'Check for duplicate fileMatch entries (note: app.json and *app.json conflicting will not be detected)',
-    assertCatalogJsonHasNoFileMatchConflict,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_fileMatch_path',
-    'Ensure that fileMatch patterns include a directory separator that consistently starts with **/',
-    assertCatalogJsonHasCorrectFileMatchPath,
-  )
-
-  grunt.registerTask(
-    'local_assert_filenames_have_correct_extensions',
-    'Check that local test schemas have a valid filename extension',
-    assertFilenamesHaveCorrectExtensions,
-  )
-
-  grunt.registerTask(
-    'local_print_schemas_without_positive_test_files',
-    'Check that local test schemas always have a positive test file (unless listed in skipTest)',
-    printSchemasWithoutPositiveTestFiles,
-  )
-
-  grunt.registerTask(
-    'local_assert_directory_structure_is_valid',
-    'Check if schema and test directory structure are valid',
-    assertDirectoryStructureIsValid,
-  )
-
-  grunt.registerTask(
-    'local_print_downgradable_schema_versions',
-    'Check if schema can be downgraded to a lower schema version and still pass validation',
-    printDowngradableSchemaVersions,
-  )
-
-  grunt.registerTask(
-    'local_print_count_schema_versions',
-    'Print the schema versions and their usage frequencies',
-    printCountSchemaVersions,
-  )
-
-  grunt.registerTask(
-    'remote_print_count_schema_versions',
-    'Print the schema versions and their usage frequencies',
-    remotePrintCountSchemaVersions,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_has_valid_$id_field',
-    'Check that the $id field exists',
-    assertSchemaHasValidIdField,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_has_valid_$schema_field',
-    'Check that the $schema version string is a correct and standard value',
-    assertSchemaHasValidSchemaField,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema_passes_schemasafe_lint',
-    'Check that local schemas pass the SchemaSafe lint',
-    assertSchemaPassesSchemaSafeLint,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema-validation.json_no_duplicate_list',
-    'Check if options list is unique in schema-validation.json',
-    assertSchemaValidationHasNoDuplicateLists,
-  )
-
-  grunt.registerTask(
-    'local_assert_catalog.json_no_duplicate_names',
-    'Ensure there are no duplicate names in the catalog.json file',
-    assertCatalogJsonHasNoDuplicateNames,
-  )
-
-  grunt.registerTask(
-    'local_assert_test_folders_have_at_least_one_test_schema',
-    'Check if schema file is missing',
-    assertTestFoldersHaveAtLeastOneTestSchema,
-  )
-
-  grunt.registerTask(
-    'local_print_url_counts_in_catalog',
-    'Show statistic info of the catalog',
-    printUrlCountsInCatalog,
-  )
-
-  grunt.registerTask(
-    'local_print_schemas_tested_in_full_strict_mode',
-    'Show statistic how many full strict schema there are',
-    printSchemasTestedInFullStrictMode,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema-validation.json_no_missing_schema_files',
-    'Check if all schema JSON files are present',
-    assertSchemaValidationJsonHasNoMissingSchemaFiles,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema-validation.json_no_unmatched_urls',
-    'Check if all URL field values exist in catalog.json',
-    assertSchemaValidationJsonHasNoUnmatchedUrls,
-  )
-
-  grunt.registerTask(
-    'local_assert_schema-validation.json_valid_skiptest',
-    'schemas in skiptest[] list must not be present anywhere else',
-    assertSchemaValidationJsonHasValidSkipTest,
-  )
-
-  grunt.registerTask(
-    'local_coverage',
-    'Run one selected schema in coverage mode',
-    taskCoverage,
-  )
-
-  grunt.registerTask(
-    'local_print_strict_and_not_strict_ajv_validated_schemas',
-    'Show two list of AJV',
-    printStrictAndNotStrictAjvValidatedSchemas,
-  )
-
-  /**
-   * The order of tasks are relevant.
-   */
-  grunt.registerTask('lint', [
-    'local_lint_schema_has_correct_metadata',
-    'lint_top_level_$ref_is_standalone',
-    'lint_schema_no_smart_quotes',
-  ])
-
-  grunt.registerTask('local_test_filesystem', [
-    'local_assert_directory_structure_is_valid',
-    'local_assert_filenames_have_correct_extensions',
-    'local_assert_test_folders_have_at_least_one_test_schema',
-  ])
-  grunt.registerTask('local_test_schema_validation_json', [
-    'local_assert_schema-validation.json_no_duplicate_list',
-    'local_assert_schema-validation.json_no_missing_schema_files',
-    'local_assert_schema-validation.json_no_unmatched_urls',
-    'local_assert_schema-validation.json_valid_skiptest',
-  ])
-  grunt.registerTask('local_test_catalog_json', [
-    'local_assert_catalog.json_passes_jsonlint',
-    'local_assert_catalog.json_validates_against_json_schema',
-    'local_assert_catalog.json_no_duplicate_names',
-    'local_assert_catalog.json_no_poorly_worded_fields',
-    'local_assert_catalog.json_fileMatch_path',
-    'local_assert_catalog.json_fileMatch_conflict',
-    'local_assert_catalog.json_local_url_must_ref_file',
-    'local_assert_catalog.json_includes_all_schemas',
-  ])
-  grunt.registerTask('local_test_schema', [
-    'local_assert_schema_no_bom',
-    'local_assert_schema_no_duplicated_property_keys',
-    'local_assert_schema_has_valid_$schema_field',
-    'local_assert_schema_has_valid_$id_field',
-    'local_assert_schema_passes_schemasafe_lint',
-  ])
-  grunt.registerTask('local_test', [
-    'local_test_filesystem',
-    'local_test_schema_validation_json',
-    'local_test_catalog_json',
-    'local_test_schema',
-
-    'local_print_schemas_tested_in_full_strict_mode',
-    'local_print_schemas_without_positive_test_files',
-    'local_test_ajv',
-    'local_print_url_counts_in_catalog',
-    'local_print_count_schema_versions',
-  ])
-  grunt.registerTask('local_maintenance', [
-    'local_print_downgradable_schema_versions',
-    'local_print_strict_and_not_strict_ajv_validated_schemas',
-  ])
-  grunt.registerTask('remote_test', [
-    'remote_assert_schema_no_bom',
-    'remote_test_ajv',
-    'remote_print_count_schema_versions',
-  ])
-  grunt.registerTask('default', ['local_test'])
+  const taskOrFn = argv._[0]
+  if (taskOrFn in taskMapping) {
+    taskMapping[taskOrFn]()
+  } else {
+    eval(`${taskOrFn}()`)
+  }
 }
