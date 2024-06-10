@@ -1,32 +1,33 @@
 /// <binding AfterBuild='build' />
-const path = require('node:path')
-const fs = require('node:fs')
-const readline = require('node:readline/promises')
-const addFormats = require('ajv-formats')
-const ajvFormatsDraft2019 = require('ajv-formats-draft2019')
-const AjvDraft04 = require('ajv-draft-04')
-const AjvDraft06And07 = require('ajv')
-const Ajv2019 = require('ajv/dist/2019')
-const Ajv2020 = require('ajv/dist/2020')
-const AjvDraft06SchemaJson = require('ajv/dist/refs/json-schema-draft-06.json')
-const AjvStandalone = require('ajv/dist/standalone').default
-const TOML = require('@ltd/j-toml')
-const YAML = require('yaml')
-const schemasafe = require('@exodus/schemasafe')
-const prettier = require('prettier')
-const axios = require('axios').default
-const jsonlint = require('@prantlf/jsonlint')
-const jsoncParser = require('jsonc-parser')
-const chalk = require('chalk')
-const minimist = require('minimist')
+import path from 'node:path'
+import fs from 'node:fs'
+import readline from 'node:readline/promises'
+import addFormats from 'ajv-formats'
+import ajvFormatsDraft2019 from 'ajv-formats-draft2019'
+import AjvDraft04 from 'ajv-draft-04'
+import AjvDraft06And07 from 'ajv'
+import Ajv2019 from 'ajv/dist/2019.js'
+import Ajv2020 from 'ajv/dist/2020.js'
+import AjvStandalone from 'ajv/dist/standalone/index.js'
+import TOML from '@ltd/j-toml'
+import YAML from 'yaml'
+import schemasafe from '@exodus/schemasafe'
+import prettier from 'prettier'
+import axios from 'axios'
+import jsonlint from '@prantlf/jsonlint'
+import * as jsoncParser from 'jsonc-parser'
+import chalk from 'chalk'
+import minimist from 'minimist'
 
-;('use strict')
+const AjvDraft06SchemaJson = JSON.parse(
+  fs.readFileSync('node_modules/ajv/dist/refs/json-schema-draft-06.json'),
+)
 const temporaryCoverageDir = './temp'
 const schemaDir = './src/schemas/json'
 const testPositiveDir = './src/test'
 const testNegativeDir = './src/negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
-const catalog = require('./src/api/json/catalog.json')
+const catalog = JSON.parse(fs.readFileSync('./src/api/json/catalog.json'))
 const schemaValidation = jsoncParser.parse(
   fs.readFileSync('./src/schema-validation.json', 'utf-8'),
 )
@@ -58,6 +59,10 @@ const log = {
 const argv = minimist(process.argv.slice(2), {
   boolean: ['help', 'lint'],
 })
+
+function readJsonFile(/** @type {string} */ filename) {
+  return JSON.parse(fs.readFileSync(filename, 'utf-8'))
+}
 
 function skipThisFileName(/** @type {string} */ name) {
   // This macOS file must always be ignored.
@@ -599,7 +604,7 @@ function ajv() {
 
       // Add external schema to AJV
       externalSchemaWithPathList.forEach((x) => {
-        ajvSelected.addSchema(require(x.toString()))
+        ajvSelected.addSchema(readJsonFile(x.toString()))
       })
 
       // What schema draft version is it?
@@ -1041,7 +1046,7 @@ function assertCatalogJsonPassesJsonLint() {
 }
 
 function assertCatalogJsonValidatesAgainstJsonSchema() {
-  const catalogSchema = require(
+  const catalogSchema = readJsonFile(
     path.resolve('.', schemaDir, 'schema-catalog.json'),
   )
   const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
@@ -1336,7 +1341,7 @@ function printDowngradableSchemaVersions() {
 
       // Add external schema to AJV
       option.externalSchemaWithPathList.forEach((x) => {
-        ajvSelected.addSchema(require(x.toString()))
+        ajvSelected.addSchema(readJsonFile(x.toString()))
       })
 
       ajvSelected.compile(schemaJson)
@@ -1799,7 +1804,6 @@ function assertSchemaValidationJsonHasValidSkipTest() {
 function taskCoverage() {
   const javaScriptCoverageName = 'schema.json.translated.to.js'
   const javaScriptCoverageNameWithPath = path.join(
-    __dirname,
     `${temporaryCoverageDir}/${javaScriptCoverageName}`,
   )
 
@@ -1836,7 +1840,7 @@ function taskCoverage() {
       if (isThisWithExternalSchema) {
         // There is an external schema that need to be included.
         externalSchemaWithPathList.forEach((x) => {
-          multipleSchema.push(require(x.toString()))
+          multipleSchema.push(readJsonFile(x.toString()))
         })
         // Also add the 'root' schema
         multipleSchema.push(mainSchema)
@@ -1886,7 +1890,7 @@ function taskCoverage() {
         }),
       )
       // Now use this JavaScript as validation in the positive and negative test
-      validations = require(javaScriptCoverageNameWithPath)
+      validations = readJsonFile(javaScriptCoverageNameWithPath)
     }
 
     // Load the Javascript file from the disk and run it with the JSON test file.
@@ -1955,7 +1959,7 @@ function printStrictAndNotStrictAjvValidatedSchemas() {
 
     // Add external schema to AJV
     externalSchemaWithPathList.forEach((x) => {
-      ajvSelected.addSchema(require(x.toString()))
+      ajvSelected.addSchema(readJsonFile(x.toString()))
     })
 
     try {
@@ -2033,7 +2037,7 @@ EXAMPLES:
   }
   const taskOrFn = argv._[0]
   if (taskOrFn in taskMapping) {
-    taskMapping[taskOrFn]()
+    await taskMapping[taskOrFn]()
   } else {
     eval(`${taskOrFn}()`)
   }
