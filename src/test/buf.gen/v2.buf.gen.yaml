@@ -1,0 +1,162 @@
+# Stitched together from examples at
+# https://buf.build/docs/configuration/v2/buf-gen-yaml
+
+version: v2
+managed:
+  enabled: true
+  disable:
+    # Don't modify any files in buf.build/googleapis/googleapis
+    - module: buf.build/googleapis/googleapis
+    # Don't modify any files in the foo/v1 directory. This can be a path to a directory
+    # or a .proto file. If it's a directory path, all .proto files in the directory are
+    # ignored.
+    - path: foo/v1
+    # Ignore the csharp_namespace file option for all modules and files in the input.
+    - file_option: csharp_namespace
+    # Ignore the js_type field option for any file.
+    - field_option: js_type
+    # Ignore the foo.bar.Baz.field_name field.
+    - field: foo.bar.Baz.field_name
+    # Setting all 3 for file options: don't modify java_package for files in foo/v1 in
+    # buf.build/acme/weather
+    - module: buf.build/acme/weather
+      path: foo/v1
+      file_option: java_package
+    # Setting all 4 for field options: disable js_type for all files that match the
+    # module, path, and field name.
+    - module: buf.build/acme/petapis
+      field: foo.bar.Baz.field_name
+      path: foo/v1
+      field_option: js_type
+
+  override:
+    # When `file_option` and `value` are set, managed mode uses the value set in
+    # this rule instead of the default value or sets it to this value if the default
+    # value is none.
+    #
+    # Example: Modify the java_package options to <net>.<proto_package> for all files.
+    - file_option: java_package_prefix
+      value: net
+    # When `file_option`, `value`, and `module` are set, managed mode uses the value
+    # set in this rule instead of the default value for all files in the specified module.
+    # It sets it to this value if the default value is none.
+    #
+    # Example: Modify the java_package options to <com>.<proto_package>.<com> for all files
+    # in `buf.build/acme/petapis`. These rules take precedence over the rule above.
+    - file_option: java_package_prefix
+      module: buf.build/acme/petapis
+      value: com
+    - file_option: java_package_suffix
+      module: buf.build/acme/petapis
+      value: com
+    # When `file_option`, `value`, and `path`are set, managed mode uses the value set
+    # in this rule instead of the default value for the specific file path. If the path
+    # is a directory, the rule affects all .proto files in the directory. Otherwise, it
+    # only affects the specified .proto file.
+    #
+    # Example: For the file foo/bar/baz.proto, set java_package specifically to
+    # "com.x.y.z". This takes precedence over the previous rules above.
+    - file_option: java_package
+      path: foo/bar/baz.proto
+      value: com.x.y.z
+    # When `field_option`, `value`, and `module` are set, managed mode uses the value
+    # set in this rule instead of the default value for all files in the specified module.
+    # It sets it to this value if the default value is none.
+    #
+    # Example: For all fields in the buf.build/acme/paymentapis module where the field is
+    # one of the compatible types, set the js_type to JS_NORMAL.
+    - field_option: js_type
+      module: buf.build/acme/paymentapis
+      value: JS_NORMAL
+    # When `field_option`, `value`, and `field` are set, managed mode uses the value set
+    # in this ule instead of the default value of the specified field. It sets it to
+    # this value if the default value is none.
+    #
+    # Example: Set the package1.Message2.field3 field js_type value to JS_STRING. You can additionally
+    # specify the module and path, but the field name is sufficient.
+    - field_option: js_type
+      value: JS_STRING
+      field: package1.Message2.field3
+
+plugins:
+  # BSR remote plugin with revision #
+  - remote: buf.build/protocolbuffers/go
+    revision: 1
+    out: gen/proto
+  # Built-in protoc plugin for C++
+  - protoc_builtin: cpp
+    protoc_path: /path/to/protoc
+    out: gen/proto
+  # Local binary plugin, search in ${PATH} by default
+  - local: protoc-gen-validate
+    out: gen/proto
+  # Relative paths automatically work
+  - local: path/to/protoc-gen-validate
+    out: gen/proto
+  # Absolute paths automatically work
+  - local: /usr/bin/path/to/protoc-gen-validate
+    out: gen/proto2
+  # Binary plugin with arguments
+  - local: ['go', 'run', 'google.golang.org/protobuf/cmd/protoc-gen-go']
+    out: gen/proto
+    opt:
+      - paths=source_relative
+      - foo=bar
+      - baz
+    strategy: all
+    include_imports: true
+    include_wkt: true
+
+inputs:
+  # Git repository
+  - git_repo: github.com/acme/weather
+    branch: dev
+    subdir: proto
+    depth: 30
+  # BSR module with types, include, and exclude keys specified
+  - module: buf.build/acme/weather
+    types:
+      - 'foo.v1.User'
+      - 'foo.v1.UserService'
+    # If empty, include all paths.
+    paths:
+      - a/b/c
+      - a/b/d
+    exclude_paths:
+      - a/b/c/x.proto
+      - a/b/d/y.proto
+  # Local module at provided directory path
+  - directory: x/y/z
+  # Tarball at provided directory path. Automatically derives compression algorithm from
+  # the file extension:
+  # - `.tgz` and `.tar.gz` extensions automatically use Gzip
+  # - `.tar.zst` automatically uses Zstandard.
+  - tarball: a/b/x.tar.gz
+  # Tarball with `compression`, `strip_components`, and `subdir` keys set explicitly.
+  # - `strip_components=<int>`, reads at the relative path and strips some number of
+  #    components—in this example, 2.
+  # - `subdir=<string>` reads at the relative path and uses the subdirectory specified
+  #    within the archive as the base directory—in this case, `proto`.
+  - tarball: c/d/x.tar.zst
+    compression: zstd
+    strip_components: 2
+    subdir: proto
+  # The same applies `zip` inputs. A `zip` input is read at the relative path or http
+  # location, and can set `format`, `strip_components`, and `subdir` optionally.
+  - zip_archive: https://github.com/googleapis/googleapis/archive/master.zip
+    strip_components: 1
+    format: zip
+  # A proto_file is a path to a specific proto file. Optionally, you can include package
+  # files as part of the files to be generated (the default is false).
+  - proto_file: foo/bar/baz.proto
+    include_package_files: true
+  # We also support Buf images as inputs. Images can be any of the following formats:
+  #  - `binary_image`
+  #  - `json_image`
+  #  - `txt_image`
+  #  - `yaml_image`
+  # Each image format also supports compression optionally.
+  #
+  # The example below is a binary Buf image with compression set for Gzip.
+  - binary_image: image.binpb.gz
+    compression: gz

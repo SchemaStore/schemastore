@@ -1,5 +1,6 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/bitrise.json",
   "$ref": "#/definitions/BitriseDataModel",
   "definitions": {
     "AppModel": {
@@ -14,15 +15,7 @@
           "type": "string"
         },
         "envs": {
-          "items": {
-            "patternProperties": {
-              ".*": {
-                "additionalProperties": true
-              }
-            },
-            "type": "object"
-          },
-          "type": "array"
+          "$ref": "#/definitions/EnvModel"
         }
       },
       "additionalProperties": false,
@@ -69,6 +62,22 @@
         },
         "description": {
           "type": "string"
+        },
+        "services": {
+          "patternProperties": {
+            ".*": {
+              "$ref": "#/definitions/ContainerModel"
+            }
+          },
+          "type": "object"
+        },
+        "containers": {
+          "patternProperties": {
+            ".*": {
+              "$ref": "#/definitions/ContainerModel"
+            }
+          },
+          "type": "object"
         },
         "app": {
           "$ref": "#/definitions/AppModel"
@@ -136,6 +145,31 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "ContainerModel": {
+      "required": ["image"],
+      "properties": {
+        "image": {
+          "type": "string"
+        },
+        "credentials": {
+          "$ref": "#/definitions/DockerCredentialModel"
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "envs": {
+          "$ref": "#/definitions/EnvModel"
+        },
+        "options": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "DepsModel": {
       "properties": {
         "brew": {
@@ -159,6 +193,33 @@
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "DockerCredentialModel": {
+      "required": ["username", "password"],
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "server": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "EnvModel": {
+      "items": {
+        "patternProperties": {
+          ".*": {
+            "additionalProperties": true
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
     },
     "GoStepToolkitModel": {
       "required": ["package_name"],
@@ -302,6 +363,9 @@
         "timeout": {
           "type": "integer"
         },
+        "no_output_timeout": {
+          "type": "integer"
+        },
         "meta": {
           "patternProperties": {
             ".*": {
@@ -311,26 +375,10 @@
           "type": "object"
         },
         "inputs": {
-          "items": {
-            "patternProperties": {
-              ".*": {
-                "additionalProperties": true
-              }
-            },
-            "type": "object"
-          },
-          "type": "array"
+          "$ref": "#/definitions/EnvModel"
         },
         "outputs": {
-          "items": {
-            "patternProperties": {
-              ".*": {
-                "additionalProperties": true
-              }
-            },
-            "type": "object"
-          },
-          "type": "array"
+          "$ref": "#/definitions/EnvModel"
         }
       },
       "additionalProperties": false,
@@ -360,22 +408,23 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "TriggerMapItemModelRegexCondition": {
+      "properties": {
+        "regex": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "TriggerMapItemModel": {
       "properties": {
-        "push_branch": {
-          "type": "string"
+        "type": {
+          "type": "string",
+          "enum": ["push", "pull_request", "tag"]
         },
-        "pull_request_source_branch": {
-          "type": "string"
-        },
-        "pull_request_target_branch": {
-          "type": "string"
-        },
-        "draft_pull_request_enabled": {
+        "enabled": {
           "type": "boolean"
-        },
-        "tag": {
-          "type": "string"
         },
         "pipeline": {
           "type": "string"
@@ -383,11 +432,93 @@
         "workflow": {
           "type": "string"
         },
+
+        "push_branch": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+        "commit_message": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+        "changed_files": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+
+        "pull_request_source_branch": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+        "pull_request_target_branch": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+        "draft_pull_request_enabled": {
+          "type": "boolean"
+        },
+        "pull_request_label": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+        "pull_request_comment": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+
+        "tag": {
+          "oneOf": [
+            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "type": "string" }
+          ]
+        },
+
         "pattern": {
           "type": "string"
         },
         "is_pull_request_allowed": {
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "WithModel": {
+      "required": ["steps"],
+      "properties": {
+        "container": {
+          "type": "string"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "steps": {
+          "items": {
+            "patternProperties": {
+              ".*": {
+                "$ref": "#/definitions/StepModel"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "additionalProperties": false,
@@ -426,19 +557,14 @@
           "type": "array"
         },
         "envs": {
-          "items": {
-            "patternProperties": {
-              ".*": {
-                "additionalProperties": true
-              }
-            },
-            "type": "object"
-          },
-          "type": "array"
+          "$ref": "#/definitions/EnvModel"
         },
         "steps": {
           "items": {
             "patternProperties": {
+              "^with$": {
+                "$ref": "#/definitions/WithModel"
+              },
               ".*": {
                 "$ref": "#/definitions/StepModel"
               }
@@ -459,6 +585,5 @@
       "additionalProperties": false,
       "type": "object"
     }
-  },
-  "id": "https://json.schemastore.org/bitrise.json"
+  }
 }

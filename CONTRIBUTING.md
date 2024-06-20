@@ -8,8 +8,10 @@
 - [Recommended Extensions](#recommended-extensions)
 - [Schema Authoring](#schema-authoring)
   - [Best practices](#best-practices)
-  - [Undocumented Features](#undocumented-features)
-  - [API Compatibility](#api-compatibility)
+    - [Avoiding Overconstraint](#avoiding-overconstraint)
+    - [Undocumented Features](#undocumented-features)
+    - [API Compatibility](#api-compatibility)
+  - [Use of `CODEOWNERS` file](#use-of-codeowners-file)
   - [Troubleshooting](#troubleshooting)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
@@ -86,10 +88,8 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 ❌ **Don't forget** add test files.
 
 - Always be consistent across your schema: order properties and describe in the one style.
-- Always use `title` when property type is an object to enhance editor experience which use
-  this property to show errors (like VS Code). [Why](./editor-features.md)?
 - Always use `description`, `type`, `additionalProperties`.
-  - Always set `additionalProperties` to `false` until documentation permits
+  - Always set `additionalProperties` to `false` unless documentation permits
     additional properties explicitly. That tool the JSON schema is created for
     can be changed in the future to allow wrong extra properties.
 - Always use `minLength`/`maxLength`/`pattern`/etc for property values.
@@ -108,7 +108,15 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
 [draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
 
-### Undocumented Features
+#### Avoiding Overconstraint
+
+Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. False positives are likely as due to their complexity and abundance of implementations; and, when there is an error, the error message isn't helpful. Such cases can include:
+
+- cron regexes
+- string-embedded DSLs
+- SSH URLs, HTTPS URLs, and other complex URIs
+
+#### Undocumented Features
 
 The use of undocumented features in schemas is permitted and encouraged. However they must be labeled as such.
 
@@ -135,17 +143,16 @@ However, that is not always possible or correct. Alternatively, use `$comment`:
     "$comment": "The value of 'null' is UNDOCUMENTED.",
     "description": "Specify the folder for .tsbuildinfo incremental compilation files.",
     "default": ".tsbuildinfo",
-    "type": ["string", "null"],
-    "description": "Specify the folder for .tsbuildinfo incremental compilation files."
+    "type": ["string", "null"]
   }
 }
 ```
 
 In this case, `{ "tsBuildInfoFile": null }` is not documented. Using a string value is, however.
 
-Note that JSON Schema draft `2019-09` adds support for a `deprecated` field. While this would be the best option, most schemas in this repository are `draft-07` - and as a result, Editors and IDEs may not use it.
+Note that JSON Schema draft `2019-09` adds support for a `deprecated` field. While this would be the best option, most schemas in this repository are `draft-07`. As a result, Editors and IDEs may not use it.
 
-### API Compatibility
+#### API Compatibility
 
 Care must be taken to reduce breaking changes; some include:
 
@@ -167,7 +174,16 @@ Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate
 validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/properties
 ```
 
-This means that renames in subschema paths aren't zero-cost. If a rename is necessary, keep the old path and `$ref` where necessary.
+This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if necessary.
+
+### Use of `CODEOWNERS` file
+
+This repository uses the [the code-owner-self-merge](https://github.com/OSS-Docs-Tools/code-owner-self-merge) GitHub action to give project maintainers more control over their schema. It allows for:
+
+- Mentioning a user when a schema is modified in a PR
+- Enabling a user to merge a PR, so long it only modifies files that is "owned" by that user
+
+See the [CODEOWNERS](.github/CODEOWNERS) file, the [action configuration](.github/workflows/codeowners-merge.yml), and [action documentation](https://github.com/OSS-Docs-Tools/code-owner-self-merge) for more information.
 
 ### Troubleshooting
 
@@ -189,10 +205,9 @@ git clone https://github.com/SchemaStore/schemastore
 cd schemastore
 ```
 
-Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](src/package.json). Now, install dependencies and run the `new_schema` Grunt task:
+Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new_schema` Grunt task:
 
 ```sh
-cd src
 npm install
 npm run grunt new_schema
 ```
@@ -271,7 +286,7 @@ git clone https://github.com/SchemaStore/schemastore
 cd schemastore
 ```
 
-Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](src/package.json).
+Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json).
 
 Now, modify the schema you intend to modify. Schemas are located under `src/schemas/json`.
 

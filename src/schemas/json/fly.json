@@ -17,6 +17,7 @@
         }
       }
     },
+
     "services": {
       "description": "Configure the mapping of ports from the public Fly proxy to your application.\n\nYou can have:\n* **No services section**: The application has no mappings to the external internet - typically apps like databases or background job workers that talk over 6PN private networking to other apps.\n* **One services section**: One internal port mapped to one external port on the internet.\n* **Multiple services sections**: Map multiple internal ports to multiple external ports.",
       "type": "object",
@@ -34,6 +35,21 @@
           "description": "The port this application listens on to communicate with clients. The default is 8080. We recommend applications use the default.",
           "type": "integer",
           "default": 8080
+        },
+        "auto_stop_machines": {
+          "description": "Whether to automatically stop an application’s Machines when there’s excess capacity, per region. If there’s only one Machine in a region, then the Machine is stopped if it has no traffic. The Fly Proxy runs a process to automatically stop Machines every few minutes. The default if not set is false.",
+          "type": "boolean",
+          "default": false
+        },
+        "auto_start_machines": {
+          "description": "Whether to automatically start an application’s Machines when a new request is made to the application and there’s no excess capacity, per region. If there’s only one Machine in a region, then it’s started whenever a request is made to the application. The default if not set is true.",
+          "type": "boolean",
+          "default": true
+        },
+        "min_machines_running": {
+          "description": "The number of Machines to keep running, in the primary region only, when auto_stop_machines = true.",
+          "type": "integer",
+          "default": 0
         },
         "concurrency": {
           "type": "object",
@@ -89,11 +105,111 @@
                 "type": "integer",
                 "description": "The port to accept traffic on. Valid ports: 1-65535"
               },
+              "start_port": {
+                "type": "integer"
+              },
+              "end_port": {
+                "type": "integer"
+              },
+
               "force_https": {
                 "type": "boolean",
                 "description": "Force HTTP connections to HTTPS. `force_https` requires the `http` handler in the `handlers` section."
+              },
+              "http_options": {
+                "type": "object",
+                "properties": {
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "pristine": {
+                        "type": "boolean"
+                      },
+                      "headers": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "oneOf": [
+                            { "type": "boolean" },
+                            { "type": "string" },
+                            { "type": "array", "items": { "type": "string" } }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "h2_backend": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "proxy_proto_options": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "default": "v1"
+                  }
+                }
+              },
+              "tls_options": {
+                "type": "object",
+                "properties": {
+                  "alpn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "versions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "default_self_signed": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
               }
             }
+          }
+        },
+        "machine_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "entrypoint": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "image": {
+                "type": "string"
+              },
+              "kill_signal": {
+                "type": "string"
+              },
+              "kill_timeout": {
+                "type": "string",
+                "pattern": "^\\d+s$"
+              }
+            },
+            "required": [
+              "command",
+              "entrypoint",
+              "image",
+              "kill_signal",
+              "kill_timeout"
+            ]
           }
         },
         "tcp_checks": {
@@ -149,77 +265,156 @@
           }
         },
         "http_checks": {
-          "description": "HTTP-based health checks run against the `internal_port`. These checks will pass when receiving a 2xx response. Any other response is considered a failure.",
+          "$ref": "#/definitions/http_checks"
+        }
+      }
+    },
+    "mounts": {
+      "type": "object",
+      "x-taplo": {
+        "links": {
+          "key": "https://fly.io/docs/reference/configuration/#the-mounts-section"
+        }
+      },
+      "description": "Mount [persistent storage volumes](https://fly.io/docs/reference/volumes) previously setup via `flyctl`. Both settings are required. Example:\n\n```toml\n[mounts]\n  source = \"myapp_data\"\n  destination = \"/data\"\n```",
+      "required": ["source", "destination"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "The name of the volume to mount as shown in `fly volumes list`.\n\nA volume of this name *must exist* in each of the app regions. If there's more than one volume in the target region with the same one, one will be picked randomly.",
+          "type": "string"
+        },
+        "snapshot_retention": {
+          "description": "The number of snapshots to retain for the volume. Snapshots are taken daily.",
+          "type": "integer"
+        },
+        "destination": {
+          "description": "The path at which the `source` volume should be mounted in the running app VM.",
+          "type": "string"
+        },
+        "processes": {
+          "description": "The name of the process(es) to which this mount should be applied. See [multiple processes](https://community.fly.io/t/preview-multi-process-apps-get-your-workers-here/2316).",
           "type": "array",
-          "x-taplo": {
-            "links": {
-              "key": "https://fly.io/docs/reference/configuration/#services-http_checks"
-            }
-          },
           "items": {
-            "type": "object",
-            "properties": {
-              "grace_period": {
-                "description": "The time to wait after a VM starts before checking its health. Units are milliseconds unless you specify them like `10s` or `1m`.",
-                "oneOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "interval": {
-                "description": "Length of the pause between connectivity checks. Units are milliseconds unless you specify them like `10s` or `1m`.",
-                "oneOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "restart_limit": {
-                "default": 0,
-                "description": "The number of consecutive check failures to allow before attempting to restart the VM. The default is `0`, which disables restarts based on failed health checks.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "initial_size": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "The size of the volume to be created on first deploy."
+        },
+        "auto_extend_size_threshold": {
+          "type": "integer",
+          "description": "The usage percentage threshold that triggers volume extension."
+        },
+        "auto_extend_size_increment": {
+          "type": "string",
+          "description": "The size increment by which to extend the volume."
+        },
+        "auto_extend_size_limit": {
+          "type": "string",
+          "description": "The total amount to extend a volume."
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "Port on which the application exposes metrics data."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path under which the metrics are exposed, typically '/metrics'."
+        },
+        "processes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of process names that this metrics configuration applies to."
+        }
+      }
+    },
+    "http_checks": {
+      "description": "HTTP-based health checks run against the `internal_port`. These checks will pass when receiving a 2xx response. Any other response is considered a failure.",
+      "type": "array",
+      "x-taplo": {
+        "links": {
+          "key": "https://fly.io/docs/reference/configuration/#services-http_checks"
+        }
+      },
+      "items": {
+        "type": "object",
+        "properties": {
+          "grace_period": {
+            "description": "The time to wait after a VM starts before checking its health. Units are milliseconds unless you specify them like `10s` or `1m`.",
+            "oneOf": [
+              {
                 "type": "integer"
               },
-              "timeout": {
-                "description": "The maximum time a connection can take before being reported as failing its healthcheck. Units are milliseconds unless you specify them like `10s` or `1m`.",
-                "oneOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "method": {
-                "description": "The HTTP method to be used for the check.",
+              {
                 "type": "string"
-              },
-              "path": {
-                "description": "The path of the URL to be requested.",
-                "type": "string"
-              },
-              "protocol": {
-                "description": "The protocol to be used (`http` or `https`)",
-                "type": "string",
-                "enum": ["http", "https"]
-              },
-              "tls_skip_verify": {
-                "type": "boolean",
-                "default": false,
-                "description": "When set to `true` (and `protocol` is set to `https`), skip verifying the certificates sent by the server."
-              },
-              "headers": {
-                "type": "object",
-                "description": "Set key/value pairs of HTTP headers to pass along with the check request."
               }
-            }
+            ]
+          },
+          "interval": {
+            "description": "Length of the pause between connectivity checks. Units are milliseconds unless you specify them like `10s` or `1m`.",
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "restart_limit": {
+            "default": 0,
+            "description": "The number of consecutive check failures to allow before attempting to restart the VM. The default is `0`, which disables restarts based on failed health checks.",
+            "type": "integer"
+          },
+          "timeout": {
+            "description": "The maximum time a connection can take before being reported as failing its healthcheck. Units are milliseconds unless you specify them like `10s` or `1m`.",
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "method": {
+            "description": "The HTTP method to be used for the check.",
+            "type": "string"
+          },
+          "path": {
+            "description": "The path of the URL to be requested.",
+            "type": "string"
+          },
+          "protocol": {
+            "description": "The protocol to be used (`http` or `https`)",
+            "type": "string",
+            "enum": ["http", "https"]
+          },
+          "tls_skip_verify": {
+            "type": "boolean",
+            "default": false,
+            "description": "When set to `true` (and `protocol` is set to `https`), skip verifying the certificates sent by the server."
+          },
+          "headers": {
+            "type": "object",
+            "description": "Set key/value pairs of HTTP headers to pass along with the check request."
           }
         }
       }
@@ -227,9 +422,251 @@
   },
   "description": "https://fly.io/docs/reference/configuration",
   "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "guest_path": {
+            "type": "string",
+            "description": "The path in the guest where the file will be written."
+          },
+          "raw_value": {
+            "type": "string",
+            "description": "Base64 encoded content to be written to the file."
+          },
+          "secret_name": {
+            "type": "string",
+            "description": "The name of the secret whose value will be written to the file."
+          },
+          "local_path": {
+            "type": "string",
+            "description": "Local path of the file to be written to the guest."
+          },
+          "processes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of process names that this file configuration applies to."
+          }
+        },
+        "required": ["guest_path"]
+      }
+    },
+    "http_service": {
+      "type": "object",
+      "properties": {
+        "internal_port": {
+          "type": "integer",
+          "description": "The port this service (and application) will use to communicate with clients. Default is 8080.",
+          "default": 8080
+        },
+        "force_https": {
+          "type": "boolean",
+          "description": "A Boolean which determines whether to enforce HTTP to HTTPS redirects."
+        },
+        "auto_stop_machines": {
+          "type": "boolean",
+          "description": "Whether to automatically stop an application’s Machines when there’s excess capacity, per region."
+        },
+        "auto_start_machines": {
+          "type": "boolean",
+          "description": "Whether to automatically start an application’s Machines when a new request is made to the application and there’s no excess capacity, per region."
+        },
+        "min_machines_running": {
+          "type": "integer",
+          "description": "The number of Machines to keep running, in the primary region only, when `auto_stop_machines` is true."
+        },
+        "concurrency": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Specifies what metric is used to determine when to auto start or stop, or when a given Machine should receive more or less traffic (load balancing).",
+              "enum": ["connections", "requests"]
+            },
+            "soft_limit": {
+              "type": "integer",
+              "description": "When a Fly Machine is at or over this number of concurrent connections or requests, the system will deprioritize sending new traffic to that Machine."
+            },
+            "hard_limit": {
+              "type": "integer",
+              "description": "When a Fly Machine is at or over this number of concurrent connections or requests, the system will stop sending new traffic to that Machine."
+            }
+          }
+        },
+        "http_options": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "pristine": {
+                  "type": "boolean",
+                  "description": "Configures Fly Proxy to not add any Fly headers to HTTP responses."
+                },
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      { "type": "boolean" },
+                      { "type": "string" },
+                      { "type": "array", "items": { "type": "string" } }
+                    ]
+                  },
+                  "description": "Add or remove HTTP response headers."
+                }
+              }
+            },
+            "h2_backend": {
+              "type": "boolean",
+              "description": "Indicates whether the app supports HTTP/2 cleartext (H2C) with prior knowledge or not."
+            }
+          }
+        },
+        "tls_options": {
+          "type": "object",
+          "properties": {
+            "alpn": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "versions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "default_self_signed": {
+              "type": "boolean",
+              "description": "When `true`, serve a self-signed certificate if no certificate exists. Default is `false`.",
+              "default": false
+            }
+          }
+        },
+        "checks": {
+          "$ref": "#/definitions/http_checks"
+        }
+      }
+    },
+    "primary_region": {
+      "type": "string",
+      "description": "The primary region where the application will be deployed. This setting also sets the PRIMARY_REGION environment variable."
+    },
+    "console_command": {
+      "type": "string",
+      "description": "Command to run when you execute 'fly console'. This opens your framework's console in a new, dedicated Machine."
+    },
+    "swap_size_mb": {
+      "type": "integer",
+      "description": "Size in megabytes for the swap file on the VM. Helps in handling memory spikes."
+    },
+    "metrics": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/metrics"
+          }
+        },
+        {
+          "$ref": "#/definitions/metrics"
+        }
+      ]
+    },
+    "http_checks": {
+      "$ref": "#/definitions/http_checks"
+    },
+    "processes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "app": {
       "description": "Fly.io application name",
       "type": "string"
+    },
+    "host_dedication_id": {
+      "type": "string"
+    },
+    "vm": {
+      "type": "array",
+      "x-taplo": {
+        "links": {
+          "key": "https://fly.io/docs/reference/configuration/#the-vm-section"
+        }
+      },
+      "items": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "string",
+            "enum": [
+              "shared-cpu-1x",
+              "shared-cpu-2x",
+              "shared-cpu-4x",
+              "shared-cpu-8x",
+              "performance-1x",
+              "performance-2x",
+              "performance-4x",
+              "performance-8x",
+              "performance-16x"
+            ]
+          },
+          "memory": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "cpus": {
+            "type": "integer",
+            "enum": [1, 2, 4, 8, 16]
+          },
+          "cpu_kind": {
+            "type": "string",
+            "enum": ["shared", "performance"]
+          },
+          "gpus": {
+            "type": "integer",
+            "enum": [1, 2, 4, 8]
+          },
+          "gpu_kind": {
+            "type": "string",
+            "enum": ["a10", "a100-40gb", "a100-80gb", "l40s"]
+          },
+          "kernel_args": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "host_dedication_id": {
+            "type": "string"
+          },
+          "processes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
     },
     "kill_timeout": {
       "description": "Seconds to wait before forcing a VM process to exit. Default is 5 seconds.",
@@ -262,7 +699,7 @@
           "key": "https://fly.io/docs/reference/configuration/#the-statics-sections"
         }
       },
-      "anyOf": [
+      "oneOf": [
         {
           "$ref": "#/definitions/statics"
         },
@@ -301,6 +738,10 @@
           "description": "Command to run after a build, with access to the production environment, but before deployment. Non-zero exit status will abort the deployment.\n\n```toml\n[deploy]\n  release_command =\"bundle exec rails db:migrate\"\n```",
           "type": "string"
         },
+        "max_unavailable": {
+          "description": "For rolling deploys, you can use max_unavailable to control how many Machines can be down at a time.",
+          "type": "number"
+        },
         "strategy": {
           "description": "Strategy for replacing VMs during a deployment.",
           "type": "string",
@@ -325,34 +766,19 @@
       }
     },
     "mounts": {
-      "type": "object",
-      "x-taplo": {
-        "links": {
-          "key": "https://fly.io/docs/reference/configuration/#the-mounts-section"
-        }
-      },
-      "description": "Mount [persistent storage volumes](https://fly.io/docs/reference/volumes) previously setup via `flyctl`. Both settings are required. Example:\n\n```toml\n[mounts]\n  source = \"myapp_data\"\n  destination = \"/data\"\n```",
-      "required": ["source", "destination"],
-      "additionalProperties": false,
-      "properties": {
-        "source": {
-          "description": "The name of the volume to mount as shown in `fly volumes list`.\n\nA volume of this name *must exist* in each of the app regions. If there's more than one volume in the target region with the same one, one will be picked randomly.",
-          "type": "string"
+      "oneOf": [
+        {
+          "$ref": "#/definitions/mounts"
         },
-        "destination": {
-          "description": "The path at which the `source` volume should be mounted in the running app VM.",
-          "type": "string"
-        },
-        "processes": {
-          "description": "The name of the process(es) to which this mount should be applied. See [multiple processes](https://community.fly.io/t/preview-multi-process-apps-get-your-workers-here/2316).",
+        {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/definitions/mounts"
           }
         }
-      }
+      ]
     },
+
     "experimental": {
       "description": "Flags and features that are subject to change, deprecation or promotion to the main configuration.",
       "type": "object",

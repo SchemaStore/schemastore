@@ -1,23 +1,7 @@
-/** @type {unknown} */
-let prettierPluginSortJson
-try {
-  // When running scripts locally (through npm-run-script), the relative path of the plugin
-  // must be specified since 'require.resolve' will not find it by itself in subdirectory 'src'.
-  prettierPluginSortJson = require.resolve(
-    './src/node_modules/prettier-plugin-sort-json',
-  )
-} catch (err) {
-  // In pre-commit CI, 'prettier-plugin-sort-json' is installed to some directory (which is in $NODE_PATH).
-  // As as result, simply require.resolve to find the full path to the dependency.
-  prettierPluginSortJson = require.resolve('prettier-plugin-sort-json')
-}
-if (!prettierPluginSortJson) {
-  throw new Error(`Failed to import plugin: 'prettier-plugin-sort-json'`)
-}
-
-/** @type {import('./src/node_modules/prettier').Config} */
+/** @type {import('prettier').Config} */
 module.exports = {
-  plugins: [prettierPluginSortJson],
+  // pre-commit.ci fails without `require.resolve()`.
+  plugins: [require.resolve('prettier-plugin-sort-json')],
   semi: false,
   singleQuote: true,
   trailingComma: 'all',
@@ -47,11 +31,11 @@ module.exports = {
     {
       files: 'src/schema-validation.json',
       options: {
-        $schema: null,
-        $id: null,
-        $comment: null,
         jsonRecursiveSort: true,
         jsonSortOrder: JSON.stringify({
+          $schema: null,
+          $id: null,
+          $comment: null,
           ajvNotStrictMode: null,
           fileMatchConflict: null,
           highSchemaVersion: null,
