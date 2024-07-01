@@ -208,7 +208,7 @@ cd schemastore
 Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new_schema` Grunt task:
 
 ```sh
-npm install
+npm ci
 npm run grunt new_schema
 ```
 
