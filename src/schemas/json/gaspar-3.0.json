@@ -1,0 +1,453 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/gaspar-3.0.json",
+  "title": "Gaspar Config",
+  "type": "object",
+  "anyOf": [
+    {
+      "required": ["Models"]
+    },
+    {
+      "required": ["Controllers"]
+    }
+  ],
+  "additionalProperties": false,
+  "minProperties": 1,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "Models": {
+      "title": "Models",
+      "type": "object",
+      "description": "Options for outputting Models and Enums",
+      "required": ["Output"],
+      "additionalProperties": false,
+      "properties": {
+        "Include": {
+          "type": "array",
+          "description": "List of file locations containing the models or controllers you wish to translate. Optional, if not provided will use all .cs files in the project.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["./**/*.cs"]
+        },
+        "Exclude": {
+          "type": "array",
+          "description": "List of file locations to exclude from the Include list",
+          "items": {
+            "type": "string"
+          }
+        },
+        "Output": {
+          "type": "array",
+          "description": "Output options. You must supply at least one of these.",
+          "minItems": 1,
+          "items": {
+            "title": "Output definition",
+            "type": "object",
+            "required": ["Type", "Location"],
+            "properties": {
+              "Type": {
+                "type": "string",
+                "description": "Output for",
+                "enum": ["TypeScript", "Angular", "Swift", "Kotlin", "Proto"]
+              },
+              "Location": {
+                "type": "string",
+                "description": "The location to output the translated file to (relative to the project root).",
+                "minLength": 1
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "Type": {
+                          "const": "Kotlin"
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "Type": {
+                          "const": "Proto"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "then": {
+                  "additionalProperties": false,
+                  "required": ["PackageNamespace"],
+                  "properties": {
+                    "Type": true,
+                    "Location": true,
+                    "PackageNamespace": {
+                      "type": "string",
+                      "description": "Namespace to be used when generating .proto file outputs."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "Type": {
+                      "const": "TypeScript"
+                    }
+                  }
+                },
+                "then": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "Type": true,
+                    "Location": true,
+                    "AddInferredNullables": {
+                      "type": "boolean",
+                      "description": "Property types that are explicitly nullable (e.g. int?) will always be outputted with null types (e.g. number | null). Set this property to true to add null types to C# types that could be null if unset.\nIn short, if your C# project doesn't enable \"nullable annotation context\", set this to true.",
+                      "default": false
+                    },
+                    "NullablesAlsoUndefinded": {
+                      "type": "boolean",
+                      "description": "If set to true, all nullable properties (those exported with | null) will additional have | undefined added to the type.",
+                      "default": false
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "UseEnumValue": {
+          "type": "boolean",
+          "description": "Enums will be written with their value, either set directly or from an Attribute (e.g. [EnumMember(Value = \"name\")]).",
+          "default": true
+        },
+        "StringLiteralTypesInsteadOfEnums": {
+          "type": "boolean",
+          "description": "For TypeScript, if true will export enums as types instead of TypeScript enums.",
+          "default": false
+        }
+      }
+    },
+    "Controllers": {
+      "type": "object",
+      "title": "Controllers",
+      "description": "Options for outputting service communication contracts for Controllers",
+      "required": ["Output", "ServiceName"],
+      "additionalProperties": false,
+      "properties": {
+        "Include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["./**/*.cs"],
+          "description": "List of file locations containing the models or controllers you wish to translate. Optional, if not provided will use all .cs files in the project."
+        },
+        "Exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of file locations to exclude from the Include list"
+        },
+        "Output": {
+          "type": "array",
+          "description": "Output options. You must supply at least one of these.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "title": "Output definition",
+            "required": ["Type", "Location"],
+            "properties": {
+              "Type": {
+                "type": "string",
+                "description": "Output for",
+                "enum": ["Angular", "CSharp", "Ocelot", "Python", "TypeScript"]
+              },
+              "Location": {
+                "type": "string",
+                "description": "The location to output the translated file to (relative to the project root). You can include {ServiceName}, {ServiceHost} or {ServicePort} to have those placeholders replaced (see the demo file).",
+                "minLength": 1
+              },
+              "UrlPrefix": {
+                "type": "string",
+                "description": "When building the service contract, you can prefix the url with this value; e.g. \"http://myservice.com:81\". The service url will be built from this followed by / then the action route. Can include {ServiceName}, {ServiceHost} or {ServicePort} to have those placeholders replaced (see the demo file)."
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "Type": {
+                      "const": "CSharp"
+                    }
+                  }
+                },
+                "then": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "Type": true,
+                    "Location": true,
+                    "UrlPrefix": true,
+                    "UrlHandlerFunction": {
+                      "type": "string",
+                      "description": "If you would like to run your url through a function to ensure it is correct, you can provide the function name here."
+                    },
+                    "LoggingReceiver": {
+                      "type": "string",
+                      "description": "When using your exported service communication endpoint, if there's an error receiving the response or deserializing it, the error will be logged to the console (using Console.WriteLine). If you would like the error to be absorbed by your own logging system you can provide a static logging class name here."
+                    },
+                    "ModelNamespaces": {
+                      "type": "array",
+                      "description": "List of namespaces to include at the top of your exported Service Communication class. This would include the namespaces to custom types in the export, or your serializer and logging tools.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "Type": {
+                          "const": "TypeScript"
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "Type": {
+                          "const": "Angular"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "then": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "Type": true,
+                    "Location": true,
+                    "UrlPrefix": true,
+                    "AddInferredNullables": {
+                      "type": "boolean",
+                      "description": "Property types that are explicitly nullable (e.g. int?) will always be outputted with null types (e.g. number | null). Set this property to true to add null types to C# types that could be null if unset.\nIn short, if your C# project doesn't enable \"nullable annotation context\", set this to true.",
+                      "default": false
+                    },
+                    "NullablesAlsoUndefinded": {
+                      "type": "boolean",
+                      "description": "If set to true, all nullable properties (those exported with | null) will additional have | undefined added to the type.",
+                      "default": false
+                    },
+                    "HelperFile": {
+                      "type": "string",
+                      "description": "The service communication export requires some extra code to handle the boilerplate requests. This is the name of the file that should be exported. If omitted, the code will be included at the top of the exported service communications file, which may cause issues if you're exporting from multiple projects."
+                    },
+                    "ModelPath": {
+                      "type": "string",
+                      "description": "Path to a file containing definitions for any custom types used in your service communications (excluding the extension, as is usual for TypeScript includes). Ideally, this is the file exported by the model export part of this application."
+                    },
+                    "ErrorHandlerPath": {
+                      "type": "string",
+                      "description": "If an error is received from the requested endpoint, it will be absorbed (although it will always be seen in the browser console). The response will include the error details if you want to handle it from the calling class, but if you always want to show a message to the user (e.g. using a SnackBar), you can provide an error handler."
+                    },
+                    "DefaultErrorMessage": {
+                      "type": "string",
+                      "description": "When using the ErrorHandler (above), this controls what the message parameter contains; there are three possible values:",
+                      "enum": ["None", "ServerResponse", "Generic"]
+                    },
+                    "Imports": {
+                      "type": "object",
+                      "title": "Imports",
+                      "description": "List of imports to include at the top of your exported Service Communication class.",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "Type": {
+                      "const": "Python"
+                    }
+                  }
+                },
+                "then": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "Type": true,
+                    "Location": true,
+                    "UrlPrefix": true,
+                    "HelperFile": {
+                      "type": "string",
+                      "description": "The service communication export requires some extra code to handle the boilerplate requests. This is the name of the file that should be exported. If omitted, the code will be included at the top of the exported service communications file, which may cause issues if you're exporting from multiple projects."
+                    },
+                    "Imports": {
+                      "type": "object",
+                      "title": "Python imports",
+                      "description": "List of imports to include at the top of your exported Service Communication class.",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "Type": {
+                      "const": "Ocelot"
+                    }
+                  }
+                },
+                "then": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "Type": true,
+                    "Location": true,
+                    "UrlPrefix": true,
+                    "DefaultScopes": {
+                      "type": "array",
+                      "description": "If specified, the scopes listed here will be outputted into the \"AllowedScopes\" section of \"AuthenticationOptions\" for all routes. Scopes can include {ServiceName}, {ServiceHost} or {ServicePort} to have those placeholders replaced (see the demo file).",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "ScopesByHttpMethod": {
+                      "type": "object",
+                      "title": "Ocelot scopes by http method",
+                      "description": "Dictionary keyed on scope names. Each element can contain an array of Http Methods; if the route matches a listed method, the key will be added to the \"AllowedScopes\" section of \"AuthenticationOptions\". Dictionary keys can include {ServiceName}, {ServiceHost} or {ServicePort} to have those placeholders replaced (see the demo file).",
+                      "examples": [
+                        {
+                          "service.write": ["POST", "PUT", "GET"],
+                          "service.read": ["GET"]
+                        }
+                      ],
+                      "additionalProperties": {
+                        "type": "array"
+                      }
+                    },
+                    "NoAuth": {
+                      "type": "boolean",
+                      "description": "If true, the \"AuthenticationOptions\" section of the Ocelot config will not be outputted.",
+                      "default": false
+                    },
+                    "ExcludeScopes": {
+                      "type": "boolean",
+                      "description": "If true, the \"AllowedScopes\" section of the Ocelot config will not be outputted.",
+                      "default": false
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "ServiceName": {
+          "type": "string",
+          "description": "Used to name exported items, can also be used in paths.",
+          "minLength": 1
+        },
+        "ServiceHost": {
+          "type": "string",
+          "description": "Used by Ocelot Export, and can be used in paths. Typically set to 'http' or 'https'"
+        },
+        "ServicePort": {
+          "type": "integer",
+          "description": "Used by Ocelot Export, and can be used in paths.",
+          "minimum": 1
+        }
+      }
+    },
+    "GroupTypes": {
+      "type": "object",
+      "title": "Group Types",
+      "description": "Export names to run multiple outputs under a single name.  e.g. Specify a group type called 'App' and add 'Swift' and 'Kotlin'",
+      "examples": [
+        {
+          "App": ["Swift", "Kotlin"]
+        }
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "Angular",
+            "CSharp",
+            "Ocelot",
+            "TypeScript",
+            "Proto",
+            "Python",
+            "Swift",
+            "Kotlin"
+          ]
+        }
+      }
+    },
+    "TypeTranslations": {
+      "type": "object",
+      "title": "Output type translations",
+      "description": "For TypeScript, Angular, Swift, Kotlin and Proto, you can override type names to objects each language will understand.",
+      "propertyNames": {
+        "enum": ["TypeScript", "Angular", "Swift", "Kotlin", "Proto"]
+      },
+      "examples": [
+        {
+          "TypeScript": {
+            "IMyInterface": "Object"
+          }
+        }
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "title": "Type translations",
+        "description": "Type names to override for the specified language.",
+        "examples": [
+          {
+            "IMyInterface": "Object"
+          }
+        ],
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    },
+    "GlobalTypeTranslations": {
+      "type": "object",
+      "title": "Global type translations",
+      "description": "For TypeScript, Angular, Swift, Kotlin and Proto, you can override type names to objects the exported language will understand.  These will apply equally to all exports, 'TypeTranslations' may be more useful",
+      "examples": [
+        {
+          "IMyInterface": "Object"
+        }
+      ],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "IgnoreMissingOutputLocations": {
+      "type": "boolean",
+      "description": "If the file output location cannot be found, you will get a build error; add \"IgnoreMissingOutputLocations\": true to skip the error. This is useful when you need to build in an environment where the output may not be available (e.g. docker); although it would usually be preferable to use dotnet build /p:RunGaspar=False in your scripts.",
+      "default": false
+    },
+    "IgnoreAnnotations": {
+      "type": "boolean",
+      "description": "Set this to true to export all objects irrespective if they have [ExportFor] or not.",
+      "default": false
+    }
+  }
+}
