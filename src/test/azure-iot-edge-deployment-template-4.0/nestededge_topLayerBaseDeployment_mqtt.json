@@ -2,28 +2,69 @@
   "modulesContent": {
     "$edgeAgent": {
       "properties.desired": {
-        "schemaVersion": "1.1",
-        "runtime": {
-          "type": "docker",
-          "settings": {
-            "minDockerVersion": "v1.25",
-            "loggingOptions": "",
-            "registryCredentials": {
-              "buildcr": {
-                "username": "<CR.Username>",
-                "password": "<CR.Password>",
-                "address": "<Container_Registry>"
+        "modules": {
+          "IoTEdgeAPIProxy": {
+            "env": {
+              "DOCKER_REQUEST_ROUTE_ADDRESS": {
+                "value": "dockerContainerRegistry:5000"
+              },
+              "NGINX_DEFAULT_PORT": {
+                "value": "443"
               }
-            }
+            },
+            "restartPolicy": "always",
+            "settings": {
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"443/tcp\": [{\"HostPort\": \"443\"}]}}}",
+              "image": "<Container_Registry>/microsoft/azureiotedge-api-proxy:<Build.BuildNumber>-linux-<Architecture>"
+            },
+            "startupOrder": 3,
+            "status": "running",
+            "type": "docker",
+            "version": "1.0"
+          },
+          "dockerContainerRegistry": {
+            "env": {
+              "REGISTRY_PROXY_PASSWORD": {
+                "value": "<CR.Password>"
+              },
+              "REGISTRY_PROXY_REMOTEURL": {
+                "value": "https://<Container_Registry>:443"
+              },
+              "REGISTRY_PROXY_USERNAME": {
+                "value": "<CR.Username>"
+              },
+              "https_proxy": {
+                "value": "<proxyAddress>"
+              }
+            },
+            "restartPolicy": "always",
+            "settings": {
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"5000/tcp\": [{\"HostPort\": \"5000\"}]}}}",
+              "image": "registry:latest"
+            },
+            "startupOrder": 2,
+            "status": "running",
+            "type": "docker",
+            "version": "1.0"
           }
         },
+        "runtime": {
+          "settings": {
+            "loggingOptions": "",
+            "minDockerVersion": "v1.25",
+            "registryCredentials": {
+              "buildcr": {
+                "address": "<Container_Registry>",
+                "password": "<CR.Password>",
+                "username": "<CR.Username>"
+              }
+            }
+          },
+          "type": "docker"
+        },
+        "schemaVersion": "1.1",
         "systemModules": {
           "edgeAgent": {
-            "type": "docker",
-            "settings": {
-              "image": "<Container_Registry>/microsoft/azureiotedge-agent:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": "{\"HostConfig\":{\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}}}"
-            },
             "env": {
               "UpstreamProtocol": {
                 "value": "mqtt"
@@ -31,106 +72,65 @@
               "https_proxy": {
                 "value": "<proxyAddress>"
               }
-            }
+            },
+            "settings": {
+              "createOptions": "{\"HostConfig\":{\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}}}",
+              "image": "<Container_Registry>/microsoft/azureiotedge-agent:<Build.BuildNumber>-linux-<Architecture>"
+            },
+            "type": "docker"
           },
           "edgeHub": {
-            "type": "docker",
-            "settings": {
-              "image": "<Container_Registry>/microsoft/azureiotedge-hub:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"100m\",\"max-file\":\"7\"}}, \"PortBindings\": {\"8883/tcp\": [{\"HostPort\": \"8883\"}],\"5671/tcp\": [{\"HostPort\": \"5671\"}]}}}"
-            },
             "env": {
-              "experimentalFeatures__enabled": {
-                "value": "true"
-              },
-              "experimentalFeatures__mqttBrokerEnabled": {
-                "value": "true"
-              },
               "DeviceScopeCacheRefreshDelaySecs": {
                 "value": 0
               },
               "RuntimeLogLevel": {
                 "value": "debug"
               },
-              "https_proxy": {
-                "value": "<proxyAddress>"
-              },
               "SslProtocols": {
                 "value": "tls1.2"
-              }
-            },
-            "status": "running",
-            "restartPolicy": "always"
-          }
-        },
-        "modules": {
-          "dockerContainerRegistry": {
-            "version": "1.0",
-            "type": "docker",
-            "status": "running",
-            "restartPolicy": "always",
-            "startupOrder": 2,
-            "settings": {
-              "image": "registry:latest",
-              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"5000/tcp\": [{\"HostPort\": \"5000\"}]}}}"
-            },
-            "env": {
-              "REGISTRY_PROXY_REMOTEURL": {
-                "value": "https://<Container_Registry>:443"
               },
-              "REGISTRY_PROXY_USERNAME": {
-                "value": "<CR.Username>"
+              "experimentalFeatures__enabled": {
+                "value": "true"
               },
-              "REGISTRY_PROXY_PASSWORD": {
-                "value": "<CR.Password>"
+              "experimentalFeatures__mqttBrokerEnabled": {
+                "value": "true"
               },
               "https_proxy": {
                 "value": "<proxyAddress>"
               }
-            }
-          },
-          "IoTEdgeAPIProxy": {
-            "version": "1.0",
-            "type": "docker",
-            "status": "running",
-            "restartPolicy": "always",
-            "startupOrder": 3,
-            "settings": {
-              "image": "<Container_Registry>/microsoft/azureiotedge-api-proxy:<Build.BuildNumber>-linux-<Architecture>",
-              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"4m\",\"max-file\":\"7\",\"compress\":\"true\"}}, \"PortBindings\": {\"443/tcp\": [{\"HostPort\": \"443\"}]}}}"
             },
-            "env": {
-              "NGINX_DEFAULT_PORT": {
-                "value": "443"
-              },
-              "DOCKER_REQUEST_ROUTE_ADDRESS": {
-                "value": "dockerContainerRegistry:5000"
-              }
-            }
+            "restartPolicy": "always",
+            "settings": {
+              "createOptions": "{\"HostConfig\": {\"LogConfig\":{\"Type\":\"json-file\",\"Config\":{\"max-size\":\"100m\",\"max-file\":\"7\"}}, \"PortBindings\": {\"8883/tcp\": [{\"HostPort\": \"8883\"}],\"5671/tcp\": [{\"HostPort\": \"5671\"}]}}}",
+              "image": "<Container_Registry>/microsoft/azureiotedge-hub:<Build.BuildNumber>-linux-<Architecture>"
+            },
+            "status": "running",
+            "type": "docker"
           }
         }
       }
     },
     "$edgeHub": {
       "properties.desired": {
-        "schemaVersion": "1.2",
-        "routes": {
-          "ToUpstream": "FROM /messages/* INTO $upstream"
-        },
-        "storeAndForwardConfiguration": {
-          "timeToLiveSecs": 7200
-        },
         "mqttBroker": {
           "authorizations": [
             {
-              "identities": ["{{iot:identity}}"],
               "allow": [
                 {
                   "operations": ["mqtt:connect"]
                 }
-              ]
+              ],
+              "identities": ["{{iot:identity}}"]
             }
           ]
+        },
+        "routes": {
+          "ToUpstream": "FROM /messages/* INTO $upstream"
+        },
+        "schemaVersion": "1.2",
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
         }
       }
     }

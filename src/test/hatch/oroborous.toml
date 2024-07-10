@@ -1,0 +1,149 @@
+[envs.default]
+dependencies = [
+  "coverage[toml]>=6.2",
+  "filelock>=3.7.1",
+  "pytest",
+  "pytest-cov",
+  "pytest-mock",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-xdist",
+  "trustme",
+]
+post-install-commands = [
+  "python -m pip install --disable-pip-version-check {verbosity:flag:-1} -e ./backend",
+]
+[envs.default.overrides]
+env.GITHUB_ACTIONS.env-vars = "COVERAGE_REPORT="
+[envs.default.scripts]
+# --cov must not come before an argument in order to use the sources defined by config
+_cov = "pytest --cov --cov-report={env:COVERAGE_REPORT:term-missing} --cov-config=pyproject.toml"
+dev = "pytest -p no:randomly --no-cov {args:tests}"
+cov = "_cov -p no:randomly {args:tests}"
+full = "_cov -n auto --reruns 5 --reruns-delay 3 -r aR {args:tests}"
+
+[envs.test.overrides]
+env.HERMETIC_TESTS.type = [
+  { value = "container", if = ["true"] },
+  "virtual",
+]
+
+[[envs.test.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+[envs.coverage]
+detached = true
+dependencies = [
+  "coverage[toml]>=6.2",
+  "lxml",
+]
+[envs.coverage.scripts]
+combine = "coverage combine {args}"
+report-xml = "coverage xml"
+report-uncovered-html = "coverage html --skip-covered --skip-empty"
+generate-summary = "python scripts/generate_coverage_summary.py"
+write-summary-report = "python scripts/write_coverage_summary_report.py"
+
+[envs.lint]
+detached = true
+dependencies = [
+  "black>=23.1.0",
+  "mypy>=1.0.0",
+  "ruff<0.0.262",
+]
+[envs.lint.scripts]
+typing = "mypy --install-types --non-interactive {args:backend/src/hatchling src/hatch tests}"
+style = [
+  "ruff {args:.}",
+  "black --check --diff {args:.}",
+]
+fmt = [
+  "black {args:.}",
+  "ruff --fix {args:.}",
+  "style",
+]
+all = [
+  "style",
+  "typing",
+]
+
+[envs.docs]
+dependencies = [
+  "mkdocs~=1.4.3",
+  "mkdocs-material~=9.1.0",
+  # Plugins
+  "mkdocs-minify-plugin~=0.6.4",
+  "mkdocs-git-revision-date-localized-plugin~=1.2.0",
+  "mkdocstrings-python~=1.2.1",
+  "mkdocs-redirects~=1.2.1",
+  "mkdocs-glightbox~=0.3.4",
+  # https://github.com/jimporter/mike/issues/82#issuecomment-1172913929
+  "mike @ https://github.com/jimporter/mike/archive/be1aafe244bc86172fbce52a903c9ab83e2e4a26.zip",
+  # Extensions
+  "mkdocs-click~=0.8.0",
+  "pymdown-extensions~=10.1.0",
+  # Necessary for syntax highlighting in code blocks
+  "pygments~=2.15.1",
+  # Validation
+  # https://github.com/linkchecker/linkchecker/pull/669#issuecomment-1267236287
+  "linkchecker @ git+https://github.com/linkchecker/linkchecker.git@d9265bb71c2054bf57b8c5734a4825d62505c779",
+]
+pre-install-commands = [
+  "python scripts/install_mkdocs_material_insiders.py",
+]
+[envs.docs.overrides]
+env.GH_TOKEN_MKDOCS_MATERIAL_INSIDERS.env-vars = [
+  { key = "MKDOCS_CONFIG", value = "mkdocs.insiders.yml" },
+  { key = "MKDOCS_CONFIG", value = "mkdocs.yml", if = [""] },
+]
+[envs.docs.env-vars]
+SOURCE_DATE_EPOCH = "1580601600"
+PYTHONUNBUFFERED = "1"
+MKDOCS_CONFIG = "mkdocs.yml"
+[envs.docs.scripts]
+build = "mkdocs build --config-file {env:MKDOCS_CONFIG} --clean --strict {args}"
+serve = "mkdocs serve --config-file {env:MKDOCS_CONFIG} --dev-addr localhost:8000 {args}"
+ci-build = "mike deploy --config-file {env:MKDOCS_CONFIG} --update-aliases {args}"
+validate = "linkchecker --config .linkcheckerrc site"
+# https://github.com/linkchecker/linkchecker/issues/678
+build-check = [
+  "build --no-directory-urls",
+  "validate",
+]
+
+[envs.backend]
+detached = true
+dependencies = [
+  "build~=0.7.0",
+  "httpx",
+]
+[envs.backend.env-vars]
+HATCH_BUILD_CLEAN = "true"
+[envs.backend.scripts]
+build = "python -m build backend"
+publish = "hatch publish backend/dist"
+version = "cd backend && hatch version {args}"
+
+[envs.upkeep]
+detached = true
+dependencies = [
+  "httpx",
+]
+[envs.upkeep.scripts]
+update-hatch = [
+  "update-distributions",
+]
+update-hatchling = [
+  "update-licenses",
+]
+update-distributions = "python scripts/update_distributions.py"
+update-licenses = "python backend/scripts/update_licenses.py"
+
+[envs.release]
+detached = true
+dependencies = [
+  "hatchling",
+]
+[envs.release.scripts]
+bump = "python scripts/bump.py {args}"
+github = "python scripts/release_github.py {args}"

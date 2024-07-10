@@ -1,6 +1,6 @@
 {
-  "$id": "https://json.schemastore.org/starlake.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/starlake.json",
   "definitions": {
     "PrimitiveType": {
       "description": "Default types defined in starlake. User defined types may also be defined in the types/types.sl.yml file",
@@ -218,8 +218,12 @@
           "description": "Append the data to an existing table or create it if it does not exist"
         },
         {
+          "const": "MERGE",
+          "description": "Merge the data to an existing table or create it if it does not exist. Merge attribute should be defined."
+        },
+        {
           "const": "ERROR_IF_EXISTS",
-          "description": "Fail if teh table already exist"
+          "description": "Fail if the table already exist"
         },
         {
           "const": "IGNORE",
@@ -242,6 +246,36 @@
         {
           "const": "GROUP",
           "description": "Group of users / service accounts"
+        }
+      ]
+    },
+    "WriteStrategyType": {
+      "description": "How the data is written to the target datawarehouse. Default is APPEND",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "APPEND",
+          "description": "Append the data to an existing table or create it if it does not exist"
+        },
+        {
+          "const": "OVERWRITE",
+          "description": "That data will overwrite the existing data or create it if it does not exist"
+        },
+        {
+          "const": "UPSERT_BY_KEY",
+          "description": "Merge the data to an existing table or create it if it does not exist. Key attribute should be defined."
+        },
+        {
+          "const": "UPSERT_BY_KEY_AND_TIMESTAMP",
+          "description": "Merge the data to an existing table or create it if it does not exist. Key and timestamp attributes should be defined."
+        },
+        {
+          "const": "SCD2",
+          "description": "Implement Slow changing Dime sio n of type 2. Key and timestamp attributes should be defined."
+        },
+        {
+          "const": "OVERWRITE_BY_PARTITION",
+          "description": "Dynamic Partition Overwrite: Overwrite the data in the target table partition if the partition exists, append the data otherwise. Partition attribute should be defined."
         }
       ]
     },
@@ -355,24 +389,6 @@
       },
       "required": ["name", "pattern", "primitiveType"]
     },
-    "Partition": {
-      "description": "Partition columns, no partitioning by default",
-      "type": "object",
-      "properties": {
-        "sampling": {
-          "type": "number",
-          "description": "0.0 means no sampling, > 0  && < 1 means sample dataset, >=1 absolute number of partitions. Used exclusively on Hadoop like warehouses"
-        },
-        "attributes": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "description": "Attributes used to partition de dataset."
-          }
-        }
-      },
-      "required": []
-    },
     "Position": {
       "description": "First and last char positions of an attribute in a fixed length record",
       "type": "object",
@@ -387,21 +403,6 @@
         }
       },
       "required": ["first", "last"]
-    },
-    "ExpectationItem": {
-      "description": "Expectation",
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "SQL query to execute"
-        },
-        "expect": {
-          "type": "string",
-          "description": "What outcome is expected"
-        }
-      },
-      "required": ["query", "expect"]
     },
     "Connection": {
       "description": "Connection properties to a datawarehouse.",
@@ -434,7 +435,7 @@
           "type": "string",
           "description": "Dag template to use for this config. Usually a .py.j2 file"
         },
-        "filnename": {
+        "filename": {
           "type": "string",
           "description": "{schedule}, {domain}, {table} in the file name are used for DAG generation purposes"
         },
@@ -443,7 +444,21 @@
           "description": "DAG generation options"
         }
       },
-      "required": ["type"]
+      "required": ["template", "filename"]
+    },
+    "DagRef": {
+      "description": "Dag templates for load and transform.",
+      "type": "object",
+      "properties": {
+        "load": {
+          "type": "string",
+          "description": "Default DAG template for load operations"
+        },
+        "transform": {
+          "type": "string",
+          "description": "Default DAG template for transform operations"
+        }
+      }
     },
     "RowLevelSecurity": {
       "description": "Row level security policy to apply to the output data.",
@@ -489,9 +504,13 @@
       },
       "required": ["role", "grants"]
     },
-    "MergeOptions": {
+    "WriteStrategy": {
       "type": "object",
       "properties": {
+        "type": {
+          "$ref": "#/definitions/WriteStrategyType",
+          "description": "Timestamp column used to identify last version, if not specified currently ingested row is considered the last"
+        },
         "key": {
           "description": "list of attributes to join an existing and incoming dataset. Use renamed columns if any here.",
           "type": "array",
@@ -506,9 +525,14 @@
         "queryFilter": {
           "type": "string",
           "description": "Useful when you want to merge only on a subset of the existing partitions, thus improving performance and reducing costs.\nYou may use here:\n- Any SQL condition\n- latest which will be translated to the last existing partition\n- column in last(10) which will apply the merge on the last 10 partitions of your dataset.\n last and latest assume that your table is partitioned by day."
+        },
+        "on": {
+          "type": "string",
+          "description": "Should we check for duplicate in the source and target tables or only in the target one ? SOURCE_AND_TARGET by default.",
+          "enum": ["SOURCE_AND_TARGET", "TARGET"]
         }
       },
-      "required": ["key"]
+      "required": ["type"]
     },
     "Format": {
       "description": "DSV by default. Supported file formats are :\\n- DSV : Delimiter-separated values file. Delimiter value is specified in the \"separator\" field.\\n- POSITION : FIXED format file where values are located at an exact position in each line.\\n- SIMPLE_JSON : For optimisation purpose, we differentiate JSON with top level values from JSON\\n  with deep level fields. SIMPLE_JSON are JSON files with top level fields only.\\n- JSON :  Deep JSON file. Use only when your json documents contain sub-documents, otherwise prefer to\\n  use SIMPLE_JSON since it is much faster.\\n- XML : XML files",
@@ -554,13 +578,6 @@
         "$ref": "#/definitions/Connection"
       }
     },
-    "MapExpectationItem": {
-      "type": "object",
-      "description": "Map of connections",
-      "additionalProperties": {
-        "$ref": "#/definitions/ExpectationItem"
-      }
-    },
     "MapJdbcEngine": {
       "type": "object",
       "description": "Map of jdbc engines",
@@ -592,8 +609,8 @@
       "type": "object",
       "properties": {
         "options": {
-          "description": "Privacy strategies. The following default strategies are defined by default:\n- none: Leave the data as is\n- hide: replace the data with an empty string\n- hideX(\"s\", n): replace the string with n occurrences of the string 's'\n- md5: Redact the data using the MD5 algorithm\n- sha1: Redact the data using the SHA1 algorithm\n- sha256: Redact the data using the SHA256 algorithm\n - sha512: Redact the data using the SHA512 algorithm\n- initials: keep only the first char of each word in the data",
-          "$ref": "#/definitions/MapString"
+          "$ref": "#/definitions/MapString",
+          "description": "Privacy strategies. The following default strategies are defined by default:\n- none: Leave the data as is\n- hide: replace the data with an empty string\n- hideX(\"s\", n): replace the string with n occurrences of the string 's'\n- md5: Redact the data using the MD5 algorithm\n- sha1: Redact the data using the SHA1 algorithm\n- sha256: Redact the data using the SHA256 algorithm\n - sha512: Redact the data using the SHA512 algorithm\n- initials: keep only the first char of each word in the data"
         }
       }
     },
@@ -706,10 +723,6 @@
           "type": "string",
           "description": "ES: Attribute to use as id of the document. Generated by Elasticsearch if not specified."
         },
-        "timestamp": {
-          "type": "string",
-          "description": "ES or BQ: The timestamp column to use for table partitioning if any. No partitioning by default\\nES:Timestamp field format as expected by Elasticsearch (\"{beginTs|yyyy.MM.dd}\" for example)."
-        },
         "location": {
           "type": "string",
           "description": "BQ: Database location (EU, US, ...)"
@@ -750,8 +763,11 @@
           "description": "FS: File extension"
         },
         "partition": {
-          "$ref": "#/definitions/Partition",
-          "description": "FS or BQ: List of partition attributes"
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "FS or BQ: List of partition attributes. ES or BQ: The timestamp column to use for table partitioning if any. No partitioning by default\\nES:Timestamp field format as expected by Elasticsearch (\"{beginTs|yyyy.MM.dd}\" for example)."
+          }
         },
         "connectionRef": {
           "type": "string",
@@ -760,10 +776,6 @@
         "coalesce": {
           "type": "boolean",
           "description": "When outputting files, should we coalesce it to a single file. Useful when CSV is the output format."
-        },
-        "dynamicPartitionOverwrite": {
-          "type": "boolean",
-          "description": "When outputting files, should we overwrite existing partitions ?"
         }
       }
     },
@@ -810,12 +822,11 @@
           "type": "string",
           "description": "escaping char '\\' by default"
         },
-        "write": {
-          "$ref": "#/definitions/WriteMode",
-          "description": "Write mode, APPEND by default"
-        },
         "partition": {
-          "$ref": "#/definitions/Partition"
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "sink": {
           "$ref": "#/definitions/Sink"
@@ -860,8 +871,8 @@
           "type": "string"
         },
         "freshness": {
-          "description": "Configure freshness checks on this dataset",
-          "$ref": "#/definitions/Freshness"
+          "$ref": "#/definitions/Freshness",
+          "description": "Configure freshness checks on this dataset"
         },
         "schedule": {
           "type": "string",
@@ -870,6 +881,9 @@
         "dagRef": {
           "type": "string",
           "description": "Cron expression to use for this domain/table"
+        },
+        "writeStrategy": {
+          "$ref": "#/definitions/WriteStrategy"
         }
       }
     },
@@ -951,11 +965,11 @@
       "properties": {
         "warn": {
           "type": "string",
-          "description": "How old may be teh data before a warning is raised. Use syntax like '3 day' or '2 hour' or '30 minute'"
+          "description": "How old may be the data before a warning is raised. Use syntax like '3 day' or '2 hour' or '30 minute'"
         },
         "error": {
           "type": "string",
-          "description": "How old may be teh data before an error is raised. Use syntax like '3 day' or '2 hour' or '30 minute'"
+          "description": "How old may be the data before an error is raised. Use syntax like '3 day' or '2 hour' or '30 minute'"
         }
       }
     },
@@ -984,9 +998,6 @@
         "metadata": {
           "$ref": "#/definitions/Metadata",
           "description": "Dataset metadata"
-        },
-        "merge": {
-          "$ref": "#/definitions/MergeOptions"
         },
         "comment": {
           "type": "string",
@@ -1021,8 +1032,11 @@
           }
         },
         "expectations": {
-          "$ref": "#/definitions/MapString",
-          "description": "Expectations to check after Load / Transform has succeeded"
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Expectations to check after Load / Transform has succeeded expectation(params) => condition"
         },
         "primaryKey": {
           "description": "List of columns that make up the primary key",
@@ -1048,6 +1062,10 @@
         },
         "patternSample": {
           "description": "Sample of filename matching this schema",
+          "type": "string"
+        },
+        "alias": {
+          "description": "Alias allowed in SQL queries",
           "type": "string"
         }
       },
@@ -1184,7 +1202,10 @@
           }
         },
         "expectations": {
-          "$ref": "#/definitions/MapString",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "description": "Expectations to check after Load / Transform has succeeded"
         },
         "acl": {
@@ -1199,8 +1220,8 @@
           "description": "Output table description"
         },
         "freshness": {
-          "description": "Configure freshness checks on the output table",
-          "$ref": "#/definitions/Freshness"
+          "$ref": "#/definitions/Freshness",
+          "description": "Configure freshness checks on the output table"
         },
         "attributesDesc": {
           "description": "Attributes comments and access policies",
@@ -1220,8 +1241,8 @@
             "type": "string"
           }
         },
-        "merge": {
-          "$ref": "#/definitions/MergeOptions"
+        "writeStrategy": {
+          "$ref": "#/definitions/WriteStrategy"
         },
         "schedule": {
           "type": "string",
@@ -1441,6 +1462,9 @@
         "columnRemarks": {
           "type": "string"
         },
+        "filter": {
+          "type": "string"
+        },
         "template": {
           "type": "string",
           "description": "Metadata to use for the generated YAML file."
@@ -1586,7 +1610,7 @@
         "lock": {
           "$ref": "#/definitions/Lock"
         },
-        "defaultFormat": {
+        "defaultWriteFormat": {
           "type": "string",
           "description": "Default write format in Spark. parquet is the default"
         },
@@ -1690,7 +1714,7 @@
           "$ref": "#/definitions/AccessPolicies",
           "description": "Access policies configuration"
         },
-        "scheduling": {
+        "sparkScheduling": {
           "$ref": "#/definitions/JobScheduling",
           "description": "Spark Job scheduling configuration"
         },
@@ -1769,6 +1793,46 @@
         "maxParTask": {
           "type": "integer",
           "description": "How many job to run simultaneously in dev mode (experimental)"
+        },
+        "dagRef": {
+          "$ref": "#/definitions/DagRef",
+          "description": "DAG Templates"
+        },
+        "forceHalt": {
+          "type": "boolean",
+          "description": "Explicitly exit Main using system exit()"
+        },
+        "jobIdEnvName": {
+          "type": "boolean",
+          "description": "Use this job id instead of the one generated by default"
+        },
+        "archiveTablePattern": {
+          "type": "boolean",
+          "description": "domain and table name pattern to use. For example: {{domain}}_backup.{{table}}"
+        },
+        "archiveTable": {
+          "type": "boolean",
+          "description": "Should we save the loaded file as a table in the datawarehouse ?"
+        },
+        "version": {
+          "type": "boolean",
+          "description": "Set explicit version in application.sl.yml"
+        },
+        "autoExportSchema": {
+          "type": "boolean",
+          "description": "Export schema of transforms into the load/external folder ? Useful in dev mode for auto completion in the VS Code plugin"
+        },
+        "longJobTimeoutMs": {
+          "type": "integer",
+          "description": ""
+        },
+        "shortJobTimeoutMs": {
+          "type": "integer",
+          "description": ""
+        },
+        "createSchemaIfNotExists": {
+          "type": "boolean",
+          "description": "Should we create the schema if it does  not already exist ?"
         }
       }
     }
@@ -1842,10 +1906,6 @@
     },
     "env": {
       "$ref": "#/definitions/MapString"
-    },
-    "expectations": {
-      "$ref": "#/definitions/MapExpectationItem",
-      "description": "Expectations library defined as a map name(params) -> sql request that should return 0 record"
     },
     "table": {
       "$ref": "#/definitions/Table"
