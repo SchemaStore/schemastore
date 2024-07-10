@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gist.githubusercontent.com/Vorelli/54255d010838ed9f71dd98f800a6595c/raw/217102af8baa2245578ea14a5f8cfd639f908bfe/mprocs-schema-0.6.4.json",
+  "title": "mprocs Configuration Schema",
+  "description": "Schema for mprocs (https://github.com/pvolok/mprocs) configuration files (YAML/JSON).",
+  "type": "object",
+  "properties": {
+    "procs": {
+      "type": "object",
+      "description": "Processes to run. Only allowed in local config.",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "title": "Process Configuration",
+          "properties": {
+            "shell": {
+              "description": "Shell command to run (exactly one of shell or cmd must be provided).",
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/selectOperator"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "cmd": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of command and args to run (exactly one of shell or cmd must be provided)."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Set working directory for the process. Prefix <CONFIG_DIR> will be replaced with the path of the directory where the config is located."
+            },
+            "env": {
+              "type": "object",
+              "description": "Set env variables. Object keys are variable names. Assign variable to null, to clear variables inherited from parent process.",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/definitions/selectOperator"
+                  }
+                ]
+              }
+            },
+            "add_path": {
+              "description": "Add entries to the PATH environment variable.",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "$ref": "#/definitions/selectOperator"
+                }
+              ]
+            },
+            "autostart": {
+              "type": "boolean",
+              "description": "Start process when mprocs starts. Default: true."
+            },
+            "autorestart": {
+              "type": "boolean",
+              "description": "Restart process when it exits. Default: false. Note: If process exits within 1 second of starting, it will not be restarted."
+            },
+            "stop": {
+              "description": "A way to stop a process (using `x` key or when quitting mprocs).",
+              "oneOf": [
+                {
+                  "enum": ["SIGINT", "SIGTERM", "SIGKILL", "hard-kill"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "send-keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["send-keys"]
+                }
+              ]
+            }
+          },
+          "oneOf": [
+            {
+              "required": ["shell"]
+            },
+            {
+              "required": ["cmd"]
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "hide_keymap_window": {
+      "type": "boolean",
+      "description": "Hide the pane at the bottom of the screen showing key bindings."
+    },
+    "mouse_scroll_speed": {
+      "type": "integer",
+      "description": "Number of lines to scroll per one mouse scroll."
+    },
+    "proc_list_width": {
+      "type": "integer",
+      "description": "Process list window width."
+    },
+    "keymap_procs": {
+      "$ref": "#/definitions/keymap",
+      "description": "Key bindings for process list."
+    },
+    "keymap_term": {
+      "$ref": "#/definitions/keymap",
+      "description": "Key bindings for terminal window."
+    },
+    "keymap_copy": {
+      "$ref": "#/definitions/keymap",
+      "description": "Key bindings for copy mode."
+    }
+  },
+  "definitions": {
+    "c": {
+      "type": "string",
+      "description": "Command to run when keybind is triggered."
+    },
+    "keymap": {
+      "type": "object",
+      "description": "Keymap configuration",
+      "properties": {
+        "reset": {
+          "type": "boolean",
+          "description": "Clear key bindings from previous levels."
+        }
+      },
+      "patternProperties": {
+        "^<[^>]+>$": {
+          "description": "Keybind to target",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "c": {
+                  "$ref": "#/definitions/c"
+                },
+                "cmds": {
+                  "type": "array",
+                  "description": "Commands to run when keybind is triggered.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "c": {
+                        "$ref": "#/definitions/c"
+                      }
+                    },
+                    "required": ["c"]
+                  }
+                }
+              },
+              "required": ["c"]
+            }
+          ]
+        }
+      }
+    },
+    "selectOperator": {
+      "type": "object",
+      "description": "Operator for OS-specific configurations",
+      "properties": {
+        "$else": {
+          "description": "Default value",
+          "type": "string"
+        },
+        "$select": {
+          "description": "This is the parameter select is targeting.",
+          "const": "os"
+        }
+      },
+      "patternProperties": {
+        "^(windows|macos|linux|android|freebsd|openbsd|netbsd|dragonfly|solaris|illumos|ios)$": {
+          "type": "string",
+          "description": "Value specific to OS"
+        }
+      },
+      "required": ["$select"],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
