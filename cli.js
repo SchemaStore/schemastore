@@ -13,7 +13,7 @@ import TOML from '@ltd/j-toml'
 import YAML from 'yaml'
 import schemasafe from '@exodus/schemasafe'
 import prettier from 'prettier'
-import axios from 'axios'
+import fetch from 'node-fetch'
 import jsonlint from '@prantlf/jsonlint'
 import * as jsoncParser from 'jsonc-parser'
 import chalk from 'chalk'
@@ -100,34 +100,35 @@ function throwWithErrorText(errorText) {
  * @param {CbParamFn} schemaOnlyScan
  */
 async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
-  const responseType = 'arraybuffer'
-
   for (const { url } of catalog.schemas) {
     if (url.startsWith(urlSchemaStore)) {
       // Skip local schema
       continue
     }
     try {
-      const response = await axios.get(url, { responseType })
-      if (response.status === 200) {
+      const res = await fetch(url)
+      const resText = await res.text()
+      if (res.status >= 200 && res.status < 300) {
         const parsed = new URL(url)
         const schema = {
           jsonName: path.basename(parsed.pathname),
-          jsonObj: JSON.parse(response.data.toString()),
-          rawFile: response.data,
+          jsonObj: JSON.parse(resText),
+          rawFile: '',
           urlOrFilePath: url,
           schemaScan: true,
         }
+
         schemaOnlyScan(schema)
         if (showLog) {
           log.ok(url)
         }
       } else {
         if (showLog) {
-          log.error(url, response.status)
+          log.error(url, res.status)
         }
       }
     } catch (error) {
+      console.error(error)
       if (showLog) {
         log.writeln('')
         log.error(url, error.name, error.message)
@@ -181,7 +182,7 @@ async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
  * @param {localSchemaFileAndTestFileParameter1}
  * @param {localSchemaFileAndTestFileParameter2}
  */
-function localSchemaFileAndTestFile(
+async function localSchemaFileAndTestFile(
   {
     schemaOnlyScan = undefined,
     schemaOnlyScanDone = undefined,
@@ -231,12 +232,12 @@ function localSchemaFileAndTestFile(
    * @param callback The callback function(schema)
    * @param {boolean} onlySchemaScan True = a scan without test files.
    */
-  const scanAllSchemaFiles = (callback, onlySchemaScan) => {
+  const scanAllSchemaFiles = async (callback, onlySchemaScan) => {
     if (!callback) {
       return
     }
     // Process all the schema files one by one via callback.
-    schemasToBeTested.forEach((schemaFileName) => {
+    for (const schemaFileName of schemasToBeTested) {
       if (processOnlyThisOneSchemaFile) {
         if (schemaFileName !== processOnlyThisOneSchemaFile) return
       }
@@ -267,9 +268,9 @@ function localSchemaFileAndTestFile(
           urlOrFilePath: schemaFullPathName,
           schemaScan: onlySchemaScan,
         }
-        callback(schema)
+        await callback(schema)
       }
-    })
+    }
   }
 
   // Scan one test folder for all the files inside it
@@ -377,13 +378,13 @@ function localSchemaFileAndTestFile(
   }
 
   // Callback only for schema file scan. No test files are process here.
-  scanAllSchemaFiles(schemaOnlyScan, true)
+  await scanAllSchemaFiles(schemaOnlyScan, true)
   schemaOnlyScanDone?.()
 
   // process one by one all schema + positive test folders + negative test folders
-  scanAllSchemaFiles((callbackParameterFromSchema) => {
+  await scanAllSchemaFiles(async (callbackParameterFromSchema) => {
     // process one schema
-    schemaForTestScan?.(callbackParameterFromSchema)
+    await schemaForTestScan?.(callbackParameterFromSchema)
     // process positive and negative test folder belonging to the one schema
     const schemaName = callbackParameterFromSchema.jsonName
     scanOneTestFolder(
@@ -1804,7 +1805,7 @@ function assertSchemaValidationJsonHasValidSkipTest() {
   )
 }
 
-function taskCoverage() {
+async function taskCoverage() {
   const javaScriptCoverageName = 'schema.json.translated.to.js'
   const javaScriptCoverageNameWithPath = path.join(
     `${temporaryCoverageDir}/${javaScriptCoverageName}`,
@@ -1815,7 +1816,7 @@ function taskCoverage() {
    * And run the positive and negative test files with it.
    * @param {string} processOnlyThisOneSchemaFile The schema file that need to process
    */
-  const generateCoverage = (processOnlyThisOneSchemaFile) => {
+  const generateCoverage = async (processOnlyThisOneSchemaFile) => {
     const schemaVersion = showSchemaVersions()
     let jsonName
     let mainSchema
@@ -1824,7 +1825,7 @@ function taskCoverage() {
     let validations
 
     // Compile JSON schema to javascript and write it to disk.
-    const processSchemaFile = (/** @type {Schema} */ schema) => {
+    const processSchemaFile = async (/** @type {Schema} */ schema) => {
       jsonName = schema.jsonName
       // Get possible options define in schema-validation.json
       const {
@@ -1882,8 +1883,7 @@ function taskCoverage() {
       }
 
       // Prettify the JavaScript module code
-      // TODO: https://github.com/prettier/prettier/pull/12788
-      const prettierOptions = prettier.resolveConfig.sync(process.cwd())
+      const prettierOptions = await prettier.resolveConfig(process.cwd())
       fs.writeFileSync(
         javaScriptCoverageNameWithPath,
         prettier.format(moduleCode, {
@@ -1910,7 +1910,7 @@ function taskCoverage() {
       }
     }
 
-    localSchemaFileAndTestFile(
+    await localSchemaFileAndTestFile(
       {
         schemaForTestScan: processSchemaFile,
         positiveTestScan: processTestFile,
@@ -1920,12 +1920,11 @@ function taskCoverage() {
     )
   }
 
-  // Generate the schema via option parameter 'SchemaName'
   const schemaNameToBeCoverage = argv.SchemaName
   if (!schemaNameToBeCoverage) {
-    throwWithErrorText(['Must start "make" file with schema name parameter.'])
+    throwWithErrorText(['Must start "make" file with --SchemaName parameter.'])
   }
-  generateCoverage(schemaNameToBeCoverage)
+  await generateCoverage(schemaNameToBeCoverage)
   log.ok('OK')
 }
 
