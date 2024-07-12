@@ -49,7 +49,7 @@ If you want to contribute, but not sure what needs fixing, see the [help wanted]
 
 Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs use this field to know which files the schema should be used for (in autocompletion).
 
-Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. This repository has Grunt tasks that automatically load these files and use a validator (either [AJV](https://ajv.js.org) or [SchemaSafe](https://github.com/ExodusMovement/schemasafe)) to ensure that they either pass or fail validation.
+Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. This repository has tests that use a validator (either [AJV](https://ajv.js.org) or [SchemaSafe](https://github.com/ExodusMovement/schemasafe)), to ensure that the schemas either pass or fail validation.
 
 There are three types of schema validation modes:
 
@@ -205,11 +205,11 @@ git clone https://github.com/SchemaStore/schemastore
 cd schemastore
 ```
 
-Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new_schema` Grunt task:
+Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new-schema` task:
 
 ```sh
-npm install
-npm run grunt new_schema
+npm ci
+npm run new-schema
 ```
 
 You will be prompted for the name of the schema. Once you enter your schema name, the task will:
@@ -218,7 +218,7 @@ You will be prompted for the name of the schema. Once you enter your schema name
 - Create a positive test file at `src/test/<schemaName>/<schemaName>.json`
 - Print a string for you to add to the [Schema Catalog](src/api/json/catalog.json)
 
-If you do not wish to use the `new_schema` Grunt task, the manual steps are listed below 👇
+If you do not wish to use the `new-schema` task, the manual steps are listed below 👇
 
 <details>
 
@@ -360,16 +360,16 @@ This repository validations JSON Schemas in multiple ways:
 To validate all schemas, run:
 
 ```console
-npm run grunt
+node ./cli.js check
 ```
 
 Because there are hundreds of schemas, you may only want to validate a single one to save time. To do this, run:
 
 ```console
-npm run grunt -- --SchemaName=<schemaName.json>
+node ./cli.js check --SchemaName=<schemaName.json>
 ```
 
-For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `npm run grunt -- --SchemaName=ava.json`
+For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --SchemaName=ava.json`
 
 Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`. If the task succeeds, your changes are valid and you can safely create a PR.
 
