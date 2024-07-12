@@ -1,7 +1,7 @@
 /// <binding AfterBuild='build' />
 import path from 'node:path'
 import fs from 'node:fs'
-import readline from 'node:readline/promises'
+import readline from 'node:readline'
 import addFormats from 'ajv-formats'
 import ajvFormatsDraft2019 from 'ajv-formats-draft2019'
 import AjvDraft04 from 'ajv-draft-04'
@@ -702,7 +702,7 @@ function showSchemaVersions() {
       let obj
       try {
         obj = getObj_(schema.jsonObj)
-      } catch (err) {
+      } catch {
         // suppress possible JSON.parse exception. It will be processed as obj = undefined
       }
       if (obj) {
@@ -733,49 +733,52 @@ async function taskNewSchema() {
   })
 
   console.log('Enter the name of the schema (without .json extension)')
-  /** @type {string} */
-  let schemaName
-  do {
-    schemaName = await rl.question('input: ')
-  } while (schemaName.endsWith('.json'))
+  await handleInput()
+  async function handleInput(schemaName) {
+    if (!schemaName || schemaName.endsWith('.json')) {
+      rl.question('input: ', handleInput)
+      return
+    }
 
-  const schemaFile = path.join(schemaDir, schemaName + '.json')
-  const testDir = path.join(testPositiveDir, schemaName)
-  const testFile = path.join(testDir, `${schemaName}.json`)
+    const schemaFile = path.join(schemaDir, schemaName + '.json')
+    const testDir = path.join(testPositiveDir, schemaName)
+    const testFile = path.join(testDir, `${schemaName}.json`)
 
-  if (fs.existsSync(schemaFile)) {
-    throw new Error(`Schema file already exists: ${schemaFile}`)
-  }
+    if (fs.existsSync(schemaFile)) {
+      throw new Error(`Schema file already exists: ${schemaFile}`)
+    }
 
-  console.info(`Creating schema file at 'src/${schemaFile}'...`)
-  console.info(`Creating positive test file at 'src/${testFile}'...`)
+    console.info(`Creating schema file at 'src/${schemaFile}'...`)
+    console.info(`Creating positive test file at 'src/${testFile}'...`)
 
-  await fs.promises.mkdir(path.dirname(schemaFile), { recursive: true })
-  await fs.promises.writeFile(
-    schemaFile,
-    `{
-"$id": "https://json.schemastore.org/${schemaName}.json",
-"$schema": "http://json-schema.org/draft-07/schema#",
-"additionalProperties": true,
-"properties": {
+    await fs.promises.mkdir(path.dirname(schemaFile), { recursive: true })
+    await fs.promises.writeFile(
+      schemaFile,
+      `{
+  "$id": "https://json.schemastore.org/${schemaName}.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
 
-},
-"type": "object"
+  },
+  "type": "object"
 }\n`,
-  )
-  await fs.promises.mkdir(testDir, { recursive: true })
-  await fs.promises.writeFile(
-    testFile,
-    `"Replace this file with an example/test that passes schema validation. Supported formats are JSON, YAML, and TOML. We recommend adding as many files as possible to make your schema most robust."\n`,
-  )
+    )
+    await fs.promises.mkdir(testDir, { recursive: true })
+    await fs.promises.writeFile(
+      testFile,
+      `"Replace this file with an example/test that passes schema validation. Supported formats are JSON, YAML, and TOML. We recommend adding as many files as possible to make your schema most robust."\n`,
+    )
 
-  console.info(`Please add the following to 'src/api/json/catalog.json':
+    console.info(`Please add the following to 'src/api/json/catalog.json':
 {
-"name": "",
-"description": "",
-"fileMatch": ["${schemaName}.yml", "${schemaName}.yaml"],
-"url": "https://json.schemastore.org/${schemaName}.json"
+  "name": "",
+  "description": "",
+  "fileMatch": ["${schemaName}.yml", "${schemaName}.yaml"],
+  "url": "https://json.schemastore.org/${schemaName}.json"
 }`)
+    process.exit(0)
+  }
 }
 
 function taskLint() {
@@ -1346,7 +1349,7 @@ function printDowngradableSchemaVersions() {
 
       ajvSelected.compile(schemaJson)
       return true
-    } catch (err) {
+    } catch {
       return false
     }
   }
@@ -1964,7 +1967,7 @@ function printStrictAndNotStrictAjvValidatedSchemas() {
 
     try {
       ajvSelected.compile(mainSchema)
-    } catch (err) {
+    } catch {
       // failed to compile in strict mode.
       schemaInNotStrictMode.push(schemaJsonName)
       return
