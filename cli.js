@@ -838,979 +838,6 @@ async function taskMaintenance() {
   printStrictAndNotStrictAjvValidatedSchemas()
 }
 
-function lintSchemaHasCorrectMetadata() {
-  let countScan = 0
-  let totalMismatchIds = 0
-  let totalIncorrectIds = 0
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        countScan++
-
-        /**
-         * Old JSON Schema specification versions use the "id" key for unique
-         * identifiers, rather than "$id". See for details:
-         * https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier
-         */
-        const schemasWithDollarlessId = [
-          'http://json-schema.org/draft-03/schema#',
-          'http://json-schema.org/draft-04/schema#',
-        ]
-
-        if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
-          if (schema.jsonObj.$id) {
-            log.error(
-              `Bad property of '$id'; expected 'id' for this schema version`,
-            )
-            ++totalMismatchIds
-            return
-          }
-
-          if (
-            schema.jsonObj.id !==
-            `https://json.schemastore.org/${schema.jsonName}`
-          ) {
-            log.error(
-              `Incorrect property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
-            )
-            console.warn(
-              `     expected value: https://json.schemastore.org/${schema.jsonName}`,
-            )
-            console.warn(`     found value   : ${schema.jsonObj.id}`)
-            ++totalIncorrectIds
-          }
-        } else {
-          if (schema.jsonObj.id) {
-            log.error(
-              `Bad property of 'id'; expected '$id' for this schema version`,
-            )
-            ++totalMismatchIds
-            return
-          }
-
-          if (
-            schema.jsonObj.$id !==
-            `https://json.schemastore.org/${schema.jsonName}`
-          ) {
-            log.error(
-              `Incorrect property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
-            )
-            console.warn(
-              `     expected value: https://json.schemastore.org/${schema.jsonName}`,
-            )
-            console.warn(`     found value   : ${schema.jsonObj.$id}`)
-            ++totalIncorrectIds
-          }
-        }
-      },
-    },
-    {
-      fullScanAllFiles: true,
-      skipReadFile: false,
-    },
-  )
-  log.ok(`Total mismatched ids: ${totalMismatchIds}`)
-  log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
-  log.ok(`Total files scan: ${countScan}`)
-}
-
-function lintSchemaNoSmartQuotes() {
-  let countScan = 0
-
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        countScan++
-        const buffer = schema.rawFile
-        const bufferArr = buffer.toString().split('\n')
-
-        for (let i = 0; i < bufferArr.length; ++i) {
-          const line = bufferArr[i]
-
-          const smartQuotes = ['‘', '’', '“', '”']
-          for (const quote of smartQuotes) {
-            if (line.includes(quote)) {
-              log.error(
-                `Schema file should not have a smart quote: ${
-                  schema.urlOrFilePath
-                }:${++i}`,
-              )
-            }
-          }
-        }
-      },
-    },
-    { fullScanAllFiles: true, skipReadFile: false },
-  )
-
-  log.writeln(`Total files scan: ${countScan}`)
-}
-
-function assertCatalogJsonHasNoPoorlyWordedFields() {
-  let countScan = 0
-
-  for (const entry of catalog.schemas) {
-    if (
-      schemaValidation.catalogEntryNoLintNameOrDescription.includes(entry.url)
-    ) {
-      continue
-    }
-
-    const schemaName = new URL(entry.url).pathname.slice(1)
-
-    for (const property of ['name', 'description']) {
-      if (
-        /$[,. \t-]/u.test(entry?.[property]) ||
-        /[,. \t-]$/u.test(entry?.[property])
-      ) {
-        ++countScan
-
-        throwWithErrorText([
-          `Catalog entry .${property}: Should not start or end with punctuation or whitespace (${schemaName})`,
-        ])
-      }
-    }
-
-    for (const property of ['name', 'description']) {
-      if (entry?.[property]?.toLowerCase()?.includes('schema')) {
-        ++countScan
-
-        throwWithErrorText([
-          `Catalog entry .${property}: Should not contain the string 'schema'. In most cases, this word is extraneous and the meaning is implied (${schemaName})`,
-        ])
-      }
-    }
-
-    for (const property of ['name', 'description']) {
-      if (entry?.[property]?.toLowerCase()?.includes('\n')) {
-        ++countScan
-
-        throwWithErrorText([
-          `Catalog entry .${property}: Should not contain a newline character. In editors like VSCode, the newline is not rendered. (${schemaName})`,
-        ])
-      }
-    }
-  }
-
-  log.writeln(`Total found files: ${countScan}`)
-}
-
-function testAjv() {
-  const x = ajv()
-  localSchemaFileAndTestFile(
-    {
-      schemaForTestScan: x.testSchemaFile,
-      positiveTestScan: x.positiveTestFile,
-      negativeTestScan: x.negativeTestFile,
-      schemaForTestScanDone: x.testSchemaFileDone,
-    },
-    { skipReadFile: false },
-  )
-  log.ok('local AJV schema passed')
-}
-
-async function remoteTestAjv() {
-  const x = ajv()
-  let countScan = 0
-  await remoteSchemaFile((testSchemaFile) => {
-    x.testSchemaFile(testSchemaFile)
-    countScan++
-  })
-  log.writeln()
-  log.writeln(`Total schemas validated with AJV: ${countScan}`)
-}
-
-function assertSchemaHasNoBom() {
-  let countScan = 0
-
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        countScan++
-        testSchemaFileForBOM(schema)
-      },
-    },
-    { fullScanAllFiles: true, skipReadFile: false },
-  )
-
-  log.ok(
-    `no BOM file found in all schema files. Total files scan: ${countScan}`,
-  )
-}
-
-async function remoteAssertSchemaHasNoBom() {
-  await remoteSchemaFile(testSchemaFileForBOM, false)
-}
-
-async function assertCatalogJsonPassesJsonLint() {
-  jsonlint.parse(
-    await fs.promises.readFile('./src/api/json/catalog.json', 'utf-8'),
-    {
-      ignoreBOM: false,
-      ignoreComments: false,
-      ignoreTrailingCommas: false,
-      allowSingleQuotedStrings: false,
-      allowDuplicateObjectKeys: false,
-    },
-  )
-}
-
-function assertCatalogJsonValidatesAgainstJsonSchema() {
-  const catalogSchema = readJsonFile(
-    path.join(schemaDir, 'schema-catalog.json'),
-  )
-  const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
-  if (ajvInstance.validate(catalogSchema, catalog)) {
-    log.ok('catalog.json OK')
-  } else {
-    throwWithErrorText([
-      `(Schema file) keywordLocation: ${ajvInstance.errors[0].schemaPath}`,
-      `(Catalog file) instanceLocation: ${ajvInstance.errors[0].instancePath}`,
-      `(message) instanceLocation: ${ajvInstance.errors[0].message}`,
-      '"Catalog ERROR"',
-    ])
-  }
-}
-
-function assertSchemaHasNoDuplicatedPropertyKeys() {
-  let countScan = 0
-  const findDuplicatedProperty = (/** @type {Schema} */ schema) => {
-    ++countScan
-
-    // Can only test JSON files for duplicates.
-    const fileExtension = schema.urlOrFilePath.split('.').pop()
-    if (fileExtension !== 'json') return
-
-    // TODO: Workaround for https://github.com/prantlf/jsonlint/issues/23
-    if (schema.jsonName === 'tslint.json') {
-      return
-    }
-
-    try {
-      jsonlint.parse(schema.rawFile, {
-        ignoreBOM: false,
-        ignoreComments: false,
-        ignoreTrailingCommas: false,
-        allowSingleQuotedStrings: false,
-        allowDuplicateObjectKeys: false,
-      })
-    } catch (err) {
-      throwWithErrorText([`Test file: ${schema.urlOrFilePath}`, err])
-    }
-  }
-  localSchemaFileAndTestFile(
-    {
-      schemaForTestScan: findDuplicatedProperty,
-      positiveTestScan: findDuplicatedProperty,
-      negativeTestScan: findDuplicatedProperty,
-    },
-    { skipReadFile: false },
-  )
-  log.ok(
-    `No duplicated property key found in JSON files. Total files scan: ${countScan}`,
-  )
-}
-
-function lintTopLevelRefIsStandalone() {
-  let countScan = 0
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        if (schema.jsonObj.$ref?.startsWith('http')) {
-          for (const [member] of Object.entries(schema.jsonObj)) {
-            if (member !== '$ref') {
-              throwWithErrorText([
-                `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${schema.jsonName}`,
-              ])
-            }
-          }
-        }
-
-        ++countScan
-      },
-    },
-    { skipReadFile: false, ignoreSkiptest: true },
-  )
-
-  log.ok(`All urls tested OK. Total: ${countScan}`)
-}
-
-function assertCatalogJsonLocalUrlsMustRefFile() {
-  const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
-  let countScan = 0
-
-  getUrlFromCatalog((catalogUrl) => {
-    const SchemaStoreHost = 'json.schemastore.org'
-    // URL host that does not have SchemaStoreHost is an external schema.local_assert_catalog.json_local_url_must_ref_file
-    const URLcheck = new URL(catalogUrl)
-    if (!SchemaStoreHost.includes(URLcheck.host)) {
-      // This is an external schema.
-      return
-    }
-    countScan++
-    // Check if local URLs have .json extension
-    const filenameMustBeAtThisUrlDepthPosition = 3
-    const filename = catalogUrl.split('/')[filenameMustBeAtThisUrlDepthPosition]
-    if (!filename?.endsWith('.json')) {
-      throwWithErrorText([
-        `Wrong: ${catalogUrl} Missing ".json" extension.`,
-        `Must be in this format: ${urlRecommendation}`,
-      ])
-    }
-    // Check if schema file exist or not.
-    if (fs.existsSync(path.resolve('.', schemaDir, filename)) === false) {
-      throwWithErrorText([
-        `The catalog have this URL: ${catalogUrl}`,
-        `But there is no schema file present: ${filename}`,
-      ])
-    }
-  })
-  log.ok(`All local url tested OK. Total: ${countScan}`)
-}
-
-function assertCatalogJsonIncludesAllSchemas() {
-  let countScan = 0
-  const allCatalogLocalJsonFiles = []
-
-  // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
-  getUrlFromCatalog((catalogUrl) => {
-    // No need to validate the local URL correctness. It is already done in "local_assert_catalog.json_local_url_must_ref_file"
-    // Only scan for local schema.
-    if (catalogUrl.startsWith(urlSchemaStore)) {
-      const filename = catalogUrl.split('/').pop()
-      allCatalogLocalJsonFiles.push(filename)
-    }
-  })
-
-  // Check if allCatalogLocalJsonFiles[] have the actual schema filename.
-  const schemaFileCompare = (x) => {
-    // skip testing if present in "missingCatalogUrl"
-    if (!schemaValidation.missingCatalogUrl.includes(x.jsonName)) {
-      countScan++
-      const found = allCatalogLocalJsonFiles.includes(x.jsonName)
-      if (!found) {
-        throwWithErrorText([
-          'Schema file name must be present in the catalog URL.',
-          `${x.jsonName} must be present in src/api/json/catalog.json`,
-        ])
-      }
-    }
-  }
-  // Get all the JSON files for AJV
-  localSchemaFileAndTestFile(
-    { schemaOnlyScan: schemaFileCompare },
-    { fullScanAllFiles: true },
-  )
-  log.ok(`All local schema files have URL link in catalog. Total: ${countScan}`)
-}
-
-function assertCatalogJsonHasNoFileMatchConflict() {
-  const fileMatchConflict = schemaValidation.fileMatchConflict
-  let fileMatchCollection = []
-  // Collect all the "fileMatch" and put it in fileMatchCollection[]
-  for (const schema of catalog.schemas) {
-    const fileMatchArray = schema.fileMatch
-    if (fileMatchArray) {
-      // Check if this is already present in the "fileMatchConflict" list. If so then remove it from filtered[]
-      const filtered = fileMatchArray.filter((fileMatch) => {
-        return !fileMatchConflict.includes(fileMatch)
-      })
-      // Check if fileMatch is already present in the fileMatchCollection[]
-      filtered.forEach((fileMatch) => {
-        if (fileMatchCollection.includes(fileMatch)) {
-          throwWithErrorText([`Duplicate fileMatch found => ${fileMatch}`])
-        }
-      })
-      fileMatchCollection = fileMatchCollection.concat(filtered)
-    }
-  }
-  log.ok('No new fileMatch conflict detected.')
-}
-
-function assertCatalogJsonHasCorrectFileMatchPath() {
-  for (const schema of catalog.schemas) {
-    schema.fileMatch?.forEach((fileMatchItem) => {
-      if (fileMatchItem.includes('/')) {
-        // A folder must start with **/
-        if (!fileMatchItem.startsWith('**/')) {
-          throwWithErrorText([
-            `fileMatch with directory must start with "**/" => ${fileMatchItem}`,
-          ])
-        }
-      }
-    })
-  }
-  log.ok('fileMatch path OK')
-}
-
-function assertFilenamesHaveCorrectExtensions() {
-  const schemaFileExtension = ['.json']
-  const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
-  let countScan = 0
-  const x = (data, fileExtensionList) => {
-    countScan++
-    const found = fileExtensionList.find((x) => data.jsonName.endsWith(x))
-    if (!found) {
-      throwWithErrorText([
-        `Filename must have ${fileExtensionList} extension => ${data.urlOrFilePath}`,
-      ])
-    }
-  }
-  localSchemaFileAndTestFile(
-    {
-      schemaForTestScan: (schema) => x(schema, schemaFileExtension),
-      positiveTestScan: (schema) => x(schema, testFileExtension),
-      negativeTestScan: (schema) => x(schema, testFileExtension),
-    },
-    {
-      fullScanAllFiles: true,
-    },
-  )
-  log.ok(
-    `All schema and test filename have the correct file extension. Total files scan: ${countScan}`,
-  )
-}
-
-function printSchemasWithoutPositiveTestFiles() {
-  let countMissingTest = 0
-  // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
-  schemasToBeTested.forEach((schemaFileName) => {
-    if (!foldersPositiveTest.includes(schemaFileName.replace('.json', ''))) {
-      countMissingTest++
-      log.ok(`(No positive test file present): ${schemaFileName}`)
-    }
-  })
-  if (countMissingTest > 0) {
-    const percent = (countMissingTest / schemasToBeTested.length) * 100
-    log.writeln()
-    log.writeln(`${Math.round(percent)}% of schemas do not have tests.`)
-    log.ok(
-      `Schemas that have no positive test files. Total files: ${countMissingTest}`,
-    )
-  } else {
-    log.ok('All schemas have positive test')
-  }
-}
-
-function assertDirectoryStructureIsValid() {
-  schemasToBeTested.forEach((name) => {
-    if (
-      !skipThisFileName(name) &&
-      !fs.lstatSync(path.join(schemaDir, name)).isFile()
-    ) {
-      throwWithErrorText([
-        `There can only be files in directory : ${schemaDir} => ${name}`,
-      ])
-    }
-  })
-
-  foldersPositiveTest.forEach((name) => {
-    if (
-      !skipThisFileName(name) &&
-      !fs.lstatSync(path.join(testPositiveDir, name)).isDirectory()
-    ) {
-      throwWithErrorText([
-        `There can only be directory's in :${testPositiveDir} => ${name}`,
-      ])
-    }
-  })
-
-  foldersNegativeTest.forEach((name) => {
-    if (
-      !skipThisFileName(name) &&
-      !fs.lstatSync(path.join(testNegativeDir, name)).isDirectory()
-    ) {
-      throwWithErrorText([
-        `There can only be directory's in :${testNegativeDir} => ${name}`,
-      ])
-    }
-  })
-  log.ok('OK')
-}
-
-function printDowngradableSchemaVersions() {
-  let countScan = 0
-
-  /**
-   * @param {string} schemaJson
-   * @param {string} schemaName
-   * @param {getOptionReturn} option
-   */
-  const validateViaAjv = (schemaJson, schemaName, option) => {
-    try {
-      const ajvSelected = factoryAJV({
-        schemaName,
-        unknownFormatsList: option.unknownFormatsList,
-        fullStrictMode: false,
-      })
-
-      // AJV must ignore these keywords
-      option.unknownKeywordsList?.forEach((x) => {
-        ajvSelected.addKeyword(x)
-      })
-
-      // Add external schema to AJV
-      option.externalSchemaWithPathList.forEach((x) => {
-        ajvSelected.addSchema(readJsonFile(x.toString()))
-      })
-
-      ajvSelected.compile(schemaJson)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  // There are no positive or negative test processes here.
-  // Only the schema files are tested.
-  const testLowerSchemaVersion = (/** @type {Schema} */ schema) => {
-    countScan++
-    let versionIndexOriginal = 0
-    const schemaJson = schema.jsonObj
-
-    const option = getOption(schema.jsonName)
-
-    // get the present schema_version
-    const schemaVersion = schemaJson.$schema
-    for (const [index, value] of SCHEMA_DIALECTS.entries()) {
-      if (schemaVersion === value.url) {
-        versionIndexOriginal = index
-        break
-      }
-    }
-
-    // start testing each schema version in a while loop.
-    let result = false
-    let recommendedIndex = versionIndexOriginal
-    let versionIndexToBeTested = versionIndexOriginal
-    do {
-      // keep trying to use the next lower schema version from the countSchemas[]
-      versionIndexToBeTested++
-      const schemaVersionToBeTested = SCHEMA_DIALECTS[versionIndexToBeTested]
-      if (!schemaVersionToBeTested?.isActive) {
-        // Can not use this schema version. And there are no more 'isActive' list item left.
-        break
-      }
-
-      // update the schema with a new alternative $schema version
-      schemaJson.$schema = schemaVersionToBeTested.url
-      // Test this new updated schema with AJV
-      result = validateViaAjv(
-        schemaJson,
-        schemaVersionToBeTested.schemaName,
-        option,
-      )
-
-      if (result) {
-        // It passes the test. So this is the new recommended index
-        recommendedIndex = versionIndexToBeTested
-      }
-      // keep in the loop till it fail the validation process.
-    } while (result)
-
-    if (recommendedIndex !== versionIndexOriginal) {
-      // found a different schema version that also work.
-      const original = SCHEMA_DIALECTS[versionIndexOriginal].schemaName
-      const recommended = SCHEMA_DIALECTS[recommendedIndex].schemaName
-      log.ok(
-        `${schema.jsonName} (${original}) is also valid with (${recommended})`,
-      )
-    }
-  }
-
-  log.writeln()
-  log.ok(
-    'Check if a lower $schema version will also pass the schema validation test',
-  )
-  localSchemaFileAndTestFile(
-    { schemaOnlyScan: testLowerSchemaVersion },
-    { skipReadFile: false },
-  )
-  log.writeln()
-  log.ok(`Total files scan: ${countScan}`)
-}
-
-function printCountSchemaVersions() {
-  const x = showSchemaVersions()
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan: x.process_data,
-      schemaOnlyScanDone: x.process_data_done,
-    },
-    {
-      fullScanAllFiles: true,
-      skipReadFile: false,
-    },
-  )
-}
-
-async function remotePrintCountSchemaVersions() {
-  const x = showSchemaVersions()
-  await remoteSchemaFile((schema) => {
-    x.process_data(schema)
-  }, false)
-  x.process_data_done()
-}
-
-function assertSchemaHasValidIdField() {
-  let countScan = 0
-
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        countScan++
-
-        let schemaId = ''
-        const schemasWithDollarlessId = [
-          'http://json-schema.org/draft-03/schema#',
-          'http://json-schema.org/draft-04/schema#',
-        ]
-        if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
-          if (schema.jsonObj.id === undefined) {
-            throwWithErrorText([
-              `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
-            ])
-          }
-          schemaId = schema.jsonObj.id
-        } else {
-          if (schema.jsonObj.$id === undefined) {
-            throwWithErrorText([
-              `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
-            ])
-          }
-          schemaId = schema.jsonObj.$id
-        }
-
-        if (
-          !schemaId.startsWith('https://') &&
-          !schemaId.startsWith('http://')
-        ) {
-          throwWithErrorText([
-            schemaId,
-            `Schema id/$id must begin with 'https://' or 'http://' for schema 'src/schemas/json/${schema.jsonName}'`,
-          ])
-        }
-      },
-    },
-    {
-      fullScanAllFiles: true,
-      skipReadFile: false,
-    },
-  )
-
-  log.ok(`Total files scan: ${countScan}`)
-}
-
-function assertSchemaHasValidSchemaField() {
-  let countScan = 0
-
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        countScan++
-
-        const validSchemas = SCHEMA_DIALECTS.map(
-          (schemaDialect) => schemaDialect.url,
-        )
-        if (!validSchemas.includes(schema.jsonObj.$schema)) {
-          throwWithErrorText([
-            `Schema file has invalid or missing '$schema' keyword => ${schema.jsonName}`,
-            `Valid schemas: ${JSON.stringify(validSchemas)}`,
-          ])
-        }
-
-        if (!schemaValidation.highSchemaVersion.includes(schema.jsonName)) {
-          const tooHighSchemas = SCHEMA_DIALECTS.filter(
-            (schemaDialect) => schemaDialect.isTooHigh,
-          ).map((schemaDialect) => schemaDialect.url)
-          if (tooHighSchemas.includes(schema.jsonObj.$schema)) {
-            throwWithErrorText([
-              `Schema version is too high => in file ${schema.jsonName}`,
-              `Schema version '${schema.jsonObj.$schema}' is not supported by many editors and IDEs`,
-              `${schema.jsonName} must use a lower schema version.`,
-            ])
-          }
-        }
-      },
-    },
-    {
-      fullScanAllFiles: true,
-      skipReadFile: false,
-    },
-  )
-
-  log.ok(`Total files scan: ${countScan}`)
-}
-
-function assertSchemaPassesSchemaSafeLint() {
-  if (!argv.lint) {
-    return
-  }
-  let countScan = 0
-  localSchemaFileAndTestFile(
-    {
-      schemaOnlyScan(schema) {
-        countScan++
-
-        const errors = schemasafe.lint(schema.jsonObj, {
-          mode: 'strong',
-        })
-        for (const e of errors) {
-          console.log(`${schema.jsonName}: ${e.message}`)
-        }
-      },
-    },
-    {
-      fullScanAllFiles: true,
-      skipReadFile: false,
-    },
-  )
-  log.ok(`Total files scan: ${countScan}`)
-}
-
-function assertSchemaValidationHasNoDuplicateLists() {
-  function checkForDuplicateInList(list, listName) {
-    if (list) {
-      if (new Set(list).size !== list.length) {
-        throwWithErrorText([`Duplicate item found in ${listName}`])
-      }
-    }
-  }
-  checkForDuplicateInList(
-    schemaValidation.ajvNotStrictMode,
-    'ajvNotStrictMode[]',
-  )
-  checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
-  checkForDuplicateInList(
-    schemaValidation.missingCatalogUrl,
-    'missingCatalogUrl[]',
-  )
-  checkForDuplicateInList(
-    schemaValidation.catalogEntryNoLintNameOrDescription,
-    'catalogEntryNoLintNameOrDescription[]',
-  )
-  checkForDuplicateInList(
-    schemaValidation.fileMatchConflict,
-    'fileMatchConflict[]',
-  )
-  checkForDuplicateInList(
-    schemaValidation.highSchemaVersion,
-    'highSchemaVersion[]',
-  )
-
-  // Check for duplicate in options[]
-  const checkList = []
-  for (const schemaName in schemaValidation.options) {
-    if (checkList.includes(schemaName)) {
-      throwWithErrorText([
-        `Duplicate schema name found in options[] schema-validation.json => ${schemaName}`,
-      ])
-    }
-    // Check for all values inside one option object
-    const optionValues = schemaValidation.options[schemaName]
-    checkForDuplicateInList(
-      optionValues?.unknownKeywords,
-      `${schemaName} unknownKeywords[]`,
-    )
-    checkForDuplicateInList(
-      optionValues?.unknownFormat,
-      `${schemaName} unknownFormat[]`,
-    )
-    checkForDuplicateInList(
-      optionValues?.externalSchema,
-      `${schemaName} externalSchema[]`,
-    )
-    checkList.push(schemaName)
-  }
-
-  log.ok('OK')
-}
-
-function assertCatalogJsonHasNoDuplicateNames() {
-  /** @type {string[]} */
-  const schemaNames = catalog.schemas.map((entry) => entry.name)
-  /** @type {string[]} */
-  const duplicateSchemaNames = []
-
-  for (const schemaName of schemaNames) {
-    const matches = schemaNames.filter((item) => item === schemaName)
-    if (matches.length > 1 && !duplicateSchemaNames.includes(schemaName)) {
-      duplicateSchemaNames.push(schemaName)
-    }
-  }
-
-  if (duplicateSchemaNames.length > 0) {
-    throwWithErrorText([
-      `Found duplicates: ${JSON.stringify(duplicateSchemaNames)}`,
-    ])
-  }
-}
-
-function assertTestFoldersHaveAtLeastOneTestSchema() {
-  let countTestFolders = 0
-  const x = (listFolders) => {
-    listFolders.forEach((folderName) => {
-      if (!skipThisFileName(folderName)) {
-        countTestFolders++
-        if (!schemasToBeTested.includes(folderName + '.json')) {
-          throwWithErrorText([
-            `No schema ${folderName}.json found for test folder => ${folderName}`,
-          ])
-        }
-      }
-    })
-  }
-  x(foldersPositiveTest)
-  x(foldersNegativeTest)
-  log.ok(`Total test folders: ${countTestFolders}`)
-}
-
-function printUrlCountsInCatalog() {
-  let countScanURLExternal = 0
-  let countScanURLInternal = 0
-  getUrlFromCatalog((catalogUrl) => {
-    catalogUrl.startsWith(urlSchemaStore)
-      ? countScanURLInternal++
-      : countScanURLExternal++
-  })
-  const totalCount = countScanURLExternal + countScanURLInternal
-  const percentExternal = (countScanURLExternal / totalCount) * 100
-  log.ok(`${countScanURLInternal} SchemaStore URL`)
-  log.ok(
-    `${countScanURLExternal} External URL (${Math.round(percentExternal)}%)`,
-  )
-  log.ok(`${totalCount} Total URL`)
-}
-
-function printSchemasTestedInFullStrictMode() {
-  let countSchemaScanViaAJV = 0
-  localSchemaFileAndTestFile({
-    schemaOnlyScan() {
-      countSchemaScanViaAJV++
-    },
-  })
-  // If only ONE AJV schema test is run then this calculation does not work.
-  if (countSchemaScanViaAJV !== 1) {
-    const countFullStrictSchema =
-      countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
-    const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
-    log.ok(
-      'Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.',
-    )
-    log.ok(
-      `${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(
-        percent,
-      )}%)`,
-    )
-  }
-}
-
-function assertSchemaValidationJsonHasNoMissingSchemaFiles() {
-  let countSchemaValidationItems = 0
-  const x = (list) => {
-    list.forEach((schemaName) => {
-      if (schemaName.endsWith('.json')) {
-        countSchemaValidationItems++
-        if (!schemasToBeTested.includes(schemaName)) {
-          throwWithErrorText([
-            `No schema ${schemaName} found in schema folder => ${schemaDir}`,
-          ])
-        }
-      }
-    })
-  }
-  x(schemaValidation.ajvNotStrictMode)
-  x(schemaValidation.skiptest)
-  x(schemaValidation.missingCatalogUrl)
-  x(schemaValidation.highSchemaVersion)
-
-  for (const schemaName in schemaValidation.options) {
-    if (schemaName !== 'readme_example.json') {
-      countSchemaValidationItems++
-      if (!schemasToBeTested.includes(schemaName)) {
-        throwWithErrorText([
-          `No schema ${schemaName} found in schema folder => ${schemaDir}`,
-        ])
-      }
-    }
-  }
-  log.ok(
-    `Total schema-validation.json items check: ${countSchemaValidationItems}`,
-  )
-}
-
-function assertSchemaValidationJsonHasNoUnmatchedUrls() {
-  let totalItems = 0
-
-  const x = (/** @type {string[]} */ schemaUrls) => {
-    schemaUrls.forEach((schemaUrl) => {
-      ++totalItems
-
-      const catalogUrls = catalog.schemas.map((item) => item.url)
-      if (!catalogUrls.includes(schemaUrl)) {
-        throwWithErrorText([
-          `No schema with URL '${schemaUrl}' found in catalog.json`,
-        ])
-      }
-    })
-  }
-
-  x(schemaValidation.catalogEntryNoLintNameOrDescription)
-
-  log.ok(`Total schema-validation.json items checked: ${totalItems}`)
-}
-
-function assertSchemaValidationJsonHasValidSkipTest() {
-  let countSchemaValidationItems = 0
-  const x = (list, listName) => {
-    list.forEach((schemaName) => {
-      if (schemaName.endsWith('.json')) {
-        countSchemaValidationItems++
-        if (schemaValidation.skiptest.includes(schemaName)) {
-          throwWithErrorText([
-            `Disabled/skiptest[] schema: ${schemaName} found in => ${listName}[]`,
-          ])
-        }
-      }
-    })
-  }
-  x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
-  x(schemaValidation.missingCatalogUrl, 'missingCatalogUrl')
-  x(schemaValidation.highSchemaVersion, 'highSchemaVersion')
-
-  for (const schemaName in schemaValidation.options) {
-    if (schemaName !== 'readme_example.json') {
-      countSchemaValidationItems++
-      if (schemaValidation.skiptest.includes(schemaName)) {
-        throwWithErrorText([
-          `Disabled/skiptest[] schema: ${schemaName} found in => options[]`,
-        ])
-      }
-    }
-  }
-
-  // Test folder must not exist if defined in skiptest[]
-  schemaValidation.skiptest.forEach((schemaName) => {
-    countSchemaValidationItems++
-
-    const folderName = schemaName.replace('.json', '')
-
-    if (foldersPositiveTest.includes(folderName)) {
-      throwWithErrorText([
-        `Disabled/skiptest[] schema: ${schemaName} cannot have positive test folder`,
-      ])
-    }
-    if (foldersNegativeTest.includes(folderName)) {
-      throwWithErrorText([
-        `Disabled/skiptest[] schema: ${schemaName} cannot have  negative test folder`,
-      ])
-    }
-  })
-  log.ok(
-    `Total schema-validation.json items check: ${countSchemaValidationItems}`,
-  )
-}
-
 async function taskCoverage() {
   const javaScriptCoverageName = 'schema.json.translated.to.js'
   const javaScriptCoverageNameWithPath = path.join(
@@ -1934,6 +961,833 @@ async function taskCoverage() {
   log.ok('OK')
 }
 
+function lintSchemaHasCorrectMetadata() {
+  let countScan = 0
+  let totalMismatchIds = 0
+  let totalIncorrectIds = 0
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        countScan++
+
+        /**
+         * Old JSON Schema specification versions use the "id" key for unique
+         * identifiers, rather than "$id". See for details:
+         * https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier
+         */
+        const schemasWithDollarlessId = [
+          'http://json-schema.org/draft-03/schema#',
+          'http://json-schema.org/draft-04/schema#',
+        ]
+
+        if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
+          if (schema.jsonObj.$id) {
+            log.error(
+              `Bad property of '$id'; expected 'id' for this schema version`,
+            )
+            ++totalMismatchIds
+            return
+          }
+
+          if (
+            schema.jsonObj.id !==
+            `https://json.schemastore.org/${schema.jsonName}`
+          ) {
+            log.error(
+              `Incorrect property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
+            )
+            console.warn(
+              `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+            )
+            console.warn(`     found value   : ${schema.jsonObj.id}`)
+            ++totalIncorrectIds
+          }
+        } else {
+          if (schema.jsonObj.id) {
+            log.error(
+              `Bad property of 'id'; expected '$id' for this schema version`,
+            )
+            ++totalMismatchIds
+            return
+          }
+
+          if (
+            schema.jsonObj.$id !==
+            `https://json.schemastore.org/${schema.jsonName}`
+          ) {
+            log.error(
+              `Incorrect property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
+            )
+            console.warn(
+              `     expected value: https://json.schemastore.org/${schema.jsonName}`,
+            )
+            console.warn(`     found value   : ${schema.jsonObj.$id}`)
+            ++totalIncorrectIds
+          }
+        }
+      },
+    },
+    {
+      fullScanAllFiles: true,
+      skipReadFile: false,
+    },
+  )
+  log.ok(`Total mismatched ids: ${totalMismatchIds}`)
+  log.ok(`Total incorrect ids: ${totalIncorrectIds}`)
+  log.ok(`Total files scan: ${countScan}`)
+}
+
+function lintSchemaNoSmartQuotes() {
+  let countScan = 0
+
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        countScan++
+        const buffer = schema.rawFile
+        const bufferArr = buffer.toString().split('\n')
+
+        for (let i = 0; i < bufferArr.length; ++i) {
+          const line = bufferArr[i]
+
+          const smartQuotes = ['‘', '’', '“', '”']
+          for (const quote of smartQuotes) {
+            if (line.includes(quote)) {
+              log.error(
+                `Schema file should not have a smart quote: ${
+                  schema.urlOrFilePath
+                }:${++i}`,
+              )
+            }
+          }
+        }
+      },
+    },
+    { fullScanAllFiles: true, skipReadFile: false },
+  )
+
+  log.writeln(`Total files scan: ${countScan}`)
+}
+
+function lintTopLevelRefIsStandalone() {
+  let countScan = 0
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        if (schema.jsonObj.$ref?.startsWith('http')) {
+          for (const [member] of Object.entries(schema.jsonObj)) {
+            if (member !== '$ref') {
+              throwWithErrorText([
+                `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${schema.jsonName}`,
+              ])
+            }
+          }
+        }
+
+        ++countScan
+      },
+    },
+    { skipReadFile: false, ignoreSkiptest: true },
+  )
+
+  log.ok(`All urls tested OK. Total: ${countScan}`)
+}
+
+function testAjv() {
+  const x = ajv()
+  localSchemaFileAndTestFile(
+    {
+      schemaForTestScan: x.testSchemaFile,
+      positiveTestScan: x.positiveTestFile,
+      negativeTestScan: x.negativeTestFile,
+      schemaForTestScanDone: x.testSchemaFileDone,
+    },
+    { skipReadFile: false },
+  )
+  log.ok('local AJV schema passed')
+}
+
+async function remoteTestAjv() {
+  const x = ajv()
+  let countScan = 0
+  await remoteSchemaFile((testSchemaFile) => {
+    x.testSchemaFile(testSchemaFile)
+    countScan++
+  })
+  log.writeln()
+  log.writeln(`Total schemas validated with AJV: ${countScan}`)
+}
+
+async function remoteAssertSchemaHasNoBom() {
+  await remoteSchemaFile(testSchemaFileForBOM, false)
+}
+
+async function remotePrintCountSchemaVersions() {
+  const x = showSchemaVersions()
+  await remoteSchemaFile((schema) => {
+    x.process_data(schema)
+  }, false)
+  x.process_data_done()
+}
+
+async function assertCatalogJsonPassesJsonLint() {
+  jsonlint.parse(
+    await fs.promises.readFile('./src/api/json/catalog.json', 'utf-8'),
+    {
+      ignoreBOM: false,
+      ignoreComments: false,
+      ignoreTrailingCommas: false,
+      allowSingleQuotedStrings: false,
+      allowDuplicateObjectKeys: false,
+    },
+  )
+}
+
+function assertCatalogJsonValidatesAgainstJsonSchema() {
+  const catalogSchema = readJsonFile(
+    path.join(schemaDir, 'schema-catalog.json'),
+  )
+  const ajvInstance = factoryAJV({ schemaName: 'draft-04' })
+  if (ajvInstance.validate(catalogSchema, catalog)) {
+    log.ok('catalog.json OK')
+  } else {
+    throwWithErrorText([
+      `(Schema file) keywordLocation: ${ajvInstance.errors[0].schemaPath}`,
+      `(Catalog file) instanceLocation: ${ajvInstance.errors[0].instancePath}`,
+      `(message) instanceLocation: ${ajvInstance.errors[0].message}`,
+      '"Catalog ERROR"',
+    ])
+  }
+}
+
+function assertCatalogJsonHasNoDuplicateNames() {
+  /** @type {string[]} */
+  const schemaNames = catalog.schemas.map((entry) => entry.name)
+  /** @type {string[]} */
+  const duplicateSchemaNames = []
+
+  for (const schemaName of schemaNames) {
+    const matches = schemaNames.filter((item) => item === schemaName)
+    if (matches.length > 1 && !duplicateSchemaNames.includes(schemaName)) {
+      duplicateSchemaNames.push(schemaName)
+    }
+  }
+
+  if (duplicateSchemaNames.length > 0) {
+    throwWithErrorText([
+      `Found duplicates: ${JSON.stringify(duplicateSchemaNames)}`,
+    ])
+  }
+}
+
+function assertCatalogJsonHasNoPoorlyWordedFields() {
+  let countScan = 0
+
+  for (const entry of catalog.schemas) {
+    if (
+      schemaValidation.catalogEntryNoLintNameOrDescription.includes(entry.url)
+    ) {
+      continue
+    }
+
+    const schemaName = new URL(entry.url).pathname.slice(1)
+
+    for (const property of ['name', 'description']) {
+      if (
+        /$[,. \t-]/u.test(entry?.[property]) ||
+        /[,. \t-]$/u.test(entry?.[property])
+      ) {
+        ++countScan
+
+        throwWithErrorText([
+          `Catalog entry .${property}: Should not start or end with punctuation or whitespace (${schemaName})`,
+        ])
+      }
+    }
+
+    for (const property of ['name', 'description']) {
+      if (entry?.[property]?.toLowerCase()?.includes('schema')) {
+        ++countScan
+
+        throwWithErrorText([
+          `Catalog entry .${property}: Should not contain the string 'schema'. In most cases, this word is extraneous and the meaning is implied (${schemaName})`,
+        ])
+      }
+    }
+
+    for (const property of ['name', 'description']) {
+      if (entry?.[property]?.toLowerCase()?.includes('\n')) {
+        ++countScan
+
+        throwWithErrorText([
+          `Catalog entry .${property}: Should not contain a newline character. In editors like VSCode, the newline is not rendered. (${schemaName})`,
+        ])
+      }
+    }
+  }
+
+  log.writeln(`Total found files: ${countScan}`)
+}
+
+function assertCatalogJsonHasCorrectFileMatchPath() {
+  for (const schema of catalog.schemas) {
+    schema.fileMatch?.forEach((fileMatchItem) => {
+      if (fileMatchItem.includes('/')) {
+        // A folder must start with **/
+        if (!fileMatchItem.startsWith('**/')) {
+          throwWithErrorText([
+            `fileMatch with directory must start with "**/" => ${fileMatchItem}`,
+          ])
+        }
+      }
+    })
+  }
+  log.ok('fileMatch path OK')
+}
+
+function assertCatalogJsonHasNoFileMatchConflict() {
+  const fileMatchConflict = schemaValidation.fileMatchConflict
+  let fileMatchCollection = []
+  // Collect all the "fileMatch" and put it in fileMatchCollection[]
+  for (const schema of catalog.schemas) {
+    const fileMatchArray = schema.fileMatch
+    if (fileMatchArray) {
+      // Check if this is already present in the "fileMatchConflict" list. If so then remove it from filtered[]
+      const filtered = fileMatchArray.filter((fileMatch) => {
+        return !fileMatchConflict.includes(fileMatch)
+      })
+      // Check if fileMatch is already present in the fileMatchCollection[]
+      filtered.forEach((fileMatch) => {
+        if (fileMatchCollection.includes(fileMatch)) {
+          throwWithErrorText([`Duplicate fileMatch found => ${fileMatch}`])
+        }
+      })
+      fileMatchCollection = fileMatchCollection.concat(filtered)
+    }
+  }
+  log.ok('No new fileMatch conflict detected.')
+}
+
+function assertCatalogJsonLocalUrlsMustRefFile() {
+  const urlRecommendation = 'https://json.schemastore.org/<schemaName>.json'
+  let countScan = 0
+
+  getUrlFromCatalog((catalogUrl) => {
+    const SchemaStoreHost = 'json.schemastore.org'
+    // URL host that does not have SchemaStoreHost is an external schema.local_assert_catalog.json_local_url_must_ref_file
+    const URLcheck = new URL(catalogUrl)
+    if (!SchemaStoreHost.includes(URLcheck.host)) {
+      // This is an external schema.
+      return
+    }
+    countScan++
+    // Check if local URLs have .json extension
+    const filenameMustBeAtThisUrlDepthPosition = 3
+    const filename = catalogUrl.split('/')[filenameMustBeAtThisUrlDepthPosition]
+    if (!filename?.endsWith('.json')) {
+      throwWithErrorText([
+        `Wrong: ${catalogUrl} Missing ".json" extension.`,
+        `Must be in this format: ${urlRecommendation}`,
+      ])
+    }
+    // Check if schema file exist or not.
+    if (fs.existsSync(path.resolve('.', schemaDir, filename)) === false) {
+      throwWithErrorText([
+        `The catalog have this URL: ${catalogUrl}`,
+        `But there is no schema file present: ${filename}`,
+      ])
+    }
+  })
+  log.ok(`All local url tested OK. Total: ${countScan}`)
+}
+
+function assertCatalogJsonIncludesAllSchemas() {
+  let countScan = 0
+  const allCatalogLocalJsonFiles = []
+
+  // Read all the JSON file name from catalog and add it to allCatalogLocalJsonFiles[]
+  getUrlFromCatalog((catalogUrl) => {
+    // No need to validate the local URL correctness. It is already done in "local_assert_catalog.json_local_url_must_ref_file"
+    // Only scan for local schema.
+    if (catalogUrl.startsWith(urlSchemaStore)) {
+      const filename = catalogUrl.split('/').pop()
+      allCatalogLocalJsonFiles.push(filename)
+    }
+  })
+
+  // Check if allCatalogLocalJsonFiles[] have the actual schema filename.
+  const schemaFileCompare = (x) => {
+    // skip testing if present in "missingCatalogUrl"
+    if (!schemaValidation.missingCatalogUrl.includes(x.jsonName)) {
+      countScan++
+      const found = allCatalogLocalJsonFiles.includes(x.jsonName)
+      if (!found) {
+        throwWithErrorText([
+          'Schema file name must be present in the catalog URL.',
+          `${x.jsonName} must be present in src/api/json/catalog.json`,
+        ])
+      }
+    }
+  }
+  // Get all the JSON files for AJV
+  localSchemaFileAndTestFile(
+    { schemaOnlyScan: schemaFileCompare },
+    { fullScanAllFiles: true },
+  )
+  log.ok(`All local schema files have URL link in catalog. Total: ${countScan}`)
+}
+
+function assertSchemaValidationHasNoDuplicateLists() {
+  function checkForDuplicateInList(list, listName) {
+    if (list) {
+      if (new Set(list).size !== list.length) {
+        throwWithErrorText([`Duplicate item found in ${listName}`])
+      }
+    }
+  }
+  checkForDuplicateInList(
+    schemaValidation.ajvNotStrictMode,
+    'ajvNotStrictMode[]',
+  )
+  checkForDuplicateInList(schemaValidation.skiptest, 'skiptest[]')
+  checkForDuplicateInList(
+    schemaValidation.missingCatalogUrl,
+    'missingCatalogUrl[]',
+  )
+  checkForDuplicateInList(
+    schemaValidation.catalogEntryNoLintNameOrDescription,
+    'catalogEntryNoLintNameOrDescription[]',
+  )
+  checkForDuplicateInList(
+    schemaValidation.fileMatchConflict,
+    'fileMatchConflict[]',
+  )
+  checkForDuplicateInList(
+    schemaValidation.highSchemaVersion,
+    'highSchemaVersion[]',
+  )
+
+  // Check for duplicate in options[]
+  const checkList = []
+  for (const schemaName in schemaValidation.options) {
+    if (checkList.includes(schemaName)) {
+      throwWithErrorText([
+        `Duplicate schema name found in options[] schema-validation.json => ${schemaName}`,
+      ])
+    }
+    // Check for all values inside one option object
+    const optionValues = schemaValidation.options[schemaName]
+    checkForDuplicateInList(
+      optionValues?.unknownKeywords,
+      `${schemaName} unknownKeywords[]`,
+    )
+    checkForDuplicateInList(
+      optionValues?.unknownFormat,
+      `${schemaName} unknownFormat[]`,
+    )
+    checkForDuplicateInList(
+      optionValues?.externalSchema,
+      `${schemaName} externalSchema[]`,
+    )
+    checkList.push(schemaName)
+  }
+
+  log.ok('OK')
+}
+
+function assertSchemaValidationJsonHasNoMissingSchemaFiles() {
+  let countSchemaValidationItems = 0
+  const x = (list) => {
+    list.forEach((schemaName) => {
+      if (schemaName.endsWith('.json')) {
+        countSchemaValidationItems++
+        if (!schemasToBeTested.includes(schemaName)) {
+          throwWithErrorText([
+            `No schema ${schemaName} found in schema folder => ${schemaDir}`,
+          ])
+        }
+      }
+    })
+  }
+  x(schemaValidation.ajvNotStrictMode)
+  x(schemaValidation.skiptest)
+  x(schemaValidation.missingCatalogUrl)
+  x(schemaValidation.highSchemaVersion)
+
+  for (const schemaName in schemaValidation.options) {
+    if (schemaName !== 'readme_example.json') {
+      countSchemaValidationItems++
+      if (!schemasToBeTested.includes(schemaName)) {
+        throwWithErrorText([
+          `No schema ${schemaName} found in schema folder => ${schemaDir}`,
+        ])
+      }
+    }
+  }
+  log.ok(
+    `Total schema-validation.json items check: ${countSchemaValidationItems}`,
+  )
+}
+
+function assertSchemaValidationJsonHasNoUnmatchedUrls() {
+  let totalItems = 0
+
+  const x = (/** @type {string[]} */ schemaUrls) => {
+    schemaUrls.forEach((schemaUrl) => {
+      ++totalItems
+
+      const catalogUrls = catalog.schemas.map((item) => item.url)
+      if (!catalogUrls.includes(schemaUrl)) {
+        throwWithErrorText([
+          `No schema with URL '${schemaUrl}' found in catalog.json`,
+        ])
+      }
+    })
+  }
+
+  x(schemaValidation.catalogEntryNoLintNameOrDescription)
+
+  log.ok(`Total schema-validation.json items checked: ${totalItems}`)
+}
+
+function assertSchemaValidationJsonHasValidSkipTest() {
+  let countSchemaValidationItems = 0
+  const x = (list, listName) => {
+    list.forEach((schemaName) => {
+      if (schemaName.endsWith('.json')) {
+        countSchemaValidationItems++
+        if (schemaValidation.skiptest.includes(schemaName)) {
+          throwWithErrorText([
+            `Disabled/skiptest[] schema: ${schemaName} found in => ${listName}[]`,
+          ])
+        }
+      }
+    })
+  }
+  x(schemaValidation.ajvNotStrictMode, 'ajvNotStrictMode')
+  x(schemaValidation.missingCatalogUrl, 'missingCatalogUrl')
+  x(schemaValidation.highSchemaVersion, 'highSchemaVersion')
+
+  for (const schemaName in schemaValidation.options) {
+    if (schemaName !== 'readme_example.json') {
+      countSchemaValidationItems++
+      if (schemaValidation.skiptest.includes(schemaName)) {
+        throwWithErrorText([
+          `Disabled/skiptest[] schema: ${schemaName} found in => options[]`,
+        ])
+      }
+    }
+  }
+
+  // Test folder must not exist if defined in skiptest[]
+  schemaValidation.skiptest.forEach((schemaName) => {
+    countSchemaValidationItems++
+
+    const folderName = schemaName.replace('.json', '')
+
+    if (foldersPositiveTest.includes(folderName)) {
+      throwWithErrorText([
+        `Disabled/skiptest[] schema: ${schemaName} cannot have positive test folder`,
+      ])
+    }
+    if (foldersNegativeTest.includes(folderName)) {
+      throwWithErrorText([
+        `Disabled/skiptest[] schema: ${schemaName} cannot have  negative test folder`,
+      ])
+    }
+  })
+  log.ok(
+    `Total schema-validation.json items check: ${countSchemaValidationItems}`,
+  )
+}
+
+function assertTestFoldersHaveAtLeastOneTestSchema() {
+  let countTestFolders = 0
+  const x = (listFolders) => {
+    listFolders.forEach((folderName) => {
+      if (!skipThisFileName(folderName)) {
+        countTestFolders++
+        if (!schemasToBeTested.includes(folderName + '.json')) {
+          throwWithErrorText([
+            `No schema ${folderName}.json found for test folder => ${folderName}`,
+          ])
+        }
+      }
+    })
+  }
+  x(foldersPositiveTest)
+  x(foldersNegativeTest)
+  log.ok(`Total test folders: ${countTestFolders}`)
+}
+
+function assertSchemaHasNoBom() {
+  let countScan = 0
+
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        countScan++
+        testSchemaFileForBOM(schema)
+      },
+    },
+    { fullScanAllFiles: true, skipReadFile: false },
+  )
+
+  log.ok(
+    `no BOM file found in all schema files. Total files scan: ${countScan}`,
+  )
+}
+
+function assertSchemaHasNoDuplicatedPropertyKeys() {
+  let countScan = 0
+  const findDuplicatedProperty = (/** @type {Schema} */ schema) => {
+    ++countScan
+
+    // Can only test JSON files for duplicates.
+    const fileExtension = schema.urlOrFilePath.split('.').pop()
+    if (fileExtension !== 'json') return
+
+    // TODO: Workaround for https://github.com/prantlf/jsonlint/issues/23
+    if (schema.jsonName === 'tslint.json') {
+      return
+    }
+
+    try {
+      jsonlint.parse(schema.rawFile, {
+        ignoreBOM: false,
+        ignoreComments: false,
+        ignoreTrailingCommas: false,
+        allowSingleQuotedStrings: false,
+        allowDuplicateObjectKeys: false,
+      })
+    } catch (err) {
+      throwWithErrorText([`Test file: ${schema.urlOrFilePath}`, err])
+    }
+  }
+  localSchemaFileAndTestFile(
+    {
+      schemaForTestScan: findDuplicatedProperty,
+      positiveTestScan: findDuplicatedProperty,
+      negativeTestScan: findDuplicatedProperty,
+    },
+    { skipReadFile: false },
+  )
+  log.ok(
+    `No duplicated property key found in JSON files. Total files scan: ${countScan}`,
+  )
+}
+
+function assertSchemaHasValidSchemaField() {
+  let countScan = 0
+
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        countScan++
+
+        const validSchemas = SCHEMA_DIALECTS.map(
+          (schemaDialect) => schemaDialect.url,
+        )
+        if (!validSchemas.includes(schema.jsonObj.$schema)) {
+          throwWithErrorText([
+            `Schema file has invalid or missing '$schema' keyword => ${schema.jsonName}`,
+            `Valid schemas: ${JSON.stringify(validSchemas)}`,
+          ])
+        }
+
+        if (!schemaValidation.highSchemaVersion.includes(schema.jsonName)) {
+          const tooHighSchemas = SCHEMA_DIALECTS.filter(
+            (schemaDialect) => schemaDialect.isTooHigh,
+          ).map((schemaDialect) => schemaDialect.url)
+          if (tooHighSchemas.includes(schema.jsonObj.$schema)) {
+            throwWithErrorText([
+              `Schema version is too high => in file ${schema.jsonName}`,
+              `Schema version '${schema.jsonObj.$schema}' is not supported by many editors and IDEs`,
+              `${schema.jsonName} must use a lower schema version.`,
+            ])
+          }
+        }
+      },
+    },
+    {
+      fullScanAllFiles: true,
+      skipReadFile: false,
+    },
+  )
+
+  log.ok(`Total files scan: ${countScan}`)
+}
+
+function assertSchemaHasValidIdField() {
+  let countScan = 0
+
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        countScan++
+
+        let schemaId = ''
+        const schemasWithDollarlessId = [
+          'http://json-schema.org/draft-03/schema#',
+          'http://json-schema.org/draft-04/schema#',
+        ]
+        if (schemasWithDollarlessId.includes(schema.jsonObj.$schema)) {
+          if (schema.jsonObj.id === undefined) {
+            throwWithErrorText([
+              `Missing property 'id' for schema 'src/schemas/json/${schema.jsonName}'`,
+            ])
+          }
+          schemaId = schema.jsonObj.id
+        } else {
+          if (schema.jsonObj.$id === undefined) {
+            throwWithErrorText([
+              `Missing property '$id' for schema 'src/schemas/json/${schema.jsonName}'`,
+            ])
+          }
+          schemaId = schema.jsonObj.$id
+        }
+
+        if (
+          !schemaId.startsWith('https://') &&
+          !schemaId.startsWith('http://')
+        ) {
+          throwWithErrorText([
+            schemaId,
+            `Schema id/$id must begin with 'https://' or 'http://' for schema 'src/schemas/json/${schema.jsonName}'`,
+          ])
+        }
+      },
+    },
+    {
+      fullScanAllFiles: true,
+      skipReadFile: false,
+    },
+  )
+
+  log.ok(`Total files scan: ${countScan}`)
+}
+
+function assertSchemaPassesSchemaSafeLint() {
+  if (!argv.lint) {
+    return
+  }
+  let countScan = 0
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan(schema) {
+        countScan++
+
+        const errors = schemasafe.lint(schema.jsonObj, {
+          mode: 'strong',
+        })
+        for (const e of errors) {
+          console.log(`${schema.jsonName}: ${e.message}`)
+        }
+      },
+    },
+    {
+      fullScanAllFiles: true,
+      skipReadFile: false,
+    },
+  )
+  log.ok(`Total files scan: ${countScan}`)
+}
+
+function assertFilenamesHaveCorrectExtensions() {
+  const schemaFileExtension = ['.json']
+  const testFileExtension = ['.json', '.yml', '.yaml', '.toml']
+  let countScan = 0
+  const x = (data, fileExtensionList) => {
+    countScan++
+    const found = fileExtensionList.find((x) => data.jsonName.endsWith(x))
+    if (!found) {
+      throwWithErrorText([
+        `Filename must have ${fileExtensionList} extension => ${data.urlOrFilePath}`,
+      ])
+    }
+  }
+  localSchemaFileAndTestFile(
+    {
+      schemaForTestScan: (schema) => x(schema, schemaFileExtension),
+      positiveTestScan: (schema) => x(schema, testFileExtension),
+      negativeTestScan: (schema) => x(schema, testFileExtension),
+    },
+    {
+      fullScanAllFiles: true,
+    },
+  )
+  log.ok(
+    `All schema and test filename have the correct file extension. Total files scan: ${countScan}`,
+  )
+}
+
+function assertDirectoryStructureIsValid() {
+  schemasToBeTested.forEach((name) => {
+    if (
+      !skipThisFileName(name) &&
+      !fs.lstatSync(path.join(schemaDir, name)).isFile()
+    ) {
+      throwWithErrorText([
+        `There can only be files in directory : ${schemaDir} => ${name}`,
+      ])
+    }
+  })
+
+  foldersPositiveTest.forEach((name) => {
+    if (
+      !skipThisFileName(name) &&
+      !fs.lstatSync(path.join(testPositiveDir, name)).isDirectory()
+    ) {
+      throwWithErrorText([
+        `There can only be directory's in :${testPositiveDir} => ${name}`,
+      ])
+    }
+  })
+
+  foldersNegativeTest.forEach((name) => {
+    if (
+      !skipThisFileName(name) &&
+      !fs.lstatSync(path.join(testNegativeDir, name)).isDirectory()
+    ) {
+      throwWithErrorText([
+        `There can only be directory's in :${testNegativeDir} => ${name}`,
+      ])
+    }
+  })
+  log.ok('OK')
+}
+
+function printCountSchemaVersions() {
+  const x = showSchemaVersions()
+  localSchemaFileAndTestFile(
+    {
+      schemaOnlyScan: x.process_data,
+      schemaOnlyScanDone: x.process_data_done,
+    },
+    {
+      fullScanAllFiles: true,
+      skipReadFile: false,
+    },
+  )
+}
+
+function printUrlCountsInCatalog() {
+  let countScanURLExternal = 0
+  let countScanURLInternal = 0
+  getUrlFromCatalog((catalogUrl) => {
+    catalogUrl.startsWith(urlSchemaStore)
+      ? countScanURLInternal++
+      : countScanURLExternal++
+  })
+  const totalCount = countScanURLExternal + countScanURLInternal
+  const percentExternal = (countScanURLExternal / totalCount) * 100
+  log.ok(`${countScanURLInternal} SchemaStore URL`)
+  log.ok(
+    `${countScanURLExternal} External URL (${Math.round(percentExternal)}%)`,
+  )
+  log.ok(`${totalCount} Total URL`)
+}
+
 function printStrictAndNotStrictAjvValidatedSchemas() {
   const schemaVersion = showSchemaVersions()
   const schemaInFullStrictMode = []
@@ -2005,6 +1859,152 @@ function printStrictAndNotStrictAjvValidatedSchemas() {
       schemaInFullStrictMode.length + schemaInNotStrictMode.length
     }`,
   )
+}
+
+function printDowngradableSchemaVersions() {
+  let countScan = 0
+
+  /**
+   * @param {string} schemaJson
+   * @param {string} schemaName
+   * @param {getOptionReturn} option
+   */
+  const validateViaAjv = (schemaJson, schemaName, option) => {
+    try {
+      const ajvSelected = factoryAJV({
+        schemaName,
+        unknownFormatsList: option.unknownFormatsList,
+        fullStrictMode: false,
+      })
+
+      // AJV must ignore these keywords
+      option.unknownKeywordsList?.forEach((x) => {
+        ajvSelected.addKeyword(x)
+      })
+
+      // Add external schema to AJV
+      option.externalSchemaWithPathList.forEach((x) => {
+        ajvSelected.addSchema(readJsonFile(x.toString()))
+      })
+
+      ajvSelected.compile(schemaJson)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // There are no positive or negative test processes here.
+  // Only the schema files are tested.
+  const testLowerSchemaVersion = (/** @type {Schema} */ schema) => {
+    countScan++
+    let versionIndexOriginal = 0
+    const schemaJson = schema.jsonObj
+
+    const option = getOption(schema.jsonName)
+
+    // get the present schema_version
+    const schemaVersion = schemaJson.$schema
+    for (const [index, value] of SCHEMA_DIALECTS.entries()) {
+      if (schemaVersion === value.url) {
+        versionIndexOriginal = index
+        break
+      }
+    }
+
+    // start testing each schema version in a while loop.
+    let result = false
+    let recommendedIndex = versionIndexOriginal
+    let versionIndexToBeTested = versionIndexOriginal
+    do {
+      // keep trying to use the next lower schema version from the countSchemas[]
+      versionIndexToBeTested++
+      const schemaVersionToBeTested = SCHEMA_DIALECTS[versionIndexToBeTested]
+      if (!schemaVersionToBeTested?.isActive) {
+        // Can not use this schema version. And there are no more 'isActive' list item left.
+        break
+      }
+
+      // update the schema with a new alternative $schema version
+      schemaJson.$schema = schemaVersionToBeTested.url
+      // Test this new updated schema with AJV
+      result = validateViaAjv(
+        schemaJson,
+        schemaVersionToBeTested.schemaName,
+        option,
+      )
+
+      if (result) {
+        // It passes the test. So this is the new recommended index
+        recommendedIndex = versionIndexToBeTested
+      }
+      // keep in the loop till it fail the validation process.
+    } while (result)
+
+    if (recommendedIndex !== versionIndexOriginal) {
+      // found a different schema version that also work.
+      const original = SCHEMA_DIALECTS[versionIndexOriginal].schemaName
+      const recommended = SCHEMA_DIALECTS[recommendedIndex].schemaName
+      log.ok(
+        `${schema.jsonName} (${original}) is also valid with (${recommended})`,
+      )
+    }
+  }
+
+  log.writeln()
+  log.ok(
+    'Check if a lower $schema version will also pass the schema validation test',
+  )
+  localSchemaFileAndTestFile(
+    { schemaOnlyScan: testLowerSchemaVersion },
+    { skipReadFile: false },
+  )
+  log.writeln()
+  log.ok(`Total files scan: ${countScan}`)
+}
+
+function printSchemasTestedInFullStrictMode() {
+  let countSchemaScanViaAJV = 0
+  localSchemaFileAndTestFile({
+    schemaOnlyScan() {
+      countSchemaScanViaAJV++
+    },
+  })
+  // If only ONE AJV schema test is run then this calculation does not work.
+  if (countSchemaScanViaAJV !== 1) {
+    const countFullStrictSchema =
+      countSchemaScanViaAJV - schemaValidation.ajvNotStrictMode.length
+    const percent = (countFullStrictSchema / countSchemaScanViaAJV) * 100
+    log.ok(
+      'Schema in full strict mode to prevent any unexpected behaviours or silently ignored mistakes in user schemas.',
+    )
+    log.ok(
+      `${countFullStrictSchema} of ${countSchemaScanViaAJV} (${Math.round(
+        percent,
+      )}%)`,
+    )
+  }
+}
+
+function printSchemasWithoutPositiveTestFiles() {
+  let countMissingTest = 0
+  // Check if each schemasToBeTested[] items is present in foldersPositiveTest[]
+  schemasToBeTested.forEach((schemaFileName) => {
+    if (!foldersPositiveTest.includes(schemaFileName.replace('.json', ''))) {
+      countMissingTest++
+      log.ok(`(No positive test file present): ${schemaFileName}`)
+    }
+  })
+  if (countMissingTest > 0) {
+    const percent = (countMissingTest / schemasToBeTested.length) * 100
+    log.writeln()
+    log.writeln(`${Math.round(percent)}% of schemas do not have tests.`)
+    log.ok(
+      `Schemas that have no positive test files. Total files: ${countMissingTest}`,
+    )
+  } else {
+    log.ok('All schemas have positive test')
+  }
 }
 
 {
