@@ -12,6 +12,12 @@ module.exports = {
   }),
   overrides: [
     {
+      files: '*.jsonc',
+      options: {
+        trailingComma: false,
+      },
+    },
+    {
       files: 'src/api/json/catalog.json',
       options: {
         jsonRecursiveSort: true,
