@@ -83,8 +83,8 @@ const argv = minimist(process.argv.slice(2), {
  */
 async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
   for (const { url } of Catalog.schemas) {
+    // Skip local schemas.
     if (url.startsWith(UrlSchemaStore)) {
-      // Skip local schemas
       continue
     }
 
@@ -332,46 +332,40 @@ async function localSchemaFileAndTestFile(
 
   /**
    * @summary Get all the schema files via callback
-   * @param callback The callback function(schema)
-   * @param {boolean} onlySchemaScan True = a scan without test files.
+   * @param {(arg0: Schema) => (void | Promise<void>)} callback The callback function
+   * @param {boolean} onlySchemaScan True is a scan without test files
    */
   const scanAllSchemaFiles = async (callback, onlySchemaScan) => {
     if (!callback) {
       return
     }
-    // Process all the schema files one by one via callback.
+
     for (const schemaFileName of SchemasToBeTested) {
       if (processOnlyThisOneSchemaFile) {
         if (schemaFileName !== processOnlyThisOneSchemaFile) {
           continue
         }
       }
-      const schemaFullPathName = path.join(SchemaDir, schemaFileName)
 
       // Some schema files must be ignored.
-      if (canThisTestBeRun(schemaFileName)) {
-        const buffer = skipReadFile
-          ? undefined
-          : await fs.readFile(schemaFullPathName)
-        let jsonObj_
-        try {
-          jsonObj_ = buffer ? JSON.parse(buffer.toString()) : undefined
-        } catch (err) {
-          printErrorMessagesAndExit([
-            `JSON file ${schemaFullPathName} did not parse correctly.`,
-            err,
-          ])
-        }
-        const schema = {
-          // Return the real Raw file for BOM file test rejection
-          rawFile: buffer ?? '',
-          jsonObj: jsonObj_,
-          jsonName: path.basename(schemaFullPathName),
-          urlOrFilePath: schemaFullPathName,
-          schemaScan: onlySchemaScan,
-        }
-        await callback(schema)
+      if (!canThisTestBeRun(schemaFileName)) {
+        continue
       }
+
+      const schemaFilepath = path.join(SchemaDir, schemaFileName)
+      const buffer = skipReadFile
+        ? undefined
+        : await fs.readFile(schemaFilepath)
+      const jsonObj = JSON.parse((buffer ?? '{}').toString())
+
+      const schema = {
+        rawFile: buffer ?? '', // rawFile for BOM test
+        jsonObj,
+        jsonName: schemaFileName,
+        urlOrFilePath: schemaFilepath,
+        schemaScan: onlySchemaScan,
+      }
+      await callback(schema)
     }
   }
 
@@ -857,15 +851,17 @@ async function taskCheck() {
   assertSchemaValidationJsonHasValidSkipTest()
 
   // Check schemas.
+  // { fullScanAllFiles: true, skipReadFile: false } schemaOnlyScan
   await assertSchemaHasNoBom()
-  await assertSchemaHasNoDuplicatedPropertyKeys()
   await assertSchemaHasValidSchemaField()
   await assertSchemaHasValidIdField()
   await assertSchemaPassesSchemaSafeLint()
 
-  await printSchemasTestedInFullStrictMode()
+  await assertSchemaHasNoDuplicatedPropertyKeys() // { skipReadFile: false }
+
+  await printSchemasTestedInFullStrictMode() // {}
   printSchemasWithoutPositiveTestFiles()
-  await testAjv()
+  await testAjv() // { skipReadFile: false }
   await printUrlCountsInCatalog()
   await printCountSchemaVersions()
 }
@@ -1393,7 +1389,7 @@ function assertCatalogJsonHasNoFileMatchConflict() {
 
 async function assertCatalogJsonLocalUrlsMustRefFile() {
   await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
-    // Skip external schemas from check.
+    // Skip external schemas.
     if (!catalogUrl.startsWith(UrlSchemaStore)) {
       return
     }
