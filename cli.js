@@ -1,4 +1,5 @@
 /// <binding AfterBuild='build' />
+// @ts-check
 import path from 'node:path'
 import fs from 'node:fs'
 import readline from 'node:readline'
@@ -28,8 +29,10 @@ const testPositiveDir = './src/test'
 const testNegativeDir = './src/negative_test'
 const urlSchemaStore = 'https://json.schemastore.org/'
 const catalog = readJsonFile('./src/api/json/catalog.json')
-const schemaValidation = jsoncParser.parse(
-  await fs.promises.readFile('./src/schema-validation.json', 'utf-8'),
+const schemaValidation = /** @type {SchemaValidationJson} */ (
+  jsoncParser.parse(
+    await fs.promises.readFile('./src/schema-validation.jsonc', 'utf-8'),
+  )
 )
 const [schemasToBeTested, foldersPositiveTest, foldersNegativeTest] =
   await Promise.all([
@@ -49,13 +52,19 @@ const SCHEMA_DIALECTS = [
 ]
 
 const log = {
-  ok(/** @type {string=} */ msg = 'OK') {
+  ok(/** @type {string | undefined} */ msg = 'OK') {
     console.log(chalk.green('>>') + ' ' + msg)
   },
-  error(/** @type {string=} */ msg = 'ERROR') {
-    console.log(chalk.red('>>') + ' ' + msg)
+  error(
+    /** @type {string | undefined} */ msg = 'ERROR',
+    /** @type {Error | undefined} */ error,
+  ) {
+    console.error(chalk.red('>>') + ' ' + msg)
+    if (error) {
+      console.error(error)
+    }
   },
-  writeln(/** @type {string=} */ msg = '') {
+  writeln(/** @type {string | undefined} */ msg = '') {
     console.log(msg)
   },
 }
@@ -87,6 +96,7 @@ function getUrlFromCatalog(catalogUrl) {
  * @summary Calling this will terminate the process and show the text
  * of each error message, in addition to npm's error message.
  * @param {string[]} errorText
+ * @returns {never}
  */
 function throwWithErrorText(errorText) {
   log.writeln()
@@ -128,14 +138,13 @@ async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
         }
       } else {
         if (showLog) {
-          log.error(url, res.status)
+          log.error(`Failed to fetch url: ${url} (status: ${res.status}`)
         }
       }
     } catch (error) {
-      console.error(error)
       if (showLog) {
         log.writeln('')
-        log.error(url, error.name, error.message)
+        log.error(`Failed to fetch url: ${url}`, error)
         log.writeln('')
       }
     }
@@ -143,48 +152,82 @@ async function remoteSchemaFile(schemaOnlyScan, showLog = true) {
 }
 
 /**
- * @typedef {Object} JsonSchema
+ * @typedef {Object} JsonSchemaAny
  * @property {string} $schema
+ * @property {string | undefined} $ref
+ */
+/**
+ * @typedef {Object} JsonSchemaDraft04
+ * @property {undefined} $id
+ * @property {string} id
+ */
+
+/**
+ * @typedef {Object} JsonSchemaDraft07
  * @property {string} $id
+ * @property {undefined} id
+ */
+
+/**
+ * @typedef {JsonSchemaAny & (JsonSchemaDraft04 | JsonSchemaDraft07)} JsonSchema
+ */
+
+/**
+ * @typedef {Object} SchemaValidationJsonOption
+ * @property {string[]} unknownFormat
+ * @property {string[]} unknownKeywords
+ * @property {string[]} externalSchema
+ */
+
+/**
+ * @typedef {Object} SchemaValidationJson
+ * @property {string[]} ajvNotStrictMode
+ * @property {string[]} fileMatchConflict
+ * @property {string[]} highSchemaVersion
+ * @property {string[]} missingCatalogUrl
+ * @property {string[]} skiptest
+ * @property {string[]} catalogEntryNoLintNameOrDescription
+ * @property {Record<string, SchemaValidationJsonOption>} options
  */
 
 /**
  * @typedef {Object} Schema
- * @prop {Buffer | undefined} rawFile
- * @prop {Record<string, unknown> & JsonSchema} jsonObj
- * @prop {string} jsonName
- * @prop {string} urlOrFilePath
- * @prop {boolean} schemaScan
+ * @property {Buffer | string} rawFile
+ * @property {JsonSchema} jsonObj
+ * @property {string} jsonName
+ * @property {string} urlOrFilePath
+ * @property {boolean} schemaScan
  */
 
 /**
  * @callback CbParamFn
- * @param {Schema}
+ * @param {Schema} schema
+ * @returns {void}
  */
 
 /**
  * @typedef {Object} localSchemaFileAndTestFileParameter1
- * @prop {CbParamFn} schemaOnlyScan
- * @prop {CbParamFn} schemaOnlyScanDone
- * @prop {CbParamFn} schemaForTestScan
- * @prop {CbParamFn} schemaForTestScanDone
- * @prop {CbParamFn} positiveTestScan
- * @prop {CbParamFn} positiveTestScanDone
- * @prop {CbParamFn} negativeTestScan
- * @prop {CbParamFn} negativeTestScanDone
+ * @property {CbParamFn | undefined} schemaOnlyScan
+ * @property {CbParamFn | undefined} schemaOnlyScanDone
+ * @property {CbParamFn | undefined} schemaForTestScan
+ * @property {CbParamFn | undefined} schemaForTestScanDone
+ * @property {CbParamFn | undefined} positiveTestScan
+ * @property {CbParamFn | undefined} positiveTestScanDone
+ * @property {CbParamFn | undefined} negativeTestScan
+ * @property {CbParamFn | undefined} negativeTestScanDone
  */
 
 /**
  * @typedef {Object} localSchemaFileAndTestFileParameter2
- * @prop {boolean} fullScanAllFiles
- * @prop {boolean} skipReadFile
- * @prop {boolean} ignoreSkiptest
- * @prop {string} processOnlyThisOneSchemaFile
+ * @property {boolean} fullScanAllFiles
+ * @property {boolean} skipReadFile
+ * @property {boolean} ignoreSkiptest
+ * @property {string | undefined} processOnlyThisOneSchemaFile
  */
 
 /**
- * @param {localSchemaFileAndTestFileParameter1}
- * @param {localSchemaFileAndTestFileParameter2}
+ * @param {Partial<localSchemaFileAndTestFileParameter1>} arg0
+ * @param {Partial<localSchemaFileAndTestFileParameter2>} arg1
  */
 async function localSchemaFileAndTestFile(
   {
@@ -266,7 +309,7 @@ async function localSchemaFileAndTestFile(
         }
         const schema = {
           // Return the real Raw file for BOM file test rejection
-          rawFile: buffer,
+          rawFile: buffer ?? '',
           jsonObj: jsonObj_,
           jsonName: path.basename(schemaFullPathName),
           urlOrFilePath: schemaFullPathName,
@@ -436,17 +479,17 @@ function testSchemaFileForBOM(schema) {
 
 /**
  * @typedef {Object} FactoryAJVParameter
- * @prop {string} schemaName
- * @prop {string[]} unknownFormatsList
- * @prop {boolean} fullStrictMode
- * @prop {boolean} standAloneCode
- * @prop {string[]} standAloneCodeWithMultipleSchema
+ * @property {string} schemaName
+ * @property {string[]} unknownFormatsList
+ * @property {boolean} fullStrictMode
+ * @property {boolean} standAloneCode
+ * @property {string[]} standAloneCodeWithMultipleSchema
  */
 
 /**
  * @summary There are multiple AJV versions for each $schema version. This returns
  * the correct AJV instance
- * @param {FactoryAJVParameter} schemaName
+ * @param {Partial<FactoryAJVParameter>} arg0
  * @returns {Object}
  */
 function factoryAJV({
@@ -520,9 +563,9 @@ function factoryAJV({
 
 /**
  * @typedef {Object} getOptionReturn
- * @prop {string[]} unknownFormatsList
- * @prop {string[]} externalSchemaWithPathList
- * @prop {string[]} unknownKeywordsList
+ * @property {string[]} unknownFormatsList
+ * @property {string[]} externalSchemaWithPathList
+ * @property {string[]} unknownKeywordsList
  */
 
 /**
@@ -691,7 +734,11 @@ function showSchemaVersions() {
 
   const getObj_ = (schemaJson) => {
     const schemaVersion = schemaJson.$schema
-    return SCHEMA_DIALECTS.find((obj) => schemaVersion === obj.url)
+    const obj = SCHEMA_DIALECTS.find((obj) => schemaVersion === obj.url)
+    if (!obj) {
+      throw new Error('Failed getObj_')
+    }
+    return obj
   }
 
   /** @type {Map<string, number>} */
@@ -798,7 +845,7 @@ async function taskCheck() {
   assertTestFoldersHaveAtLeastOneTestSchema()
 
   // Check schema-validation.json
-  assertSchemaValidationHasNoDuplicateLists()
+  assertSchemaValidationJsonHasNoDuplicateItemsInLists()
   assertSchemaValidationJsonHasNoMissingSchemaFiles()
   assertSchemaValidationJsonHasNoUnmatchedUrls()
   assertSchemaValidationJsonHasValidSkipTest()
@@ -1337,7 +1384,7 @@ function assertCatalogJsonIncludesAllSchemas() {
   log.ok(`All local schema files have URL link in catalog. Total: ${countScan}`)
 }
 
-function assertSchemaValidationHasNoDuplicateLists() {
+function assertSchemaValidationJsonHasNoDuplicateItemsInLists() {
   function checkForDuplicateInList(list, listName) {
     if (list) {
       if (new Set(list).size !== list.length) {
@@ -1345,6 +1392,7 @@ function assertSchemaValidationHasNoDuplicateLists() {
       }
     }
   }
+
   checkForDuplicateInList(
     schemaValidation.ajvNotStrictMode,
     'ajvNotStrictMode[]',
@@ -1553,13 +1601,18 @@ function assertSchemaHasNoDuplicatedPropertyKeys() {
     }
 
     try {
-      jsonlint.parse(schema.rawFile, {
-        ignoreBOM: false,
-        ignoreComments: false,
-        ignoreTrailingCommas: false,
-        allowSingleQuotedStrings: false,
-        allowDuplicateObjectKeys: false,
-      })
+      jsonlint.parse(
+        Buffer.isBuffer(schema.rawFile)
+          ? schema.rawFile.toString()
+          : schema.rawFile,
+        {
+          ignoreBOM: false,
+          ignoreComments: false,
+          ignoreTrailingCommas: false,
+          allowSingleQuotedStrings: false,
+          allowDuplicateObjectKeys: false,
+        },
+      )
     } catch (err) {
       throwWithErrorText([`Test file: ${schema.urlOrFilePath}`, err])
     }
