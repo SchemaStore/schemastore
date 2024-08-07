@@ -54,7 +54,7 @@ Some schema files have associated positive and negative tests, located at `src/t
 There are three types of schema validation modes:
 
 - [AJV](https://ajv.js.org) [strict mode](https://ajv.js.org/strict-mode.html): The default validation mode that is most stringent
-- [AJV](https://ajv.js.org) non-strict mode: Some rules are relaxed for the sake of brevity. To validate under non-strict mode, add your schema to the `ajvNotStrictMode` field in [schema-validation.json](src/schema-validation.json)
+- [AJV](https://ajv.js.org) non-strict mode: Some rules are relaxed for the sake of brevity. To validate under non-strict mode, add your schema to the `ajvNotStrictMode` field in [schema-validation.jsonc](src/schema-validation.jsonc)
 - [SchemaSafe](https://github.com/ExodusMovement/schemasafe): Helps catch errors within schemas that would otherwise be missed. This is a WIP.
 
 ## Recommended Extensions
@@ -333,7 +333,7 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 - Both schemas must have the same draft (ex. `draft-07`)
 - `schema_y.json` must have `id` or `$id` with this value `"https://json.schemastore.org/schema_y.json"`
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
-- Within [schema-validation.json](./src/schema-validation.json), in `"options": []`, add an entry:
+- Within [schema-validation.jsonc](./src/schema-validation.jsonc), in `"options": []`, add an entry:
   `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
 
 ### How to add a `$ref` to a JSON Schema that's self-hosted
@@ -385,7 +385,7 @@ Sometimes, the build fails due to a failed validation check. See a list of valid
 >> Error: strict mode: use allowUnionTypes to allow union type keyword at "#/definitions/prefect_docker.deployments.steps.push_docker_image/properties/credentials" (strictTypes)
 ```
 
-To ignore most validation errors, you need to modify `src/schema-validation.json`:
+To ignore most validation errors, you need to modify `src/schema-validation.jsonc`:
 
 - If a strict error fails, you need to add your JSON Schema to the `ajvNotStrictMode` array
 - If you are getting "unknown format" or "unknown keyword" errors, you need to add your JSON Schema to the `options` array

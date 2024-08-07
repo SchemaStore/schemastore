@@ -662,7 +662,7 @@ async function ajv() {
   const schemaForTestScan = async (/** @type {Schema} */ schema) => {
     let ajvSelected
 
-    // Get possible options defined in schema-validation.json
+    // Get possible options defined in schema-validation.jsonc
     const {
       unknownFormatsList,
       unknownKeywordsList,
@@ -909,7 +909,7 @@ async function taskCheck() {
   assertCatalogJsonLocalUrlsMustRefFile()
   await assertCatalogJsonIncludesAllSchemas()
 
-  // Check schema-validation.json.
+  // Check schema-validation.jsonc.
   await assertSchemaValidationJsonValidatesAgainstJsonSchema()
   assertSchemaValidationJsonReferencesNoNonexistentFiles()
   assertSchemaValidationJsonHasNoUnmatchedUrls()
@@ -962,7 +962,7 @@ async function taskCoverage() {
     // Compile JSON schema to javascript and write it to disk.
     const processSchemaFile = async (/** @type {Schema} */ schema) => {
       jsonName = schema.jsonName
-      // Get possible options define in schema-validation.json
+      // Get possible options define in schema-validation.jsonc
       const {
         unknownFormatsList,
         unknownKeywordsList,
@@ -1536,7 +1536,7 @@ async function assertSchemaValidationJsonValidatesAgainstJsonSchema() {
   addFormats(ajv)
 
   if (ajv.validate(schemaValidationSchema, SchemaValidation)) {
-    log.ok('schema-validation.json: Validates against schema')
+    log.ok('schema-validation.jsonc: Validates against schema')
   } else {
     printErrorMessagesAndExit(
       [
@@ -1577,7 +1577,7 @@ function assertSchemaValidationJsonReferencesNoNonexistentFiles() {
     }
   }
 
-  log.ok('schema-validation.json: References no non-existent files')
+  log.ok('schema-validation.jsonc: References no non-existent files')
 }
 
 function assertSchemaValidationJsonHasNoUnmatchedUrls() {
@@ -1600,7 +1600,7 @@ function assertSchemaValidationJsonHasNoUnmatchedUrls() {
     'catalogEntryNoLintNameOrDescription',
   )
 
-  log.ok(`schema-validation.json: Has no unmatched URLs`)
+  log.ok(`schema-validation.jsonc: Has no unmatched URLs`)
 }
 
 function assertSchemaValidationJsonHasValidSkipTest() {
@@ -1651,7 +1651,7 @@ function assertSchemaValidationJsonHasValidSkipTest() {
   }
 
   log.ok(
-    `schema-validation.json: Entries under skiptest[] are not used elsewhere`,
+    `schema-validation.jsonc: Entries under skiptest[] are not used elsewhere`,
   )
 }
 
@@ -1913,7 +1913,7 @@ async function printStrictAndNotStrictAjvValidatedSchemas() {
     console.log('------------------------------------')
     console.log(`Schemas in ${mode} strict mode:`)
     for (const schemaName of list) {
-      // Write it is JSON list format. For easy copy to schema-validation.json
+      // Write it is JSON list format. For easy copy to schema-validation.jsonc
       console.log(`"${schemaName}",`)
     }
     log.ok(`Total schemas check ${mode} strict mode: ${list.length}`)
