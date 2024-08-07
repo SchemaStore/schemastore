@@ -12,6 +12,12 @@ module.exports = {
   }),
   overrides: [
     {
+      files: '*.jsonc',
+      options: {
+        trailingComma: false,
+      },
+    },
+    {
       files: 'src/api/json/catalog.json',
       options: {
         jsonRecursiveSort: true,
@@ -29,7 +35,7 @@ module.exports = {
       },
     },
     {
-      files: 'src/schema-validation.json',
+      files: 'src/schema-validation.jsonc',
       options: {
         jsonRecursiveSort: true,
         jsonSortOrder: JSON.stringify({
@@ -43,6 +49,9 @@ module.exports = {
           skiptest: null,
           catalogEntryNoLintNameOrDescription: null,
           options: null,
+          externalSchema: null,
+          unknownKeywords: null,
+          unknownFormat: null,
           '/^[^\\d+]/': 'lexical',
           '/^\\d+/': 'numeric',
         }),
