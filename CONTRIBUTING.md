@@ -10,8 +10,12 @@
   - [Best practices](#best-practices)
     - [Avoiding Overconstraint](#avoiding-overconstraint)
     - [Undocumented Features](#undocumented-features)
+    - [Deprecated Features](#deprecated-features)
     - [API Compatibility](#api-compatibility)
-  - [Use of `CODEOWNERS` file](#use-of-codeowners-file)
+  - [Non-standard Language Server Features](#non-standard-language-server-features)
+    - [Language Servers](#language-servers)
+    - [Non-standard Properties](#non-standard-properties)
+  - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
   - [Troubleshooting](#troubleshooting)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
@@ -24,6 +28,8 @@
   - [How to validate a JSON Schema](#how-to-validate-a-json-schema)
   - [How to ignore validation errors in a JSON Schema](#how-to-ignore-validation-errors-in-a-json-schema)
   - [How to name schemas that are subschemas (`partial-`)](#how-to-name-schemas-that-are-subschemas-partial-)
+- [Older Links](#older-links)
+  - [use-of-codeowners-file](#use-of-codeowners-file)
 
 ## Introduction
 
@@ -64,9 +70,10 @@ We highly recommend installing the following extensions for your IDE:
 - [EditorConfig](https://editorconfig.org) to automatically configure editor settings
 - [Prettier](https://prettier.io) to automatically configure file formatting
 
-If you are modifying JavaScript files, we also recommend:
+If you are modifying [cli.js](./cli.js), we also recommend:
 
 - [ESLint](https://eslint.org) to automatically show JavaScript issues
+- TypeScript language server (Bundled with VSCode)
 
 ## Schema Authoring
 
@@ -87,20 +94,15 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 
 ❌ **Don't forget** add test files.
 
-- Always be consistent across your schema: order properties and describe in the one style.
+- Always be consistent across your schema: order properties and describe in the same style.
 - Always use `description`, `type`, `additionalProperties`.
   - Always set `additionalProperties` to `false` unless documentation permits
     additional properties explicitly. That tool the JSON schema is created for
     can be changed in the future to allow wrong extra properties.
-- Always use `minLength`/`maxLength`/`pattern`/etc for property values.
 - Don't end `title`/`description` values with colon.
 - Always omit leading articles for `title`-s and trailing punctuation to make
   expected object values look more like types in programming languages. Also
   start `title`-s with a lowercase letter and try use nouns for titles instead of sentences.
-- Always explicitly state whether some setting is global for some tool or local
-  for a project created with this tool. For instance if some settings is local
-  then add `for the current <project-type>` at the end of the `description` like
-  `Whether to ignore a theme configuration for the current site` for `Jekyll`.
 - Always add documentation url to descriptions when available in the following
   format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
 
@@ -150,7 +152,30 @@ However, that is not always possible or correct. Alternatively, use `$comment`:
 
 In this case, `{ "tsBuildInfoFile": null }` is not documented. Using a string value is, however.
 
-Note that JSON Schema draft `2019-09` adds support for a `deprecated` field. While this would be the best option, most schemas in this repository are `draft-07`. As a result, Editors and IDEs may not use it.
+#### Deprecated Features
+
+Software that reads a schema may deprecate and eventually remove particular properties or features.
+
+For most schemas, we don't recommend removing properties from schemas, especially immediately after they are no longer supported. They are useful during the migration process or if users are stuck on an older version.
+
+To note that a property or feature is deprecated, use the same strategy as described in [Undocumented Features](#undocumented-features). For example:
+
+```json
+{
+  "description": "DEPRECATED. Documentation of this property. Migrate to this alternative."
+}
+```
+
+Note that JSON Schema draft `2019-09` adds support for a `deprecated` field:
+
+```json
+{
+  "description": "Documentation of this property. Migrate to this alternative.",
+  "deprecated": true
+}
+```
+
+While this would be the best option, most schemas in this repository are `draft-07`. As a result, _Editors and IDEs may not use it_.
 
 #### API Compatibility
 
@@ -158,13 +183,15 @@ Care must be taken to reduce breaking changes; some include:
 
 **1. Preserving schema names**
 
-When renaming a schema name, the old version must continue to exist. Its content will look something like:
+When renaming a schema name, the old version must continue to exist. Otherwise, all references to it will break. The content of he old schema must look something like:
 
 ```json
 {
   "$ref": "https://json.schemastore.org/NEWNAME.json"
 }
 ```
+
+The process of renaming schemas is similar to [this section](#how-to-move-a-json-schema-from-schemastore-to-somewhere-thats-self-hosted).
 
 **2. Preserving schema paths**
 
@@ -176,7 +203,76 @@ validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel
 
 This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if necessary.
 
-### Use of `CODEOWNERS` file
+### Non-standard Language Server Features
+
+There are several language servers for JSON Schema:
+
+#### Language Servers
+
+**YAML**
+
+- [`redhat-developer/yaml-language-server`](https://github.com/redhat-developer/yaml-language-server) used by VSCode's [Red Hat YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+
+**TOML**:
+
+- [`tamasfe/taplo`](https://github.com/tamasfe/taplo) used by VSCode's [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
+  - More information [here](https://taplo.tamasfe.dev/configuration/developing-schemas.html).
+
+**JSON**
+
+- [`Microsoft/vscode-json-languageservice`](https://github.com/Microsoft/vscode-json-languageservice) used by VSCode
+  - More information [here](https://code.visualstudio.com/docs/languages/json).
+
+**Other**
+
+- Visual Studio proprietary
+- Intellij proprietary
+
+#### Non-standard Properties
+
+Some language servers support non-standard properties. They include:
+
+**`allowTrailingCommas`**
+
+Used by: `vscode-json-languageservice`.
+
+Whether trailing commas are allowed in the schema itself. Use the [`allowTrailingCommas`](https://github.com/microsoft/vscode/issues/102061) field. See [this PR](https://github.com/SchemaStore/schemastore/pull/3259/files) if you wish to add this for your schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "allowTrailingCommas": true,
+  ...
+}
+```
+
+**`defaultSnippets`**
+
+Used by: `vscode-json-languageservice`.
+
+**`markdownDescription`**
+
+Used by: `vscode-json-languageservice`.
+
+**`x-taplo`**
+
+Used by: `tamasfe/taplo`.
+
+- `x-taplo-info`
+
+**`x-intellij-language-injection`**
+
+Used by Intellij.
+
+**`x-intellij-html-description`**
+
+Used by Intellij.
+
+**`x-intellij-enum-metadata`**
+
+Used by Intellij.
+
+### Using the `CODEOWNERS` file
 
 This repository uses the [the code-owner-self-merge](https://github.com/OSS-Docs-Tools/code-owner-self-merge) GitHub action to give project maintainers more control over their schema. It allows for:
 
@@ -371,7 +467,7 @@ node ./cli.js check --SchemaName=<schemaName.json>
 
 For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --SchemaName=ava.json`
 
-Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`. If the task succeeds, your changes are valid and you can safely create a PR.
+Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`.
 
 ### How to ignore validation errors in a JSON Schema
 
@@ -385,10 +481,10 @@ Sometimes, the build fails due to a failed validation check. See a list of valid
 >> Error: strict mode: use allowUnionTypes to allow union type keyword at "#/definitions/prefect_docker.deployments.steps.push_docker_image/properties/credentials" (strictTypes)
 ```
 
-To ignore most validation errors, you need to modify `src/schema-validation.jsonc`:
+To ignore most validation errors, you need to modify `./src/schema-validation.jsonc`:
 
 - If a strict error fails, you need to add your JSON Schema to the `ajvNotStrictMode` array
-- If you are getting "unknown format" or "unknown keyword" errors, you need to add your JSON Schema to the `options` array
+- If you are getting "unknown format" or "unknown keyword" errors, you need to add your JSON Schema to the `options` object
 - If you are using a recent version of the JSON Schema specification, you will need to add your JSON Schema to the `highSchemaVersion` array
 
 ### How to name schemas that are subschemas (`partial-`)
@@ -406,3 +502,9 @@ A subschema should be extracted to its own file based on the following rules:
   - In a top-level `$comment`, you must add the date at which you copied the original. See #3526 for an example
 
 Use your best judgement; if the project or schema is small, then the drawbacks of extracting the subschema to its own file likely outweigh the benefits.
+
+## Older Links
+
+### use-of-codeowners-file
+
+See [Using the `CODEOWNERS` file](#using-the-codeowners-file).
