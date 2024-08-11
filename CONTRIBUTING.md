@@ -12,7 +12,7 @@
     - [Undocumented Features](#undocumented-features)
     - [Deprecated Features](#deprecated-features)
     - [API Compatibility](#api-compatibility)
-  - [Non-standard Language Server Features](#non-standard-language-server-features)
+  - [Language Server Features](#language-server-features)
     - [Language Servers](#language-servers)
     - [Non-standard Properties](#non-standard-properties)
   - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
@@ -203,9 +203,9 @@ validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel
 
 This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if necessary.
 
-### Non-standard Language Server Features
+### Language Server Features
 
-There are several language servers for JSON Schema:
+There are several language servers that use SchemaStore:
 
 #### Language Servers
 
@@ -258,7 +258,9 @@ Used by: `vscode-json-languageservice`.
 
 Used by: `tamasfe/taplo`.
 
-- `x-taplo-info`
+**`x-taplo-info`**
+
+Used by: `tamasfe/taplo`.
 
 **`x-intellij-language-injection`**
 
