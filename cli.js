@@ -1131,20 +1131,20 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   }
 }
 
-// async function assertSchemaPassesSchemaSafeLint(
-//   /** @type {SchemaFile} */ schema,
-// ) {
-//   if (!argv.lint) {
-//     return
-//   }
+async function assertSchemaPassesSchemaSafeLint(
+  /** @type {SchemaFile} */ schema,
+) {
+  if (!argv.lint) {
+    return
+  }
 
-//   const errors = schemasafe.lint(schema.json, {
-//     mode: 'strong',
-//   })
-//   for (const err of errors) {
-//     console.log(`${schema.name}: ${err.message}`)
-//   }
-// }
+  const errors = schemasafe.lint(schema.json, {
+    mode: 'strong',
+  })
+  for (const err of errors) {
+    console.log(`${schema.name}: ${err.message}`)
+  }
+}
 
 async function assertSchemaHasCorrectMetadata(
   /** @type {SchemaFile} */ schema,
