@@ -188,6 +188,7 @@ async function forEachCatalogUrl(
  * @property {(arg0: SchemaFile) => Promise<void>} [afterSchemaFile]
  */
 async function forEachFile(/** @type {ForEachTestFile} */ obj) {
+  // TODO: This doesn't ignore ignored files like .DS_Store.
   for (const dirent1 of await fs.readdir(SchemaDir, { withFileTypes: true })) {
     const schemaName = dirent1.name
     const schemaId = schemaName.replace('.json', '')
