@@ -1,5 +1,5 @@
 import smtpAddressParser from 'smtp-address-parser'
-import * as uriJs from 'uri-js/dist/index.js'
+import * as uriJs from 'uri-js'
 import schemes from 'schemes'
 // Trailing slash loads npm module instead of built-in
 import punycodePkg from 'punycode/punycode.js'

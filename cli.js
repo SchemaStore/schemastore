@@ -9,7 +9,6 @@ import _AjvDraft04 from 'ajv-draft-04'
 import { Ajv as AjvDraft06And07 } from 'ajv'
 import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
-import _AjvStandalone from 'ajv/dist/standalone/index.js'
 import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from './cli.util.js'
 import TOML from 'smol-toml'
@@ -35,9 +34,6 @@ const Ajv2019 = /** @type {any} */ (_Ajv2019)
 
 /** @type {typeof _Ajv2020.default} */
 const Ajv2020 = /** @type {any} */ (_Ajv2020)
-
-/** @type {typeof _AjvStandalone.default} */
-const AjvStandalone = /** @type {any} */ (_AjvStandalone)
 
 /** @type {typeof _addFormats.default} */
 const addFormats = /** @type {any} */ (_addFormats)
@@ -1135,20 +1131,20 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   }
 }
 
-async function assertSchemaPassesSchemaSafeLint(
-  /** @type {SchemaFile} */ schema,
-) {
-  if (!argv.lint) {
-    return
-  }
+// async function assertSchemaPassesSchemaSafeLint(
+//   /** @type {SchemaFile} */ schema,
+// ) {
+//   if (!argv.lint) {
+//     return
+//   }
 
-  const errors = schemasafe.lint(schema.json, {
-    mode: 'strong',
-  })
-  for (const err of errors) {
-    console.log(`${schema.name}: ${err.message}`)
-  }
-}
+//   const errors = schemasafe.lint(schema.json, {
+//     mode: 'strong',
+//   })
+//   for (const err of errors) {
+//     console.log(`${schema.name}: ${err.message}`)
+//   }
+// }
 
 async function assertSchemaHasCorrectMetadata(
   /** @type {SchemaFile} */ schema,
