@@ -1,13 +1,13 @@
 {
-  "$comment": "https://www.jetbrains.com/help/qodana/qodana-yaml.html",
-  "$id": "https://json.schemastore.org/qodana-1.0.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/qodana-1.0.json",
+  "$comment": "https://www.jetbrains.com/help/qodana/qodana-yaml.html",
   "additionalProperties": true,
   "definitions": {
     "profile": {
       "description": "A profile is some template set of checks to run with Qodana analysis",
       "type": "object",
-      "oneOf": [
+      "anyOf": [
         {
           "properties": {
             "name": {
@@ -28,8 +28,7 @@
           "required": ["path"],
           "additionalProperties": false
         }
-      ],
-      "additionalProperties": true
+      ]
     },
     "include": {
       "description": "The inspections to run in addition to those from the profile",
@@ -78,7 +77,13 @@
       "properties": {
         "name": {
           "description": "The name of the script",
-          "enum": ["default", "php-migration"]
+          "enum": [
+            "default",
+            "php-migration",
+            "local-changes",
+            "teamcity-changes",
+            "migrate-classes"
+          ]
         },
         "parameters": {
           "description": "The parameters to pass to the script",
@@ -246,6 +251,17 @@
             }
           },
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "frameworks": {
+              "description": "Semicolon-separated list of target framework monikers (TFM) to be analyzed (https://learn.microsoft.com/en-us/dotnet/standard/frameworks)",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
         }
       ]
     },
@@ -277,6 +293,21 @@
         }
       ]
     },
+    "licenseOverride": {
+      "type": "object",
+      "description": "Specifies the license of a dependency or project ",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "SPDX id of this license"
+        },
+        "url": {
+          "type": "string",
+          "description": "Homepage of this license",
+          "format": "uri"
+        }
+      }
+    },
     "php": {
       "description": "Configuration for PHP projects",
       "type": "object",
@@ -299,6 +330,71 @@
           "minLength": 1
         }
       }
+    },
+    "severityThresholds": {
+      "type": "object",
+      "description": "Configures maximum thresholds for different problem severities. Absent properties are not checked. If a baseline is given, only new results are counted",
+      "properties": {
+        "any": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the total amount of results exceeds this number."
+        },
+        "critical": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the amount results with severity CRITICAL exceeds this number."
+        },
+        "high": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the amount results with severity HIGH exceeds this number."
+        },
+        "moderate": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the amount results with severity MODERATE exceeds this number."
+        },
+        "low": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the amount results with severity LOW exceeds this number."
+        },
+        "info": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the amount results with severity INFO exceeds this number."
+        }
+      }
+    },
+    "coverageThresholds": {
+      "type": "object",
+      "description": "Configures minimum thresholds for test coverage metrics. Absent properties are not checked",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the percentage of total lines covered is lower than this number."
+        },
+        "fresh": {
+          "type": "integer",
+          "default": null,
+          "description": "The run fails if the percentage of fresh lines covered is lower than this number"
+        }
+      }
+    },
+    "failureConditions": {
+      "type": "object",
+      "properties": {
+        "severityThresholds": {
+          "$ref": "#/definitions/severityThresholds",
+          "default": null
+        },
+        "testCoverageThresholds": {
+          "$ref": "#/definitions/coverageThresholds",
+          "default": null
+        }
+      }
     }
   },
   "description": "A configuration file for Qodana (https://jetbrains.com/qodana), named qodana.yaml or qodana.yml",
@@ -308,17 +404,18 @@
       "enum": ["1.0"]
     },
     "profile": {
-      "description": "The profile configuration for Qodana analysis",
-      "$ref": "#/definitions/profile"
+      "$ref": "#/definitions/profile",
+      "description": "The profile configuration for Qodana analysis"
     },
     "failThreshold": {
-      "description": "The number of problems that causes Qodana to exit with code 255",
+      "description": "Deprecated: Use failureConditions#anySeverity",
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "deprecated": true
     },
     "script": {
-      "description": "The run scenario. 'default' by default",
-      "$ref": "#/definitions/script"
+      "$ref": "#/definitions/script",
+      "description": "The run scenario. 'default' by default"
     },
     "exclude": {
       "description": "The inspections and paths that are excluded from analysis",
@@ -341,7 +438,7 @@
       "type": "string"
     },
     "ide": {
-      "description": "The local path to IDE or a product code to use for Qodana analysis",
+      "description": "The local path to an IDE or a product code to use for Qodana analysis. Incompatible with 'linter'",
       "type": "string"
     },
     "bootstrap": {
@@ -379,6 +476,14 @@
         "$ref": "#/definitions/dependencyOverride"
       }
     },
+    "projectLicenses": {
+      "description": "Overrides the licenses attached to the project",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/definitions/licenseOverride"
+      }
+    },
     "customDependencies": {
       "description": "",
       "type": "array",
@@ -396,22 +501,22 @@
       }
     },
     "dot-net": {
-      "description": "The configuration for .NET solutions and projects",
-      "$ref": "#/definitions/dot-net"
+      "$ref": "#/definitions/dot-net",
+      "description": "The configuration for .NET solutions and projects"
     },
     "dotnet": {
-      "description": "The configuration for .NET solutions and projects",
-      "$ref": "#/definitions/dotnet"
+      "$ref": "#/definitions/dotnet",
+      "description": "The configuration for .NET solutions and projects"
     },
     "projectJDK": {
       "description": "The JDK to use for the project",
       "type": "string"
     },
     "php": {
-      "description": "The configuration for PHP projects",
-      "$ref": "#/definitions/php"
+      "$ref": "#/definitions/php",
+      "description": "The configuration for PHP projects"
     },
-    "disableSanityChecks": {
+    "disableSanityInspections": {
       "description": "Disable sanity checks for the project",
       "type": "boolean",
       "default": false
@@ -420,6 +525,65 @@
       "description": "The strategy to apply fixes",
       "enum": ["none", "cleanup", "apply"],
       "default": "none"
+    },
+    "runPromoInspections": {
+      "description": "Whether to run a curated set of promo inspections",
+      "type": "boolean",
+      "default": false
+    },
+    "includeAbsent": {
+      "description": "Whether to include absent issues in the baseline calculation",
+      "type": "boolean",
+      "default": false
+    },
+    "maxRuntimeNotifications": {
+      "description": "Maximum amount of internal errors to collect in the report",
+      "type": "integer",
+      "default": 100
+    },
+    "failOnErrorNotification": {
+      "description": "Whether to fail the run when any internal error was encountered. In that case, the program returns exit code 70",
+      "type": "boolean",
+      "default": false
+    },
+    "failureConditions": {
+      "$ref": "#/definitions/failureConditions",
+      "description": "Configures individual failure conditions. Absent properties will not be checked"
+    },
+    "dependencySbomExclude": {
+      "type": "array",
+      "description": "Which dependencies to exclude from the generated SBOM report",
+      "items": {
+        "$ref": "#/definitions/dependencyIgnore"
+      }
+    },
+    "modulesToAnalyze": {
+      "description": "Which submodules to include. Omitting this key will include all submodules",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "analyzeDevDependencies": {
+      "description": "Whether to include dev dependencies in the analysis",
+      "type": "boolean",
+      "default": false
+    },
+    "enablePackageSearch": {
+      "description": "Using package-search service for fetching license data for dependencies (only for jvm libraries)",
+      "type": "boolean",
+      "default": false
+    },
+    "raiseLicenseProblems": {
+      "description": "Show license problems like other inspections",
+      "type": "boolean",
+      "default": false
     }
   },
   "required": ["version"],

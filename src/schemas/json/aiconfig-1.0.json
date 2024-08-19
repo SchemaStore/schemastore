@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/aiconfig-1.0.json",
+  "additionalProperties": {},
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "Friendly name descriptor for the AIConfig. Could default to the filename if not specified.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Description of the AIConfig.\nIf you have a collection of different AIConfigs, this may be used for dynamic prompt routing.",
+      "type": "string"
+    },
+    "schema_version": {
+      "$ref": "#/definitions/SchemaVersion",
+      "description": "The version of the AIConfig schema."
+    },
+    "metadata": {
+      "description": "Root-level metadata that applies to the entire AIConfig.",
+      "type": "object",
+      "additionalProperties": {},
+      "properties": {
+        "parameters": {
+          "description": "Parameter definitions that are accessible to all prompts in this AIConfig.\nThese parameters can be referenced in the prompts using {{param_name}} handlebars syntax.\nFor more information, see https://handlebarsjs.com/guide/#basic-usage.",
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "models": {
+          "description": "Globally defined model settings. Any prompts that use these models will have these settings applied by default,\nunless they override them with their own model settings.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "default_model": {
+          "description": "Default model to use for prompts that do not specify a model.",
+          "type": "string"
+        },
+        "model_parsers": {
+          "description": "Model ID to ModelParser ID mapping.\nThis is useful if you want to use a custom ModelParser for a model, or if a single ModelParser can handle multiple models.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "prompts": {
+      "description": "Array of prompts that make up the AIConfig.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "A unique identifier for the prompt. This is used to reference the prompt in other parts of the AIConfig (such as other prompts)",
+            "type": "string"
+          },
+          "input": {
+            "$ref": "#/definitions/PromptInput",
+            "description": "The prompt string, or a more complex prompt object."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {},
+            "properties": {
+              "parameters": {
+                "description": "Parameter definitions that are accessible to this prompt.\nThese parameters can be referenced in the prompt using {{param_name}} handlebars syntax.\nFor more information, see https://handlebarsjs.com/guide/#basic-usage.",
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "model": {
+                "description": "Model name/settings that apply to this prompt.\nThese settings override any global model settings that may have been defined in the AIConfig metadata.\nIf this is a string, it is assumed to be the model name.\nIf this is undefined, the default model specified in the default_model property will be used for this Prompt.",
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "description": "The ID of the model to use.",
+                        "type": "string"
+                      },
+                      "settings": {
+                        "description": "Model inference settings that apply to this prompt.",
+                        "type": "object",
+                        "additionalProperties": {}
+                      }
+                    },
+                    "required": ["name"]
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "tags": {
+                "description": "Tags for this prompt. Tags must be unique, and must not contain commas.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "outputs": {
+            "description": "Execution, display, or stream outputs.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Output"
+            }
+          }
+        },
+        "required": ["input", "name"]
+      }
+    }
+  },
+  "required": ["metadata", "name", "prompts", "schema_version"],
+  "definitions": {
+    "SchemaVersion": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "major": {
+              "type": "number"
+            },
+            "minor": {
+              "type": "number"
+            }
+          },
+          "required": ["major", "minor"]
+        },
+        {
+          "enum": ["latest", "v1"],
+          "type": "string"
+        }
+      ]
+    },
+    "PromptInput": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {},
+          "properties": {
+            "data": {
+              "description": "Input to the model. This can represent a single input, or multiple inputs.\nThe structure of the data object is up to the ModelParser. Attachments field should be leveraged for non-text inputs (e.g. image, audio)."
+            },
+            "attachments": {
+              "description": "Used to include non-text inputs (e.g. image, audio) of specified MIME types in the prompt",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Attachment"
+              }
+            }
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "Attachment": {
+      "description": "Data of specified MIME type to attach to a prompt",
+      "type": "object",
+      "required": ["data"],
+      "properties": {
+        "mime_type": {
+          "description": "MIME type of the attachment. If not specified, the MIME type will be assumed to be text/plain.",
+          "type": "string"
+        },
+        "data": {
+          "description": "Data representing the attachment"
+        },
+        "metadata": {
+          "description": "Attachment metadata.",
+          "type": "object",
+          "additionalProperties": {}
+        }
+      }
+    },
+    "Output": {
+      "description": "Model inference result.",
+      "anyOf": [
+        {
+          "description": "Result of executing a prompt.",
+          "type": "object",
+          "properties": {
+            "output_type": {
+              "description": "Type of output.",
+              "type": "string",
+              "const": "execute_result"
+            },
+            "execution_count": {
+              "description": "A result's prompt number.",
+              "type": "number"
+            },
+            "data": {
+              "description": "The result of executing the prompt."
+            },
+            "mime_type": {
+              "description": "The MIME type of the result. If not specified, the MIME type will be assumed to be plain text.",
+              "type": "string"
+            },
+            "metadata": {
+              "description": "Output metadata.",
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "required": ["data", "output_type"]
+        },
+        {
+          "description": "Output of an error that occurred during inference.",
+          "type": "object",
+          "properties": {
+            "output_type": {
+              "description": "Type of output.",
+              "type": "string",
+              "const": "error"
+            },
+            "ename": {
+              "description": "The name of the error.",
+              "type": "string"
+            },
+            "evalue": {
+              "description": "The value, or message, of the error.",
+              "type": "string"
+            },
+            "traceback": {
+              "description": "The error's traceback, represented as an array of strings.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["ename", "evalue", "output_type", "traceback"]
+        }
+      ]
+    }
+  }
+}

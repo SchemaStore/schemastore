@@ -1,6 +1,6 @@
 {
-  "$id": "https://json.schemastore.org/dependabot-2.0.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/dependabot-2.0.json",
   "additionalProperties": false,
   "definitions": {
     "timezone": {
@@ -451,6 +451,7 @@
         "Europe/Kaliningrad",
         "Europe/Kiev",
         "Europe/Kirov",
+        "Europe/Kyiv",
         "Europe/Lisbon",
         "Europe/Ljubljana",
         "Europe/London",
@@ -650,6 +651,7 @@
         "bundler",
         "cargo",
         "composer",
+        "devcontainers",
         "docker",
         "elm",
         "gitsubmodule",
@@ -743,6 +745,16 @@
           ],
           "additionalProperties": false
         },
+        "directories": {
+          "description": "Locations of package manifests",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
         "directory": {
           "description": "Location of package manifests",
           "type": "string",
@@ -751,55 +763,57 @@
         "groups": {
           "description": "Configure groups for dependencies. Each 'groups' property is arbitrary will appear in pull request titles and branch names. For example, the code snippet '{\"groups\": {\"NPM dependencies\": {\"patterns\": [\"*\"]}}}' sets the group name to 'NPM dependencies'.",
           "type": "object",
-          "patternProperties": {
-            "^.+$": {
-              "type": "object",
-              "properties": {
-                "dependency-type": {
-                  "description": "Specify a dependency type to be included in the group.",
-                  "type": "string",
-                  "enum": ["development", "production"]
-                },
-                "patterns": {
-                  "description": "Define strings of characters that match with a dependency name (or multiple dependency names) to include those dependencies in the group.",
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "uniqueItems": true,
-                  "minItems": 1
-                },
-                "exclude-patterns": {
-                  "description": "Exclude certain dependencies from the group. If a dependency is excluded from a group, Dependabot will continue to raise single pull requests to update the dependency to its latest version.",
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "uniqueItems": true,
-                  "minItems": 1
-                },
-                "update-types": {
-                  "description": "Specify the semantic versioning level to include in the group",
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "enum": ["major", "minor", "patch"]
-                  },
-                  "minItems": 1,
-                  "uniqueItems": true
-                }
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "applies-to": {
+                "description": "Use to specify a whether the rules in the group apply to version updates or security updates.",
+                "type": "string",
+                "enum": ["version-updates", "security-updates"]
               },
-              "anyOf": [
-                { "required": ["dependency-type"] },
-                { "required": ["patterns"] },
-                { "required": ["update-types"] }
-              ],
-              "additionalProperties": false
-            }
+              "dependency-type": {
+                "description": "Specify a dependency type to be included in the group.",
+                "type": "string",
+                "enum": ["development", "production"]
+              },
+              "patterns": {
+                "description": "Define strings of characters that match with a dependency name (or multiple dependency names) to include those dependencies in the group.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true,
+                "minItems": 1
+              },
+              "exclude-patterns": {
+                "description": "Exclude certain dependencies from the group. If a dependency is excluded from a group, Dependabot will continue to raise single pull requests to update the dependency to its latest version.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true,
+                "minItems": 1
+              },
+              "update-types": {
+                "description": "Specify the semantic versioning level to include in the group",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["major", "minor", "patch"]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            },
+            "anyOf": [
+              { "required": ["dependency-type"] },
+              { "required": ["patterns"] },
+              { "required": ["update-types"] }
+            ],
+            "additionalProperties": false
           },
-          "additionalProperties": false,
           "minProperties": 1
         },
         "ignore": {
@@ -813,8 +827,8 @@
                 "type": "string"
               },
               "update-types": {
-                "description": "Use to ignore types of updates. You can combine this with 'dependency-name: \"*\"' to ignore particular update-types for all dependencies.",
-                "$ref": "#/definitions/update-types"
+                "$ref": "#/definitions/update-types",
+                "description": "Use to ignore types of updates. You can combine this with 'dependency-name: \"*\"' to ignore particular update-types for all dependencies."
               },
               "versions": {
                 "description": "Use to ignore specific versions or ranges of versions. If you want to define a range, use the standard pattern for the package manager.",
@@ -835,8 +849,8 @@
           }
         },
         "insecure-external-code-execution": {
-          "description": "Allow or deny code execution in manifest files",
-          "$ref": "#/definitions/insecure-external-code-execution"
+          "$ref": "#/definitions/insecure-external-code-execution",
+          "description": "Allow or deny code execution in manifest files"
         },
         "labels": {
           "description": "Labels to set on pull requests",
@@ -861,8 +875,8 @@
           "default": 5
         },
         "package-ecosystem": {
-          "description": "Package manager to use",
           "$comment": "These values are restricted by a top-level if-then-else when 'enable-beta-ecosystems' is not enabled.",
+          "description": "Package manager to use",
           "type": "string",
           "anyOf": [
             { "$ref": "#/definitions/package-ecosystem-values" },
@@ -890,13 +904,22 @@
           "default": "auto"
         },
         "registries": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true,
-          "minItems": 1
+          "$comment": "'registries' must be either an array of strings, or the string constant '*'.",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true,
+              "minItems": 1
+            },
+            {
+              "type": "string",
+              "const": "*"
+            }
+          ]
         },
         "reviewers": {
           "type": "array",
@@ -941,11 +964,21 @@
           "type": "boolean"
         },
         "versioning-strategy": {
-          "description": "How to update manifest version requirements",
-          "$ref": "#/definitions/versioning-strategy"
+          "$ref": "#/definitions/versioning-strategy",
+          "description": "How to update manifest version requirements"
         }
       },
-      "required": ["package-ecosystem", "directory", "schedule"]
+      "allOf": [
+        {
+          "required": ["package-ecosystem", "schedule"]
+        },
+        {
+          "oneOf": [
+            { "required": ["directories"] },
+            { "required": ["directory"] }
+          ]
+        }
+      ]
     },
     "registry": {
       "type": "object",
@@ -1033,9 +1066,9 @@
     "updates": {
       "type": "array",
       "items": {
+        "$ref": "#/definitions/update",
         "title": "Package Ecosystem",
-        "description": "Element for each one package manager that you want GitHub Dependabot to monitor for new versions",
-        "$ref": "#/definitions/update"
+        "description": "Element for each one package manager that you want GitHub Dependabot to monitor for new versions"
       }
     },
     "registries": {
