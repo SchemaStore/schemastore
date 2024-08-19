@@ -24,6 +24,7 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       'no-empty': 'off',
+      'no-unused-vars': 'off',
       'object-shorthand': ['error', 'always'],
       'n/no-process-exit': 'off',
     },
