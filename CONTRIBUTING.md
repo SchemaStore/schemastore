@@ -306,7 +306,7 @@ cd schemastore
 Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new-schema` task:
 
 ```sh
-npm ci
+npm clean-install
 npm run new-schema
 ```
 
