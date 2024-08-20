@@ -17,6 +17,11 @@
     - [Non-standard Properties](#non-standard-properties)
   - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
   - [Troubleshooting](#troubleshooting)
+    - [`pre-commit` fails to format files in CI](#pre-commit-fails-to-format-files-in-ci)
+- [Schema Validation](#schema-validation)
+  - [AJV strict mode](#ajv-strict-mode)
+  - [AJV non-strict mode](#ajv-non-strict-mode)
+  - [SchemaSafe](#schemasafe)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
   - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
@@ -55,17 +60,13 @@ If you want to contribute, but not sure what needs fixing, see the [help wanted]
 
 Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs use this field to know which files the schema should be used for (in autocompletion).
 
-Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. This repository has tests that use a validator (either [AJV](https://ajv.js.org) or [SchemaSafe](https://github.com/ExodusMovement/schemasafe)), to ensure that the schemas either pass or fail validation.
+Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. These tests may be in JSON, YAML, or TOML format.
 
-There are three types of schema validation modes:
-
-- [AJV](https://ajv.js.org) [strict mode](https://ajv.js.org/strict-mode.html): The default validation mode that is most stringent
-- [AJV](https://ajv.js.org) non-strict mode: Some rules are relaxed for the sake of brevity. To validate under non-strict mode, add your schema to the `ajvNotStrictMode` field in [schema-validation.jsonc](src/schema-validation.jsonc)
-- [SchemaSafe](https://github.com/ExodusMovement/schemasafe): Helps catch errors within schemas that would otherwise be missed. This is a WIP.
+Multiple libraries are used for validation to increase the compatibility and correctness of schemas. All schemas must pass validation by [AJV](https://ajv.js.org). Schemas can be optionally validated against other libraries like SchemaSafe. More details under [Schema Validation](#schema-validation).
 
 ## Recommended Extensions
 
-We highly recommend installing the following extensions for your IDE:
+We _highly recommend_ installing the following extensions for your IDE:
 
 - [EditorConfig](https://editorconfig.org) to automatically configure editor settings
 - [Prettier](https://prettier.io) to automatically configure file formatting
@@ -285,8 +286,35 @@ See the [CODEOWNERS](.github/CODEOWNERS) file, the [action configuration](.githu
 
 ### Troubleshooting
 
-- There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
-- The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
+Some common errors include:
+
+#### `pre-commit` fails to format files in CI
+
+The `pre-commit.ci` action can "mysteriously" fail to automatically commit formatted files. This happens because the repository corresponding to the pull request branch is not owned by a user account. This constraint is detailed in [GitHub's documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/committing-changes-to-a-pull-request-branch-created-from-a-fork).
+
+## Schema Validation
+
+After authoring a schema, you'll want to validate so it behaves as intended against popular validators.
+
+This repository validations JSON Schemas in multiple ways:
+
+### [AJV](https://ajv.js.org) [strict mode](https://ajv.js.org/strict-mode.html)
+
+- The default validation mode that is most stringent
+- Checks schema to prevent any unexpected behaviors or silently ignored mistakes
+- Fixing strict mode errors does not change validation results, it only serves to improve schema quality
+- More info at [Ajv Strict mode docs](https://ajv.js.org/strict-mode.html#strict-schema)
+
+### [AJV](https://ajv.js.org) non-strict mode
+
+- Some rules are relaxed for the sake of brevity
+- To validate under non-strict mode, add your schema to the `ajvNotStrictMode` field in [schema-validation.jsonc](src/schema-validation.jsonc)
+
+### [SchemaSafe](https://github.com/ExodusMovement/schemasafe)
+
+- Helps catch errors within schemas that would otherwise be missed. This is a WIP
+
+To actually run the validation checks, see [How to validate a JSON Schema](#how-to-validate-a-json-schema).
 
 ## How-to
 
@@ -439,21 +467,6 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 This currently isn't possible. This is tracked by [issue #2731](https://github.com/SchemaStore/schemastore/issues/2731).
 
 ### How to validate a JSON Schema
-
-This repository validations JSON Schemas in multiple ways:
-
-- "Meta validation"
-  - Check there are no unused files or directories
-  - Check that schema is valid JSON
-  - Check that the entry in `catalog.json` is valid
-  - etc.
-- AJV strict mode validation
-  - Checks schema to prevent any unexpected behaviors or silently ignored mistakes
-  - Fixing strict mode errors does not change validation results, it only serves to improve schema quality
-  - More info at [Ajv Strict mode docs](https://ajv.js.org/strict-mode.html#strict-schema)
-- Schema validation
-  - Actually uses the schema against any test files
-  - Checks that schemas properly constrain the object as schema authors intended
 
 To validate all schemas, run:
 

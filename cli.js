@@ -75,9 +75,10 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], help?: boolean, lint?: boolean, SchemaName?: string }} */
+/** @type {{ _: string[], help?: boolean, lint?: boolean, SchemaName?: string, 'unstable-check-with'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
+    string: ['SchemaName', 'unstable-check-with'],
     boolean: [' help', 'lint'],
   })
 )
@@ -559,10 +560,10 @@ async function taskCheck() {
     },
   })
   spinner.stop()
-  console.info(`✔️ Schema pre-checks all succeeded`)
+  console.info(`✔️ Schemas' pre-checks all succeeded`)
 
   // Run tests against JSON schemas
-  spinner.start('Testing schema')
+  spinner.start('Testing schema with Ajv')
   await forEachFile({
     async onSchemaFile(schemaFile) {
       spinner.text = `Testing schema ${schemaFile.path}`
@@ -621,10 +622,11 @@ async function taskCheck() {
     },
   })
   spinner.stop()
-  console.info(`✔️ Schema tests all succeeded`)
+  console.info(`✔️ Schemas' Ajv tests all succeeded`)
 
-  // TODO: User schemasafe
-  // await assertSchemaPassesSchemaSafeLint(schema)
+   if (argv.lint || argv['unstable-check-with'] === 'schemasafe') {
+    await assertSchemaPassesSchemaSafeLint()
+  }
 
   // Print information.
   await printSimpleStatistics()
@@ -1131,19 +1133,62 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   }
 }
 
-async function assertSchemaPassesSchemaSafeLint(
-  /** @type {SchemaFile} */ schema,
-) {
-  if (!argv.lint) {
-    return
-  }
+async function assertSchemaPassesSchemaSafeLint() {
+  const spinner = ora('Testing schema with SchemaSafe').start()
 
-  const errors = schemasafe.lint(schema.json, {
-    mode: 'strong',
+  await forEachFile({
+    async onSchemaFile(schema) {
+      spinner.text = `Running SchemaSafe on file: ${schema.path}`
+
+      const schemaDialect = getSchemaDialect(schema.json.$schema)
+      const options = getSchemaOptions(schema.name)
+
+      // const errors = schemasafe.lint(schema.json, {
+      //   mode: 'strong',
+      //   requireStringValidation: false,
+      //   extraFormats: false,
+      //   schemas: {},
+      // })
+
+      // for (const err of errors) {
+      //   console.log(`${schema.name}: ${err.message}`)
+      // }
+      let validate
+      try {
+        validate = schemasafe.validator(schema.json, {
+          mode: 'default',
+          includeErrors: true,
+          allErrors: true,
+          allowUnusedKeywords: true,
+          extraFormats: true,
+          formats: {},
+          schemas: (await Promise.all(options.unknownSchemas.map((schemaPath) => {
+            return fs.readFile(schemaPath, 'utf-8')
+          }))).map((text) => JSON.parse(text)),
+        })
+      } catch (err) {
+        printErrorAndExit(err, [
+          `Failed to validate file "${schema.path}" with SchemaSafe`
+        ])
+      }
+
+      return {
+        validate
+      }
+    },
+    async onPositiveTestFile(schema, file, { validate }) {
+      const result= validate(file)
+      if (!result) {
+        console.log(`Failed SchemaSafe on file "${schema.path}"`)
+      }
+    },
+    async onNegativeTestFile(schema, file) {
+
+    },
   })
-  for (const err of errors) {
-    console.log(`${schema.name}: ${err.message}`)
-  }
+
+  spinner.stop()
+  console.info(`✔️ Schemas' SchemaSafe tests all succeeded`)
 }
 
 async function assertSchemaHasCorrectMetadata(
