@@ -14,7 +14,7 @@ module.exports = {
     {
       files: '*.jsonc',
       options: {
-        trailingComma: false,
+        trailingComma: 'none',
       },
     },
     {

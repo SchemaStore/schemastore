@@ -12,9 +12,9 @@ import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
 import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
-import spectralCore from "@stoplight/spectral-core"
-import Parsers from "@stoplight/spectral-parsers"
-import spectralRuntime from "@stoplight/spectral-runtime";
+import spectralCore from '@stoplight/spectral-core'
+import Parsers from '@stoplight/spectral-parsers'
+import spectralRuntime from '@stoplight/spectral-runtime'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
 import YAML from 'yaml'
@@ -317,7 +317,7 @@ function printErrorAndExit(error, messages, extraText) {
   }
 
   console.warn('---')
-  process.stderr.write(error instanceof Error ? error?.stack ?? '' : '')
+  process.stderr.write(error instanceof Error ? (error?.stack ?? '') : '')
   process.stderr.write('\n')
   process.exit(1)
 }
@@ -505,7 +505,9 @@ async function taskLint() {
   await assertSchemaNoSmartQuotes()
   await forEachFile({
     async onSchemaFile(schema) {
-      console.info(`Running ${chalk.bold('SchemaSafe validation')} on file: ${schema.path}`)
+      console.info(
+        `Running ${chalk.bold('SchemaSafe validation')} on file: ${schema.path}`,
+      )
 
       const errors = schemasafe.lint(schema.json, {
         mode: 'strong',
@@ -516,14 +518,20 @@ async function taskLint() {
       for (const err of errors) {
         console.log(`${schema.name}: ${err.message}`)
       }
-    }
+    },
   })
 
   await forEachFile({
     async onSchemaFile(schema) {
-      console.info(`Running ${chalk.bold('Spectral validation')} on file: ${schema.path}`)
+      console.info(
+        `Running ${chalk.bold('Spectral validation')} on file: ${schema.path}`,
+      )
 
-      const doc = new spectralCore.Document(schema.text, Parsers.Json, schema.name)
+      const doc = new spectralCore.Document(
+        schema.text,
+        Parsers.Json,
+        schema.name,
+      )
       const spectral = new spectralCore.Spectral()
 
       const schemaDialect = getSchemaDialect(schema.json.$schema)
@@ -536,19 +544,23 @@ async function taskLint() {
       } else if (schemaDialect.draftVersion === 'draft-07') {
         spectralFile = 'config/.spectral-draft07.yaml'
       } else {
-        throw new Error(`Unsupported schema version: ${schemaDialect.draftVersion}`)
+        throw new Error(
+          `Unsupported schema version: ${schemaDialect.draftVersion}`,
+        )
       }
 
       spectral.setRuleset(
-        await bundleAndLoadRuleset(path.join(process.cwd(), spectralFile), { fs: fsCb, fetch: spectralRuntime.fetch })
-      );
-
+        await bundleAndLoadRuleset(path.join(process.cwd(), spectralFile), {
+          fs: fsCb,
+          fetch: spectralRuntime.fetch,
+        }),
+      )
 
       const result = await spectral.run(doc)
       if (result.length > 0) {
         console.log(result)
       }
-    }
+    },
   })
 }
 
@@ -1265,7 +1277,6 @@ async function assertTopLevelRefIsStandalone(/** @type {SchemaFile} */ schema) {
     }
   }
 }
-
 
 async function printSchemaReport() {
   // `bowtie validate --implementation go-gojsonschema ./src/schemas/json/ava.json ./src/test/ava/ava.config.json`
