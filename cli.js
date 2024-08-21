@@ -2,6 +2,7 @@
 // @ts-check
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import fsCb from 'node:fs'
 import readline from 'node:readline'
 import util from 'node:util'
 
@@ -11,14 +12,18 @@ import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
 import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
+import spectralCore from "@stoplight/spectral-core"
+import Parsers from "@stoplight/spectral-parsers"
+import spectralRuntime from "@stoplight/spectral-runtime";
+import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
 import YAML from 'yaml'
-import schemasafe from '@exodus/schemasafe'
 import jsonlint from '@prantlf/jsonlint'
 import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
+import { bundleAndLoadRuleset } from '@stoplight/spectral-ruleset-bundler/with-loader'
 
 /**
  * Ajv defines types, but they don't work when importing the library with
@@ -421,7 +426,7 @@ async function ajvFactory(
    * Ditto, but with "$ref" URIs to external schemas.
    */
   for (const schemaPath of unknownSchemas) {
-    ajv.addSchema(await readJsonFile(schemaPath.toString()))
+    ajv.addSchema(await readJsonFile(schemaPath))
   }
 
   return ajv
@@ -498,6 +503,53 @@ async function taskLint() {
   await assertSchemaHasCorrectMetadata()
   await assertTopLevelRefIsStandalone()
   await assertSchemaNoSmartQuotes()
+  await forEachFile({
+    async onSchemaFile(schema) {
+      console.info(`Running ${chalk.bold('SchemaSafe validation')} on file: ${schema.path}`)
+
+      const errors = schemasafe.lint(schema.json, {
+        mode: 'strong',
+        extraFormats: false,
+        schemas: {},
+      })
+
+      for (const err of errors) {
+        console.log(`${schema.name}: ${err.message}`)
+      }
+    }
+  })
+
+  await forEachFile({
+    async onSchemaFile(schema) {
+      console.info(`Running ${chalk.bold('Spectral validation')} on file: ${schema.path}`)
+
+      const doc = new spectralCore.Document(schema.text, Parsers.Json, schema.name)
+      const spectral = new spectralCore.Spectral()
+
+      const schemaDialect = getSchemaDialect(schema.json.$schema)
+
+      let spectralFile
+      if (schemaDialect.draftVersion === 'draft-04') {
+        spectralFile = 'config/.spectral-draft04.yaml'
+      } else if (schemaDialect.draftVersion === 'draft-06') {
+        spectralFile = 'config/.spectral-draft06.yaml'
+      } else if (schemaDialect.draftVersion === 'draft-07') {
+        spectralFile = 'config/.spectral-draft07.yaml'
+      } else {
+        throw new Error(`Unsupported schema version: ${schemaDialect.draftVersion}`)
+      }
+
+      spectral.setRuleset(
+        await bundleAndLoadRuleset(path.join(process.cwd(), spectralFile), { fs: fsCb, fetch: spectralRuntime.fetch })
+      );
+
+
+      const result = await spectral.run(doc)
+      if (result.length > 0) {
+        console.log(result)
+      }
+    }
+  })
 }
 
 async function taskCheck() {
@@ -527,10 +579,10 @@ async function taskCheck() {
   assertSchemaValidationJsonHasValidSkipTest()
 
   // Run pre-checks (checks before JSON Schema validation) on all files
-  const spinner = ora('Pre-checking').start()
+  const spinner = ora().start()
   await forEachFile({
     async onSchemaFile(schema) {
-      spinner.text = `Pre-checking file: ${schema.path}`
+      spinner.text = `Running pre-check on file: ${schema.path}`
 
       assertFileHasNoBom(schema)
       assertFileHasCorrectExtensions(schema.path, ['.json'])
@@ -560,13 +612,13 @@ async function taskCheck() {
     },
   })
   spinner.stop()
-  console.info(`✔️ Schemas' pre-checks all succeeded`)
+  console.info(`✔️ Schemas: All pre-checks succeeded`)
 
   // Run tests against JSON schemas
   spinner.start('Testing schema with Ajv')
   await forEachFile({
     async onSchemaFile(schemaFile) {
-      spinner.text = `Testing schema ${schemaFile.path}`
+      spinner.text = `Running Ajv validation test on file: ${schemaFile.path}`
 
       const isFullStrictMode = !SchemaValidation.ajvNotStrictMode.includes(
         schemaFile.name,
@@ -585,6 +637,7 @@ async function taskCheck() {
       try {
         validateFn = ajv.compile(schemaFile.json)
       } catch (err) {
+        spinner.fail()
         printErrorAndExit(err, [
           `Failed to compile schema file ${schemaFile.path}`,
         ])
@@ -597,6 +650,7 @@ async function taskCheck() {
     async onPositiveTestFile(schemaFile, testFile, data) {
       const validate = data.validateFn
       if (!validate(testFile.json)) {
+        spinner.fail()
         printErrorAndExit(
           validate.err,
           [
@@ -614,6 +668,7 @@ async function taskCheck() {
     async onNegativeTestFile(schemaFile, testFile, data) {
       const validate = data.validateFn
       if (validate(testFile.json)) {
+        spinner.fail()
         printErrorAndExit(new Error(), [
           `Schema validation succeeded but was supposed to fail ./${testFile.path}`,
           `For schema ${schemaFile.path}`,
@@ -622,11 +677,7 @@ async function taskCheck() {
     },
   })
   spinner.stop()
-  console.info(`✔️ Schemas' Ajv tests all succeeded`)
-
-   if (argv.lint || argv['unstable-check-with'] === 'schemasafe') {
-    await assertSchemaPassesSchemaSafeLint()
-  }
+  console.info(`✔️ Schemas: All Ajv validation tests succeeded`)
 
   // Print information.
   await printSimpleStatistics()
@@ -635,6 +686,10 @@ async function taskCheck() {
 
 async function taskCheckRemote() {
   console.info('TODO')
+}
+
+async function taskReport() {
+  await printSchemaReport()
 }
 
 async function taskMaintenance() {
@@ -1133,64 +1188,6 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   }
 }
 
-async function assertSchemaPassesSchemaSafeLint() {
-  const spinner = ora('Testing schema with SchemaSafe').start()
-
-  await forEachFile({
-    async onSchemaFile(schema) {
-      spinner.text = `Running SchemaSafe on file: ${schema.path}`
-
-      const schemaDialect = getSchemaDialect(schema.json.$schema)
-      const options = getSchemaOptions(schema.name)
-
-      // const errors = schemasafe.lint(schema.json, {
-      //   mode: 'strong',
-      //   requireStringValidation: false,
-      //   extraFormats: false,
-      //   schemas: {},
-      // })
-
-      // for (const err of errors) {
-      //   console.log(`${schema.name}: ${err.message}`)
-      // }
-      let validate
-      try {
-        validate = schemasafe.validator(schema.json, {
-          mode: 'default',
-          includeErrors: true,
-          allErrors: true,
-          allowUnusedKeywords: true,
-          extraFormats: true,
-          formats: {},
-          schemas: (await Promise.all(options.unknownSchemas.map((schemaPath) => {
-            return fs.readFile(schemaPath, 'utf-8')
-          }))).map((text) => JSON.parse(text)),
-        })
-      } catch (err) {
-        printErrorAndExit(err, [
-          `Failed to validate file "${schema.path}" with SchemaSafe`
-        ])
-      }
-
-      return {
-        validate
-      }
-    },
-    async onPositiveTestFile(schema, file, { validate }) {
-      const result= validate(file)
-      if (!result) {
-        console.log(`Failed SchemaSafe on file "${schema.path}"`)
-      }
-    },
-    async onNegativeTestFile(schema, file) {
-
-    },
-  })
-
-  spinner.stop()
-  console.info(`✔️ Schemas' SchemaSafe tests all succeeded`)
-}
-
 async function assertSchemaHasCorrectMetadata(
   /** @type {SchemaFile} */ schema,
 ) {
@@ -1267,6 +1264,12 @@ async function assertTopLevelRefIsStandalone(/** @type {SchemaFile} */ schema) {
       }
     }
   }
+}
+
+
+async function printSchemaReport() {
+  // `bowtie validate --implementation go-gojsonschema ./src/schemas/json/ava.json ./src/test/ava/ava.config.json`
+  console.log('TODO')
 }
 
 async function printCountSchemaVersions() {
@@ -1464,6 +1467,7 @@ EXAMPLES:
     lint: taskLint,
     check: taskCheck,
     'check-remote': taskCheckRemote,
+    report: taskReport,
     maintenance: taskMaintenance,
     build: taskCheck, // Undocumented alias.
   }
