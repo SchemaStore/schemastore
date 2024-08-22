@@ -14,7 +14,7 @@ import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import spectralCore from '@stoplight/spectral-core'
 import Parsers from '@stoplight/spectral-parsers'
-import spectralRuntime from '@stoplight/spectral-runtime'
+import spectralRuntime from '@stoplight/spectral-runtime' // eslint-disable-line n/no-extraneous-import
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
 import YAML from 'yaml'
@@ -317,7 +317,7 @@ function printErrorAndExit(error, messages, extraText) {
   }
 
   console.warn('---')
-  process.stderr.write(error instanceof Error ? (error?.stack ?? '') : '')
+  process.stderr.write(error instanceof Error ? error?.stack ?? '' : '')
   process.stderr.write('\n')
   process.exit(1)
 }
