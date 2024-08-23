@@ -18,6 +18,10 @@
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {
+        "scikit-build-version": {
+          "type": "string",
+          "description": "The version of scikit-build-version. Takes a specifier set."
+        },
         "python-version": {
           "type": "string",
           "description": "The two-digit Python version. Takes a specifier set."
@@ -46,6 +50,26 @@
           "type": "string",
           "description": "The state of the build, one of `sdist`, `wheel`, `editable`, `metadata_wheel`, and `metadata_editable`. Takes a regex."
         },
+        "from-sdist": {
+          "type": "boolean",
+          "description": "Whether the build is from an sdist."
+        },
+        "failed": {
+          "type": "boolean",
+          "description": "Matches if the build fails. A build will be retried if there is at least one matching override with this set to true."
+        },
+        "system-cmake": {
+          "type": "string",
+          "description": "The version of CMake found on the system. Takes a specifier set."
+        },
+        "cmake-wheel": {
+          "type": "boolean",
+          "description": "Whether a cmake wheel is known to be provided for this system."
+        },
+        "abi-flags": {
+          "type": "string",
+          "description": "A sorted string of the abi flags. Takes a regex."
+        },
         "env": {
           "type": "object",
           "patternProperties": {
@@ -65,6 +89,10 @@
           "description": "A table of environment variables mapped to either string regexs, or booleans. Valid 'truthy' environment variables are case insensitive `true`, `on`, `yes`, `y`, `t`, or a number more than 0."
         }
       }
+    },
+    "inherit": {
+      "enum": ["none", "append", "prepend"],
+      "default": "none"
     }
   },
   "description": "Scikit-build-core's settings.",
@@ -82,8 +110,7 @@
         },
         "version": {
           "type": "string",
-          "default": ">=3.15",
-          "description": "The versions of CMake to allow. If CMake is not present on the system or does not pass this specifier, it will be downloaded via PyPI if possible. An empty string will disable this check."
+          "description": "The versions of CMake to allow. If CMake is not present on the system or does not pass this specifier, it will be downloaded via PyPI if possible. An empty string will disable this check. The default on 0.10+ is \"CMakeLists.txt\", which will read it from the project's CMakeLists.txt file, or \">=3.15\" if unreadable or <0.10."
         },
         "args": {
           "type": "array",
@@ -135,8 +162,8 @@
         },
         "verbose": {
           "type": "boolean",
-          "default": false,
-          "description": "Verbose printout when building."
+          "description": "DEPRECATED in 0.10, use build.verbose instead.",
+          "deprecated": true
         },
         "build-type": {
           "type": "string",
@@ -153,7 +180,8 @@
           "items": {
             "type": "string"
           },
-          "description": "The build targets to use when building the project. Empty builds the default target."
+          "description": "DEPRECATED in 0.10; use build.targets instead.",
+          "deprecated": true
         }
       }
     },
@@ -174,7 +202,7 @@
         "make-fallback": {
           "type": "boolean",
           "default": true,
-          "description": "If CMake is not present on the system or is older required, it will be downloaded via PyPI if possible. An empty string will disable this check."
+          "description": "If Ninja is not present on the system or is older than required, it will be downloaded via PyPI if this is false."
         }
       }
     },
@@ -224,11 +252,23 @@
       "additionalProperties": false,
       "properties": {
         "packages": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "A list of packages to auto-copy into the wheel. If this is not set, it will default to the first of ``src/<package>``, ``python/<package>``, or ``<package>`` if they exist.  The prefix(s) will be stripped from the package name inside the wheel."
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                ".+": {
+                  "type": "string"
+                }
+              }
+            }
+          ],
+          "description": "A list of packages to auto-copy into the wheel. If this is not set, it will default to the first of ``src/<package>``, ``python/<package>``, or ``<package>`` if they exist.  The prefix(s) will be stripped from the package name inside the wheel. If a dict, provides a mapping of package name to source directory."
         },
         "py-api": {
           "type": "string",
@@ -266,7 +306,7 @@
           "items": {
             "type": "string"
           },
-          "description": "A set of patterns to exclude from the wheel. This is additive to the SDist exclude patterns. This applies to the source files, not the final paths. Editable installs may not respect this exclusion."
+          "description": "A set of patterns to exclude from the wheel. This is additive to the SDist exclude patterns. This applies to the final paths in the wheel, and can exclude files from CMake output as well.  Editable installs may not respect this exclusion."
         },
         "build-tag": {
           "type": "string",
@@ -304,6 +344,31 @@
           "type": "boolean",
           "default": false,
           "description": "Rebuild the project when the package is imported. The build-directory must be set."
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool-args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra args to pass directly to the builder in the build step."
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The build targets to use when building the project. Empty builds the default target."
+        },
+        "verbose": {
+          "type": "boolean",
+          "default": false,
+          "description": "Verbose printout when building."
         }
       }
     },
@@ -373,6 +438,22 @@
             }
           }
         ]
+      }
+    },
+    "messages": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "after-failure": {
+          "type": "string",
+          "default": "",
+          "description": "A message to print after a build failure."
+        },
+        "after-success": {
+          "type": "string",
+          "default": "",
+          "description": "A message to print after a successful build."
+        }
       }
     },
     "metadata": {
@@ -446,6 +527,11 @@
       "default": "",
       "description": "The build directory. Defaults to a temporary directory, but can be set."
     },
+    "fail": {
+      "type": "boolean",
+      "default": false,
+      "description": "Immediately fail the build. This is only useful in overrides."
+    },
     "overrides": {
       "type": "array",
       "description": "A list of overrides to apply to the settings, based on the `if` selector.",
@@ -472,6 +558,75 @@
               }
             ]
           },
+          "inherit": {
+            "type": "object",
+            "properties": {
+              "cmake": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "args": {
+                    "$ref": "#/$defs/inherit"
+                  },
+                  "define": {
+                    "$ref": "#/$defs/inherit"
+                  },
+                  "targets": {
+                    "$ref": "#/$defs/inherit"
+                  }
+                }
+              },
+              "sdist": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "include": {
+                    "$ref": "#/$defs/inherit"
+                  },
+                  "exclude": {
+                    "$ref": "#/$defs/inherit"
+                  }
+                }
+              },
+              "wheel": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "packages": {
+                    "$ref": "#/$defs/inherit"
+                  },
+                  "license-files": {
+                    "$ref": "#/$defs/inherit"
+                  },
+                  "exclude": {
+                    "$ref": "#/$defs/inherit"
+                  }
+                }
+              },
+              "build": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "tool-args": {
+                    "$ref": "#/$defs/inherit"
+                  },
+                  "targets": {
+                    "$ref": "#/$defs/inherit"
+                  }
+                }
+              },
+              "install": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "components": {
+                    "$ref": "#/$defs/inherit"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
           "cmake": {
             "$ref": "#/properties/cmake"
           },
@@ -493,11 +648,17 @@
           "editable": {
             "$ref": "#/properties/editable"
           },
+          "build": {
+            "$ref": "#/properties/build"
+          },
           "install": {
             "$ref": "#/properties/install"
           },
           "generate": {
             "$ref": "#/properties/generate"
+          },
+          "messages": {
+            "$ref": "#/properties/messages"
           },
           "metadata": {
             "$ref": "#/properties/metadata"
@@ -513,6 +674,9 @@
           },
           "build-dir": {
             "$ref": "#/properties/build-dir"
+          },
+          "fail": {
+            "$ref": "#/properties/fail"
           }
         }
       }
