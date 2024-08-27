@@ -1477,7 +1477,6 @@ TASKS:
   check: Run all build checks
   check-strict: Checks all or the given schema against the strict meta schema
   check-remote: Run all build checks for remote schemas
-  coverage: Generate code coverage for a schema
   maintenance: Run maintenance checks
 
 EXAMPLES:
