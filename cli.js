@@ -700,6 +700,10 @@ async function taskCheckRemote() {
   console.info('TODO')
 }
 
+async function taskCoverage() {
+  console.info('TODO')
+}
+
 async function taskReport() {
   await printSchemaReport()
 }
@@ -1478,6 +1482,7 @@ EXAMPLES:
     lint: taskLint,
     check: taskCheck,
     'check-remote': taskCheckRemote,
+    coverage: taskCoverage,
     report: taskReport,
     maintenance: taskMaintenance,
     build: taskCheck, // Undocumented alias.
