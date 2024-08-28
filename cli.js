@@ -84,7 +84,7 @@ const SchemaDialects = [
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'unstable-check-with'],
-    boolean: [' help', 'lint'],
+    boolean: ['help'],
   })
 )
 
@@ -1448,7 +1448,7 @@ async function printSimpleStatistics() {
 
 {
   const helpMenu = `USAGE:
-  node ./cli.js <taskName|functionName>
+  node ./cli.js [--help] [--SchemaName=<schema>] <taskName|functionName>
 
 TASKS:
   new-schema: Create a new JSON schema
@@ -1460,11 +1460,17 @@ TASKS:
 
 EXAMPLES:
   node ./cli.js check
+  node ./cli.js check --SchemaName=schema-catalog.json
   `
 
   if (!argv._[0]) {
     console.error(helpMenu)
     console.error(`${chalk.red('Error:')} No argument given`)
+    process.exit(1)
+  }
+  if (argv._[1]) {
+    console.error(helpMenu)
+    console.error(`${chalk.red('Error:')} Too many arguments given`)
     process.exit(1)
   }
   if (argv.help) {
