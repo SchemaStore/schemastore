@@ -500,11 +500,12 @@ async function taskNewSchema() {
 }
 
 async function taskLint() {
-  await assertSchemaHasCorrectMetadata()
-  await assertTopLevelRefIsStandalone()
-  await assertSchemaNoSmartQuotes()
   await forEachFile({
     async onSchemaFile(schema) {
+      await assertSchemaHasCorrectMetadata(schema)
+      await assertTopLevelRefIsStandalone(schema)
+      await assertSchemaNoSmartQuotes(schema)
+
       console.info(
         `Running ${chalk.bold('SchemaSafe validation')} on file: ${schema.path}`,
       )
