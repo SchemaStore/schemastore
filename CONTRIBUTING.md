@@ -98,6 +98,8 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 - `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
 - It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
 
+To check your schema against that schema, use `npm run check-strict -- --SchemaName=<schemaName.json>`.
+
 ❌ **Don't forget** add test files.
 
 - Always be consistent across your schema: order properties and describe in the same style.

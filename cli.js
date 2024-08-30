@@ -80,7 +80,7 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], help?: boolean, lint?: boolean, SchemaName?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], help?: boolean, SchemaName?: string, ExplicitTestFile?: string, 'unstable-check-with'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'unstable-check-with'],
@@ -208,17 +208,31 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     const data = await obj?.onSchemaFile?.(schema)
 
     if (obj?.onPositiveTestFile) {
-      const positiveTestDir = path.join(TestPositiveDir, schemaId)
-      if (await exists(positiveTestDir)) {
-        for (const testfile of await fs.readdir(positiveTestDir)) {
-          const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
+      if (argv.ExplicitTestFile) {
+        if (argv.ExplicitTestFile === '<all>') {
+          for (const testfile of await fs.readdir(SchemaDir)) {
+            const testfilePath = path.join(SchemaDir, testfile)
+            let file = await toTestFile(testfilePath)
+            await obj.onPositiveTestFile(schema, file, data)
+          }
+        } else {
+          const testfilePath = path.join(SchemaDir, argv.ExplicitTestFile)
           let file = await toTestFile(testfilePath)
           await obj.onPositiveTestFile(schema, file, data)
+        }
+      } else {
+        const positiveTestDir = path.join(TestPositiveDir, schemaId)
+        if (await exists(positiveTestDir)) {
+          for (const testfile of await fs.readdir(positiveTestDir)) {
+            const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
+            let file = await toTestFile(testfilePath)
+            await obj.onPositiveTestFile(schema, file, data)
+          }
         }
       }
     }
 
-    if (obj?.onNegativeTestFile) {
+    if (!argv.ExplicitTestFile && obj?.onNegativeTestFile) {
       const negativeTestDir = path.join(TestNegativeDir, schemaId)
       if (await exists(negativeTestDir)) {
         for (const testfile of await fs.readdir(negativeTestDir)) {
@@ -695,6 +709,12 @@ async function taskCheck() {
   // Print information.
   await printSimpleStatistics()
   await printCountSchemaVersions()
+}
+
+async function taskCheckStrict() {
+  argv.ExplicitTestFile = argv.SchemaName || '<all>'
+  argv.SchemaName = 'metaschema-draft-07-unofficial-strict.json'
+  await taskCheck()
 }
 
 async function taskCheckRemote() {
@@ -1455,6 +1475,7 @@ TASKS:
   new-schema: Create a new JSON schema
   lint: Run less-important checks on schemas
   check: Run all build checks
+  check-strict: Checks all or the given schema against the strict meta schema
   check-remote: Run all build checks for remote schemas
   coverage: Generate code coverage for a schema
   maintenance: Run maintenance checks
@@ -1462,6 +1483,7 @@ TASKS:
 EXAMPLES:
   node ./cli.js check
   node ./cli.js check --SchemaName=schema-catalog.json
+  node ./cli.js check-strict --SchemaName=schema-catalog.json
   `
 
   if (!argv._[0]) {
@@ -1484,6 +1506,7 @@ EXAMPLES:
     'new-schema': taskNewSchema,
     lint: taskLint,
     check: taskCheck,
+    'check-strict': taskCheckStrict,
     'check-remote': taskCheckRemote,
     report: taskReport,
     maintenance: taskMaintenance,
