@@ -498,16 +498,16 @@ This currently isn't possible. This is tracked by [issue #2731](https://github.c
 To validate all schemas, run:
 
 ```console
-npm run check
+node ./cli.js check
 ```
 
 Because there are hundreds of schemas, you may only want to validate a single one to save time. To do this, run:
 
 ```console
-npm run check -- --SchemaName=<schemaName.json>
+node ./cli.js check --SchemaName=<schemaName.json>
 ```
 
-For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `npm run check -- --SchemaName=ava.json`
+For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --SchemaName=ava.json`
 
 Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`.
 
