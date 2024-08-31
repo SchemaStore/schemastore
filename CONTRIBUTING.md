@@ -13,10 +13,20 @@
     - [Deprecated Features](#deprecated-features)
     - [API Compatibility](#api-compatibility)
   - [Language Server Features](#language-server-features)
-    - [Language Servers](#language-servers)
     - [Non-standard Properties](#non-standard-properties)
   - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
-  - [Troubleshooting](#troubleshooting)
+- [Schema Validation](#schema-validation)
+  - [Ajv strict mode](#ajv-strict-mode)
+  - [Ajv non-strict mode](#ajv-non-strict-mode)
+  - [SchemaSafe](#schemasafe)
+- [About `catalog.json`](#about-catalogjson)
+- [Compatible Language Servers and Tools](#compatible-language-servers-and-tools)
+  - [`redhat-developer/yaml-language-server`](#redhat-developeryaml-language-server)
+  - [`tamasfe/taplo`](#tamasfetaplo)
+  - [`Microsoft/vscode-json-languageservice`](#microsoftvscode-json-languageservice)
+  - [Other](#other)
+- [Troubleshooting](#troubleshooting)
+  - [`pre-commit` fails to format files in CI](#pre-commit-fails-to-format-files-in-ci)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
   - [How to add a JSON Schema that's self-hosted/remote/external](#how-to-add-a-json-schema-thats-self-hostedremoteexternal)
@@ -55,17 +65,13 @@ If you want to contribute, but not sure what needs fixing, see the [help wanted]
 
 Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs use this field to know which files the schema should be used for (in autocompletion).
 
-Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. This repository has tests that use a validator (either [AJV](https://ajv.js.org) or [SchemaSafe](https://github.com/ExodusMovement/schemasafe)), to ensure that the schemas either pass or fail validation.
+Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. These tests may be in JSON, YAML, or TOML format.
 
-There are three types of schema validation modes:
-
-- [AJV](https://ajv.js.org) [strict mode](https://ajv.js.org/strict-mode.html): The default validation mode that is most stringent
-- [AJV](https://ajv.js.org) non-strict mode: Some rules are relaxed for the sake of brevity. To validate under non-strict mode, add your schema to the `ajvNotStrictMode` field in [schema-validation.jsonc](src/schema-validation.jsonc)
-- [SchemaSafe](https://github.com/ExodusMovement/schemasafe): Helps catch errors within schemas that would otherwise be missed. This is a WIP.
+Multiple libraries are used for validation to increase the compatibility and correctness of schemas. All schemas must correctly validate against their positive and negative tests using [Ajv](https://ajv.js.org). Other JSON Schema libraries can be optionally used. And, the schemas themselves can be linted using "Ajv strict mode" and other libraries. More details under [Schema Validation](#schema-validation).
 
 ## Recommended Extensions
 
-We highly recommend installing the following extensions for your IDE:
+We _highly recommend_ installing the following extensions for your IDE:
 
 - [EditorConfig](https://editorconfig.org) to automatically configure editor settings
 - [Prettier](https://prettier.io) to automatically configure file formatting
@@ -91,6 +97,8 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 - There are no empty arrays. For instance, it's impossible to write less than 2 sub-schemas for `allOf`
 - `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
 - It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
+
+To check your schema against that schema, use `npm run check-strict -- --SchemaName=<schemaName.json>`.
 
 ❌ **Don't forget** add test files.
 
@@ -207,27 +215,6 @@ This means that renames in subschema paths is a potentially breaking change. If 
 
 There are several language servers that use SchemaStore:
 
-#### Language Servers
-
-**YAML**
-
-- [`redhat-developer/yaml-language-server`](https://github.com/redhat-developer/yaml-language-server) used by VSCode's [Red Hat YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
-
-**TOML**:
-
-- [`tamasfe/taplo`](https://github.com/tamasfe/taplo) used by VSCode's [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
-  - More information [here](https://taplo.tamasfe.dev/configuration/developing-schemas.html).
-
-**JSON**
-
-- [`Microsoft/vscode-json-languageservice`](https://github.com/Microsoft/vscode-json-languageservice) used by VSCode
-  - More information [here](https://code.visualstudio.com/docs/languages/json).
-
-**Other**
-
-- Visual Studio proprietary
-- Intellij proprietary
-
 #### Non-standard Properties
 
 Some language servers support non-standard properties. They include:
@@ -283,10 +270,78 @@ This repository uses the [the code-owner-self-merge](https://github.com/OSS-Docs
 
 See the [CODEOWNERS](.github/CODEOWNERS) file, the [action configuration](.github/workflows/codeowners-merge.yml), and [action documentation](https://github.com/OSS-Docs-Tools/code-owner-self-merge) for more information.
 
-### Troubleshooting
+## Schema Validation
 
-- There may be `git merge` conflicts in `catalog.json` because you added the item to the end of the list instead of alphabetically
-- The `pre-commit` build server failed because the PR was created/push from an organization and not from your own account
+After authoring a schema, you'll want to validate so it behaves as intended against popular validators.
+
+This repository validations JSON Schemas in multiple ways:
+
+### [Ajv](https://ajv.js.org) [strict mode](https://ajv.js.org/strict-mode.html)
+
+- The default validation mode that is most stringent
+- Checks schema to prevent any unexpected behaviors or silently ignored mistakes
+- Fixing strict mode errors does not change validation results, it only serves to improve schema quality
+- More info at [Ajv Strict mode docs](https://ajv.js.org/strict-mode.html#strict-schema)
+
+### [Ajv](https://ajv.js.org) non-strict mode
+
+- Some rules are relaxed for the sake of brevity
+- To validate under non-strict mode, add your schema to the `ajvNotStrictMode` field in [schema-validation.jsonc](src/schema-validation.jsonc)
+
+### [SchemaSafe](https://github.com/ExodusMovement/schemasafe)
+
+- Helps catch errors within schemas that would otherwise be missed. This is a WIP
+
+To actually run the validation checks, see [How to validate a JSON Schema](#how-to-validate-a-json-schema).
+
+## About `catalog.json`
+
+The `catalog.json` file is generally used by editors and extensions to determine which schemas apply to what files. Specifically:
+
+- VSCode ignores this file [see issue](https://github.com/microsoft/vscode/issues/26289)
+- [RedHat's YAML language server](#redhat-developeryaml-language-server) uses this file ([see configuration](https://github.com/redhat-developer/vscode-yaml/blob/41e0be736f2d07cdf7489e1c1c591b35b990e096/package.json#L176))
+- [Taplo TOML language server](#tamasfetaplo) uses this file (see [this](https://github.com/tamasfe/taplo/blob/2e01e8cca235aae3d3f6d4415c06fd52e1523934/editors/vscode/package.json#L240) and [this](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml))
+
+Sometimes, `catalog.json` is interpreted differently:
+
+- With [RedHat's YAML language server](#redhat-developeryaml-language-server), the `fileMatch` will not work as expected if no `.ya?ml` extension is supplied with a custom file extension
+  - See [upstream issue](https://github.com/redhat-developer/yaml-language-server/issues/790)
+  - See the [schemastore issue](https://github.com/SchemaStore/schemastore/pull/3982) issue for more info
+
+And, generally, if a software supports multiple formats, stick with configuration file formats like JSON and avoid JavaScript. See [this](https://github.com/SchemaStore/schemastore/pull/3989) issue.
+
+## Compatible Language Servers and Tools
+
+### [`redhat-developer/yaml-language-server`](https://github.com/redhat-developer/yaml-language-server)
+
+- Used by VSCode's [Red Hat YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+
+### [`tamasfe/taplo`](https://github.com/tamasfe/taplo)
+
+- Used by VSCode's [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
+- More information [here](https://taplo.tamasfe.dev/configuration/developing-schemas.html)
+
+### [`Microsoft/vscode-json-languageservice`](https://github.com/Microsoft/vscode-json-languageservice)
+
+- Used by VSCode
+- Used by Zed (see [source](https://github.com/zed-industries/zed/blob/eb9eae09b1186ca54895a80a352da76591625032/crates/languages/src/json.rs#L31))
+- Used by Emacs's LSP Mode (see [docs](https://emacs-lsp.github.io/lsp-mode/page/lsp-json/))
+- More information [here](https://code.visualstudio.com/docs/languages/json)
+
+### Other
+
+- Visual Studio proprietary
+- Intellij proprietary
+- [vscode-langservers-extracted](https://github.com/hrsh7th/vscode-langservers-extracted)
+- [SchemaStore.nvim](https://github.com/b0o/SchemaStore.nvim)
+
+## Troubleshooting
+
+Some common errors include:
+
+### `pre-commit` fails to format files in CI
+
+The `pre-commit.ci` action can "mysteriously" fail to automatically commit formatted files. This happens because the repository corresponding to the pull request branch is not owned by a user account. This constraint is detailed in [GitHub's documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/committing-changes-to-a-pull-request-branch-created-from-a-fork).
 
 ## How-to
 
@@ -306,7 +361,7 @@ cd schemastore
 Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required NodeJS version is defined by the `engines` key in [package.json](package.json). Now, install dependencies and run the `new-schema` task:
 
 ```sh
-npm ci
+npm clean-install
 npm run new-schema
 ```
 
@@ -440,21 +495,6 @@ This currently isn't possible. This is tracked by [issue #2731](https://github.c
 
 ### How to validate a JSON Schema
 
-This repository validations JSON Schemas in multiple ways:
-
-- "Meta validation"
-  - Check there are no unused files or directories
-  - Check that schema is valid JSON
-  - Check that the entry in `catalog.json` is valid
-  - etc.
-- AJV strict mode validation
-  - Checks schema to prevent any unexpected behaviors or silently ignored mistakes
-  - Fixing strict mode errors does not change validation results, it only serves to improve schema quality
-  - More info at [Ajv Strict mode docs](https://ajv.js.org/strict-mode.html#strict-schema)
-- Schema validation
-  - Actually uses the schema against any test files
-  - Checks that schemas properly constrain the object as schema authors intended
-
 To validate all schemas, run:
 
 ```console
@@ -500,8 +540,8 @@ A subschema should be extracted to its own file based on the following rules:
   - Same with [Prettier](https://prettier.io). It reads from `.prettierrc.json` (among other files) and `package.json`'s `prettier` key.
 - If the schema cannot be its own file, then extracting the subschema may be an improvement
   - For example, [Poetry](https://python-poetry.org) reads configuration _only_ from `pyproject.toml`'s `tool.poetry` key. Because the Poetry subschema is relatively complex and a large project, it has been extracted to its own file, `partial-poetry.json`.
-- If the schema must exist locally to workaround issue #2731, then the subschema should be extracted
-  - In a top-level `$comment`, you must add the date at which you copied the original. See #3526 for an example
+- If the schema must exist locally to workaround issue [#2731](https://github.com/SchemaStore/schemastore/issues/2731), then the subschema should be extracted
+  - In a top-level `$comment`, you must add the date at which you copied the original. See [#3526](https://github.com/SchemaStore/schemastore/issues/3526) for an example
 
 Use your best judgement; if the project or schema is small, then the drawbacks of extracting the subschema to its own file likely outweigh the benefits.
 
