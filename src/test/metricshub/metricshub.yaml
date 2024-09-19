@@ -1,0 +1,323 @@
+# MetricsHub Configuration
+
+# Default logger level
+loggerLevel: trace
+
+# Internal collect interval
+collectPeriod: 2m
+
+otel:
+  otel.metrics.exporter: otlp
+  otel.exporter.otlp.metrics.endpoint: http://server:9090/api/v1/otlp/v1/metrics
+  otel.exporter.otlp.metrics.protocol: http/protobuf
+
+# Customizes the OpenTelemetry Collector sub-process
+otelCollector:
+  commandLine:
+    [
+      '/opt/hws/otel/otelcol',
+      '--config',
+      '/opt/hws/otel/otel-config.yaml',
+      '--feature-gates=pkg.translator.prometheus.NormalizeName',
+    ]
+  environment:
+    HTTPS_PROXY: 'https://my-proxy.local.net'
+    NO_WINDOWS_SERVICE: 1
+  output: log
+  workingDir: /opt/hws/otel
+  disabled: false
+
+# Resource Groups configuration
+resourceGroups:
+  # Resource Group identifier
+  data-center-1:
+    # Adds additional static attributes to all the resources in the group
+    attributes: # old extraLabels
+      site: datacenter-1 # Customize this value with your own site naming convention. (Dedicating 1 collector to 1 site is a good practice.)
+
+    # Adds additional static metrics to all the resources in the group.
+    metrics: # old extraMetrics
+      hw.site.carbon_intensity: 230 # in g/kWh
+      # Carbon dioxide produced per kilowatt-hour.
+      # The average is 230g/kWh for Europe.
+      # The average is 309g/kWh for Texas, USA.
+      # The average is 40g/kWh for Ontario, Canada.
+      # The average is 712g/kWh for Queensland, Australia.
+      # Source: https://app.electricitymap.org/map
+
+      hw.site.electricity_cost: 0.12 # in $/kWh
+      # Electricity cost per kilowatt-hour.
+      # The average is $0.12/kWh for non-household in Europe.
+      # The average is $0.159/kWh for non-household in the USA.
+      # The average is $0.117/kWh for non-household in Canada.
+      # The average is $0.225/kWh for non-household in Australia.
+      # Source: https://www.globalpetrolprices.com/electricity_prices/
+
+      hw.site.pue: 1.8
+      # Power Usage Effectiveness. A ratio describing how efficiently a computer data center uses energy. The ideal ratio is 1.
+
+    # Some resource templates can be found below:
+    resources:
+      # # ECS2-01 Resource Configuration
+      server-01:
+        attributes:
+          host.name: server-01
+          host.type: linux
+        protocols:
+          snmp:
+            community: public
+            port: 161
+            version: v2c
+
+      # # EMC Disk Array through WBEM
+      server-02:
+        attributes:
+          host.name: server-02
+          host.type: storage
+        protocols:
+          wbem:
+            username: user
+            password: password
+            port: 5989
+            timeout: 120s
+        connectors:
+          - +EMCDiskArray
+
+      pc-user:
+        attributes:
+          host.name: localhost
+          host.type: windows
+        protocols:
+          wmi:
+            timeout: 240
+
+      grafana-service:
+        attributes:
+          service.name: Grafana
+          host.name: metricshub-demo.mydomain.com
+        protocols:
+          http:
+            https: true
+            port: 443
+        monitors:
+          grafana:
+            simple: # simple job. Creates monitors and collects associated metrics.
+              sources:
+                grafanaHealth:
+                  type: http
+                  path: /api/health
+                  method: get
+                  header: 'Accept: application/json'
+                  # {
+                  #   "commit": "838218ba20",
+                  #   "database": "ok",
+                  #   "version": "10.1.0"
+                  # }
+                  computes:
+                    - type: json2Csv
+                      entryKey: /
+                      properties: commit;database;version
+                      separator: ;
+                    - type: translate
+                      column: 3
+                      translationTable:
+                        ok: 1
+                        default: 0
+              mapping:
+                source: ${source::monitors.grafana.simple.sources.grafanaHealth}
+                attributes:
+                  id: $2
+                  service.instance.id: $2
+                  service.version: $4
+                metrics:
+                  grafana.db.state: $3
+
+      #═══════════════════════════════════════════════════
+      # IPMI protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-1:
+        attributes:
+          host.name: server-1
+          host.type: oob
+        protocols:
+          ipmi:
+            username: username
+            password: password
+            timeout: 120
+
+      #═══════════════════════════════════════════════════
+      # WMI protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-2:
+        attributes:
+          host.name: server-2
+          host.type: win
+        protocols:
+          wmi:
+            timeout: 120
+
+      #═══════════════════════════════════════════════════
+      # WMI protocol configuration with credentials
+      #═══════════════════════════════════════════════════
+
+      server-3:
+        attributes:
+          host.name: server-3
+          host.type: win
+        protocols:
+          wmi:
+            username: server-3\username
+            password: password
+            timeout: 120
+
+      #═══════════════════════════════════════════════════
+      # SNMP v1 protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-4:
+        attributes:
+          host.name: server-4
+          host.type: linux
+        protocols:
+          snmp:
+            version: v1
+            community: public
+            port: 161
+            timeout: 120
+
+      #═══════════════════════════════════════════════════
+      # SNMP v2c protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-5:
+        attributes:
+          host.name: server-5
+          host.type: oob
+        protocols:
+          snmp:
+            version: v2c
+            community: public
+            port: 161
+            timeout: 120
+
+      #═══════════════════════════════════════════════════
+      # WBEM protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-7:
+        attributes:
+          host.name: server-7
+          host.type: storage
+        protocols:
+          wbem:
+            protocol: https
+            port: 5989
+            timeout: 120
+            username: admin
+            password: password
+
+      #═══════════════════════════════════════════════════
+      # HTTP protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-8:
+        attributes:
+          host.name: server-8
+          host.type: storage
+        protocols:
+          http:
+            https: true
+            port: 443
+            username: username
+            password: password
+        connectors:
+          - +PureStorageREST
+          - -NvidiaSmi
+          - '#hardware'
+        variables:
+          NvidiaSmi:
+            variable: value
+
+      #═══════════════════════════════════════════════════
+      # SSH protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-9:
+        attributes:
+          host.name: server-9
+          host.type: linux
+        protocols:
+          ssh:
+            timeout: 120
+            useSudo: true
+            useSudoCommands: [isi, isi_for_array]
+            sudoCommand: sudo
+            username: myusername
+            password: mypwd
+            privateKey: /tmp/ssh-key.txt
+
+      #═══════════════════════════════════════════════════
+      # OSCommand configuration
+      #═══════════════════════════════════════════════════
+
+      server-10:
+        attributes:
+          host.name: server-10
+          host.type: linux
+        protocols:
+          osCommand:
+            timeout: 120
+            useSudo: true
+            useSudoCommands: []
+            sudoCommand: sudo
+
+      #═══════════════════════════════════════════════════
+      # WinRM configuration
+      #═══════════════════════════════════════════════════
+
+      server-11:
+        attributes:
+          host.name: server-11
+          host.type: win
+        protocols:
+          winrm:
+            timeout: 120
+            username: myusername
+            password: mypwd
+            port: 5985
+            protocol: http
+            authentications: [ntlm, kerberos]
+
+      #═══════════════════════════════════════════════════
+      # vCenter WBEM configuration
+      #═══════════════════════════════════════════════════
+
+      server-12:
+        attributes:
+          host.name: server-12
+          host.type: oob
+        protocols:
+          wbem:
+            protocol: https
+            port: 5989
+            timeout: 120
+            username: admin
+            password: password
+            vcenter: server-vcenter
+
+      #═══════════════════════════════════════════════════
+      # Multi-Resources through SNMP v1 protocol configuration
+      #═══════════════════════════════════════════════════
+
+      multi-resources-config-1:
+        attributes:
+          host.names: [server-13, server-14, server-15]
+          host.type: linux
+        protocols:
+          snmp:
+            version: v1
+            community: public
+            port: 161
+            timeout: 120

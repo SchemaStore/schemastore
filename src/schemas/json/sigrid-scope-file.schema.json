@@ -1,7 +1,8 @@
 {
-  "$id": "https://json.schemastore.org/sigrid-scope-file.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/sigrid-scope-file.schema.json",
   "additionalProperties": true,
+
   "definitions": {
     "organization": {
       "type": "string",
@@ -111,6 +112,9 @@
             },
             "generated": {
               "$ref": "#/definitions/component"
+            },
+            "supplementary": {
+              "$ref": "#/definitions/component"
             }
           },
           "additionalProperties": false
@@ -137,6 +141,25 @@
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "system_element": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": true
+    },
+    "system_element_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/system_element"
       }
     },
     "dependency": {
@@ -191,9 +214,17 @@
       "items": {
         "$ref": "#/definitions/architecture_group"
       }
+    },
+    "architecture_patterns": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
     }
   },
+
   "description": "Analysis scope configuration file used by Sigrid (sigrid-says.com)",
+
   "properties": {
     "default_excludes": {
       "type": "boolean",
@@ -213,14 +244,19 @@
     "components": {
       "$ref": "#/definitions/component_list"
     },
+    "experimental": {
+      "type": "boolean",
+      "description": "Enable experimental analysis features."
+    },
     "languages": {
       "$ref": "#/definitions/language_list",
       "description": "A list of technologies that should be included as part of the analysis."
     },
     "model": {
       "$ref": "#/definitions/model",
-      "description": "Version of the SIG quality model that should be used for the analysis."
+      "description": "SIG Maintainability Model that should be used for the analysis, defaults to latest."
     },
+
     "alerts": {
       "type": "object",
       "properties": {
@@ -239,6 +275,7 @@
       },
       "additionalProperties": false
     },
+
     "dependencychecker": {
       "type": "object",
       "properties": {
@@ -265,13 +302,79 @@
           "description": "When true, transitive dependencies are also checked and included in the results."
         },
         "exclude": {
-          "$ref": "#/definitions/file_pattern_list",
-          "description": "List of file/directory patterns that should be excluded from the Open Source Health analysis."
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Excludes all dependencies in paths matching the specified regular expression."
+                  }
+                },
+                "required": ["path"]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "vulnerability": {
+                    "type": "string",
+                    "description": "Excludes all vulnerabilities matching the specified identifier (e.g. 'CVE-123')."
+                  }
+                },
+                "required": ["vulnerability"]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "license": {
+                    "type": "string",
+                    "description": "Excludes license risks identified in dependencies with the specified name."
+                  }
+                },
+                "required": ["license"]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "activity": {
+                    "type": "string",
+                    "description": "Excludes activity risks identified in dependencies with the specified name."
+                  }
+                },
+                "required": ["activity"]
+              }
+            ]
+          },
+          "description": "List of paths and/or dependencies that should be ignored for Open Source Health."
+        },
+        "model": {
+          "$ref": "#/definitions/model",
+          "description": "SIG Open Source Health model version that should be used for the analysis, defaults to latest."
+        },
+        "override_enabled_technologies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of additional technologies to analyze, which are not enabled by default."
+        },
+        "override_disabled_technologies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of technologies for which the analysis should be disabled."
         }
       },
       "additionalProperties": false,
       "required": []
     },
+
     "checkmarx": {
       "type": "object",
       "properties": {
@@ -298,6 +401,7 @@
       "additionalProperties": false,
       "required": ["enabled", "id"]
     },
+
     "architecture": {
       "type": "object",
       "properties": {
@@ -307,7 +411,7 @@
         },
         "model": {
           "$ref": "#/definitions/model",
-          "description": "Version of the SIG Architecture Quality Model to use."
+          "description": "SIG Architecture Quality Model that should be used for the analysis, defaults to latest."
         },
         "exclude": {
           "$ref": "#/definitions/file_pattern_list",
@@ -317,9 +421,21 @@
           "type": "boolean",
           "description": "Overrides automatic component detection with components defined manually in scope file."
         },
+        "file_annotation_components": {
+          "type": "boolean",
+          "description": "Automatic componentization based on @sigrid:component annotations in source files."
+        },
         "flatten_directories": {
           "$ref": "#/definitions/file_pattern_list",
           "description": "List of directory names that should be flattened and not considered as components during the analysis."
+        },
+        "add_system_elements": {
+          "$ref": "#/definitions/system_element_list",
+          "description": "List of system elements that are manually defined and added to the architecture graph."
+        },
+        "remove_system_elements": {
+          "$ref": "#/definitions/system_element_list",
+          "description": "List of system elements to manually remove from the architecture graph."
         },
         "add_dependencies": {
           "$ref": "#/definitions/dependency_list",
@@ -350,7 +466,7 @@
         },
         "history_enabled": {
           "type": "boolean",
-          "description": "Disables change history analysis when set to false."
+          "description": "Deprecated, this is now detected automatically."
         },
         "history": {
           "anyOf": [
@@ -361,7 +477,7 @@
               "type": "string"
             }
           ],
-          "description": "Deprecated, use 'history_enabled' instead."
+          "description": "Deprecated, this is now detected automatically."
         },
         "history_period_months": {
           "type": "integer",
@@ -401,11 +517,16 @@
             "type": "string"
           },
           "description": "List of metrics that should be removed from the analysis and set to N/A."
+        },
+        "custom_patterns": {
+          "$ref": "#/definitions/architecture_patterns",
+          "description": "Adds additional custom patterns to the architecture knowledge base used for the analysis."
         }
       },
       "additionalProperties": false,
-      "required": ["enabled"]
+      "required": []
     },
+
     "thirdpartyfindings": {
       "type": "object",
       "properties": {
@@ -417,9 +538,23 @@
           "$ref": "#/definitions/analyzer_list",
           "description": "List of third-party analyzers that should not be ran."
         },
+        "disabled_rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of rule IDs that should not be reported by Sigrid."
+        },
         "enabled_analyzers": {
           "$ref": "#/definitions/analyzer_list",
           "description": "List of third-party analyzer names that should be ran even though they are disabled by default."
+        },
+        "enabled_rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of rule IDs that should be reported by Sigrid, even though they are disabled by default."
         },
         "include": {
           "$ref": "#/definitions/file_pattern_list",
@@ -431,7 +566,7 @@
         }
       },
       "additionalProperties": false,
-      "required": ["enabled"]
+      "required": []
     }
   },
   "required": ["languages"],

@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/monade-stack-config.json",
+  "title": "Monade CLI Stack Configuration",
+  "description": "The configuration file to get a local stack up and running with Monade CLI",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the stack. It will be used as a prefix for the stack's resources"
+    },
+    "nginx": {
+      "type": "string",
+      "enum": ["system", "local"],
+      "default": "system",
+      "description": "Specifies whether to use the system-wide nginx service or spawn a local nginx process among other services. If not specified, 'system' is implied. Local nginx requires an nginx binary in the path. System wide nginx configuration is left to the user."
+    },
+    "services": {
+      "type": "object",
+      "description": "The services to be run in the stack. Each service is represented by its name, which is the key",
+      "additionalProperties": {
+        "$ref": "#/definitions/ProcConfig"
+      }
+    },
+    "bastion": {
+      "type": "object",
+      "description": "The bastion configuration for the stack. Use this to quick connect to the bastion host of the stack with `monade bastion`",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "format": "hostname",
+          "examples": ["bastion.app.monadeapps.xyz", "10.34.159.55"],
+          "description": "The bastion host to connect to. Can be an ip address or a domain"
+        },
+        "user": {
+          "type": "string",
+          "examples": ["ubuntu"],
+          "description": "The user to connect to the bastion host"
+        },
+        "key_path": {
+          "type": "string",
+          "examples": ["~/.config/monade/stack_name/bastion_key.pem"],
+          "description": "The path to the private key to use to connect to the bastion host. Please note that the key should be store in a directory outside the stack directory, to avoid being included in the stack repository"
+        }
+      },
+      "required": ["host", "user", "key_path"]
+    },
+    "additionalProperties": false
+  },
+  "required": ["name", "services"],
+  "definitions": {
+    "ProcConfig": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The command to be run to start the service. If the command has spaces it must be double quoted"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "The working directory for the command. This directory will be cd'd into before running the command"
+        },
+        "env": {
+          "type": "array",
+          "description": "A list of environment variables to be set for the command. Each item in the list should be a string in the form of `KEY=VALUE`",
+          "examples": ["FOO=bar", "BAZ=qux"],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "env_file": {
+          "type": "string",
+          "description": "If set all environment variables in the file will be set for the command. The file should be in the format of `KEY=VALUE` with each key-value pair on a new line"
+        },
+        "domains": {
+          "type": "array",
+          "description": "A list of domains to be proxied to the service. Each item in the list must be a string. In our local stacks domains should use the `test` tld",
+          "examples": ["frontend.test", "api.test"],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "port": {
+          "type": "integer",
+          "description": "This is the port the proxy will use to forward requests to the service. It must be unique for each service in the stack. Please note that the process should be configured to run on this port, and concurrent stacks could interfere one with another.The port must be set along with domains for the service to be proxied",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "proxy_https": {
+          "type": "boolean",
+          "default": false,
+          "description": "If set to true, the proxy will forward requests to the service using HTTPS. The service must be configured to accept HTTPS requests. Setting this has no effect on the proxy external connections, that are always https"
+        },
+        "autostart": {
+          "type": "boolean",
+          "default": false,
+          "description": "If set to true, the service will be started when the stack is started. If set to false, the service will not be started automatically when the stack is started."
+        },
+        "stop_sequence": {
+          "type": "string",
+          "examples": ["C-c", "C-d"],
+          "description": "The key sequence to be used by the stack runner to stop the service. For docker services use 'C-c'. If not set a SIGTERM will be sent. The sequence must be a combination of keys, emacs-style, for example for ctrl+c use 'C-c'. Do not specify SIGTERM or SIGKILL"
+        },
+        "nginx_server_options": {
+          "type": "object",
+          "description": "A list of options to be set for the server block in the nginx configuration for this process. Here should be nginx general configurations. This is a map, the key is the name of the directive, the value is the argument",
+          "examples": ["client_max_body_size", "keepalive_timeout"],
+          "additionalProperties": {
+            "type": "string",
+            "examples": ["100m", "65s"]
+          }
+        },
+        "nginx_location_options": {
+          "type": "object",
+          "examples": ["proxy_set_header"],
+          "description": "A list of options to be set for the location block in the nginx configuration for this process. Here should be proxy-related configurations. This is a map, the key is the name of the directive, the value is the argument",
+          "additionalProperties": {
+            "type": "string",
+            "examples": [
+              "X-Real-IP $remote_addr",
+              "X-Forwarded-For $proxy_add_x_forwarded_for",
+              "Host $http_host",
+              "X-NginX-Proxy true"
+            ]
+          }
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false
+    }
+  }
+}

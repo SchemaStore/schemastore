@@ -2,25 +2,25 @@
   "ID": "com.acme.scheduling",
   "_schema-version": "3.2",
   "build-parameters": {
-    "before-all": {
-      "builders": [
-        {
-          "builder": "mybuilder"
-        }
-      ]
-    },
     "after-all": {
       "builders": [
         {
           "builder": "otherbuilder"
         }
       ]
+    },
+    "before-all": {
+      "builders": [
+        {
+          "builder": "mybuilder"
+        }
+      ]
     }
   },
   "module-types": [
     {
-      "name": "java.tomcat",
       "extends": "java",
+      "name": "java.tomcat",
       "parameters": {
         "buildpack": null,
         "memory": "256M"
@@ -37,22 +37,17 @@
   ],
   "modules": [
     {
-      "name": "backend",
-      "type": "java.tomcat",
-      "path": "java",
       "build-parameters": {
         "builder": "maven"
       },
-      "properties": {
-        "backend_type": null
-      },
-      "properties-metadata": {
-        "backend_type": {
-          "optional": false,
-          "overwritable": true,
-          "datatype": "str"
+      "deployed-after": ["scheduler"],
+      "includes": [
+        {
+          "name": "config",
+          "path": "cfg/parameters.json"
         }
-      },
+      ],
+      "name": "backend",
       "parameters": {
         "domain": null,
         "password": null
@@ -63,16 +58,20 @@
           "overwritable": true
         }
       },
-      "includes": [
-        {
-          "name": "config",
-          "path": "cfg/parameters.json"
+      "path": "java",
+      "properties": {
+        "backend_type": null
+      },
+      "properties-metadata": {
+        "backend_type": {
+          "datatype": "str",
+          "optional": false,
+          "overwritable": true
         }
-      ],
+      },
       "provides": [
         {
           "name": "backend_task",
-          "public": true,
           "properties": {
             "url": "${default-url}/tasks"
           },
@@ -81,7 +80,8 @@
               "optional": true,
               "overwritable": true
             }
-          }
+          },
+          "public": true
         }
       ],
       "requires": [
@@ -89,8 +89,14 @@
           "name": "database"
         },
         {
-          "name": "scheduler_api",
+          "includes": [
+            {
+              "name": "config",
+              "path": "cfg/parameters.json"
+            }
+          ],
           "list": "mylist",
+          "name": "scheduler_api",
           "properties": {
             "scheduler_url": "~{url}"
           },
@@ -98,20 +104,13 @@
             "scheduler_url": {
               "optional": false
             }
-          },
-          "includes": [
-            {
-              "name": "config",
-              "path": "cfg/parameters.json"
-            }
-          ]
+          }
         }
       ],
-      "deployed-after": ["scheduler"]
+      "type": "java.tomcat"
     },
     {
       "name": "scheduler",
-      "type": "javascript.nodejs",
       "provides": [
         {
           "name": "scheduler_api",
@@ -127,7 +126,8 @@
             "task_url": "~{url}"
           }
         }
-      ]
+      ],
+      "type": "javascript.nodejs"
     }
   ],
   "parameters": {
@@ -135,8 +135,8 @@
   },
   "resource-types": [
     {
-      "name": "postgresql",
       "extends": "managed-service",
+      "name": "postgresql",
       "parameters": {
         "service": "postgresql",
         "service-plan": null
@@ -154,21 +154,7 @@
       "type": "postgresql"
     },
     {
-      "name": "plugins",
-      "type": "configuration",
-      "optional": true,
       "active": false,
-      "requires": [
-        {
-          "name": "scheduler_api",
-          "parameters": {
-            "par1": "value"
-          },
-          "properties": {
-            "prop1": "${value}-~{url}"
-          }
-        }
-      ],
       "includes": [
         {
           "name": "config",
@@ -179,6 +165,8 @@
           "path": "djdk.yaml"
         }
       ],
+      "name": "plugins",
+      "optional": true,
       "parameters": {
         "filter": {
           "type": "com.acme.plugin"
@@ -198,7 +186,19 @@
         "plugin_name": {
           "optional": true
         }
-      }
+      },
+      "requires": [
+        {
+          "name": "scheduler_api",
+          "parameters": {
+            "par1": "value"
+          },
+          "properties": {
+            "prop1": "${value}-~{url}"
+          }
+        }
+      ],
+      "type": "configuration"
     }
   ],
   "version": "1.132.1-edfsd+ewfe"
