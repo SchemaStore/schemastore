@@ -331,7 +331,7 @@ function printErrorAndExit(error, messages, extraText) {
   }
 
   console.warn('---')
-  process.stderr.write(error instanceof Error ? error?.stack ?? '' : '')
+  process.stderr.write(error instanceof Error ? (error?.stack ?? '') : '')
   process.stderr.write('\n')
   process.exit(1)
 }
@@ -580,6 +580,7 @@ async function taskLint() {
 }
 
 async function taskCheck() {
+  console.info(`===== VALIDATE PRECONDITIONS =====`)
   await assertFileSystemIsValid()
 
   // Check catalog.json.
@@ -606,6 +607,7 @@ async function taskCheck() {
   assertSchemaValidationJsonHasValidSkipTest()
 
   // Run pre-checks (checks before JSON Schema validation) on all files
+  console.info(`===== VALIDATE SCHEMAS =====`)
   const spinner = ora().start()
   await forEachFile({
     async onSchemaFile(schema) {
@@ -707,6 +709,7 @@ async function taskCheck() {
   console.info(`✔️ Schemas: All Ajv validation tests succeeded`)
 
   // Print information.
+  console.info(`===== REPORT =====`)
   await printSimpleStatistics()
   await printCountSchemaVersions()
 }
@@ -1483,16 +1486,18 @@ EXAMPLES:
   node ./cli.js check
   node ./cli.js check --SchemaName=schema-catalog.json
   node ./cli.js check-strict --SchemaName=schema-catalog.json
-  `
+`
 
   if (!argv._[0]) {
-    console.error(helpMenu)
-    console.error(`${chalk.red('Error:')} No argument given`)
+    process.stderr.write(helpMenu + '\n')
+    process.stderr.write(`${chalk.red('Error:')} No argument given` + '\n')
     process.exit(1)
   }
   if (argv._[1]) {
-    console.error(helpMenu)
-    console.error(`${chalk.red('Error:')} Too many arguments given`)
+    process.stderr.write(helpMenu + '\n')
+    process.stderr.write(
+      `${chalk.red('Error:')} Too many arguments given` + '\n',
+    )
     process.exit(1)
   }
   if (argv.help) {
