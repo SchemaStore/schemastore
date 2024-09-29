@@ -80,13 +80,16 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], help?: boolean, SchemaName?: string, ExplicitTestFile?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], help?: boolean, SchemaName?: string, 'schema-name'?: string, ExplicitTestFile?: string, 'unstable-check-with'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
-    string: ['SchemaName', 'unstable-check-with'],
+    string: ['SchemaName', 'schema-name', 'unstable-check-with'],
     boolean: ['help'],
   })
 )
+if (!argv['schema-name']) {
+  argv['schema-name'] = argv.SchemaName
+}
 
 /**
  * @typedef {Object} JsonSchemaAny
@@ -195,7 +198,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     const schemaName = dirent1.name
     const schemaId = schemaName.replace('.json', '')
 
-    if (argv.SchemaName && argv.SchemaName !== schemaName) {
+    if (argv['schema-name'] && argv['schema-name'] !== schemaName) {
       continue
     }
 
@@ -715,8 +718,8 @@ async function taskCheck() {
 }
 
 async function taskCheckStrict() {
-  argv.ExplicitTestFile = argv.SchemaName || '<all>'
-  argv.SchemaName = 'metaschema-draft-07-unofficial-strict.json'
+  argv.ExplicitTestFile = argv['schema-name'] || '<all>'
+  argv['schema-name'] = 'metaschema-draft-07-unofficial-strict.json'
   await taskCheck()
 }
 

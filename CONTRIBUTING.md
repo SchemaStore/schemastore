@@ -98,7 +98,7 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 - `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
 - It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
 
-To check your schema against that schema, use `npm run check-strict -- --SchemaName=<schemaName.json>`.
+To check your schema against that schema, use `node cli.js check-strict -- --schema-name=<schemaName.json>`.
 
 ❌ **Don't forget** add test files.
 
@@ -511,10 +511,10 @@ node ./cli.js check
 Because there are hundreds of schemas, you may only want to validate a single one to save time. To do this, run:
 
 ```console
-node ./cli.js check --SchemaName=<schemaName.json>
+node ./cli.js check --schema-name=<schemaName.json>
 ```
 
-For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --SchemaName=ava.json`
+For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --schema-name=ava.json`
 
 Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`.
 
