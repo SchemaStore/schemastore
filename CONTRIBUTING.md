@@ -120,11 +120,18 @@ To check your schema against that schema, use `npm run check-strict -- --SchemaN
 
 #### Avoiding Overconstraint
 
-Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. False positives are likely as due to their complexity and abundance of implementations; and, when there is an error, the error message isn't helpful. Such cases can include:
+Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. In general, do not add a constraint if:
+
+- false positives are likely (due to their complexity or abundance of implementations)
+- its error message is too confusing or not helpful
+
+So, do not add regex patterns for any of the following:
 
 - cron regexes
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
+
+In addition, be weary when adding exhaustive support to enum-type fields. Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
 
 #### Undocumented Features
 
@@ -362,7 +369,7 @@ Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required Nod
 
 ```sh
 npm clean-install
-npm run new-schema
+node cli.js new-schema
 ```
 
 You will be prompted for the name of the schema. Once you enter your schema name, the task will:
