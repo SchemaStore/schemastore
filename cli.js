@@ -80,7 +80,7 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], help?: boolean, SchemaName?: string, 'schema-name'?: string, ExplicitTestFile?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'schema-name', 'unstable-check-with'],
@@ -196,7 +196,6 @@ async function forEachCatalogUrl(
  * @property {(arg0: SchemaFile) => Promise<void>} [afterSchemaFile]
  */
 async function forEachFile(/** @type {ForEachTestFile} */ obj) {
-  // TODO: This doesn't ignore ignored files like .DS_Store.
   for (const dirent1 of await fs.readdir(SchemaDir, { withFileTypes: true })) {
     const schemaName = dirent1.name
     const schemaId = schemaName.replace('.json', '')
@@ -210,35 +209,21 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     }
 
     const schemaPath = path.join(SchemaDir, schemaName)
-    const schema = await toSchemaFile(schemaPath, schemaName)
+    const schema = await toSchemaFile(schemaPath)
     const data = await obj?.onSchemaFile?.(schema)
 
     if (obj?.onPositiveTestFile) {
-      if (argv.ExplicitTestFile) {
-        if (argv.ExplicitTestFile === '<all>') {
-          for (const testfile of await fs.readdir(SchemaDir)) {
-            const testfilePath = path.join(SchemaDir, testfile)
-            let file = await toTestFile(testfilePath)
-            await obj.onPositiveTestFile(schema, file, data)
-          }
-        } else {
-          const testfilePath = path.join(SchemaDir, argv.ExplicitTestFile)
+      const positiveTestDir = path.join(TestPositiveDir, schemaId)
+      if (await exists(positiveTestDir)) {
+        for (const testfile of await fs.readdir(positiveTestDir)) {
+          const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
           let file = await toTestFile(testfilePath)
           await obj.onPositiveTestFile(schema, file, data)
-        }
-      } else {
-        const positiveTestDir = path.join(TestPositiveDir, schemaId)
-        if (await exists(positiveTestDir)) {
-          for (const testfile of await fs.readdir(positiveTestDir)) {
-            const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
-            let file = await toTestFile(testfilePath)
-            await obj.onPositiveTestFile(schema, file, data)
-          }
         }
       }
     }
 
-    if (!argv.ExplicitTestFile && obj?.onNegativeTestFile) {
+    if (obj?.onNegativeTestFile) {
       const negativeTestDir = path.join(TestNegativeDir, schemaId)
       if (await exists(negativeTestDir)) {
         for (const testfile of await fs.readdir(negativeTestDir)) {
@@ -252,21 +237,6 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     await obj?.afterSchemaFile?.(schema)
   }
 
-  async function toSchemaFile(
-    /** @type {string} */ schemaPath,
-    /** @type {string} */ schemaName,
-  ) {
-    const buffer = await fs.readFile(schemaPath)
-    const text = buffer.toString()
-    return {
-      buffer,
-      text,
-      json: await readDataFile({ filepath: schemaPath, text }),
-      name: schemaName,
-      path: schemaPath,
-    }
-  }
-
   async function toTestFile(/** @type {string} */ testfilePath) {
     const buffer = await fs.readFile(testfilePath)
     const text = buffer.toString()
@@ -276,6 +246,18 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
       json: await readDataFile({ filepath: testfilePath, text }),
       path: testfilePath,
     }
+  }
+}
+
+async function toSchemaFile(/** @type {string} */ schemaPath) {
+  const buffer = await fs.readFile(schemaPath)
+  const text = buffer.toString()
+  return {
+    buffer,
+    text,
+    json: await readDataFile({ filepath: schemaPath, text }),
+    name: path.basename(schemaPath),
+    path: schemaPath,
   }
 }
 
@@ -717,9 +699,57 @@ async function taskCheck() {
 }
 
 async function taskCheckStrict() {
-  argv.ExplicitTestFile = argv['schema-name'] || '<all>'
-  argv['schema-name'] = 'metaschema-draft-07-unofficial-strict.json'
-  await taskCheck()
+  const spinner = ora().start()
+  spinner.start('Testing schema with unofficial draft-07 strict metaschema')
+
+  const ajv = await ajvFactory({
+    draftVersion: 'draft-07',
+    fullStrictMode: false,
+  })
+  const metaSchemaFile = await toSchemaFile(
+    './src/schemas/json/metaschema-draft-07-unofficial-strict.json',
+  )
+  let validateFn
+  try {
+    validateFn = ajv.compile(metaSchemaFile.json)
+  } catch (err) {
+    spinner.fail()
+    printErrorAndExit(err, [
+      `Failed to compile schema file ${metaSchemaFile.path}`,
+    ])
+  }
+
+  await forEachFile({
+    async onSchemaFile(schemaFile) {
+      spinner.text = `Running Ajv with unofficial draft-07 strict metaschema on file: ${schemaFile.path}`
+
+      const validate = validateFn
+      if (!validate(schemaFile.json)) {
+        spinner.fail()
+        printErrorAndExit(
+          validate.err,
+          [
+            `Schema validation failed ./${schemaFile.path}`,
+            `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
+          ],
+          util.formatWithOptions(
+            { colors: true },
+            '%O',
+            validate.errors?.[0] ?? '???',
+          ),
+        )
+      }
+    },
+  })
+  spinner.stop()
+  console.info(
+    `✔️ Schemas: All unofficial draft-07 strict metaschema validation tests succeeded`,
+  )
+
+  // Print information.
+  console.info(`===== REPORT =====`)
+  await printSimpleStatistics()
+  await printCountSchemaVersions()
 }
 
 async function taskCheckRemote() {
@@ -1474,7 +1504,7 @@ async function printSimpleStatistics() {
 
 {
   const helpMenu = `USAGE:
-  node ./cli.js [--help] [--SchemaName=<schema>] <taskName|functionName>
+  node ./cli.js [--help] [--schema-name=<schema>] <taskName|functionName>
 
 TASKS:
   new-schema: Create a new JSON schema
@@ -1486,8 +1516,8 @@ TASKS:
 
 EXAMPLES:
   node ./cli.js check
-  node ./cli.js check --SchemaName=schema-catalog.json
-  node ./cli.js check-strict --SchemaName=schema-catalog.json
+  node ./cli.js check --schema-name=schema-catalog.json
+  node ./cli.js check-strict --schema-name=schema-catalog.json
 `
 
   if (!argv._[0]) {
