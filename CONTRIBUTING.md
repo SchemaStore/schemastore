@@ -98,7 +98,7 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 - `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
 - It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
 
-To check your schema against that schema, use `npm run check-strict -- --SchemaName=<schemaName.json>`.
+To check your schema against that schema, use `node cli.js check-strict --schema-name=<schemaName.json>`.
 
 ❌ **Don't forget** add test files.
 
@@ -120,11 +120,18 @@ To check your schema against that schema, use `npm run check-strict -- --SchemaN
 
 #### Avoiding Overconstraint
 
-Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. False positives are likely as due to their complexity and abundance of implementations; and, when there is an error, the error message isn't helpful. Such cases can include:
+Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. In general, do not add a constraint if:
+
+- false positives are likely (due to their complexity or abundance of implementations)
+- its error message is too confusing or not helpful
+
+So, do not add regex patterns for any of the following:
 
 - cron regexes
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
+
+In addition, be weary when adding exhaustive support to enum-type fields. Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
 
 #### Undocumented Features
 
@@ -343,6 +350,22 @@ Some common errors include:
 
 The `pre-commit.ci` action can "mysteriously" fail to automatically commit formatted files. This happens because the repository corresponding to the pull request branch is not owned by a user account. This constraint is detailed in [GitHub's documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/committing-changes-to-a-pull-request-branch-created-from-a-fork).
 
+To fix this, run the formatter manually:
+
+```console
+npm run prettier:fix
+```
+
+Note this will also format the following files:
+
+```sh
+$ git status --short
+M src/test/prettierrc/.prettierrc.yml
+M src/test/prettierrc/prettierrc.json
+```
+
+_Do not_ add those two files; pre-commit.ci seems to have issue with them. (Undo modifications to those files by unstaging them and running `git restore -- 'src/test/prettierrc/*'`)
+
 ## How-to
 
 ### How to add a JSON Schema that's hosted in this repository
@@ -362,7 +385,7 @@ Be sure that [NodeJS](https://nodejs.org) is installed. The minimum required Nod
 
 ```sh
 npm clean-install
-npm run new-schema
+node cli.js new-schema
 ```
 
 You will be prompted for the name of the schema. Once you enter your schema name, the task will:
@@ -504,10 +527,10 @@ node ./cli.js check
 Because there are hundreds of schemas, you may only want to validate a single one to save time. To do this, run:
 
 ```console
-node ./cli.js check --SchemaName=<schemaName.json>
+node ./cli.js check --schema-name=<schemaName.json>
 ```
 
-For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --SchemaName=ava.json`
+For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --schema-name=ava.json`
 
 Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`.
 

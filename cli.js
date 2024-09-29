@@ -80,13 +80,19 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], help?: boolean, SchemaName?: string, ExplicitTestFile?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], help?: boolean, SchemaName?: string, 'schema-name'?: string, ExplicitTestFile?: string, 'unstable-check-with'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
-    string: ['SchemaName', 'unstable-check-with'],
+    string: ['SchemaName', 'schema-name', 'unstable-check-with'],
     boolean: ['help'],
   })
 )
+if (argv.SchemaName) {
+  process.stderr.write(
+    `WARNING: Please use "--schema-name" instead of "--SchemaName". The flag "--SchemaName" will be removed.\n`,
+  )
+  argv['schema-name'] = argv.SchemaName
+}
 
 /**
  * @typedef {Object} JsonSchemaAny
@@ -195,7 +201,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     const schemaName = dirent1.name
     const schemaId = schemaName.replace('.json', '')
 
-    if (argv.SchemaName && argv.SchemaName !== schemaName) {
+    if (argv['schema-name'] && argv['schema-name'] !== schemaName) {
       continue
     }
 
@@ -295,13 +301,9 @@ async function readDataFile(
       break
     case '.toml':
       try {
-        /**
-         * Set `bigint` to `false` so JSON numbers parse as JavaScript
-         * numbers (instead of JavaScript BigInts).
-         */
         return TOML.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to decode TOML file "${obj.filepath}"`])
+        printErrorAndExit(err, [`Failed to parse TOML file "${obj.filepath}"`])
       }
       break
     default:
@@ -346,7 +348,7 @@ function getSchemaDialect(/** @type {string} */ schemaUrl) {
 }
 
 /**
- * @typedef {Object} ajvFactoryOptions
+ * @typedef {Object} AjvFactoryOptions
  * @property {string} draftVersion
  * @property {boolean} fullStrictMode
  * @property {string[]} [unknownFormats]
@@ -359,7 +361,7 @@ function getSchemaDialect(/** @type {string} */ schemaUrl) {
  * Returns the correct and configured Ajv instance for a particular $schema version
  */
 async function ajvFactory(
-  /** @type {ajvFactoryOptions} */ {
+  /** @type {AjvFactoryOptions} */ {
     draftVersion,
     fullStrictMode = true,
     unknownFormats = [],
@@ -715,8 +717,8 @@ async function taskCheck() {
 }
 
 async function taskCheckStrict() {
-  argv.ExplicitTestFile = argv.SchemaName || '<all>'
-  argv.SchemaName = 'metaschema-draft-07-unofficial-strict.json'
+  argv.ExplicitTestFile = argv['schema-name'] || '<all>'
+  argv['schema-name'] = 'metaschema-draft-07-unofficial-strict.json'
   await taskCheck()
 }
 
