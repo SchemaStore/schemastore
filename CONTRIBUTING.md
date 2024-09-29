@@ -350,6 +350,22 @@ Some common errors include:
 
 The `pre-commit.ci` action can "mysteriously" fail to automatically commit formatted files. This happens because the repository corresponding to the pull request branch is not owned by a user account. This constraint is detailed in [GitHub's documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/committing-changes-to-a-pull-request-branch-created-from-a-fork).
 
+To fix this, run the formatter manually:
+
+```console
+npm run prettier:fix
+```
+
+Note this will also format the following files:
+
+```sh
+$ git status --short
+M src/test/prettierrc/.prettierrc.yml
+M src/test/prettierrc/prettierrc.json
+```
+
+_Do not_ add those two files; pre-commit.ci seems to have issue with them. (Undo modifications to those files by unstaging them and running `git restore -- 'src/test/prettierrc/*'`)
+
 ## How-to
 
 ### How to add a JSON Schema that's hosted in this repository

@@ -87,7 +87,10 @@ const argv = /** @type {any} */ (
     boolean: ['help'],
   })
 )
-if (!argv['schema-name']) {
+if (argv.SchemaName) {
+  process.stderr.write(
+    `WARNING: Please use "--schema-name" instead of "--SchemaName". The flag "--SchemaName" will be removed.\n`,
+  )
   argv['schema-name'] = argv.SchemaName
 }
 
@@ -298,13 +301,9 @@ async function readDataFile(
       break
     case '.toml':
       try {
-        /**
-         * Set `bigint` to `false` so JSON numbers parse as JavaScript
-         * numbers (instead of JavaScript BigInts).
-         */
         return TOML.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to decode TOML file "${obj.filepath}"`])
+        printErrorAndExit(err, [`Failed to parse TOML file "${obj.filepath}"`])
       }
       break
     default:
@@ -349,7 +348,7 @@ function getSchemaDialect(/** @type {string} */ schemaUrl) {
 }
 
 /**
- * @typedef {Object} ajvFactoryOptions
+ * @typedef {Object} AjvFactoryOptions
  * @property {string} draftVersion
  * @property {boolean} fullStrictMode
  * @property {string[]} [unknownFormats]
@@ -362,7 +361,7 @@ function getSchemaDialect(/** @type {string} */ schemaUrl) {
  * Returns the correct and configured Ajv instance for a particular $schema version
  */
 async function ajvFactory(
-  /** @type {ajvFactoryOptions} */ {
+  /** @type {AjvFactoryOptions} */ {
     draftVersion,
     fullStrictMode = true,
     unknownFormats = [],
