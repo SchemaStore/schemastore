@@ -131,7 +131,7 @@ So, do not add regex patterns for any of the following:
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
 
-In addition, be weary when adding exhaustive support to enum-type fields. Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
+In addition, be wary when adding exhaustive support to enum-type fields. Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
 
 #### Undocumented Features
 
@@ -198,7 +198,7 @@ Care must be taken to reduce breaking changes; some include:
 
 **1. Preserving schema names**
 
-When renaming a schema name, the old version must continue to exist. Otherwise, all references to it will break. The content of he old schema must look something like:
+When renaming a schema name, the old version must continue to exist. Otherwise, all references to it will break. The content of the old schema must look something like:
 
 ```json
 {
@@ -216,7 +216,7 @@ Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate
 validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/properties
 ```
 
-This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if necessary.
+This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location.
 
 ### Language Server Features
 
@@ -470,7 +470,7 @@ Finally, validate your changes. See [How to Validate a JSON Schema](#how-to-vali
 
 ### How to add a JSON Schema with multiple versions
 
-Refer to this [`agripparc` PR](https://github.com/SchemaStore/schemastore/pull/1950/files) as an example. First, your schema names should be suffix with the version number.
+Refer to this [`agripparc` PR](https://github.com/SchemaStore/schemastore/pull/1950/files) as an example. First, your schema names should be suffixed with the version number.
 
 - `src/schemas/json/agripparc-1.2.json`
 - `src/schemas/json/agripparc-1.3.json`
