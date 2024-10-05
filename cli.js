@@ -1472,8 +1472,8 @@ async function printSimpleStatistics() {
 
     await forEachCatalogUrl((catalogUrl) => {
       catalogUrl.startsWith(UrlSchemaStore)
-      ? countScanURLInternal++
-      : countScanURLExternal++
+        ? countScanURLInternal++
+        : countScanURLExternal++
     })
 
     const totalCount = countScanURLExternal + countScanURLInternal
@@ -1485,7 +1485,9 @@ async function printSimpleStatistics() {
     console.info(
       `- ${countScanURLInternal} (${100 - percentExternal}%) are SchemaStore URLs`,
     )
-    console.info(`- ${countScanURLExternal} (${percentExternal}%) are External URLs`)
+    console.info(
+      `- ${countScanURLExternal} (${percentExternal}%) are External URLs`,
+    )
     console.info()
   }
 
@@ -1585,7 +1587,9 @@ EXAMPLES:
   const taskOrFn = argv._[0]
   if (taskOrFn in taskMap) {
     if (taskOrFn === 'build') {
-        process.stdout.write(`WARNING: Please use the "check" task instead of "build". The "build" task will be removed.\n`)
+      process.stdout.write(
+        `WARNING: Please use the "check" task instead of "build". The "build" task will be removed.\n`,
+      )
     }
 
     await taskMap[taskOrFn]()
