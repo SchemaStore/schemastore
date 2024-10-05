@@ -68,7 +68,9 @@ const [SchemasToBeTested, FoldersPositiveTest, FoldersNegativeTest] = (
     fs.readdir(TestPositiveDir),
     fs.readdir(TestNegativeDir),
   ])
-).map(filterIgnoredFiles)
+).map((files) => {
+  return files.filter((file) => !isIgnoredFile(file))
+})
 
 // prettier-ignore
 const SchemaDialects = [
@@ -173,8 +175,8 @@ async function readJsonFile(/** @type {string} */ filename) {
   return JSON.parse(await fs.readFile(filename, 'utf-8'))
 }
 
-function filterIgnoredFiles(/** @type {string[]} */ files) {
-  return files.filter((file) => file !== '.DS_Store')
+function isIgnoredFile(/** @type {string} */ file) {
+  return file === '.DS_Store'
 }
 
 async function forEachCatalogUrl(
@@ -197,6 +199,8 @@ async function forEachCatalogUrl(
  */
 async function forEachFile(/** @type {ForEachTestFile} */ obj) {
   for (const dirent1 of await fs.readdir(SchemaDir, { withFileTypes: true })) {
+    if (isIgnoredFile(dirent1.name)) continue
+
     const schemaName = dirent1.name
     const schemaId = schemaName.replace('.json', '')
 
@@ -216,6 +220,8 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
       const positiveTestDir = path.join(TestPositiveDir, schemaId)
       if (await exists(positiveTestDir)) {
         for (const testfile of await fs.readdir(positiveTestDir)) {
+          if (isIgnoredFile(testfile)) continue
+
           const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
           let file = await toTestFile(testfilePath)
           await obj.onPositiveTestFile(schema, file, data)
@@ -227,6 +233,8 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
       const negativeTestDir = path.join(TestNegativeDir, schemaId)
       if (await exists(negativeTestDir)) {
         for (const testfile of await fs.readdir(negativeTestDir)) {
+          if (isIgnoredFile(testfile)) continue
+
           const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
           let file = await toTestFile(testfilePath)
           await obj.onNegativeTestFile(schema, file, data)
@@ -773,6 +781,8 @@ async function assertFileSystemIsValid() {
     for (const dirent of await fs.readdir(SchemaDir, {
       withFileTypes: true,
     })) {
+      if (isIgnoredFile(dirent.name)) continue
+
       const schemaName = dirent.name
       const schemaPath = path.join(SchemaDir, schemaName)
 
@@ -789,6 +799,8 @@ async function assertFileSystemIsValid() {
       for (const dirent of await fs.readdir(rootTestDir, {
         withFileTypes: true,
       })) {
+        if (isIgnoredFile(dirent.name)) continue
+
         const testDir = path.join(rootTestDir, dirent.name)
         if (!dirent.isDirectory()) {
           printErrorAndExit(new Error(), [
@@ -800,6 +812,8 @@ async function assertFileSystemIsValid() {
         for (const dirent of await fs.readdir(testDir, {
           withFileTypes: true,
         })) {
+          if (isIgnoredFile(dirent.name)) continue
+
           const schemaName = dirent.name
           const schemaPath = path.join(testDir, schemaName)
 
@@ -823,6 +837,8 @@ async function assertFileSystemIsValid() {
     await Promise.all([onTestDir(TestPositiveDir), onTestDir(TestNegativeDir)])
     async function onTestDir(/** @type {string} */ rootTestDir) {
       for (const testDir of await fs.readdir(rootTestDir)) {
+        if (isIgnoredFile(testDir)) continue
+
         const schemaName = testDir + '.json'
         const schemaPath = path.join(SchemaDir, schemaName)
         if (!(await exists(schemaPath))) {
@@ -976,6 +992,8 @@ async function assertCatalogJsonIncludesAllSchemas() {
   })
 
   for (const schemaName of await fs.readdir(SchemaDir)) {
+    if (isIgnoredFile(schemaName)) continue
+
     if (SchemaValidation.missingCatalogUrl.includes(schemaName)) {
       return
     }
