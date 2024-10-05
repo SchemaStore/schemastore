@@ -24,6 +24,7 @@ import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
+import fetch from 'node-fetch'
 
 /**
  * Ajv defines types, but they don't work when importing the library with
@@ -528,10 +529,6 @@ async function taskLint() {
       await assertTopLevelRefIsStandalone(schema)
       await assertSchemaNoSmartQuotes(schema)
 
-      console.info(
-        `Running ${chalk.bold('SchemaSafe validation')} on file: ${schema.path}`,
-      )
-
       const errors = schemasafe.lint(schema.json, {
         mode: 'strong',
         extraFormats: false,
@@ -546,10 +543,6 @@ async function taskLint() {
 
   // await forEachFile({
   //   async onSchemaFile(schema) {
-  //     console.info(
-  //       `Running ${chalk.bold('Spectral validation')} on file: ${schema.path}`,
-  //     )
-  //
   //     const doc = new spectralCore.Document(
   //       schema.text,
   //       Parsers.Json,
@@ -715,9 +708,6 @@ async function taskCheck() {
 }
 
 async function taskCheckStrict() {
-  const spinner = ora().start()
-  spinner.start('Testing schema with unofficial draft-07 strict metaschema')
-
   const ajv = await ajvFactory({
     draftVersion: 'draft-07',
     fullStrictMode: false,
@@ -729,7 +719,6 @@ async function taskCheckStrict() {
   try {
     validateFn = ajv.compile(metaSchemaFile.json)
   } catch (err) {
-    spinner.fail()
     printErrorAndExit(err, [
       `Failed to compile schema file ${metaSchemaFile.path}`,
     ])
@@ -737,9 +726,7 @@ async function taskCheckStrict() {
 
   await forEachFile({
     actionName: 'strict metaschema check',
-    async onSchemaFile(schemaFile) {
-      spinner.text = `Running Ajv with unofficial draft-07 strict metaschema on file: ${schemaFile.path}`
-
+    async onSchemaFile(schemaFile, { spinner }) {
       const validate = validateFn
       if (!validate(schemaFile.json)) {
         spinner.fail()
@@ -758,10 +745,6 @@ async function taskCheckStrict() {
       }
     },
   })
-  spinner.stop()
-  console.info(
-    `✔️ Schemas: All unofficial draft-07 strict metaschema validation tests succeeded`,
-  )
 
   // Print information.
   console.info(`===== REPORT =====`)
@@ -778,7 +761,25 @@ async function taskReport() {
 }
 
 async function taskMaintenance() {
-  await printDowngradableSchemaVersions()
+  {
+    console.info(`===== BROKEN SCHEMAS =====`)
+    forEachCatalogUrl(async (url) => {
+      if (url.startsWith(UrlSchemaStore)) return
+
+      await fetch(url, { method: 'HEAD' })
+        .then((res) => {
+          // eslint-disable-line promise/always-return
+
+          if (!res.ok) {
+            console.info(`NOT OK (${res.status}/${res.statusText}): ${url}`)
+          }
+        })
+        .catch((err) => {
+          console.info(`NOT OK (${err.code}): ${url}`)
+        })
+    })
+  }
+  // await printDowngradableSchemaVersions()
 }
 
 async function assertFileSystemIsValid() {
