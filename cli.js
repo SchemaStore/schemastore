@@ -1550,6 +1550,10 @@ EXAMPLES:
   }
   const taskOrFn = argv._[0]
   if (taskOrFn in taskMap) {
+    if (taskOrFn === 'build') {
+        process.stdout.write(`WARNING: Please use the "check" task instead of "build". The "build" task will be removed.\n`)
+    }
+
     await taskMap[taskOrFn]()
   } else {
     eval(`${taskOrFn}()`)
