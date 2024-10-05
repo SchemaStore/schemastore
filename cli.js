@@ -147,6 +147,7 @@ if (argv.SchemaName) {
  * @property {Buffer} buffer
  * @property {string} text
  * @property {Record<PropertyKey, unknown>} json
+ * @property {string} name
  * @property {string} path
  *
  * @typedef {Object} SchemaFile
@@ -223,7 +224,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     }
 
     const schemaPath = path.join(SchemaDir, schemaName)
-    const schemaFile = await toSchemaFile(schemaPath)
+    const schemaFile = await toFile(schemaPath)
     spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
     const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
 
@@ -234,7 +235,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
           if (isIgnoredFile(testfile)) continue
 
           const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
-          let file = await toTestFile(testfilePath)
+          let file = await toFile(testfilePath)
           await obj.onPositiveTestFile(schemaFile, file, data, { spinner })
         }
       }
@@ -247,7 +248,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
           if (isIgnoredFile(testfile)) continue
 
           const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
-          let file = await toTestFile(testfilePath)
+          let file = await toFile(testfilePath)
           await obj.onNegativeTestFile(schemaFile, file, data, { spinner })
         }
       }
@@ -256,24 +257,13 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     await obj?.afterSchemaFile?.(schemaFile, { spinner })
   }
 
-  async function toTestFile(/** @type {string} */ testfilePath) {
-    const buffer = await fs.readFile(testfilePath)
-    const text = buffer.toString()
-    return {
-      buffer,
-      text,
-      json: await readDataFile({ filepath: testfilePath, text }),
-      path: testfilePath,
-    }
-  }
-
   if (obj.actionName) {
     spinner.stop()
     console.info(`✔️ Completed "${obj.actionName}"`)
   }
 }
 
-async function toSchemaFile(/** @type {string} */ schemaPath) {
+async function toFile(/** @type {string} */ schemaPath) {
   const buffer = await fs.readFile(schemaPath)
   const text = buffer.toString()
   return {
@@ -297,6 +287,13 @@ async function readDataFile(
         printErrorAndExit(err, [`Failed to parse JSON file "${obj.filepath}"`])
       }
       break
+    case '.jsonc':
+      try {
+        return jsoncParser.parse(obj.text)
+      } catch (err) {
+        printErrorAndExit(err, [`Failed to parse JSONC file "${obj.filepath}"`])
+      }
+      break
     case '.yaml':
     case '.yml':
       try {
@@ -316,6 +313,7 @@ async function readDataFile(
       printErrorAndExit(new Error(), [
         `Unable to handle file extension "${fileExtension}" for file "${obj.filepath}"`,
       ])
+      break
   }
 }
 
@@ -522,24 +520,47 @@ async function taskNewSchema() {
 }
 
 async function taskLint() {
+  const /** @type {{count: number, file: string}[]} */ entries = []
+
   await forEachFile({
     actionName: 'lint',
     async onSchemaFile(schema) {
-      await assertSchemaHasCorrectMetadata(schema)
+      // This checks to be sure $id is a schemastore.org URL.
+      // Commenting out because it is overly aggressive for now.
+      // await assertSchemaHasCorrectMetadata(schema)
       await assertTopLevelRefIsStandalone(schema)
-      await assertSchemaNoSmartQuotes(schema)
+      // await assertSchemaNoSmartQuotes(schema)
 
-      const errors = schemasafe.lint(schema.json, {
-        mode: 'strong',
-        extraFormats: false,
-        schemas: {},
-      })
+      try {
+        const errors = schemasafe.lint(schema.json, {
+          // mode: 'strong',
+          requireSchema: true,
+          requireValidation: true,
+          requireStringValidation: false,
+          complexityChecks: true,
+          forbidNoopValues: true,
 
-      for (const err of errors) {
-        console.log(`${schema.name}: ${err.message}`)
+          extraFormats: false,
+          schemas: {},
+        })
+        for (const err of errors) {
+          console.log(`${schema.name}: ${err.message}`)
+        }
+        entries.push({
+          count: errors.length,
+          file: schema.name,
+        })
+      } catch (err) {
+        console.log(err)
+        return
       }
     },
   })
+
+  entries.sort((a, b) => a.count - b.count)
+  for (const entry of entries) {
+    console.info(`${entry.count}: ${entry.file}`)
+  }
 
   // await forEachFile({
   //   async onSchemaFile(schema) {
@@ -589,7 +610,7 @@ async function taskCheck() {
     CatalogFile,
     path.join(SchemaDir, 'schema-catalog.json'),
   )
-  await assertFilePassesJsonLint(CatalogFile)
+  await assertFilePassesJsonLint(await toFile(CatalogFile))
   assertCatalogJsonHasNoDuplicateNames()
   assertCatalogJsonHasNoBadFields()
   assertCatalogJsonHasNoFileMatchConflict()
@@ -601,7 +622,8 @@ async function taskCheck() {
     SchemaValidationFile,
     './src/schema-validation.schema.json',
   )
-  await assertFilePassesJsonLint(SchemaValidationFile, {
+  toFile
+  await assertFilePassesJsonLint(await toFile(SchemaValidationFile), {
     ignoreComments: true,
   })
   await assertSchemaValidationJsonReferencesNoNonexistentFiles()
@@ -614,7 +636,7 @@ async function taskCheck() {
     async onSchemaFile(schema) {
       assertFileHasNoBom(schema)
       assertFileHasCorrectExtensions(schema.path, ['.json'])
-      await assertFileHasNoDuplicatedPropertyKeys(schema)
+      await assertFilePassesJsonLint(schema)
       await assertSchemaHasValidIdField(schema)
       await assertSchemaHasValidSchemaField(schema)
     },
@@ -626,7 +648,9 @@ async function taskCheck() {
         '.yaml',
         '.toml',
       ])
-      await assertFileHasNoDuplicatedPropertyKeys(file)
+      if (!file.path.endsWith('.json')) {
+        await assertFilePassesJsonLint(file)
+      }
     },
     async onNegativeTestFile(file) {
       assertFileHasNoBom(file)
@@ -636,7 +660,9 @@ async function taskCheck() {
         '.yaml',
         '.toml',
       ])
-      await assertFileHasNoDuplicatedPropertyKeys(file)
+      if (!file.path.endsWith('.json')) {
+        await assertFilePassesJsonLint(file)
+      }
     },
   })
 
@@ -712,7 +738,7 @@ async function taskCheckStrict() {
     draftVersion: 'draft-07',
     fullStrictMode: false,
   })
-  const metaSchemaFile = await toSchemaFile(
+  const metaSchemaFile = await toFile(
     './src/schemas/json/metaschema-draft-07-unofficial-strict.json',
   )
   let validateFn
@@ -768,11 +794,11 @@ async function taskMaintenance() {
 
       await fetch(url, { method: 'HEAD' })
         .then((res) => {
-          // eslint-disable-line promise/always-return
-
           if (!res.ok) {
             console.info(`NOT OK (${res.status}/${res.statusText}): ${url}`)
           }
+
+          return undefined
         })
         .catch((err) => {
           console.info(`NOT OK (${err.code}): ${url}`)
@@ -1160,11 +1186,11 @@ function assertFileHasNoBom(/** @type {DataFile} */ file) {
 }
 
 async function assertFilePassesJsonLint(
-  /** @type {string} */ filepath,
+  /** @type {DataFile} */ file,
   /** @type {Record<string, unknown>} */ options,
 ) {
   try {
-    jsonlint.parse(await fs.readFile(filepath, 'utf-8'), {
+    jsonlint.parse(file.text, {
       ignoreBOM: false,
       ignoreComments: false,
       ignoreTrailingCommas: false,
@@ -1172,10 +1198,9 @@ async function assertFilePassesJsonLint(
       allowDuplicateObjectKeys: false,
       ...options,
     })
-    console.info(`✔️ ${path.basename(filepath)} validates with jsonlint`)
   } catch (err) {
     printErrorAndExit(err, [
-      `Failed strict jsonlint parse of file "${path.basename(filepath)}"`,
+      `Failed strict jsonlint parse of file "${path.basename(file.path)}"`,
     ])
   }
 }
@@ -1208,25 +1233,6 @@ async function assertFileValidatesAgainstSchema(
   }
 }
 
-async function assertFileHasNoDuplicatedPropertyKeys(
-  /** @type {DataFile} */ file,
-) {
-  const fileExtension = file.path.split('.').pop()
-  if (fileExtension !== 'json') return
-
-  try {
-    jsonlint.parse(file.text, {
-      ignoreBOM: false,
-      ignoreComments: false,
-      ignoreTrailingCommas: false,
-      allowSingleQuotedStrings: false,
-      allowDuplicateObjectKeys: false,
-    })
-  } catch (err) {
-    printErrorAndExit(err, [`Failed to parse file with jsonlint: ${file.path}`])
-  }
-}
-
 async function assertSchemaHasValidSchemaField(
   /** @type {SchemaFile} */ schema,
 ) {
@@ -1256,6 +1262,11 @@ async function assertSchemaHasValidSchemaField(
 
 async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   let schemaId = ''
+  /**
+   * Old JSON Schema specification versions use the "id" key for unique
+   * identifiers, rather than "$id". See for details:
+   * https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier
+   */
   const schemasWithDollarlessId = [
     'http://json-schema.org/draft-03/schema#',
     'http://json-schema.org/draft-04/schema#',
@@ -1287,11 +1298,6 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
 async function assertSchemaHasCorrectMetadata(
   /** @type {SchemaFile} */ schema,
 ) {
-  /**
-   * Old JSON Schema specification versions use the "id" key for unique
-   * identifiers, rather than "$id". See for details:
-   * https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier
-   */
   const schemasWithDollarlessId = [
     'http://json-schema.org/draft-03/schema#',
     'http://json-schema.org/draft-04/schema#',
