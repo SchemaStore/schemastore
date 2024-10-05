@@ -191,13 +191,22 @@ async function forEachCatalogUrl(
 }
 
 /**
+ * @typedef {Object} ExtraParams
+   @property {any} spinner
+}
  * @typedef {Object} ForEachTestFile
- * @property {(arg0: SchemaFile) => Promise<any>} [onSchemaFile]
- * @property {(arg0: SchemaFile, arg1: DataFile, data: any) => Promise<void>} [onPositiveTestFile]
- * @property {(arg0: SchemaFile, arg1: DataFile, data: any) => Promise<void>} [onNegativeTestFile]
- * @property {(arg0: SchemaFile) => Promise<void>} [afterSchemaFile]
+ * @property {string} [actionName]
+ * @property {(arg0: SchemaFile, arg1: ExtraParams) => Promise<any>} [onSchemaFile]
+ * @property {(arg0: SchemaFile, arg1: DataFile, data: any, arg2: ExtraParams) => Promise<void>} [onPositiveTestFile]
+ * @property {(arg0: SchemaFile, arg1: DataFile, data: any, arg2: ExtraParams) => Promise<void>} [onNegativeTestFile]
+ * @property {(arg0: SchemaFile, arg1: ExtraParams) => Promise<void>} [afterSchemaFile]
  */
 async function forEachFile(/** @type {ForEachTestFile} */ obj) {
+  const spinner = ora()
+  if (obj.actionName) {
+    spinner.start()
+  }
+
   for (const dirent1 of await fs.readdir(SchemaDir, { withFileTypes: true })) {
     if (isIgnoredFile(dirent1.name)) continue
 
@@ -213,8 +222,9 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     }
 
     const schemaPath = path.join(SchemaDir, schemaName)
-    const schema = await toSchemaFile(schemaPath)
-    const data = await obj?.onSchemaFile?.(schema)
+    const schemaFile = await toSchemaFile(schemaPath)
+    spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+    const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
 
     if (obj?.onPositiveTestFile) {
       const positiveTestDir = path.join(TestPositiveDir, schemaId)
@@ -224,7 +234,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
 
           const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
           let file = await toTestFile(testfilePath)
-          await obj.onPositiveTestFile(schema, file, data)
+          await obj.onPositiveTestFile(schemaFile, file, data, { spinner })
         }
       }
     }
@@ -237,12 +247,12 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
 
           const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
           let file = await toTestFile(testfilePath)
-          await obj.onNegativeTestFile(schema, file, data)
+          await obj.onNegativeTestFile(schemaFile, file, data, { spinner })
         }
       }
     }
 
-    await obj?.afterSchemaFile?.(schema)
+    await obj?.afterSchemaFile?.(schemaFile, { spinner })
   }
 
   async function toTestFile(/** @type {string} */ testfilePath) {
@@ -254,6 +264,11 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
       json: await readDataFile({ filepath: testfilePath, text }),
       path: testfilePath,
     }
+  }
+
+  if (obj.actionName) {
+    spinner.stop()
+    console.info(`✔️ Completed "${obj.actionName}"`)
   }
 }
 
@@ -507,6 +522,7 @@ async function taskNewSchema() {
 
 async function taskLint() {
   await forEachFile({
+    actionName: 'lint',
     async onSchemaFile(schema) {
       await assertSchemaHasCorrectMetadata(schema)
       await assertTopLevelRefIsStandalone(schema)
@@ -600,11 +616,9 @@ async function taskCheck() {
 
   // Run pre-checks (checks before JSON Schema validation) on all files
   console.info(`===== VALIDATE SCHEMAS =====`)
-  const spinner = ora().start()
   await forEachFile({
+    actionName: 'pre-checks',
     async onSchemaFile(schema) {
-      spinner.text = `Running pre-check on file: ${schema.path}`
-
       assertFileHasNoBom(schema)
       assertFileHasCorrectExtensions(schema.path, ['.json'])
       await assertFileHasNoDuplicatedPropertyKeys(schema)
@@ -632,15 +646,11 @@ async function taskCheck() {
       await assertFileHasNoDuplicatedPropertyKeys(file)
     },
   })
-  spinner.stop()
-  console.info(`✔️ Schemas: All pre-checks succeeded`)
 
   // Run tests against JSON schemas
-  spinner.start('Testing schema with Ajv')
   await forEachFile({
-    async onSchemaFile(schemaFile) {
-      spinner.text = `Running Ajv validation test on file: ${schemaFile.path}`
-
+    actionName: 'Ajv validation',
+    async onSchemaFile(schemaFile, { spinner }) {
       const isFullStrictMode = !SchemaValidation.ajvNotStrictMode.includes(
         schemaFile.name,
       )
@@ -668,7 +678,7 @@ async function taskCheck() {
         validateFn,
       }
     },
-    async onPositiveTestFile(schemaFile, testFile, data) {
+    async onPositiveTestFile(schemaFile, testFile, data, { spinner }) {
       const validate = data.validateFn
       if (!validate(testFile.json)) {
         spinner.fail()
@@ -686,7 +696,7 @@ async function taskCheck() {
         )
       }
     },
-    async onNegativeTestFile(schemaFile, testFile, data) {
+    async onNegativeTestFile(schemaFile, testFile, data, { spinner }) {
       const validate = data.validateFn
       if (validate(testFile.json)) {
         spinner.fail()
@@ -697,8 +707,6 @@ async function taskCheck() {
       }
     },
   })
-  spinner.stop()
-  console.info(`✔️ Schemas: All Ajv validation tests succeeded`)
 
   // Print information.
   console.info(`===== REPORT =====`)
@@ -728,6 +736,7 @@ async function taskCheckStrict() {
   }
 
   await forEachFile({
+    actionName: 'strict metaschema check',
     async onSchemaFile(schemaFile) {
       spinner.text = `Running Ajv with unofficial draft-07 strict metaschema on file: ${schemaFile.path}`
 
@@ -1358,6 +1367,7 @@ async function printSchemaReport() {
 }
 
 async function printCountSchemaVersions() {
+  let totalSchemas = 0
   /** @type {Map<string, number>} */
   const schemaDialectCounts = new Map(
     SchemaDialects.map((schemaDialect) => [schemaDialect.url, 0]),
@@ -1365,6 +1375,8 @@ async function printCountSchemaVersions() {
 
   await forEachFile({
     async onSchemaFile(/** @type {SchemaFile} */ schema) {
+      totalSchemas += 1
+
       let schemaDialect = getSchemaDialect(schema.json.$schema)
       if (schemaDialect) {
         schemaDialectCounts.set(
@@ -1376,13 +1388,14 @@ async function printCountSchemaVersions() {
     },
   })
 
+  console.info(`Out of ${totalSchemas} TESTED schemas:`)
   for (const schemaDialect of SchemaDialects) {
     const versionPadded = schemaDialect.draftVersion.startsWith('draft-')
       ? schemaDialect.draftVersion
       : ` ${schemaDialect.draftVersion}`
 
     console.info(
-      `Total schemas using ${versionPadded}: ${schemaDialectCounts.get(schemaDialect.url)}`,
+      `- Total ${versionPadded}: ${schemaDialectCounts.get(schemaDialect.url)}`,
     )
   }
 }
@@ -1453,6 +1466,29 @@ async function printDowngradableSchemaVersions() {
 }
 
 async function printSimpleStatistics() {
+  {
+    let countScanURLExternal = 0
+    let countScanURLInternal = 0
+
+    await forEachCatalogUrl((catalogUrl) => {
+      catalogUrl.startsWith(UrlSchemaStore)
+      ? countScanURLInternal++
+      : countScanURLExternal++
+    })
+
+    const totalCount = countScanURLExternal + countScanURLInternal
+    const percentExternal = Math.round(
+      (countScanURLExternal / totalCount) * 100,
+    )
+
+    console.info(`Out of ${totalCount} TOTAL schemas:`)
+    console.info(
+      `- ${countScanURLInternal} (${100 - percentExternal}%) are SchemaStore URLs`,
+    )
+    console.info(`- ${countScanURLExternal} (${percentExternal}%) are External URLs`)
+    console.info()
+  }
+
   let totalSchemas = 0
   let validatingInStrictMode = 0
   let missingPositiveTests = 0
@@ -1488,36 +1524,16 @@ async function printSimpleStatistics() {
     (missingNegativeTests / totalSchemas) * 100,
   )
 
+  console.info(`Out of ${totalSchemas} TESTED schemas:`)
   console.info(
-    `Out of ${totalSchemas} total schemas, ${validatingInStrictMode} (${strictModePercent}%) are validated with Ajv's strict mode`,
+    `- ${validatingInStrictMode} (${strictModePercent}%) are validated with Ajv's strict mode`,
   )
   console.info(
-    `Out of ${totalSchemas} total schemas, ${missingPositiveTests} (${positivePercent}%) do not have tests.`,
+    `- ${missingPositiveTests} (${positivePercent}%) do not have tests.`,
   )
   console.info(
-    `Out of ${totalSchemas} total schemas, ${missingNegativeTests} (${negativePercent}%) do not have negative tests.`,
+    `- ${missingNegativeTests} (${negativePercent}%) do not have negative tests.`,
   )
-
-  {
-    let countScanURLExternal = 0
-    let countScanURLInternal = 0
-
-    await forEachCatalogUrl((catalogUrl) => {
-      catalogUrl.startsWith(UrlSchemaStore)
-        ? countScanURLInternal++
-        : countScanURLExternal++
-    })
-
-    const totalCount = countScanURLExternal + countScanURLInternal
-    const percentExternal = Math.round(
-      (countScanURLExternal / totalCount) * 100,
-    )
-    console.info(
-      `SchemaStore URLs: ${countScanURLInternal} (${100 - percentExternal}%)`,
-    )
-    console.info(`External URLs: ${countScanURLExternal} (${percentExternal}%)`)
-    console.info(`Total URLs: ${totalCount}`)
-  }
 }
 
 {
