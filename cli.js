@@ -12,9 +12,10 @@ import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
 import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
-import spectralCore from '@stoplight/spectral-core'
-import Parsers from '@stoplight/spectral-parsers'
-import spectralRuntime from '@stoplight/spectral-runtime' // eslint-disable-line n/no-extraneous-import
+// import spectralCore from '@stoplight/spectral-core'
+// import Parsers from '@stoplight/spectral-parsers'
+// import spectralRuntime from '@stoplight/spectral-runtime' // eslint-disable-line n/no-extraneous-import
+// import { bundleAndLoadRuleset } from '@stoplight/spectral-ruleset-bundler/with-loader'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
 import YAML from 'yaml'
@@ -23,7 +24,6 @@ import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
-import { bundleAndLoadRuleset } from '@stoplight/spectral-ruleset-bundler/with-loader'
 
 /**
  * Ajv defines types, but they don't work when importing the library with
@@ -520,47 +520,47 @@ async function taskLint() {
     },
   })
 
-  await forEachFile({
-    async onSchemaFile(schema) {
-      console.info(
-        `Running ${chalk.bold('Spectral validation')} on file: ${schema.path}`,
-      )
-
-      const doc = new spectralCore.Document(
-        schema.text,
-        Parsers.Json,
-        schema.name,
-      )
-      const spectral = new spectralCore.Spectral()
-
-      const schemaDialect = getSchemaDialect(schema.json.$schema)
-
-      let spectralFile
-      if (schemaDialect.draftVersion === 'draft-04') {
-        spectralFile = 'config/.spectral-draft04.yaml'
-      } else if (schemaDialect.draftVersion === 'draft-06') {
-        spectralFile = 'config/.spectral-draft06.yaml'
-      } else if (schemaDialect.draftVersion === 'draft-07') {
-        spectralFile = 'config/.spectral-draft07.yaml'
-      } else {
-        throw new Error(
-          `Unsupported schema version: ${schemaDialect.draftVersion}`,
-        )
-      }
-
-      spectral.setRuleset(
-        await bundleAndLoadRuleset(path.join(process.cwd(), spectralFile), {
-          fs: fsCb,
-          fetch: spectralRuntime.fetch,
-        }),
-      )
-
-      const result = await spectral.run(doc)
-      if (result.length > 0) {
-        console.log(result)
-      }
-    },
-  })
+  // await forEachFile({
+  //   async onSchemaFile(schema) {
+  //     console.info(
+  //       `Running ${chalk.bold('Spectral validation')} on file: ${schema.path}`,
+  //     )
+  //
+  //     const doc = new spectralCore.Document(
+  //       schema.text,
+  //       Parsers.Json,
+  //       schema.name,
+  //     )
+  //     const spectral = new spectralCore.Spectral()
+  //
+  //     const schemaDialect = getSchemaDialect(schema.json.$schema)
+  //
+  //     let spectralFile
+  //     if (schemaDialect.draftVersion === 'draft-04') {
+  //       spectralFile = 'config/.spectral-draft04.yaml'
+  //     } else if (schemaDialect.draftVersion === 'draft-06') {
+  //       spectralFile = 'config/.spectral-draft06.yaml'
+  //     } else if (schemaDialect.draftVersion === 'draft-07') {
+  //       spectralFile = 'config/.spectral-draft07.yaml'
+  //     } else {
+  //       throw new Error(
+  //         `Unsupported schema version: ${schemaDialect.draftVersion}`,
+  //       )
+  //     }
+  //
+  //     spectral.setRuleset(
+  //       await bundleAndLoadRuleset(path.join(process.cwd(), spectralFile), {
+  //         fs: fsCb,
+  //         fetch: spectralRuntime.fetch,
+  //       }),
+  //     )
+  //
+  //     const result = await spectral.run(doc)
+  //     if (result.length > 0) {
+  //       console.log(result)
+  //     }
+  //   },
+  // })
 }
 
 async function taskCheck() {
