@@ -26,6 +26,7 @@
   - [`Microsoft/vscode-json-languageservice`](#microsoftvscode-json-languageservice)
   - [Other](#other)
 - [Troubleshooting](#troubleshooting)
+  - [Dependency Errors](#dependency-errors)
   - [`pre-commit` fails to format files in CI](#pre-commit-fails-to-format-files-in-ci)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
@@ -345,6 +346,29 @@ And, generally, if a software supports multiple formats, stick with configuratio
 ## Troubleshooting
 
 Some common errors include:
+
+### Dependency Errors
+
+When updating the working tree, you may suddenly come across issues with dependencies like the following:
+
+```console
+$ node ./cli.js
+node:internal/modules/esm/resolve:838
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'ajv' imported from .../schemastore/cli.js
+    at packageResolve (node:internal/modules/esm/resolve:838:9)
+    ...
+    at ModuleJob._link (node:internal/modules/esm/module_job:132:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v23.0.0
+```
+
+To fix dependencies it is recommended to run `npm clean-install`. The command `npm install` should work as well.
+
 
 ### `pre-commit` fails to format files in CI
 
