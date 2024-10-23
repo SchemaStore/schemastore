@@ -217,7 +217,9 @@ Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate
 validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/properties
 ```
 
-This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location.
+This means that renames in subschema paths is a potentially a breaking change. However, it needs to be possible to refactor internal schema structures.
+
+It is okay when refactoring the subschema to a location under `$defs` or `definitions`. Otherwise, use your best judgement. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if possible.
 
 ### Language Server Features
 
@@ -368,7 +370,6 @@ Node.js v23.0.0
 ```
 
 To fix dependencies it is recommended to run `npm clean-install`. The command `npm install` should work as well.
-
 
 ### `pre-commit` fails to format files in CI
 
