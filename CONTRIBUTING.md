@@ -26,6 +26,7 @@
   - [`Microsoft/vscode-json-languageservice`](#microsoftvscode-json-languageservice)
   - [Other](#other)
 - [Troubleshooting](#troubleshooting)
+  - [Dependency Errors](#dependency-errors)
   - [`pre-commit` fails to format files in CI](#pre-commit-fails-to-format-files-in-ci)
 - [How-to](#how-to)
   - [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository)
@@ -216,7 +217,9 @@ Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate
 validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/properties
 ```
 
-This means that renames in subschema paths is a potentially breaking change. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location.
+This means that renames in subschema paths is a potentially a breaking change. However, it needs to be possible to refactor internal schema structures.
+
+It is okay when refactoring the subschema to a location under `$defs` or `definitions`. Otherwise, use your best judgement. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if possible.
 
 ### Language Server Features
 
@@ -345,6 +348,28 @@ And, generally, if a software supports multiple formats, stick with configuratio
 ## Troubleshooting
 
 Some common errors include:
+
+### Dependency Errors
+
+When updating the working tree, you may suddenly come across issues with dependencies like the following:
+
+```console
+$ node ./cli.js
+node:internal/modules/esm/resolve:838
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'ajv' imported from .../schemastore/cli.js
+    at packageResolve (node:internal/modules/esm/resolve:838:9)
+    ...
+    at ModuleJob._link (node:internal/modules/esm/module_job:132:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v23.0.0
+```
+
+To fix dependencies it is recommended to run `npm clean-install`. The command `npm install` should work as well.
 
 ### `pre-commit` fails to format files in CI
 
