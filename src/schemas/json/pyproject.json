@@ -6,21 +6,8 @@
   "definitions": {
     "projectAuthor": {
       "type": "object",
+      "minProperties": 1,
       "additionalProperties": false,
-      "anyOf": [
-        {
-          "required": ["name"],
-          "properties": {
-            "name": true
-          }
-        },
-        {
-          "required": ["email"],
-          "properties": {
-            "email": true
-          }
-        }
-      ],
       "properties": {
         "name": {
           "type": "string"
@@ -227,53 +214,27 @@
         },
         "readme": {
           "title": "Project full description",
-          "description": "Value can be a relative path to text / markdown (`.md` suffix) / reStructuredText (`.rst` suffix) readme file, or a table with either:\n- `file` key containing path of aforementioned readme file, or\n- `text` key containing the full readme text embedded inside `pyproject.toml`.",
-          "markdownDescription": "Value can be a relative path to text / markdown (`.md` suffix) / reStructuredText (`.rst` suffix) readme file, or a table with either:\n- `file` key containing path of aforementioned readme file, or\n- `text` key containing the full readme text embedded inside `pyproject.toml`.",
-          "x-intellij-html-description": "<p>Value can be a relative path to text / markdown (<code>.md</code> suffix) / reStructuredText (<code>.rst</code> suffix) readme file, or a table with either:</p><ul><li><code>file</code> key containing path of aforementioned readme file, or</li><li><code>text</code> key containing the full readme text embedded inside <code>pyproject.toml</code>.</li></ul>",
+          "description": "Value can be a relative path to text, markdown (`.md`) or reStructuredText (`.rst`) readme file; or a table with either:\n- `file` key containing path of aforementioned readme file, or\n- `text` key containing full readme content`\n\nWhen using table as value, an [RFC 1341 compliant](https://datatracker.ietf.org/doc/html/rfc1341) `content-type` key must also be provided. It can include an optional `charset` part, defaulting to `UTF-8`.",
+          "markdownDescription": "Value can be a relative path to text, markdown (`.md`) or reStructuredText (`.rst`) readme file; or a table with either:\n- `file` key containing path of aforementioned readme file, or\n- `text` key containing full readme content`\n\nWhen using table as value, an [RFC 1341 compliant](https://datatracker.ietf.org/doc/html/rfc1341) `content-type` key must also be provided. It can include an optional `charset` part, defaulting to `UTF-8`.",
+          "x-intellij-html-description": "<p>Value can be a relative path to text, markdown (<code>.md</code>) or reStructuredText (<code>.rst</code>) readme file; or a table with either:</p><ul><li><code>file</code> key containing path of aforementioned readme file, or</li><li><code>text</code> key containing full readme content</li></ul><p>When using table as value, an <a href=\"https://datatracker.ietf.org/doc/html/rfc1341\">RFC 1341 compliant</a> <code>content-type</code> key must also be provided. It can include an optional <code>charset</code> part, defaulting to <code>UTF-8</code>.</p>",
           "x-taplo": {
             "links": {
               "key": "https://packaging.python.org/en/latest/specifications/pyproject-toml/#readme"
             }
           },
-          "oneOf": [
-            {
-              "title": "README file path",
-              "type": "string"
-            },
+          "anyOf": [
+            { "type": "string" },
             {
               "type": "object",
+              "additionalProperties": false,
               "required": ["content-type"],
+              "minProperties": 2,
+              "maxProperties": 2,
               "properties": {
-                "content-type": {
-                  "title": "README text content-type",
-                  "description": "RFC 1341 compliant content-type (with optional charset, defaulting to UTF-8)",
-                  "type": "string"
-                }
-              },
-              "oneOf": [
-                {
-                  "additionalProperties": false,
-                  "required": ["file"],
-                  "properties": {
-                    "content-type": true,
-                    "file": {
-                      "title": "README file path",
-                      "type": "string"
-                    }
-                  }
-                },
-                {
-                  "additionalProperties": false,
-                  "required": ["text"],
-                  "properties": {
-                    "content-type": true,
-                    "text": {
-                      "title": "README text",
-                      "type": "string"
-                    }
-                  }
-                }
-              ]
+                "content-type": { "type": "string" },
+                "file": { "type": "string" },
+                "text": { "type": "string" }
+              }
             }
           ],
           "examples": [
@@ -312,27 +273,15 @@
               "key": "https://packaging.python.org/en/latest/specifications/pyproject-toml/#license"
             }
           },
-          "oneOf": [
+          "anyOf": [
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["file"],
+              "minProperties": 1,
+              "maxProperties": 1,
               "properties": {
-                "file": {
-                  "title": "License file path",
-                  "type": "string"
-                }
-              }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["text"],
-              "properties": {
-                "text": {
-                  "title": "License text",
-                  "type": "string"
-                }
+                "file": { "type": "string" },
+                "text": { "type": "string" }
               }
             },
             {
@@ -608,25 +557,21 @@
           "examples": [["version"]]
         }
       },
-      "oneOf": [
-        {
-          "required": ["dynamic"],
-          "properties": {
-            "dynamic": {
-              "type": "array",
-              "contains": {
-                "const": "version"
-              }
+      "if": {
+        "$comment": "Combines with version dependency below to simulate oneOf behavior, yet provides clearer error message",
+        "required": ["dynamic"],
+        "properties": {
+          "dynamic": {
+            "type": "array",
+            "contains": {
+              "const": "version"
             }
           }
-        },
-        {
-          "required": ["version"],
-          "properties": {
-            "version": true
-          }
         }
-      ],
+      },
+      "else": {
+        "required": ["version"]
+      },
       "dependencies": {
         "version": {
           "not": {
@@ -869,7 +814,7 @@
           "markdownDescription": "Each list item should be either:\n- [dependency specifiers](https://packaging.python.org/en/latest/specifications/dependency-specifiers/), or\n- table with a single key `include-group` which specifies another group name to include into this one",
           "x-intellij-html-description": "<p>Each list item should be either:</p><ul><li><a href=\"https://packaging.python.org/en/latest/specifications/dependency-specifiers/\">dependency specifiers</a>, or</li><li>table with a single key <code>include-group</code> which specifies another group name to include into this one</li></ul>",
           "items": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "string"
               },
