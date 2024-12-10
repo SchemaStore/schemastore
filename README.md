@@ -1,4 +1,5 @@
 # JSON Schema Store
+
 The largest collection of independent JSON schemas in the world.
 
 [![Build status](https://github.com/SchemaStore/schemastore/actions/workflows/nodejs.yml/badge.svg)](https://github.com/SchemaStore/schemastore/actions/workflows/nodejs.yml)
@@ -6,9 +7,11 @@ The largest collection of independent JSON schemas in the world.
 The repository is a universal JSON schema store, where schemas for popular JSON documents can be found.
 
 ## Contribute
+
 Contributions are more than welcome! Read [CONTRIBUTING.md](./CONTRIBUTING.md) for more information.
 
 ## Help us out
+
 Keeping Schemastore.org running smoothly requires time, effort, and resources. While it’s still volunteer-driven, the infrastructure and maintenance costs have grown alongside its popularity.
 
 And here’s the thing: for-profit organizations are among the biggest beneficiaries of Schemastore.org. They use the schemas to validate configurations, streamline workflows, and, ultimately, save time and money. If you’re part of such an organization - whether you’re contributing schemas or relying on them - I have a request: consider sponsoring Schemastore.org.
