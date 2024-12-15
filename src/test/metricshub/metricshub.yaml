@@ -6,6 +6,9 @@ loggerLevel: trace
 # Internal collect interval
 collectPeriod: 2m
 
+# Internal discovery interval
+discoveryCycle: 30
+
 otel:
   otel.metrics.exporter: otlp
   otel.exporter.otlp.metrics.endpoint: http://server:9090/api/v1/otlp/v1/metrics
@@ -15,17 +18,35 @@ otel:
 otelCollector:
   commandLine:
     [
-      '/opt/hws/otel/otelcol',
+      '/opt/metricshub/otel/otelcol',
       '--config',
-      '/opt/hws/otel/otel-config.yaml',
+      '/opt/metricshub/otel/otel-config.yaml',
       '--feature-gates=pkg.translator.prometheus.NormalizeName',
     ]
   environment:
     HTTPS_PROXY: 'https://my-proxy.local.net'
     NO_WINDOWS_SERVICE: 1
   output: log
-  workingDir: /opt/hws/otel
+  workingDir: /opt/metricshub/otel
   disabled: false
+
+# Enable compression for state set metrics
+stateSetCompression: suppressZeros
+
+# The number of workers to use for the job pool
+jobPoolSize: 30
+
+# Filter monitors
+monitorFilters:
+  - '+cpu'
+  - '!volume'
+  - '+network'
+
+# Connector patch directory
+patchDirectory: /opt/dev/connectors
+
+# Resolve resource hostname to FQDN
+resolveHostnameToFqdn: true
 
 # Resource Groups configuration
 resourceGroups:
@@ -90,6 +111,12 @@ resourceGroups:
         protocols:
           wmi:
             timeout: 240
+        additionalConnectors:
+          WindowsProcessHttpd:
+            uses: WindowsProcess
+            variables:
+              matchName: httpd
+            force: true
 
       grafana-service:
         attributes:
@@ -313,7 +340,7 @@ resourceGroups:
 
       multi-resources-config-1:
         attributes:
-          host.names: [server-13, server-14, server-15]
+          host.name: [server-13, server-14, server-15]
           host.type: linux
         protocols:
           snmp:
@@ -321,3 +348,45 @@ resourceGroups:
             community: public
             port: 161
             timeout: 120
+
+      #═══════════════════════════════════════════════════
+      # SNMP v3 protocol configuration
+      #═══════════════════════════════════════════════════
+
+      server-13:
+        attributes:
+          host.name: server-13
+          host.type: linux
+        protocols:
+          snmpv3:
+            port: 161
+            timeout: 120s
+            contextName: myContext
+            authType: SHA
+            privacy: AES
+            username: myUser
+            privacyPassword: myPrivacyPassword
+            password: myAuthPassword
+            retryIntervals:
+              - 100
+              - 200
+              - 300
+
+      #═══════════════════════════════════════════════════
+      # JDBC Configuration
+      #═══════════════════════════════════════════════════
+
+      server-14:
+        attributes:
+          host.name: server-14
+          host.type: linux
+        protocols:
+          jdbc:
+            hostname: server-14
+            username: dbuser
+            password: dbpassword
+            url: jdbc:mysql://server-14:3306/mydatabase
+            timeout: 120s
+            type: mysql
+            port: 3306
+            database: mydatabase

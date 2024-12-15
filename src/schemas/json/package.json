@@ -32,6 +32,20 @@
         "type": "string"
       }
     },
+    "peerDependencyMeta": {
+      "description": "When a user installs your package, warnings are emitted if packages specified in \"peerDependencies\" are not already installed. The \"peerDependenciesMeta\" field serves to provide more information on how your peer dependencies are utilized. Most commonly, it allows peer dependencies to be marked as optional. Metadata for this field is specified with a simple hash of the package name to a metadata object.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "optional": {
+            "description": "Specifies that this peer dependency is optional and should not be installed automatically.",
+            "type": "boolean"
+          }
+        }
+      }
+    },
     "license": {
       "anyOf": [
         {
@@ -139,7 +153,7 @@
         }
       },
       "patternProperties": {
-        "^(?![\\.0-9]).": {
+        "^[^.0-9]+$": {
           "$ref": "#/definitions/packageExportsEntryOrFallback",
           "description": "The module path that is resolved when this environment matches the property name."
         }
@@ -329,6 +343,17 @@
           "description": "The module path that is resolved when the module specifier matches \"name\", shadows the \"main\" field."
         }
       ]
+    },
+    "imports": {
+      "description": "The \"imports\" field is used to create private mappings that only apply to import specifiers from within the package itself.",
+      "type": "object",
+      "patternProperties": {
+        "^#.+$": {
+          "$ref": "#/definitions/packageExportsEntryOrFallback",
+          "description": "The module path that is resolved when this environment matches the property name."
+        }
+      },
+      "additionalProperties": false
     },
     "bin": {
       "type": [
@@ -603,18 +628,7 @@
       "$ref": "#/definitions/dependency"
     },
     "peerDependenciesMeta": {
-      "description": "When a user installs your package, warnings are emitted if packages specified in \"peerDependencies\" are not already installed. The \"peerDependenciesMeta\" field serves to provide more information on how your peer dependencies are utilized. Most commonly, it allows peer dependencies to be marked as optional. Metadata for this field is specified with a simple hash of the package name to a metadata object.",
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true,
-        "properties": {
-          "optional": {
-            "description": "Specifies that this peer dependency is optional and should not be installed automatically.",
-            "type": "boolean"
-          }
-        }
-      }
+      "$ref": "#/definitions/peerDependencyMeta"
     },
     "bundleDependencies": {
       "description": "Array of package names that will be bundled when publishing the package.",
@@ -734,6 +748,9 @@
         "registry": {
           "type": "string",
           "format": "uri"
+        },
+        "provenance": {
+          "type": "boolean"
         }
       },
       "additionalProperties": true
@@ -825,6 +842,179 @@
     },
     "jscpd": {
       "$ref": "https://json.schemastore.org/jscpd.json"
+    },
+    "pnpm": {
+      "description": "Defines pnpm specific configuration.",
+      "type": "object",
+      "properties": {
+        "overrides": {
+          "description": "Used to override any dependency in the dependency graph.",
+          "type": "object"
+        },
+        "packageExtensions": {
+          "description": "Used to extend the existing package definitions with additional information.",
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "type": "object",
+              "properties": {
+                "dependencies": {
+                  "$ref": "#/definitions/dependency"
+                },
+                "optionalDependencies": {
+                  "$ref": "#/definitions/dependency"
+                },
+                "peerDependencies": {
+                  "$ref": "#/definitions/dependency"
+                },
+                "peerDependenciesMeta": {
+                  "$ref": "#/definitions/peerDependencyMeta"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "peerDependencyRules": {
+          "properties": {
+            "ignoreMissing": {
+              "description": "pnpm will not print warnings about missing peer dependencies from this list.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowedVersions": {
+              "description": "Unmet peer dependency warnings will not be printed for peer dependencies of the specified range.",
+              "type": "object"
+            },
+            "allowAny": {
+              "description": "Any peer dependency matching the pattern will be resolved from any version, regardless of the range specified in \"peerDependencies\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "neverBuiltDependencies": {
+          "description": "A list of dependencies to skip the builds.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "onlyBuiltDependencies": {
+          "description": "A list of dependencies to skip the builds.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "onlyBuiltDependenciesFile": {
+          "description": "Specifies a JSON file that lists the only packages permitted to run installation scripts during the pnpm install process.",
+          "type": "string"
+        },
+        "allowedDeprecatedVersions": {
+          "description": "A list of deprecated versions that the warnings are suppressed.",
+          "type": "object"
+        },
+        "patchedDependencies": {
+          "description": "A list of dependencies that are patched.",
+          "type": "object"
+        },
+        "allowNonAppliedPatches": {
+          "description": "When true, installation won't fail if some of the patches from the \"patchedDependencies\" field were not applied.",
+          "type": "boolean"
+        },
+        "updateConfig": {
+          "type": "object",
+          "properties": {
+            "ignoreDependencies": {
+              "description": "A list of packages that should be ignored when running \"pnpm outdated\" or \"pnpm update --latest\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "auditConfig": {
+          "type": "object",
+          "properties": {
+            "ignoreCves": {
+              "description": "A list of CVE IDs that will be ignored by \"pnpm audit\".",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^CVE-\\d{4}-\\d{4,7}$"
+              }
+            },
+            "ignoreGhsas": {
+              "description": "A list of GHSA Codes that will be ignored by \"pnpm audit\".",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "requiredScripts": {
+          "description": "A list of scripts that must exist in each project.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "supportedArchitectures": {
+          "description": "Specifies architectures for which you'd like to install optional dependencies, even if they don't match the architecture of the system running the install.",
+          "type": "object",
+          "properties": {
+            "os": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cpu": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "libc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "ignoredOptionalDependencies": {
+          "description": "A list of optional dependencies that the install should be skipped.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "executionEnv": {
+          "type": "object",
+          "properties": {
+            "nodeVersion": {
+              "description": "Specifies which exact Node.js version should be used for the project's runtime.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "anyOf": [
