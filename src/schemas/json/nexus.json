@@ -1,0 +1,277 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/nexus-1.0.0.json",
+  "title": "Nexus Configuration",
+  "description": "Schema for Nexus configuration files that manage workflow dependencies and configuration inheritance in GitHub Action workflows.\nSupports both local and reusable workflow configurations with environment-specific settings.",
+  "version": "1.0.0",
+  "maintainers": [
+    {
+      "name": "GitOpsIQ",
+      "url": "https://github.com/gitopsiq"
+    }
+  ],
+  "type": "object",
+  "definitions": {
+    "dependencyId": {
+      "type": "string",
+      "pattern": "^[0-9a-zA-Z][0-9a-zA-Z_.-]*$",
+      "maxLength": 128,
+      "description": "Must start with a number or letter, can contain letters, numbers, dots, underscores, or hyphens",
+      "examples": [
+        "auth-service",
+        "api-v2",
+        "shared.lib",
+        "worker-123",
+        "cache-redis"
+      ]
+    },
+    "dependencyArray": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/dependencyId" },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Array of unique dependency IDs. Each ID can start with a letter or number"
+    },
+    "workflowRef": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}/[a-zA-Z0-9-_.]{1,100}@((v[0-9]+\\.[0-9]+\\.[0-9]+)|([a-fA-F0-9]{7,40})|([a-zA-Z0-9_.-]+))$",
+      "description": "Reference to a reusable workflow. Format: owner/repo@ref where:\n- owner: GitHub username or organization (39 chars max)\n- repo: Repository name (100 chars max)\n- ref: version tag (vX.Y.Z), commit SHA, or branch name",
+      "examples": ["organization/deploy@v1.2.3", "company/build@main"]
+    },
+    "variableName": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Variable name must start with a letter and can contain alphanumeric characters and underscores"
+    },
+    "environmentVariableName": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "maxLength": 255,
+      "description": "Environment variables must:\n- Be UPPERCASE\n- Start with a letter\n- Contain only uppercase letters, numbers, and underscores"
+    },
+    "standardVariableName": {
+      "type": "string",
+      "pattern": "^(?!(?:GITHUB_|ACTIONS_|RUNNER_|NEXUS_|ENV_))[a-zA-Z][a-zA-Z0-9_]*$",
+      "maxLength": 255,
+      "description": "Variable names must:\n- Start with a letter\n- Contain only alphanumeric and underscore\n- Not start with reserved prefixes (GITHUB_, ACTIONS_, RUNNER_, NEXUS_, ENV_)"
+    },
+    "variableValue": {
+      "type": "string",
+      "maxLength": 49152,
+      "description": "Variable values must be strings. For complex data types, use valid JSON strings (e.g., '{\"key\": \"value\"}' or '[1,2,3]'). Maximum size is 48KB as per GitHub Actions limits"
+    },
+    "variableObject": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/definitions/standardVariableName"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/variableValue"
+      }
+    },
+    "environmentVariableObject": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/definitions/environmentVariableName"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/variableValue"
+      }
+    },
+    "workflow_dispatch": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*\\.ya?ml$",
+      "maxLength": 128,
+      "description": "Local workflow file to dispatch (must be a YAML file)",
+      "examples": ["deploy.yml", "build.yaml"]
+    },
+    "dependency": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/definitions/dependencyArray" },
+        "before": { "$ref": "#/definitions/dependencyArray" },
+        "after": { "$ref": "#/definitions/dependencyArray" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(root|service-[a-zA-Z0-9][a-zA-Z0-9_.-]*)$",
+      "maxLength": 128,
+      "description": "Unique identifier for the component. Must be 'root' or start with 'service-'",
+      "examples": ["root", "service-auth", "service-api-gateway"],
+      "errorMessage": {
+        "pattern": "ID must be 'root' or start with 'service-' followed by alphanumeric characters, dots, underscores, or hyphens"
+      }
+    },
+    "default_execution_mode": {
+      "type": "string",
+      "enum": ["updated", "connected", "downstream", "complete"],
+      "description": "Execution mode that determines which components to process:\n- updated: only changed components\n- connected: changed components and their direct dependencies\n- downstream: changed components and all downstream dependencies\n- complete: process all components"
+    },
+    "workflow_dispatch": {
+      "$ref": "#/definitions/workflow_dispatch"
+    },
+    "job_name_prefix": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$",
+      "description": "Prefix for job names in the workflow. Used to improve workflow visualization",
+      "examples": ["auth", "api-gateway", "payment-service"]
+    },
+    "uses": {
+      "$ref": "#/definitions/workflowRef"
+    },
+    "with": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/variableValue"
+      },
+      "description": "Input parameters for reusable workflows (follows GitHub Actions with: parameter format)"
+    },
+    "variables": {
+      "$ref": "#/definitions/variableObject"
+    },
+    "environments": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]*$",
+        "maxLength": 64,
+        "description": "Environment names must start with a letter and can contain alphanumeric characters, dots, underscores, or hyphens",
+        "examples": ["development", "staging", "production", "prod-eu-west"]
+      },
+      "properties": {
+        "configuration": {
+          "properties": {
+            "deployment": {
+              "type": "object",
+              "properties": {
+                "strategy": {
+                  "type": "string",
+                  "enum": ["rolling", "blue-green", "canary"],
+                  "description": "Deployment strategy for this environment"
+                },
+                "timeout": {
+                  "type": "string",
+                  "pattern": "^\\d+[smh]$",
+                  "description": "Deployment timeout (e.g., 30m, 1h)",
+                  "examples": ["5m", "30m", "2h"],
+                  "errorMessage": "Timeout must be specified in format: <number>[s|m|h] (seconds, minutes, or hours)"
+                }
+              }
+            },
+            "monitoring": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Enable/disable monitoring for this environment"
+                },
+                "alerts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "cpu_usage",
+                      "memory_usage",
+                      "error_rate",
+                      "latency",
+                      "disk_space"
+                    ],
+                    "description": "Monitoring metrics to alert on"
+                  },
+                  "uniqueItems": true
+                },
+                "thresholds": {
+                  "type": "object",
+                  "properties": {
+                    "cpu_usage": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "memory_usage": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "error_rate": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "variables": {
+          "$ref": "#/definitions/environmentVariableObject"
+        }
+      }
+    },
+    "experimental": {
+      "type": "object",
+      "description": "Reserved for future orchestrator features",
+      "additionalProperties": true
+    },
+    "dependency": {
+      "$ref": "#/definitions/dependency",
+      "description": "Defines component dependencies:\n- id: Direct dependencies\n- before: Components that must run before this one\n- after: Components that must run after this one"
+    }
+  },
+  "required": ["id"],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "title": "Root Configuration",
+      "properties": {
+        "id": { "const": "root" },
+        "default_execution_mode": {
+          "type": "string",
+          "enum": ["updated", "connected", "downstream", "complete"]
+        }
+      },
+      "required": ["id", "default_execution_mode"],
+      "not": {
+        "allOf": [
+          { "required": ["workflow_dispatch"] },
+          { "required": ["uses"] }
+        ]
+      }
+    },
+    {
+      "title": "Component Configuration",
+      "properties": {
+        "id": { "not": { "const": "root" } }
+      },
+      "anyOf": [
+        {
+          "title": "Local Workflow",
+          "required": ["workflow_dispatch"]
+        },
+        {
+          "title": "Reusable Workflow",
+          "required": ["uses"]
+        }
+      ]
+    }
+  ],
+  "errorMessage": {
+    "required": {
+      "id": "Configuration must include an ID",
+      "default_execution_mode": "Root configuration must specify a default execution mode"
+    },
+    "oneOf": "Configuration must be either a root configuration or a component configuration",
+    "additionalProperties": "Unknown property found in configuration",
+    "properties": {
+      "variables": "Invalid variable name. Must start with a letter, use only alphanumeric and underscore, and avoid reserved prefixes",
+      "environments": {
+        "propertyNames": "Invalid environment name. Must start with a letter and use only allowed characters",
+        "properties": {
+          "variables": "Invalid environment variable name. Must be uppercase and use only letters, numbers, and underscores"
+        }
+      }
+    }
+  }
+}
