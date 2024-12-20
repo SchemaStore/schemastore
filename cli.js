@@ -833,11 +833,11 @@ async function assertFileSystemIsValid() {
       for (const testDir of await fs.readdir(rootTestDir)) {
         if (isIgnoredFile(testDir)) continue
 
-        const schemaName = testDir + '.json'
-        const schemaPath = path.join(SchemaDir, schemaName)
+        const schemaPath = path.join(SchemaDir, testDir + '.json')
         if (!(await exists(schemaPath))) {
           printErrorAndExit(new Error(), [
             `Failed to find a schema file at "${schemaPath}"`,
+            `Expected schema file computed from directory at "${path.join(rootTestDir, testDir)}"`,
           ])
         }
       }
