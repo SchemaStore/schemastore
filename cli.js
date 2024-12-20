@@ -1212,7 +1212,7 @@ async function assertSchemaHasValidSchemaField(
       printErrorAndExit(new Error(), [
         `Schema version is too high => in file ${schema.name}`,
         `Schema version '${schema.json.$schema}' is not supported by many editors and IDEs`,
-        `${schema.json} must use a lower schema version.`,
+        `Schema file "${schema.path}" must use a lower schema version.`,
       ])
     }
   }
