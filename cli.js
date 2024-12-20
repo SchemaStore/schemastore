@@ -601,30 +601,30 @@ async function taskCheck() {
       await assertSchemaHasValidIdField(schema)
       await assertSchemaHasValidSchemaField(schema)
     },
-    async onPositiveTestFile(file, testFile, _data, { spinner }) {
-      assertFileHasNoBom(file)
-      assertFileHasCorrectExtensions(file.path, [
+    async onPositiveTestFile(schema, testFile, _data, { spinner }) {
+      assertFileHasNoBom(testFile)
+      assertFileHasCorrectExtensions(testFile.path, [
         '.json',
         '.yaml',
         '.yml',
         '.toml',
       ])
-      await assertTestFileHasSchemaPragma(file, testFile, spinner)
-      if (!file.path.endsWith('.json')) {
-        await assertFilePassesJsonLint(file)
+      await assertTestFileHasSchemaPragma(schema, testFile, spinner)
+      if (testFile.path.endsWith('.json')) {
+        await assertFilePassesJsonLint(testFile)
       }
     },
-    async onNegativeTestFile(file, testFile, _data, { spinner }) {
-      assertFileHasNoBom(file)
-      assertFileHasCorrectExtensions(file.path, [
+    async onNegativeTestFile(schema, testFile, _data, { spinner }) {
+      assertFileHasNoBom(testFile)
+      assertFileHasCorrectExtensions(testFile.path, [
         '.json',
         '.yaml',
         '.yml',
         '.toml',
       ])
-      await assertTestFileHasSchemaPragma(file, testFile, spinner)
-      if (!file.path.endsWith('.json')) {
-        await assertFilePassesJsonLint(file)
+      await assertTestFileHasSchemaPragma(schema, testFile, spinner)
+      if (testFile.path.endsWith('.json')) {
+        await assertFilePassesJsonLint(testFile)
       }
     },
   })
