@@ -638,13 +638,23 @@ async function taskCheck() {
       )
       const schemaDialect = getSchemaDialect(schemaFile.json.$schema)
       const options = getSchemaOptions(schemaFile.name)
-      const ajv = await ajvFactory({
-        draftVersion: schemaDialect.draftVersion,
-        fullStrictMode: isFullStrictMode,
-        unknownFormats: options.unknownFormats,
-        unknownKeywords: options.unknownKeywords,
-        unknownSchemas: options.unknownSchemas,
-      })
+      let ajv
+      try {
+        ajv = await ajvFactory({
+          draftVersion: schemaDialect.draftVersion,
+          fullStrictMode: isFullStrictMode,
+          unknownFormats: options.unknownFormats,
+          unknownKeywords: options.unknownKeywords,
+          unknownSchemas: options.unknownSchemas,
+        })
+      } catch (err) {
+        spinner.fail()
+        printErrorAndExit(
+          err,
+          [`Failed to create Ajv instance for schema "${schemaFile.path}"`],
+          JSON.stringify({ options, schemaDialect, isFullStrictMode }, null, 2),
+        )
+      }
 
       let validateFn
       try {
@@ -652,7 +662,7 @@ async function taskCheck() {
       } catch (err) {
         spinner.fail()
         printErrorAndExit(err, [
-          `Failed to compile schema file ${schemaFile.path}`,
+          `Failed to compile schema file "${schemaFile.path}"`,
         ])
       }
 
