@@ -13,6 +13,10 @@ export default [
   node.configs['flat/recommended-script'],
   prettier,
   {
+
+
+
+
     languageOptions: {
       globals: {
         ...globals.es2021,
