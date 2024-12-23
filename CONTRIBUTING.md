@@ -12,6 +12,7 @@
     - [Undocumented Features](#undocumented-features)
     - [Deprecated Features](#deprecated-features)
     - [API Compatibility](#api-compatibility)
+    - [Documenting Enums](#using-enums)
   - [Language Server Features](#language-server-features)
     - [Non-standard Properties](#non-standard-properties)
   - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
@@ -221,6 +222,49 @@ This means that renames in subschema paths is a potentially a breaking change. H
 
 It is okay when refactoring the subschema to a location under `$defs` or `definitions`. Otherwise, use your best judgement. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if possible.
 
+#### Documenting Enums
+
+There are several ways to document enums. It is recommended to use [this solution](https://github.com/json-schema-org/json-schema-spec/issues/57#issuecomment-247861695):
+
+```json
+{
+  "oneOf": [
+    { "const": "foo", "description": "Description foo" },
+    { "const": "bar", "description": "Description bar" }
+  ]
+}
+```
+
+It is also possible to use `x-intellij-enum-metadata`:
+
+```json
+{
+  "enum": ["foo", "bar"],
+  "x-intellij-enum-metadata": {
+    "foo": {
+      "description": "Description foo"
+    },
+    "bar": {
+      "description": "Description bar"
+    }
+  }
+}
+```
+
+Or, `enumDescriptions`:
+
+```json
+{
+  "enum": ["foo", "bar"]
+  "enumDescriptions": [
+    "Description foo",
+    "Description bar"
+  ]
+}
+```
+
+The latter two approaches are not recommended because they use editor-specific, non-standard properties. See [Non-standard Properties](#non-standard-properties) for details.
+
 ### Language Server Features
 
 There are several language servers that use SchemaStore:
@@ -251,6 +295,10 @@ Used by: `vscode-json-languageservice`.
 
 Used by: `vscode-json-languageservice`.
 
+**`enumDescriptions`**
+
+Used by: `vscode-json-languageservice`. See [Documenting Enums](#documenting-enums) for details.
+
 **`x-taplo`**
 
 Used by: `tamasfe/taplo`.
@@ -269,7 +317,7 @@ Used by Intellij.
 
 **`x-intellij-enum-metadata`**
 
-Used by Intellij.
+Used by Intellij. See [Documenting Enums](#documenting-enums) for details.
 
 ### Using the `CODEOWNERS` file
 
