@@ -439,6 +439,15 @@ M src/test/prettierrc/prettierrc.json
 
 _Do not_ add those two files; pre-commit.ci seems to have issue with them. (Undo modifications to those files by unstaging them and running `git restore -- 'src/test/prettierrc/*'`)
 
+To run Prettier on scpecific files, run:
+
+```console
+# Run on a schema file
+npx prettier --config .prettierrc.cjs --ignore-path .gitignore --write src/schemas/json/<schemaName.json>
+# Run on test files
+npx prettier --config .prettierrc.cjs --ignore-path .gitignore --write src/test/<schemaName>/
+```
+
 ## How-to
 
 ### How to add a JSON Schema that's hosted in this repository
