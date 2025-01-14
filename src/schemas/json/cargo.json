@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/cargo.json",
+  "x-tombi-toml-version": "v1.0.0",
   "definitions": {
     "Build": {
       "title": "Build",
@@ -217,6 +218,24 @@
         "initFields": ["version"]
       }
     },
+    "DetailedLint": {
+      "title": "Detailed Lint",
+      "type": "object",
+      "properties": {
+        "level": {
+          "$ref": "#/definitions/LintLevel"
+        },
+        "priority": {
+          "description": "The priority that controls which lints or [lint groups](https://doc.rust-lang.org/rustc/lints/groups.html) override other lint groups. Lower (particularly negative) numbers have lower priority, being overridden by higher numbers, and show up first on the command-line to tools like rustc.",
+          "type": "integer",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-lints-section"
+            }
+          }
+        }
+      }
+    },
     "Edition": {
       "title": "Edition",
       "description": "The `edition` key affects which edition your package is compiled with. Cargo\nwill always generate packages via [`cargo new`](https://doc.rust-lang.org/cargo/commands/cargo-new.html) with the `edition` key set to the\nlatest edition. Setting the `edition` key in `[package]` will affect all\ntargets/crates in the package, including test suites, benchmarks, binaries,\nexamples, etc.",
@@ -227,6 +246,56 @@
           "key": "https://doc.rust-lang.org/stable/edition-guide/introduction.html"
         }
       }
+    },
+    "Lint": {
+      "title": "Lint",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LintLevel"
+        },
+        {
+          "$ref": "#/definitions/DetailedLint"
+        }
+      ]
+    },
+    "LintLevel": {
+      "title": "Lint Level",
+      "description": "Specify the [lint level](https://doc.rust-lang.org/rustc/lints/levels.html) for a lint or lint group.",
+      "type": "string",
+      "enum": ["forbid", "deny", "warn", "allow"],
+      "x-taplo": {
+        "docs": {
+          "enumValues": [
+            "`forbid` is the same as `deny` in that a lint at this level will produce an error, but unlike the `deny` level, the `forbid` level can not be overridden to be anything lower than an error. However, lint levels may still be capped with [`--cap-lints`](https://doc.rust-lang.org/rustc/lints/levels.html#capping-lints) so `rustc --cap-lints warn` will make lints set to `forbid` just warn.",
+            "The `deny` lint level produces an error if you violate the lint.",
+            "The `warn` lint level produces a warning if you violate the lint.",
+            "The `allow` lint level ignores violations of the lint."
+          ]
+        },
+        "links": {
+          "key": "https://doc.rust-lang.org/rustc/lints/levels.html"
+        }
+      }
+    },
+    "Lints": {
+      "type": "object",
+      "properties": {
+        "clippy": {
+          "description": "Lint settings for [Clippy](https://doc.rust-lang.org/clippy/). See Clippy's [individual lints](https://rust-lang.github.io/rust-clippy/master/index.html) or [lint groups](https://doc.rust-lang.org/clippy/lints.html) documentation.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Lint"
+          }
+        },
+        "rust": {
+          "description": "Lint settings for the Rust compiler. See the Rust compiler's [individual lints](https://doc.rust-lang.org/rustc/lints/listing/index.html) or [lint groups](https://doc.rust-lang.org/rustc/lints/groups.html).",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Lint"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "Lto": {
       "title": "Lto",
@@ -258,7 +327,7 @@
       "title": "Resolver",
       "description": "A different feature resolver algorithm can be used by specifying the resolver version in Cargo.toml like this:\n\n[package]\nname = \"my-package\"\nversion = \"1.0.0\"\nresolver = \"2\"\n\nThe version \"1\" resolver is the original resolver that shipped with Cargo up to version 1.50. The default is \"2\" if the root package specifies edition = \"2021\" or a newer edition. Otherwise the default is \"1\".\n\nThe version \"2\" resolver introduces changes in feature unification. See the features chapter for more details.\n\nThe resolver is a global option that affects the entire workspace. The resolver version in dependencies is ignored, only the value in the top-level package will be used. If using a virtual workspace, the version should be specified in the [workspace] table, for example:\n\n[workspace]\nmembers = [\"member1\", \"member2\"]\nresolver = \"2\"",
       "type": "string",
-      "enum": ["1", "2"],
+      "enum": ["1", "2", "3"],
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions"
@@ -1113,6 +1182,15 @@
             }
           }
         },
+        "lints": {
+          "$ref": "#/definitions/Lints",
+          "description": "The `workspace.lints` table is where you define lint configuration to be inherited by members of a workspace.",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
+            }
+          }
+        },
         "members": {
           "description": "All [`path` dependencies] residing in the workspace directory automatically\nbecome members. Additional members can be listed with the `members` key, which\nshould be an array of strings containing directories with `Cargo.toml` files.\n\nThe `members` list also supports [globs] to match multiple paths, using\ntypical filename glob patterns like `*` and `?`.",
           "type": "array",
@@ -1778,6 +1856,29 @@
         },
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#library"
+        }
+      }
+    },
+    "lints": {
+      "description": "Override the default level of lints from different tools by assigning them to a new level in a table.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Lints"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "boolean",
+              "description": "Inherit lints from the workspace manifest."
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-lints-section"
         }
       }
     },

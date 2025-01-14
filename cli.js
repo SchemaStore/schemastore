@@ -23,6 +23,10 @@ import minimist from 'minimist'
 import fetch from 'node-fetch'
 
 /**
+ * @import { Ora } from 'ora'
+ */
+
+/**
  * Ajv defines types, but they don't work when importing the library with
  * ESM syntax. Tweaking `jsconfig.json` with `esModuleInterop` didn't seem
  * to fix things, so manually set the types with a cast. This issue is
@@ -79,7 +83,7 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'schema-name', 'unstable-check-with'],
@@ -580,7 +584,6 @@ async function taskCheck() {
     SchemaValidationFile,
     './src/schema-validation.schema.json',
   )
-  toFile
   await assertFilePassesJsonLint(await toFile(SchemaValidationFile), {
     ignoreComments: true,
   })
@@ -598,28 +601,30 @@ async function taskCheck() {
       await assertSchemaHasValidIdField(schema)
       await assertSchemaHasValidSchemaField(schema)
     },
-    async onPositiveTestFile(file) {
-      assertFileHasNoBom(file)
-      assertFileHasCorrectExtensions(file.path, [
+    async onPositiveTestFile(schema, testFile, _data, { spinner }) {
+      assertFileHasNoBom(testFile)
+      assertFileHasCorrectExtensions(testFile.path, [
         '.json',
-        '.yml',
         '.yaml',
+        '.yml',
         '.toml',
       ])
-      if (!file.path.endsWith('.json')) {
-        await assertFilePassesJsonLint(file)
+      await assertTestFileHasSchemaPragma(schema, testFile, spinner)
+      if (testFile.path.endsWith('.json')) {
+        await assertFilePassesJsonLint(testFile)
       }
     },
-    async onNegativeTestFile(file) {
-      assertFileHasNoBom(file)
-      assertFileHasCorrectExtensions(file.path, [
+    async onNegativeTestFile(schema, testFile, _data, { spinner }) {
+      assertFileHasNoBom(testFile)
+      assertFileHasCorrectExtensions(testFile.path, [
         '.json',
-        '.yml',
         '.yaml',
+        '.yml',
         '.toml',
       ])
-      if (!file.path.endsWith('.json')) {
-        await assertFilePassesJsonLint(file)
+      await assertTestFileHasSchemaPragma(schema, testFile, spinner)
+      if (testFile.path.endsWith('.json')) {
+        await assertFilePassesJsonLint(testFile)
       }
     },
   })
@@ -633,13 +638,23 @@ async function taskCheck() {
       )
       const schemaDialect = getSchemaDialect(schemaFile.json.$schema)
       const options = getSchemaOptions(schemaFile.name)
-      const ajv = await ajvFactory({
-        draftVersion: schemaDialect.draftVersion,
-        fullStrictMode: isFullStrictMode,
-        unknownFormats: options.unknownFormats,
-        unknownKeywords: options.unknownKeywords,
-        unknownSchemas: options.unknownSchemas,
-      })
+      let ajv
+      try {
+        ajv = await ajvFactory({
+          draftVersion: schemaDialect.draftVersion,
+          fullStrictMode: isFullStrictMode,
+          unknownFormats: options.unknownFormats,
+          unknownKeywords: options.unknownKeywords,
+          unknownSchemas: options.unknownSchemas,
+        })
+      } catch (err) {
+        spinner.fail()
+        printErrorAndExit(
+          err,
+          [`Failed to create Ajv instance for schema "${schemaFile.path}"`],
+          JSON.stringify({ options, schemaDialect, isFullStrictMode }, null, 2),
+        )
+      }
 
       let validateFn
       try {
@@ -647,7 +662,7 @@ async function taskCheck() {
       } catch (err) {
         spinner.fail()
         printErrorAndExit(err, [
-          `Failed to compile schema file ${schemaFile.path}`,
+          `Failed to compile schema file "${schemaFile.path}"`,
         ])
       }
 
@@ -833,11 +848,11 @@ async function assertFileSystemIsValid() {
       for (const testDir of await fs.readdir(rootTestDir)) {
         if (isIgnoredFile(testDir)) continue
 
-        const schemaName = testDir + '.json'
-        const schemaPath = path.join(SchemaDir, schemaName)
+        const schemaPath = path.join(SchemaDir, testDir + '.json')
         if (!(await exists(schemaPath))) {
           printErrorAndExit(new Error(), [
             `Failed to find a schema file at "${schemaPath}"`,
+            `Expected schema file computed from directory at "${path.join(rootTestDir, testDir)}"`,
           ])
         }
       }
@@ -1057,6 +1072,78 @@ async function assertSchemaValidationJsonReferencesNoNonexistentFiles() {
   console.info(`✔️ schema-validation.jsonc has no invalid schema URLs`)
 }
 
+async function assertTestFileHasSchemaPragma(
+  /** @type {SchemaFile} */ schemaFile,
+  /** @type {DataFile} */ testFile,
+  /** @type {Ora} */ spinner,
+) {
+  if (testFile.path.endsWith('yaml')) {
+    const firstLine = await readFirstLine(testFile.path)
+    const expected = `# yaml-language-server: $schema=${path.relative(path.dirname(testFile.path), schemaFile.path)}`
+
+    if (firstLine !== expected) {
+      if (argv.fix) {
+        spinner.info(`Fixing pragma for file "${testFile.path}"`)
+        if (firstLine.includes('yaml-language-server')) {
+          const oldContent = await fs.readFile(testFile.path, 'utf-8')
+          const newContent =
+            expected + '\n' + oldContent.slice(oldContent.indexOf('\n') + 1)
+          await fs.writeFile(testFile.path, newContent)
+        } else {
+          const newContent =
+            expected + '\n' + (await fs.readFile(testFile.path, 'utf-8'))
+          await fs.writeFile(testFile.path, newContent)
+        }
+      } else {
+        printErrorAndExit(new Error(), [
+          `Failed to find schema pragma for YAML File "${testFile.path}"`,
+          `Expected first line of file to be "${expected}"`,
+          `But, found first line of file to be "${firstLine}"`,
+          `Append "--fix" to the command line to automatically fix all fixable issues`,
+        ])
+      }
+    }
+  } else if (testFile.path.endsWith('.toml')) {
+    const firstLine = await readFirstLine(testFile.path)
+    const expected = `#:schema ${path.relative(path.dirname(testFile.path), schemaFile.path)}`
+
+    if (firstLine !== expected) {
+      if (argv.fix) {
+        spinner.info(`Fixing pragma for file "${testFile.path}"`)
+        if (firstLine.includes('#:schema')) {
+          const oldContent = await fs.readFile(testFile.path, 'utf-8')
+          const newContent =
+            expected + '\n' + oldContent.slice(oldContent.indexOf('\n') + 1)
+          await fs.writeFile(testFile.path, newContent)
+        } else {
+          const newContent =
+            expected + '\n' + (await fs.readFile(testFile.path, 'utf-8'))
+          await fs.writeFile(testFile.path, newContent)
+        }
+      } else {
+        printErrorAndExit(new Error(), [
+          `Failed to find schema pragma for TOML File "${testFile.path}"`,
+          `Expected first line of file to be "${expected}"`,
+          `But, found first line of file to be "${firstLine}"`,
+          `Append "--fix" to the command line to automatically fix all fixable issues`,
+        ])
+      }
+    }
+  }
+  spinner.start()
+
+  async function readFirstLine(/** @type {string} */ filepath) {
+    const inputStream = fsCb.createReadStream(filepath)
+    try {
+      for await (const line of readline.createInterface(inputStream))
+        return line
+      return '' // If the file is empty.
+    } finally {
+      inputStream.destroy() // Destroy file stream.
+    }
+  }
+}
+
 function assertSchemaValidationJsonHasValidSkipTest() {
   const check = (
     /** @type {string[]} */ schemaNames,
@@ -1212,7 +1299,7 @@ async function assertSchemaHasValidSchemaField(
       printErrorAndExit(new Error(), [
         `Schema version is too high => in file ${schema.name}`,
         `Schema version '${schema.json.$schema}' is not supported by many editors and IDEs`,
-        `${schema.json} must use a lower schema version.`,
+        `Schema file "${schema.path}" must use a lower schema version.`,
       ])
     }
   }
@@ -1517,6 +1604,7 @@ TASKS:
 
 EXAMPLES:
   node ./cli.js check
+  node ./cli.js check --fix
   node ./cli.js check --schema-name=schema-catalog.json
   node ./cli.js check-strict --schema-name=schema-catalog.json
 `
