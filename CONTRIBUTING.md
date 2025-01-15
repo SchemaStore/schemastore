@@ -12,7 +12,7 @@
     - [Undocumented Features](#undocumented-features)
     - [Deprecated Features](#deprecated-features)
     - [API Compatibility](#api-compatibility)
-    - [Documenting Enums](#using-enums)
+    - [Documenting Enums](#documenting-enums)
   - [Language Server Features](#language-server-features)
     - [Non-standard Properties](#non-standard-properties)
   - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
