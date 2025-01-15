@@ -1077,7 +1077,7 @@ async function assertTestFileHasSchemaPragma(
   /** @type {DataFile} */ testFile,
   /** @type {Ora} */ spinner,
 ) {
-  if (testFile.path.endsWith('yaml')) {
+  if (testFile.path.endsWith('yaml') || testFile.path.endsWith('yml')) {
     const firstLine = await readFirstLine(testFile.path)
     const expected = `# yaml-language-server: $schema=${path.relative(path.dirname(testFile.path), schemaFile.path)}`
 
