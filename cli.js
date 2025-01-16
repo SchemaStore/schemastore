@@ -1079,7 +1079,7 @@ async function assertTestFileHasSchemaPragma(
 ) {
   if (testFile.path.endsWith('yaml')) {
     const firstLine = await readFirstLine(testFile.path)
-    const expected = `# yaml-language-server: $schema=${path.relative(path.dirname(testFile.path), schemaFile.path)}`
+    const expected = `# yaml-language-server: $schema=${path.relative(path.dirname(testFile.path), schemaFile.path).replaceAll('\\', '/')}`
 
     if (firstLine !== expected) {
       if (argv.fix) {
@@ -1105,7 +1105,7 @@ async function assertTestFileHasSchemaPragma(
     }
   } else if (testFile.path.endsWith('.toml')) {
     const firstLine = await readFirstLine(testFile.path)
-    const expected = `#:schema ${path.relative(path.dirname(testFile.path), schemaFile.path)}`
+    const expected = `#:schema ${path.relative(path.dirname(testFile.path), schemaFile.path).replaceAll('\\', '/')}`
 
     if (firstLine !== expected) {
       if (argv.fix) {
