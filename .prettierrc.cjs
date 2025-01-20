@@ -99,10 +99,9 @@ module.exports = {
           'lockfileVersion': 'none',
           'workspaces': 'none',
           '/^\\$.*/': null,
-        }), 
-        bracketSameLine:true,
-        printWidth: 100000000000000000000
-
+        }),
+        bracketSameLine: true,
+        printWidth: 100000000000
       },
     },
   ],
