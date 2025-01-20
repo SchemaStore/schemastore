@@ -96,13 +96,13 @@ module.exports = {
         jsonSortOrder: JSON.stringify({
           '.': 'none',
           '*': 'none',
-          'lockfileVersion': 'none',
-          'workspaces': 'none',
+          lockfileVersion: 'none',
+          workspaces: 'none',
           '/^\\$.*/': null,
         }),
         bracketSameLine: true,
-        printWidth: 100000000000
+        printWidth: 100000000000,
       },
     },
   ],
-};
+}
