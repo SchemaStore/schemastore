@@ -89,5 +89,20 @@ module.exports = {
         }),
       },
     },
+    {
+      files: 'src/test/bun-lock/bun.lock.json',
+      options: {
+        jsonRecursiveSort: false,
+        jsonSortOrder: JSON.stringify({
+          '.': 'none',
+          '*': 'none',
+          lockfileVersion: 'none',
+          workspaces: 'none',
+          '/^\\$.*/': null,
+        }),
+        bracketSameLine: true,
+        printWidth: 100000000000,
+      },
+    },
   ],
 }
