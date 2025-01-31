@@ -19,11 +19,21 @@
   "definitions": {
     "ConvertibleToString": {
       "anyOf": [
-        { "type": "string" },
-        { "type": "boolean" },
-        { "type": "number" },
-        { "type": "integer" },
-        { "type": "null" }
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "MergeOnV1": {
@@ -455,6 +465,14 @@
           "type": "string",
           "description": "TODO"
         },
+        "partitionBy": {
+          "type": "string",
+          "description": "TODO"
+        },
+        "clusterBy": {
+          "type": "string",
+          "description": "TODO"
+        },
         "strategyBuilder": {
           "type": "string",
           "description": "TODO"
@@ -564,6 +582,19 @@
         }
       }
     },
+    "ExpectationItemV1": {
+      "type": "object",
+      "properties": {
+        "expect": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "When using filesystem storage, the path to the expectations file"
+        },
+        "failOnError": {
+          "description": "should load / transform fail on expectation error ?",
+          "type": "boolean"
+        }
+      }
+    },
     "MetricsV1": {
       "type": "object",
       "properties": {
@@ -626,6 +657,13 @@
         "extension": {
           "$ref": "#/definitions/ConvertibleToString",
           "description": "FS: File extension"
+        },
+        "sharding": {
+          "description": "columns to use for sharding. table will be named table_{sharding(0)}_{sharding(1)}",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
         },
         "partition": {
           "type": "array",
@@ -711,7 +749,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "$ref": "#/definitions/WriteStrategyTypeV1",
+          "$ref": "#/definitions/OpenWriteStrategyTypeV1",
           "description": "TODO"
         },
         "types": {
@@ -944,7 +982,7 @@
           "description": "Expectations to check after Load / Transform has succeeded",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ConvertibleToString"
+            "$ref": "#/definitions/ExpectationItemV1"
           }
         },
         "primaryKey": {
@@ -1141,7 +1179,7 @@
           "description": "Expectations to check after Load / Transform has succeeded",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ConvertibleToString"
+            "$ref": "#/definitions/ExpectationItemV1"
           }
         },
         "acl": {
@@ -1541,29 +1579,232 @@
     },
     "JDBCSchemasV1": {
       "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ExtractV1Base"
+        },
+        {
+          "properties": {
+            "jdbcSchemas": {
+              "description": "Describe what to fetch from data connection. Scope: Schema and Data extraction.",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/JDBCSchemaV1"
+              }
+            },
+            "auditConnectionRef": {
+              "$ref": "#/definitions/ConvertibleToString",
+              "description": "Connection used to read/store audit from it. If not defined, fallbacks to connectionRef. Expected connection name as defined in the connections section of the application.conf file. Scope: Data extraction."
+            },
+            "output": {
+              "$ref": "#/definitions/OutputV1",
+              "description": "Override the output format of data extraction. Scope: Data extraction."
+            },
+            "default": {
+              "$ref": "#/definitions/DefaultJDBCSchemaV1",
+              "description": "Configuration merged into each jdbcSchemas. Scope: Schema and Data extraction."
+            }
+          },
+          "not": {
+            "required": ["openAPI"]
+          }
+        }
+      ]
+    },
+    "OpenAPIObjectSchemasV1": {
+      "type": "object",
       "properties": {
-        "jdbcSchemas": {
-          "description": "Describe what to fetch from data connection. Scope: Schema and Data extraction.",
+        "include": {
+          "description": "List of regex used to include open api schemas (#/components/schemas). Defaults to ['.*']. 'Includes' is evaluated before 'excludes'",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        },
+        "exclude": {
+          "description": "List of regex used to exclude open api schemas (#/components/schemas). Defaults to [].",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/JDBCSchemaV1"
+            "$ref": "#/definitions/ConvertibleToString"
           }
+        }
+      }
+    },
+    "OpenAPIRouteObjectExplosionV1": {
+      "type": "object",
+      "properties": {
+        "on": {
+          "description": "Explode route's object to more object definition. Use object's path with route path as final name. Defaults to ALL",
+          "type": "string",
+          "anyOf": [
+            {
+              "const": "ALL",
+              "title": "Keep properties of type object or array."
+            },
+            {
+              "const": "OBJECT",
+              "title": "Keep properties of type object. Don't dive on array type."
+            },
+            {
+              "const": "ARRAY",
+              "title": "Keep properties of type array. If encounters an object, dive deeper."
+            }
+          ]
+        },
+        "exclude": {
+          "type": "array",
+          "description": "filter out on field path. Each field is separated by _. Default to []",
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        },
+        "rename": {
+          "type": "object",
+          "description": "Regex applied on object path. If matches, use the given name otherwise fallback to route_path + object path as final name",
+          "additionalProperties": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        }
+      }
+    },
+    "OpenAPIRoutesV1": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "description": "List of regex used to include open api path '.*'",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        },
+        "as": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Force all routes matching the pattern to be saved as the given name if they don't conflict"
+        },
+        "operations": {
+          "description": "List of operations to retrieve schema from. Defaults to ['GET']. Supported values are GET and POST.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "anyOf": [
+              {
+                "const": "GET",
+                "description": "Retain operation of type GET in openAPI"
+              },
+              {
+                "const": "POST",
+                "title": "Retain operation of type POST in openAPI"
+              }
+            ]
+          }
+        },
+        "exclude": {
+          "description": "List of regex used to excludes api path []",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        },
+        "excludeFields": {
+          "description": "List of regex used to excludes fields. Fields and their subfields are separated by _.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        },
+        "explode": {
+          "$ref": "#/definitions/OpenAPIRouteObjectExplosionV1",
+          "description": "Explodes on route's object and split the schema."
+        }
+      }
+    },
+    "OpenAPIDomainV1": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Domain name used to group tables extracted from openAPI spec"
+        },
+        "basePath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Common base path used to remove from path in order to generate final table name."
+        },
+        "schemas": {
+          "$ref": "#/definitions/OpenAPIObjectSchemasV1",
+          "description": "Describe what to fetch from data connection. Scope: Schema and Data extraction."
+        },
+        "routes": {
+          "description": "Describe what to fetch from data connection. Scope: Schema and Data extraction.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/OpenAPIRoutesV1"
+          }
+        }
+      },
+      "required": ["name"]
+    },
+    "OpenAPIV1": {
+      "type": "object",
+      "properties": {
+        "basePath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Common base path used to remove from path in order to generate final table name."
+        },
+        "formatTypeMapping": {
+          "$ref": "#/definitions/MapString",
+          "description": "mapping a format used for string and the starlake attribute type"
+        },
+        "domains": {
+          "description": "Describe what to fetch from data connection. Scope: Schema and Data extraction.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/OpenAPIDomainV1"
+          }
+        }
+      }
+    },
+    "OpenAPIsV1": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ExtractV1Base"
+        },
+        {
+          "properties": {
+            "openAPI": {
+              "$ref": "#/definitions/OpenAPIV1",
+              "description": "Describe how to extract domains and tables from OpenAPI spec"
+            }
+          },
+          "required": ["openAPI"]
+        }
+      ]
+    },
+    "ExtractV1Base": {
+      "type": "object",
+      "properties": {
+        "sanitizeAttributeName": {
+          "type": "string",
+          "anyOf": [
+            {
+              "const": "ON_EXTRACT",
+              "description": "attribute name is sanitized and stored as field name. Default."
+            },
+            {
+              "const": "ON_LOAD",
+              "title": "attribute name is sanitized and stored as rename property when attribute's name differs from sanitized name"
+            }
+          ]
         },
         "connectionRef": {
           "$ref": "#/definitions/ConvertibleToString",
-          "description": "Connection used to retrieve at least data from it. If not defined, fallback to application settings. Expected connection name as defined in the connections section of the application.conf file. Scope: Schema and data extraction."
-        },
-        "auditConnectionRef": {
-          "$ref": "#/definitions/ConvertibleToString",
-          "description": "Connection used to read/store audit from it. If not defined, fallbacks to connectionRef. Expected connection name as defined in the connections section of the application.conf file. Scope: Data extraction."
-        },
-        "output": {
-          "$ref": "#/definitions/OutputV1",
-          "description": "Override the output format of data extraction. Scope: Data extraction."
-        },
-        "default": {
-          "$ref": "#/definitions/DefaultJDBCSchemaV1",
-          "description": "Configuration merged into each jdbcSchemas. Scope: Schema and Data extraction."
+          "description": "With OpenAPI: connection used to reference OpenAPI spec. Supports file (local, storage) or public http url. With others, connection used to retrieve schema and then data. If not defined, fallback to application settings."
         }
       }
     },
@@ -1807,9 +2048,15 @@
         "loadStrategyClass": {
           "$ref": "#/definitions/ConvertibleToString",
           "description": "In what order should the files for a same table be loaded ? By time (default) or by or name ?\n",
-          "enum": [
-            "ai.starlake.job.load.IngestionNameStrategy",
-            "ai.starlake.job.load.IngestionTimeStrategy"
+          "anyOf": [
+            {
+              "const": "ai.starlake.job.load.IngestionNameStrategy",
+              "description": "Order pending files by name"
+            },
+            {
+              "const": "ai.starlake.job.load.IngestionTimeStrategy",
+              "title": "Order pending files by creation date time"
+            }
           ]
         },
         "grouped": {
@@ -1938,11 +2185,11 @@
         },
         "loadConnectionRef": {
           "$ref": "#/definitions/ConvertibleToString",
-          "description": "Default connection to use when loading data only"
+          "description": "Default connection to use when loading / transforming data"
         },
         "transformConnectionRef": {
           "$ref": "#/definitions/ConvertibleToString",
-          "description": "Default connection to use when transforming data only"
+          "description": "Default connection to use when loading / transforming data"
         },
         "schedulePresets": {
           "$ref": "#/definitions/MapString",
@@ -2036,6 +2283,10 @@
           "type": "object",
           "description": "Map of string",
           "additionalProperties": true
+        },
+        "duckDbEnableExternalAccess": {
+          "description": "Allow DuckDB to load / Save data from / to external sources. Default to true",
+          "type": "boolean"
         }
       }
     },
@@ -2052,7 +2303,15 @@
           "$ref": "#/definitions/DagGenerationConfigV1"
         },
         "extract": {
-          "$ref": "#/definitions/JDBCSchemasV1"
+          "oneOf": [
+            {
+              "$ref": "#/definitions/JDBCSchemasV1"
+            },
+            {
+              "$ref": "#/definitions/OpenAPIsV1",
+              "description": "Defines OpenAPI schemas extraction"
+            }
+          ]
         },
         "load": {
           "$ref": "#/definitions/DomainV1"
