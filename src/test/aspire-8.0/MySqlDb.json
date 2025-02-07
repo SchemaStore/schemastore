@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json.schemastore.org/aspire-8.0.json",
+  "resources": {
+    "mysql": {
+      "type": "container.v0",
+      "connectionString": "Server={mysql.bindings.tcp.host};Port={mysql.bindings.tcp.port};User ID=root;Password={mysql-password.value}",
+      "image": "docker.io/library/mysql:9.1",
+      "bindMounts": [
+        {
+          "source": "../MySql.ApiService/data",
+          "target": "/docker-entrypoint-initdb.d",
+          "readOnly": false
+        }
+      ],
+      "env": {
+        "MYSQL_ROOT_PASSWORD": "{mysql-password.value}",
+        "MYSQL_DATABASE": "catalog"
+      },
+      "bindings": {
+        "tcp": {
+          "scheme": "tcp",
+          "protocol": "tcp",
+          "transport": "tcp",
+          "targetPort": 3306
+        }
+      }
+    },
+    "catalog": {
+      "type": "value.v0",
+      "connectionString": "{mysql.connectionString};Database=catalog"
+    },
+    "apiservice": {
+      "type": "project.v0",
+      "path": "../MySql.ApiService/MySql.ApiService.csproj",
+      "env": {
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES": "true",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES": "true",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory",
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "HTTP_PORTS": "{apiservice.bindings.http.targetPort}",
+        "ConnectionStrings__catalog": "{catalog.connectionString}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "external": true
+        },
+        "https": {
+          "scheme": "https",
+          "protocol": "tcp",
+          "transport": "http",
+          "external": true
+        }
+      }
+    },
+    "mysql-password": {
+      "type": "parameter.v0",
+      "value": "{mysql-password.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string",
+          "secret": true,
+          "default": {
+            "generate": {
+              "minLength": 22
+            }
+          }
+        }
+      }
+    }
+  }
+}
