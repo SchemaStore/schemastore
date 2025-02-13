@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json.schemastore.org/aspire-8.0.json",
+  "resources": {
+    "elasticsearch": {
+      "bindings": {
+        "http": {
+          "protocol": "tcp",
+          "scheme": "http",
+          "targetPort": 9200,
+          "transport": "http"
+        },
+        "internal": {
+          "protocol": "tcp",
+          "scheme": "tcp",
+          "targetPort": 9300,
+          "transport": "tcp"
+        }
+      },
+      "connectionString": "http://elastic:{elasticsearch-password.value}@{elasticsearch.bindings.http.host}:{elasticsearch.bindings.http.port}",
+      "env": {
+        "ELASTIC_PASSWORD": "{elasticsearch-password.value}",
+        "discovery.type": "single-node",
+        "xpack.security.enabled": "true"
+      },
+      "image": "docker.io/library/elasticsearch:8.17.0",
+      "type": "container.v0",
+      "volumes": [
+        {
+          "name": "elasticsearch.apphost-7490553fdf-elasticsearch-data",
+          "readOnly": false,
+          "target": "/usr/share/elasticsearch/data"
+        }
+      ]
+    },
+    "elasticsearch-apiservice": {
+      "bindings": {
+        "http": {
+          "protocol": "tcp",
+          "scheme": "http",
+          "transport": "http"
+        },
+        "https": {
+          "protocol": "tcp",
+          "scheme": "https",
+          "transport": "http"
+        }
+      },
+      "env": {
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "ConnectionStrings__elasticsearch": "{elasticsearch.connectionString}",
+        "HTTP_PORTS": "{elasticsearch-apiservice.bindings.http.targetPort}",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES": "true",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES": "true",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory"
+      },
+      "path": "../Elasticsearch.ApiService/Elasticsearch.ApiService.csproj",
+      "type": "project.v0"
+    },
+    "elasticsearch-password": {
+      "inputs": {
+        "value": {
+          "default": {
+            "generate": {
+              "minLength": 22
+            }
+          },
+          "secret": true,
+          "type": "string"
+        }
+      },
+      "type": "parameter.v0",
+      "value": "{elasticsearch-password.inputs.value}"
+    }
+  }
+}
