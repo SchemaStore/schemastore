@@ -21,6 +21,7 @@
   - [Ajv non-strict mode](#ajv-non-strict-mode)
   - [SchemaSafe](#schemasafe)
 - [About `catalog.json`](#about-catalogjson)
+  - [Avoiding Generic Names](#avoiding-generic-names)
 - [Compatible Language Servers and Tools](#compatible-language-servers-and-tools)
   - [`redhat-developer/yaml-language-server`](#redhat-developeryaml-language-server)
   - [`tamasfe/taplo`](#tamasfetaplo)
@@ -367,6 +368,25 @@ Sometimes, `catalog.json` is interpreted differently:
   - See the [schemastore issue](https://github.com/SchemaStore/schemastore/pull/3982) issue for more info
 
 And, generally, if a software supports multiple formats, stick with configuration file formats like JSON and avoid JavaScript. See [this](https://github.com/SchemaStore/schemastore/pull/3989) issue.
+
+### Avoid Generic `fileMatch` Patterns
+
+When adding glob patterns to `fileMatch` so language servers can auto-apply schemas, avoid adding generic patterns. For example, [Hugo](https://gohugo.io) used to use `config.toml`:
+
+```jsonc
+{
+  "name": "Hugo",
+  "description": "Hugo static site generator config file",
+  "fileMatch": ["config.toml"], // Avoid generic patterns.
+  "url": "https://json.schemastore.org/hugo.json",
+}
+```
+
+This would not be accepted because the file detection would have too many false positives, conflicting with other frameworks and personal configurations. There are several ways to fix this:
+
+- Modify the tool to read from a more specific file (Hugo [now reads](https://github.com/gohugoio/hugo/issues/8979) from `hugo.toml` as well)
+- Omit `fileMatch` or set it to an empty array (which still allows the user to manually select it)
+- Prepend a directory name to the pattern (e.g. `"**/micro/runtime/syntax/*.yaml"`)
 
 ## Compatible Language Servers and Tools
 
