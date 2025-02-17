@@ -6,11 +6,11 @@ import fsCb from 'node:fs'
 import readline from 'node:readline'
 import util from 'node:util'
 
-import _AjvDraft04 from 'ajv-draft-04'
+import AjvDraft04 from 'ajv-draft-04'
 import { Ajv as AjvDraft06And07 } from 'ajv'
-import _Ajv2019 from 'ajv/dist/2019.js'
-import _Ajv2020 from 'ajv/dist/2020.js'
-import _addFormats from 'ajv-formats'
+import Ajv2019 from 'ajv/dist/2019.js'
+import Ajv2020 from 'ajv/dist/2020.js'
+import addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
@@ -25,24 +25,6 @@ import fetch from 'node-fetch'
 /**
  * @import { Ora } from 'ora'
  */
-
-/**
- * Ajv defines types, but they don't work when importing the library with
- * ESM syntax. Tweaking `jsconfig.json` with `esModuleInterop` didn't seem
- * to fix things, so manually set the types with a cast. This issue is
- * tracked upstream at https://github.com/ajv-validator/ajv/issues/2132.
- */
-/** @type {typeof _AjvDraft04.default} */
-const AjvDraft04 = /** @type {any} */ (_AjvDraft04)
-
-/** @type {typeof _Ajv2019.default} */
-const Ajv2019 = /** @type {any} */ (_Ajv2019)
-
-/** @type {typeof _Ajv2020.default} */
-const Ajv2020 = /** @type {any} */ (_Ajv2020)
-
-/** @type {typeof _addFormats.default} */
-const addFormats = /** @type {any} */ (_addFormats)
 
 // Declare constants.
 const AjvDraft06SchemaJson = await readJsonFile(
@@ -275,7 +257,7 @@ async function toFile(/** @type {string} */ schemaPath) {
     text,
     json: await readDataFile({ filepath: schemaPath, text }),
     name: path.basename(schemaPath),
-    path: schemaPath,
+    path: schemaPath.replace(/^\.\//u, ''),
   }
 }
 
@@ -288,14 +270,18 @@ async function readDataFile(
       try {
         return JSON.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse JSON file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse JSON file "./${obj.filepath}"`,
+        ])
       }
       break
     case '.jsonc':
       try {
         return jsoncParser.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse JSONC file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse JSONC file "./${obj.filepath}"`,
+        ])
       }
       break
     case '.yaml':
@@ -303,19 +289,23 @@ async function readDataFile(
       try {
         return YAML.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse YAML file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse YAML file "./${obj.filepath}"`,
+        ])
       }
       break
     case '.toml':
       try {
         return TOML.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse TOML file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse TOML file "./${obj.filepath}"`,
+        ])
       }
       break
     default:
       printErrorAndExit(new Error(), [
-        `Unable to handle file extension "${fileExtension}" for file "${obj.filepath}"`,
+        `Unable to handle file extension "${fileExtension}" for file "./${obj.filepath}"`,
       ])
       break
   }
@@ -586,7 +576,7 @@ async function taskCheck() {
   // Check schema-validation.jsonc.
   await assertFileValidatesAgainstSchema(
     SchemaValidationFile,
-    './src/schema-validation.schema.json',
+    'src/schema-validation.schema.json',
   )
   await assertFilePassesJsonLint(await toFile(SchemaValidationFile), {
     ignoreComments: true,
@@ -655,7 +645,7 @@ async function taskCheck() {
         spinner.fail()
         printErrorAndExit(
           err,
-          [`Failed to create Ajv instance for schema "${schemaFile.path}"`],
+          [`Failed to create Ajv instance for schema "./${schemaFile.path}"`],
           JSON.stringify({ options, schemaDialect, isFullStrictMode }, null, 2),
         )
       }
@@ -666,7 +656,7 @@ async function taskCheck() {
       } catch (err) {
         spinner.fail()
         printErrorAndExit(err, [
-          `Failed to compile schema file "${schemaFile.path}"`,
+          `Failed to compile schema file "./${schemaFile.path}"`,
         ])
       }
 
@@ -681,7 +671,7 @@ async function taskCheck() {
         printErrorAndExit(
           validate.err,
           [
-            `Schema validation failed ./${testFile.path}`,
+            `Schema validation failed for test file "./${testFile.path}"`,
             `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
           ],
           util.formatWithOptions(
@@ -697,8 +687,8 @@ async function taskCheck() {
       if (validate(testFile.json)) {
         spinner.fail()
         printErrorAndExit(new Error(), [
-          `Schema validation succeeded but was supposed to fail ./${testFile.path}`,
-          `For schema ${schemaFile.path}`,
+          `Schema validation succeeded for test file "./${testFile.path}", but was supposed to fail `,
+          `For schema "./${schemaFile.path}"`,
         ])
       }
     },
@@ -723,7 +713,7 @@ async function taskCheckStrict() {
     validateFn = ajv.compile(metaSchemaFile.json)
   } catch (err) {
     printErrorAndExit(err, [
-      `Failed to compile schema file ${metaSchemaFile.path}`,
+      `Failed to compile schema file "./${metaSchemaFile.path}"`,
     ])
   }
 
@@ -736,7 +726,7 @@ async function taskCheckStrict() {
         printErrorAndExit(
           validate.err,
           [
-            `Schema validation failed ./${schemaFile.path}`,
+            `Schema validation failed "./${schemaFile.path}"`,
             `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
           ],
           util.formatWithOptions(
@@ -855,8 +845,8 @@ async function assertFileSystemIsValid() {
         const schemaPath = path.join(SchemaDir, testDir + '.json')
         if (!(await exists(schemaPath))) {
           printErrorAndExit(new Error(), [
-            `Failed to find a schema file at "${schemaPath}"`,
-            `Expected schema file computed from directory at "${path.join(rootTestDir, testDir)}"`,
+            `Failed to find a schema file at "./${schemaPath}"`,
+            `Expected schema file computed from directory at "./${path.join(rootTestDir, testDir)}"`,
           ])
         }
       }
@@ -999,7 +989,7 @@ async function assertCatalogJsonLocalUrlsMustRefFile() {
     // Check if schema file exist or not.
     if (!exists(path.join(SchemaDir, filename))) {
       printErrorAndExit(new Error(), [
-        `Expected schema file to exist at "${path.join(SchemaDir, filename)}", but no file found`,
+        `Expected schema file to exist at "./${path.join(SchemaDir, filename)}", but no file found`,
         `Schema file path inferred from catalog entry with a "url" of "${catalogUrl}" in file "${CatalogFile}"`,
       ])
     }
@@ -1114,7 +1104,7 @@ async function assertTestFileHasSchemaPragma(
         }
       } else {
         printErrorAndExit(new Error(), [
-          `Failed to find schema pragma for YAML File "${testFile.path}"`,
+          `Failed to find schema pragma for YAML File "./${testFile.path}"`,
           `Expected first line of file to be "${expected}"`,
           `But, found first line of file to be "${firstLine}"`,
           `Append "--fix" to the command line to automatically fix all fixable issues`,
@@ -1140,7 +1130,7 @@ async function assertTestFileHasSchemaPragma(
         }
       } else {
         printErrorAndExit(new Error(), [
-          `Failed to find schema pragma for TOML File "${testFile.path}"`,
+          `Failed to find schema pragma for TOML File "./${testFile.path}"`,
           `Expected first line of file to be "${expected}"`,
           `But, found first line of file to be "${firstLine}"`,
           `Append "--fix" to the command line to automatically fix all fixable issues`,
@@ -1196,14 +1186,14 @@ function assertSchemaValidationJsonHasValidSkipTest() {
 
     if (FoldersPositiveTest.includes(folderName)) {
       printErrorAndExit(new Error(), [
-        `Did not expect to find positive test directory at "${path.join(TestPositiveDir, folderName)}"`,
+        `Did not expect to find positive test directory at "./${path.join(TestPositiveDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any positive test files`,
       ])
     }
 
     if (FoldersNegativeTest.includes(folderName)) {
       printErrorAndExit(new Error(), [
-        `Did not expect to find negative test directory at "${path.join(TestNegativeDir, folderName)}"`,
+        `Did not expect to find negative test directory at "./${path.join(TestNegativeDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any negative test files`,
       ])
     }
@@ -1218,7 +1208,7 @@ function assertFileHasCorrectExtensions(
 ) {
   if (!allowedExtensions.includes(path.parse(pathname).ext)) {
     printErrorAndExit(new Error(), [
-      `Expected schema file "${pathname}" to have a valid file extension`,
+      `Expected schema file "./${pathname}" to have a valid file extension`,
       `Valid file extensions: ${JSON.stringify(allowedExtensions, null, 2)}`,
     ])
   }
@@ -1241,7 +1231,7 @@ function assertFileHasNoBom(/** @type {DataFile} */ file) {
 
       if (bomFound) {
         printErrorAndExit(new Error(), [
-          `File must not have ${bom.name} BOM: ${file.path}`,
+          `Expected to have no BOM (${bom.name} BOM) in file "./${file.path}"`,
         ])
       }
     }
@@ -1263,7 +1253,7 @@ async function assertFilePassesJsonLint(
     })
   } catch (err) {
     printErrorAndExit(err, [
-      `Failed strict jsonlint parse of file "${path.basename(file.path)}"`,
+      `Failed strict jsonlint parse of file "./${file.path}"`,
     ])
   }
 }
@@ -1288,7 +1278,7 @@ async function assertFileValidatesAgainstSchema(
     printErrorAndExit(
       new Error(),
       [
-        `Failed to validate file "${path.basename(filepath)}" against schema file "${schemaFilepath}"`,
+        `Failed to validate file "${filepath}" against schema file "./${schemaFilepath}"`,
         `Showing first error out of ${ajv.errors?.length ?? '?'} total error(s)`,
       ],
       util.formatWithOptions({ colors: true }, '%O', ajv.errors?.[0] ?? '???'),
@@ -1304,7 +1294,7 @@ async function assertSchemaHasValidSchemaField(
   )
   if (!schemaDialectUrls.includes(schema.json.$schema)) {
     printErrorAndExit(new Error(), [
-      `Schema file has invalid or missing '$schema' keyword => ${schema.name}`,
+      `Invalid or missing '$schema' keyword in schema file "${schema.name}"`,
       `Valid schemas: ${JSON.stringify(schemaDialectUrls)}`,
     ])
   }
@@ -1315,9 +1305,10 @@ async function assertSchemaHasValidSchemaField(
     ).map((schemaDialect) => schemaDialect.url)
     if (tooHighSchemas.includes(schema.json.$schema)) {
       printErrorAndExit(new Error(), [
-        `Schema version is too high => in file ${schema.name}`,
-        `Schema version '${schema.json.$schema}' is not supported by many editors and IDEs`,
-        `Schema file "${schema.path}" must use a lower schema version.`,
+        `Found a too high schema version in file "./${schema.path}"`,
+        `Schema version "${schema.json.$schema}" is not supported by many editors and IDEs`,
+        `We recommend using a lower schema version.`,
+        `To ignore this error, append to the "highSchemaVersion" key in "${SchemaValidationFile}"`,
       ])
     }
   }
@@ -1337,14 +1328,14 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   if (schemasWithDollarlessId.includes(schema.json.$schema)) {
     if (schema.json.id === undefined) {
       printErrorAndExit(new Error(), [
-        `Missing property 'id' for schema 'src/schemas/json/${schema.name}'`,
+        `Missing property 'id' for schema "./${path.join(SchemaDir, schema.name)}"`,
       ])
     }
     schemaId = schema.json.id
   } else {
     if (schema.json.$id === undefined) {
       printErrorAndExit(new Error(), [
-        `Missing property '$id' for schema 'src/schemas/json/${schema.name}'`,
+        `Missing property '$id' for schema "./${path.join(SchemaDir, schema.name)}"`,
       ])
     }
     schemaId = schema.json.$id
@@ -1352,8 +1343,8 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
 
   if (!schemaId.startsWith('https://') && !schemaId.startsWith('http://')) {
     printErrorAndExit(new Error(), [
-      schemaId,
-      `Schema id/$id must begin with 'https://' or 'http://' for schema 'src/schemas/json/${schema.name}'`,
+      `Expected schema id/$id to begin with 'https://' or 'http://'`,
+      `Found schema with value of "${schemaId}" in "./${path.join(SchemaDir, schema.name)}"`,
     ])
   }
 }
@@ -1369,15 +1360,15 @@ async function assertSchemaHasCorrectMetadata(
   if (schemasWithDollarlessId.includes(schema.json.$schema)) {
     if (schema.json.$id) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Bad property of '$id'; expected 'id' for this schema version`,
       ])
     }
 
     if (schema.json.id !== `https://json.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
-        `Incorrect property 'id' for schema 'src/schemas/json/${schema.name}'`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
+        `Incorrect property 'id' for schema "./${path.join(SchemaDir, schema.name)}"`,
         `Expected value of "https://json.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.id}"`,
       ])
@@ -1385,15 +1376,15 @@ async function assertSchemaHasCorrectMetadata(
   } else {
     if (schema.json.id) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Bad property of 'id'; expected '$id' for this schema version`,
       ])
     }
 
     if (schema.json.$id !== `https://json.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
-        `Incorrect property '$id' for schema 'src/schemas/json/${schema.name}'`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
+        `Incorrect property '$id' for schema "./${path.join(SchemaDir, schema.name)}"`,
         `Expected value of "https://json.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.$id}"`,
       ])
@@ -1412,7 +1403,8 @@ async function assertSchemaNoSmartQuotes(/** @type {SchemaFile} */ schema) {
     for (const quote of smartQuotes) {
       if (line.includes(quote)) {
         printErrorAndExit(new Error(), [
-          `Schema file should not have a smart quote: ${schema.path}:${++i}`,
+          `Expected file to have no smart quotes`,
+          `Found smart quotes in file "./${schema.path}:${++i}"`,
         ])
       }
     }
@@ -1424,7 +1416,7 @@ async function assertTopLevelRefIsStandalone(/** @type {SchemaFile} */ schema) {
     for (const [member] of Object.entries(schema.json)) {
       if (member !== '$ref') {
         printErrorAndExit(new Error(), [
-          `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${schema.name}`,
+          `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for "${schema.name}"`,
         ])
       }
     }
