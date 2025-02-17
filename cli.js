@@ -117,7 +117,7 @@ if (argv.SchemaName) {
  * @typedef {Object} CatalogJsonEntry
  * @property {string} name
  * @property {string} description
- * @property {string[]} fileMatch
+ * @property {string[] | undefined} fileMatch
  * @property {string} url
  * @property {Record<string, string>} versions
  *
@@ -225,7 +225,11 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
 
     const schemaPath = path.join(SchemaDir, schemaName)
     const schemaFile = await toFile(schemaPath)
-    spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+    if (process.env.CI) {
+      console.info(`Running "${obj.actionName}" on file "${schemaFile.path}"`)
+    } else {
+      spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+    }
     const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
 
     if (obj?.onPositiveTestFile) {
@@ -872,8 +876,12 @@ function assertCatalogJsonHasNoDuplicateNames() {
       schemaNames.indexOf(catalogEntry.name) !==
       schemaNames.lastIndexOf(catalogEntry.name)
     ) {
+      const duplicateEntry =
+        Catalog.schemas[schemaNames.lastIndexOf(catalogEntry.name)]
       printErrorAndExit(new Error(), [
         `Found two schema entries with duplicate "name" of "${catalogEntry.name}" in file "${CatalogFile}"`,
+        `The first entry has url "${catalogEntry.url}"`,
+        `The second entry has url "${duplicateEntry.url}"`,
         `Expected the "name" property of schema entries to be unique`,
       ])
     }
@@ -905,8 +913,8 @@ function assertCatalogJsonHasNoBadFields() {
     for (const property of /** @type {const} */ (['name', 'description'])) {
       if (catalogEntry?.[property]?.toLowerCase()?.includes('schema')) {
         printErrorAndExit(new Error(), [
-          `Expected the "name" or "description" properties of catalog entries to not include the word "schema"`,
-          `All files are already schemas, so its meaning is implied`,
+          `Expected the "name" or "description" properties of entries in "${CatalogFile}" to not include the word "schema"`,
+          `All specified files are already schemas, so its meaning is implied`,
           `If the JSON schema is actually a meta-schema (or some other exception applies), ignore this error by appending to the property "catalogEntryNoLintNameOrDescription" in file "${SchemaValidationFile}"`,
           `The invalid entry has a "url" of "${catalogEntry.url}" in file "${CatalogFile}"`,
         ])
@@ -949,8 +957,18 @@ function assertCatalogJsonHasNoFileMatchConflict() {
       }
 
       if (allFileMatches.includes(fileGlob)) {
+        const firstEntry = Catalog.schemas.find((entry) =>
+          entry.fileMatch?.includes(fileGlob),
+        )
+        // @ts-expect-error Node v18 supports this.
+        const lastEntry = Catalog.schemas.findLast((entry) =>
+          entry.fileMatch?.includes(fileGlob),
+        )
         printErrorAndExit(new Error(), [
-          `Expected "fileMatch" value of "${fileGlob}" to be unique across all "fileMatch" properties in file "${CatalogFile}"`,
+          `Found two schema entries with duplicate "fileMatch" entry of "${fileGlob}" in file "${CatalogFile}"`,
+          `The first entry has url "${firstEntry?.url}"`,
+          `The second entry has url "${lastEntry?.url}"`,
+          `Expected all values in "fileMatch" entries to be unique`,
         ])
       }
 
