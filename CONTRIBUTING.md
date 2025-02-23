@@ -25,6 +25,7 @@
 - [Compatible Language Servers and Tools](#compatible-language-servers-and-tools)
   - [`redhat-developer/yaml-language-server`](#redhat-developeryaml-language-server)
   - [`tamasfe/taplo`](#tamasfetaplo)
+  - [`tombi-toml/tombi](#tombi-toml-tombi)
   - [`Microsoft/vscode-json-languageservice`](#microsoftvscode-json-languageservice)
   - [Other](#other)
 - [Troubleshooting](#troubleshooting)
@@ -308,6 +309,10 @@ Used by: `tamasfe/taplo`.
 
 Used by: `tamasfe/taplo`.
 
+**`x-tombi-toml-version`**
+
+Used by: `tombi-toml/tombi`.
+
 **`x-intellij-language-injection`**
 
 Used by Intellij.
@@ -360,6 +365,7 @@ The `catalog.json` file is generally used by editors and extensions to determine
 - VSCode ignores this file [see issue](https://github.com/microsoft/vscode/issues/26289)
 - [RedHat's YAML language server](#redhat-developeryaml-language-server) uses this file ([see configuration](https://github.com/redhat-developer/vscode-yaml/blob/41e0be736f2d07cdf7489e1c1c591b35b990e096/package.json#L176))
 - [Taplo TOML language server](#tamasfetaplo) uses this file (see [this](https://github.com/tamasfe/taplo/blob/2e01e8cca235aae3d3f6d4415c06fd52e1523934/editors/vscode/package.json#L240) and [this](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml))
+- [Tombi](#tombi-toml-tombi) uses this file (see [this](https://tombi-toml.github.io/tombi/docs/configuration))
 
 Sometimes, `catalog.json` is interpreted differently:
 
@@ -398,6 +404,11 @@ This would not be accepted because the file detection would have too many false 
 
 - Used by VSCode's [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
 - More information [here](https://taplo.tamasfe.dev/configuration/developing-schemas.html)
+
+### [`tombi-toml/tombi`](https://github.com/tombi-toml/tombi)
+
+- Used by VSCode's [Tombi extension](https://marketplace.visualstudio.com/items?itemName=tombi-toml.tombi)
+- More information [here](https://tombi-toml.github.io/tombi)
 
 ### [`Microsoft/vscode-json-languageservice`](https://github.com/Microsoft/vscode-json-languageservice)
 
