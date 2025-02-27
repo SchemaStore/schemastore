@@ -758,9 +758,10 @@ async function taskMaintenance() {
     forEachCatalogUrl((url) => {
       if (url.startsWith(UrlSchemaStore)) return
 
-      fetch(url, { method: 'HEAD' })
+      fetch(url)
         .then(async (res) => {
           if (res.ok) {
+            assertJsonOrYaml(url, await res.text())
             return
           }
 
@@ -776,11 +777,14 @@ async function taskMaintenance() {
           if (res.status === 405) {
             try {
               const res = await fetch(url)
-              if (!res.ok) {
-                console.info(
-                  `NOT OK (${res.status}/${res.statusText}): ${url} (after 405 code)`,
-                )
+              if (res.ok) {
+                assertJsonOrYaml(url, await res.text())
+                return
               }
+
+              console.info(
+                `NOT OK (${res.status}/${res.statusText}): ${url} (after 405 code)`,
+              )
             } catch (err) {
               console.info(`NOT OK (${err.code}): ${url} (after 405 code)`)
             }
@@ -791,6 +795,23 @@ async function taskMaintenance() {
         .catch((err) => {
           console.info(`NOT OK (${err.code}): ${url}`)
         })
+
+      function assertJsonOrYaml(
+        /** @type {string} */ url,
+        /** @type {string} */ str,
+      ) {
+        try {
+          JSON.parse(str)
+          return
+        } catch {}
+
+        try {
+          YAML.parse(str)
+          return
+        } catch {}
+
+        console.info(`NOT OK (Not JSON/YAML): ${url}`)
+      }
     })
   }
   // await printDowngradableSchemaVersions()
