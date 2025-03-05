@@ -21,7 +21,7 @@
   - [Ajv non-strict mode](#ajv-non-strict-mode)
   - [SchemaSafe](#schemasafe)
 - [About `catalog.json`](#about-catalogjson)
-  - [Avoiding Generic Names](#avoiding-generic-names)
+  - [Avoiding Generic `fileMatch` patterns](#avoid-generic-filematch-patterns)
 - [Compatible Language Servers and Tools](#compatible-language-servers-and-tools)
   - [`redhat-developer/yaml-language-server`](#redhat-developeryaml-language-server)
   - [`tamasfe/taplo`](#tamasfetaplo)
