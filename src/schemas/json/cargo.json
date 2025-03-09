@@ -33,17 +33,24 @@
     "DebugLevel": {
       "title": "Debug Level",
       "description": "The `debug` setting controls the [`-C debuginfo` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#debuginfo) which controls the\namount of debug information included in the compiled binary.",
-      "enum": [
-        0,
-        1,
-        2,
-        true,
-        false,
-        "none",
-        "line-directives-only",
-        "line-tables-only",
-        "limited",
-        "full"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "line-directives-only",
+            "line-tables-only",
+            "limited",
+            "full"
+          ]
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "enum": [0, 1, 2]
+        }
       ],
       "x-taplo": {
         "docs": {
@@ -80,6 +87,18 @@
       "title": "Detailed Dependency",
       "type": "object",
       "properties": {
+        "workspace": {
+          "description": "Inherit this dependency from the workspace manifest.",
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace"
+            }
+          }
+        },
+        "version": {
+          "$ref": "#/definitions/SemVerRequirement"
+        },
         "branch": {
           "description": "Specify the Git branch to use in case of a [Git dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories).",
           "type": "string",
@@ -100,6 +119,8 @@
         },
         "default_features": {
           "type": "boolean",
+          "description": "\"default_features\" is deprecated. Use \"default-features\" instead.",
+          "deprecated": true,
           "x-taplo": {
             "hidden": true
           }
@@ -200,22 +221,11 @@
               "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories"
             }
           }
-        },
-        "version": {
-          "$ref": "#/definitions/SemVerRequirement"
-        },
-        "workspace": {
-          "description": "Inherit this dependency from the workspace manifest.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace"
-            }
-          }
         }
       },
       "minProperties": 1,
       "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "initFields": ["version"]
       }
@@ -236,7 +246,8 @@
             }
           }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "ascending"
     },
     "Edition": {
       "title": "Edition",
@@ -282,34 +293,46 @@
     "Lints": {
       "type": "object",
       "properties": {
-        "clippy": {
-          "description": "Lint settings for [Clippy](https://doc.rust-lang.org/clippy/). See Clippy's [individual lints](https://rust-lang.github.io/rust-clippy/master/index.html) or [lint groups](https://doc.rust-lang.org/clippy/lints.html) documentation.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Lint"
-          }
-        },
         "rust": {
           "description": "Lint settings for the Rust compiler. See the Rust compiler's [individual lints](https://doc.rust-lang.org/rustc/lints/listing/index.html) or [lint groups](https://doc.rust-lang.org/rustc/lints/groups.html).",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/Lint"
-          }
+          },
+          "x-tombi-table-keys-order": "ascending"
         },
         "rustdoc": {
           "description": "Lint settings for [Rustdoc](https://doc.rust-lang.org/rustdoc/). See Rustdoc's [individual lints](https://doc.rust-lang.org/rustdoc/lints.html) (rustdoc does not have lint groups)",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/Lint"
-          }
+          },
+          "x-tombi-table-keys-order": "ascending"
+        },
+        "clippy": {
+          "description": "Lint settings for [Clippy](https://doc.rust-lang.org/clippy/). See Clippy's [individual lints](https://rust-lang.github.io/rust-clippy/master/index.html) or [lint groups](https://doc.rust-lang.org/clippy/lints.html) documentation.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Lint"
+          },
+          "x-tombi-table-keys-order": "ascending"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "ascending"
     },
     "Lto": {
       "title": "Lto",
       "description": "The `lto` setting controls the [`-C lto` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#lto) which controls LLVM's [link time optimizations](https://llvm.org/docs/LinkTimeOptimization.html). LTO can produce better optimized code, using\nwhole-program analysis, at the cost of longer linking time.\n                    \nSee also the [`-C linker-plugin-lto`](https://doc.rust-lang.org/rustc/codegen-options/index.html#linker-plugin-lto) `rustc` flag for cross-language LTO.",
-      "enum": ["fat", "thin", "off", true, false],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["fat", "thin", "off"]
+        },
+        {
+          "type": "boolean"
+        }
+      ],
       "x-taplo": {
         "docs": {
           "enumValues": [
@@ -346,7 +369,16 @@
     "OptLevel": {
       "title": "Optimization Level",
       "description": "The `opt-level` setting controls the [`-C opt-level` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#opt-level) which controls the level\nof optimization. Higher optimization levels may produce faster runtime code at\nthe expense of longer compiler times. Higher levels may also change and\nrearrange the compiled code which may make it harder to use with a debugger.\n\nIt is recommended to experiment with different levels to find the right\nbalance for your project. There may be surprising results, such as level `3`\nbeing slower than `2`, or the `\"s\"` and `\"z\"` levels not being necessarily\nsmaller. You may also want to reevaluate your settings over time as newer\nversions of `rustc` changes optimization behavior.\n\nSee also [Profile Guided Optimization](https://doc.rust-lang.org/rustc/profile-guided-optimization.html) for more advanced optimization\ntechniques.",
-      "enum": [0, 1, 2, 3, "s", "z"],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["s", "z"]
+        },
+        {
+          "type": "integer",
+          "enum": [0, 1, 2, 3]
+        }
+      ],
       "x-taplo": {
         "docs": {
           "enumValues": [
@@ -579,6 +611,7 @@
               "$ref": "#/definitions/PlaydateMetadata"
             }
           },
+          "x-tombi-table-keys-order": "schema",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-metadata-table"
@@ -680,6 +713,7 @@
         }
       },
       "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-package-section"
@@ -707,33 +741,6 @@
       "title": "Platform",
       "type": "object",
       "properties": {
-        "build-dependencies": {
-          "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-table-keys-order": "ascending",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
-            },
-            "plugins": ["crates"],
-            "crates": {
-              "schemas": "dependencies"
-            }
-          }
-        },
-        "build_dependencies": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-table-keys-order": "ascending",
-          "x-taplo": {
-            "hidden": true
-          }
-        },
         "dependencies": {
           "description": "Cargo is configured to look for dependencies on [crates.io](https://crates.io) by default. Only\nthe name and a version string are required in this case. In [the cargo\nguide](https://doc.rust-lang.org/cargo/guide/index.html), we specified a dependency on the `time` crate:\n\n```toml\n[dependencies]\ntime = \"0.1.12\"\n```\n\nThe string `\"0.1.12\"` is a [semver](https://github.com/steveklabnik/semver#requirements) version requirement. Since this\nstring does not have any operators in it, it is interpreted the same way as\nif we had specified `\"^0.1.12\"`, which is called a caret requirement.\n\nA dependency can also be defined by a table with additional options:\n\n```toml\n[dependencies]\ntime = { path = \"../time\", version = \"0.1.12\" }\n```",
           "type": "object",
@@ -773,12 +780,39 @@
           "x-taplo": {
             "hidden": true
           }
+        },
+        "build-dependencies": {
+          "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Dependency"
+          },
+          "x-tombi-table-keys-order": "ascending",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
+            },
+            "plugins": ["crates"],
+            "crates": {
+              "schemas": "dependencies"
+            }
+          }
+        },
+        "build_dependencies": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Dependency"
+          },
+          "x-tombi-table-keys-order": "ascending",
+          "x-taplo": {
+            "hidden": true
+          }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "schema"
     },
     "BuildOverride": {
       "title": "Build Override",
-      "type": "object",
       "description": "Profile settings can be overridden for specific packages and build-time\ncrates. To override the settings for a specific package, use the `package`\ntable to change the settings for the named package:\n\n```toml\n# The `foo` package will use the -Copt-level=3 flag.\n[profile.dev.package.foo]\nopt-level = 3\n```\n\nThe package name is actually a [Package ID Spec](https://doc.rust-lang.org/cargo/reference/pkgid-spec.html), so you can\ntarget individual versions of a package with syntax such as\n`[profile.dev.package.\"foo:2.1.0\"]`.\n\nTo override the settings for all dependencies (but not any workspace member),\nuse the `\"*\"` package name:\n\n```toml\n# Set the default for dependencies.\n[profile.dev.package.\"*\"]\nopt-level = 2\n```\n\nTo override the settings for build scripts, proc macros, and their\ndependencies, use the `build-override` table:\n\n```toml\n# Set the settings for build scripts and proc-macros.\n[profile.dev.build-override]\nopt-level = 3\n```\n\n> Note: When a dependency is both a normal dependency and a build dependency,\n> Cargo will try to only build it once when `--target` is not specified. When\n> using `build-override`, the dependency may need to be built twice, once as a\n> normal dependency and once with the overridden build settings. This may\n> increase initial build times.\n",
       "allOf": [
         {
@@ -805,7 +839,8 @@
             "build-override": {
               "$ref": "#/definitions/Profile"
             }
-          }
+          },
+          "x-tombi-table-keys-order": "schema"
         }
       ]
     },
@@ -878,6 +913,7 @@
           "additionalProperties": {
             "$ref": "#/definitions/Profile"
           },
+          "x-tombi-table-keys-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overrides"
@@ -896,7 +932,8 @@
             }
           }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "schema"
     },
     "Profiles": {
       "title": "Profiles",
@@ -1173,7 +1210,8 @@
             }
           }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "schema"
     },
     "Workspace": {
       "title": "Workspace",
@@ -1329,6 +1367,7 @@
           }
         }
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html"
@@ -1510,7 +1549,8 @@
         }
       },
       "required": ["workspace"],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema"
     },
     "PlaydateMetadata": {
       "title": "Playdate Package Metadata",
@@ -1636,6 +1676,7 @@
         }
       },
       "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "initKeys": [
           "bundle-id",
@@ -1692,6 +1733,7 @@
           }
         ]
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-table"
@@ -1720,6 +1762,7 @@
           "description": "Allow build assets for dependencies."
         }
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-options"
@@ -1736,6 +1779,7 @@
           "$ref": "#/definitions/PlaydateMetadataAssetsOptions"
         }
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#options"
@@ -1756,6 +1800,8 @@
     },
     "project": {
       "$ref": "#/definitions/Package",
+      "description": "[project] is deprecated. Use [package] instead.",
+      "deprecated": true,
       "x-taplo": {
         "hidden": true
       }
@@ -1881,6 +1927,8 @@
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "description": "[dev_dependencies] is deprecated. Use [dev-dependencies] instead.",
+      "deprecated": true,
       "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "hidden": true
@@ -1908,6 +1956,8 @@
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "description": "[build_dependencies] is deprecated. Use [build-dependencies] instead.",
+      "deprecated": true,
       "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "hidden": true
@@ -1927,7 +1977,8 @@
         "type": "object",
         "additionalProperties": {
           "type": "string"
-        }
+        },
+        "x-tombi-table-keys-order": "ascending"
       },
       "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
@@ -1943,8 +1994,10 @@
         "type": "array",
         "items": {
           "type": "string"
-        }
+        },
+        "x-tombi-array-values-order": "ascending"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/features.html"
@@ -1966,7 +2019,8 @@
             }
           },
           "required": ["workspace"],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "x-tombi-table-keys-order": "ascending"
         }
       ],
       "x-taplo": {
@@ -1982,8 +2036,10 @@
         "type": "object",
         "additionalProperties": {
           "$ref": "#/definitions/Dependency"
-        }
+        },
+        "x-tombi-table-keys-order": "ascending"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html#the-patch-section"
@@ -1992,10 +2048,10 @@
     },
     "replace": {
       "type": "object",
-      "x-tombi-table-keys-order": "ascending",
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "hidden": true
       }
@@ -2006,6 +2062,7 @@
   },
   "title": "Cargo.toml",
   "type": "object",
+  "additionalProperties": false,
   "x-tombi-table-keys-order": "schema",
   "x-taplo-info": {
     "authors": ["tamasfe (https://github.com/tamasfe)"],
