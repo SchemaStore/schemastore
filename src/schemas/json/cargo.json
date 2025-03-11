@@ -846,10 +846,98 @@
         }
       ]
     },
+    "SplitDebuginfo": {
+      "title": "SplitDebuginfo",
+      "description": "The split-debuginfo setting controls the -C split-debuginfo flag which controls whether debug information, if generated, is either placed in the executable itself or adjacent to it. This can be useful for reducing the size of the executable, but may make it harder to debug the executable.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["off"],
+          "description": "This is the default for platforms with ELF binaries and windows-gnu (not Windows MSVC and not macOS). This typically means that DWARF debug information can be found in the final artifact in sections of the executable. This option is not supported on Windows MSVC. On macOS this options prevents the final execution of dsymutil to generate debuginfo."
+        },
+        {
+          "type": "string",
+          "enum": ["packed"],
+          "description": "This is the default for Windows MSVC and macOS. The term \"packed\" here means that all the debug information is packed into a separate file from the main executable. On Windows MSVC this is a *.pdb file, on macOS this is a *.dSYM folder, and on other platforms this is a *.dwp file."
+        },
+        {
+          "type": "string",
+          "enum": ["unpacked"],
+          "description": "This means that debug information will be found in separate files for each compilation unit (object file). This is not supported on Windows MSVC. On macOS this means the original object files will contain debug information. On other Unix platforms this means that *.dwo files will contain debug information."
+        }
+      ]
+    },
     "Profile": {
       "title": "Profile",
       "type": "object",
       "properties": {
+        "opt-level": {
+          "$ref": "#/definitions/OptLevel"
+        },
+        "debug": {
+          "$ref": "#/definitions/DebugLevel"
+        },
+        "split-debuginfo": {
+          "$ref": "#/definitions/SplitDebuginfo",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo"
+            }
+          }
+        },
+        "strip": {
+          "description": "The strip option controls the -C strip flag, which directs rustc to strip either symbols or debuginfo from a binary.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["none", "debuginfo", "symbols"],
+              "default": "none"
+            },
+            {
+              "type": "boolean",
+              "enum": [true],
+              "description": "Equivalent to \"symbols\"."
+            },
+            {
+              "type": "boolean",
+              "enum": [false],
+              "description": "Equivalent to \"none\"."
+            }
+          ]
+        },
+        "debug-assertions": {
+          "description": "The `debug-assertions` setting controls the [`-C debug-assertions` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#debug-assertions) which\nturns `cfg(debug_assertions)` [conditional compilation](https://doc.rust-lang.org/reference/conditional-compilation.html#debug_assertions) on or off. Debug\nassertions are intended to include runtime validation which is only available\nin debug/development builds. These may be things that are too expensive or\notherwise undesirable in a release build. Debug assertions enables the\n[`debug_assert!` macro](https://doc.rust-lang.org/std/macro.debug_assert.html) in the standard library.",
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#debug-assertions"
+            }
+          }
+        },
+        "overflow-checks": {
+          "description": "The `overflow-checks` setting controls the [`-C overflow-checks` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#overflow-checks) which\ncontrols the behavior of [runtime integer overflow](https://doc.rust-lang.org/reference/expressions/operator-expr.html#overflow). When overflow-checks are\nenabled, a panic will occur on overflow.",
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overflow-checks"
+            }
+          }
+        },
+        "lto": {
+          "$ref": "#/definitions/Lto"
+        },
+        "panic": {
+          "$ref": "#/definitions/Panic"
+        },
+        "incremental": {
+          "description": "The `incremental` setting controls the [`-C incremental` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#incremental) which controls\nwhether or not incremental compilation is enabled. Incremental compilation\ncauses `rustc` to to save additional information to disk which will be reused\nwhen recompiling the crate, improving re-compile times. The additional\ninformation is stored in the `target` directory.\n\nThe valid options are:\n\n* `true`: enabled\n* `false`: disabled\n\nIncremental compilation is only used for workspace members and \"path\"\ndependencies.\n\nThe incremental value can be overridden globally with the `CARGO_INCREMENTAL`\n[environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html) or the [`build.incremental`](https://doc.rust-lang.org/cargo/reference/config.html#buildincremental) config variable.",
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#incremental"
+            }
+          }
+        },
         "codegen-units": {
           "description": "The `codegen-units` setting controls the [`-C codegen-units` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#codegen-units) which\ncontrols how many \"code generation units\" a crate will be split into. More\ncode generation units allows more of a crate to be processed in parallel\npossibly reducing compile time, but may produce slower code.\n\nThis option takes an integer greater than 0.\n\nThe default is 256 for [incremental](https://doc.rust-lang.org/cargo/reference/profiles.html#incremental) builds, and 16 for\nnon-incremental builds.",
           "type": "integer",
@@ -861,51 +949,12 @@
             }
           }
         },
-        "debug": {
-          "$ref": "#/definitions/DebugLevel"
-        },
-        "debug-assertions": {
-          "description": "The `debug-assertions` setting controls the [`-C debug-assertions` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#debug-assertions) which\nturns `cfg(debug_assertions)` [conditional compilation](https://doc.rust-lang.org/reference/conditional-compilation.html#debug_assertions) on or off. Debug\nassertions are intended to include runtime validation which is only available\nin debug/development builds. These may be things that are too expensive or\notherwise undesirable in a release build. Debug assertions enables the\n[`debug_assert!` macro](https://doc.rust-lang.org/std/macro.debug_assert.html) in the standard library.",
+        "rpath": {
+          "description": "The `rpath` setting controls the [`-C rpath` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#rpath) which controls\nwhether or not [`rpath`](https://en.wikipedia.org/wiki/Rpath) is enabled.",
           "type": "boolean",
           "x-taplo": {
             "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#debug-assertions"
-            }
-          }
-        },
-        "dir-name": {
-          "type": "string",
-          "x-taplo": {
-            "hidden": true
-          }
-        },
-        "incremental": {
-          "description": "The `incremental` setting controls the [`-C incremental` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#incremental) which controls\nwhether or not incremental compilation is enabled. Incremental compilation\ncauses `rustc` to to save additional information to disk which will be reused\nwhen recompiling the crate, improving re-compile times. The additional\ninformation is stored in the `target` directory.\n\nThe valid options are:\n\n* `true`: enabled\n* `false`: disabled\n\nIncremental compilation is only used for workspace members and \"path\"\ndependencies.\n\nThe incremental value can be overridden globally with the `CARGO_INCREMENTAL`\n[environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html) or the [`build.incremental`](https://doc.rust-lang.org/cargo/reference/config.html#buildincremental) config variable.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#incremental"
-            }
-          }
-        },
-        "inherits": {
-          "type": "string",
-          "x-taplo": {
-            "hidden": true
-          }
-        },
-        "lto": {
-          "$ref": "#/definitions/Lto"
-        },
-        "opt-level": {
-          "$ref": "#/definitions/OptLevel"
-        },
-        "overflow-checks": {
-          "description": "The `overflow-checks` setting controls the [`-C overflow-checks` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#overflow-checks) which\ncontrols the behavior of [runtime integer overflow](https://doc.rust-lang.org/reference/expressions/operator-expr.html#overflow). When overflow-checks are\nenabled, a panic will occur on overflow.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overflow-checks"
+              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#rpath"
             }
           }
         },
@@ -922,16 +971,16 @@
             }
           }
         },
-        "panic": {
-          "$ref": "#/definitions/Panic"
-        },
-        "rpath": {
-          "description": "The `rpath` setting controls the [`-C rpath` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#rpath) which controls\nwhether or not [`rpath`](https://en.wikipedia.org/wiki/Rpath) is enabled.",
-          "type": "boolean",
+        "dir-name": {
+          "type": "string",
           "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#rpath"
-            }
+            "hidden": true
+          }
+        },
+        "inherits": {
+          "type": "string",
+          "x-taplo": {
+            "hidden": true
           }
         }
       },
