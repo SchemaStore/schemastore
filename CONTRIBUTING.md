@@ -25,7 +25,7 @@
 - [Compatible Language Servers and Tools](#compatible-language-servers-and-tools)
   - [`redhat-developer/yaml-language-server`](#redhat-developeryaml-language-server)
   - [`tamasfe/taplo`](#tamasfetaplo)
-  - [`tombi-toml/tombi`](#tombi-toml-tombi)
+  - [`tombi-toml/tombi](#tombi-toml-tombi)
   - [`Microsoft/vscode-json-languageservice`](#microsoftvscode-json-languageservice)
   - [Other](#other)
 - [Troubleshooting](#troubleshooting)
