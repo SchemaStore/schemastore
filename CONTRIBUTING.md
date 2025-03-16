@@ -313,6 +313,14 @@ Used by: `tamasfe/taplo`.
 
 Used by: `tombi-toml/tombi`.
 
+**`x-tombi-array-values-order`**
+
+Used by: `tombi-toml/tombi`.
+
+**`x-tombi-table-keys-order`**
+
+Used by: `tombi-toml/tombi`.
+
 **`x-intellij-language-injection`**
 
 Used by Intellij.
