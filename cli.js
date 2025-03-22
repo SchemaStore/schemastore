@@ -467,7 +467,21 @@ async function ajvFactory(
   /**
    * Ditto, but with keywords (ex. "x-intellij-html-description")..
    */
-  for (const unknownKeyword of unknownKeywords) {
+  for (const unknownKeyword of unknownKeywords.concat([
+    'allowTrailingCommas',
+    'defaultSnippets',
+    'markdownDescription',
+    'enumDescriptions',
+    'markdownEnumDescriptions',
+    'x-taplo',
+    'x-taplo-info',
+    'x-tombi-toml-version',
+    'x-tombi-array-values-order',
+    'x-tombi-table-keys-order',
+    'x-intellij-language-injection',
+    'x-intellij-html-description',
+    'x-intellij-enum-metadata',
+  ])) {
     ajv.addKeyword(unknownKeyword)
   }
 

@@ -302,6 +302,10 @@ Used by: `vscode-json-languageservice`.
 
 Used by: `vscode-json-languageservice`. See [Documenting Enums](#documenting-enums) for details.
 
+**`markdownEnumDescriptions`**
+
+Used by: `vscode-json-languageservice`. See [Documenting Enums](#documenting-enums) for details.
+
 **`x-taplo`**
 
 Used by: `tamasfe/taplo`.
