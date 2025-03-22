@@ -6,11 +6,11 @@ import fsCb from 'node:fs'
 import readline from 'node:readline'
 import util from 'node:util'
 
-import AjvDraft04 from 'ajv-draft-04'
+import _AjvDraft04 from 'ajv-draft-04'
 import { Ajv as AjvDraft06And07 } from 'ajv'
-import Ajv2019 from 'ajv/dist/2019.js'
-import Ajv2020 from 'ajv/dist/2020.js'
-import addFormats from 'ajv-formats'
+import _Ajv2019 from 'ajv/dist/2019.js'
+import _Ajv2020 from 'ajv/dist/2020.js'
+import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
@@ -20,11 +20,29 @@ import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
-import fetch from 'node-fetch'
+import fetch, { FetchError } from 'node-fetch'
 
 /**
  * @import { Ora } from 'ora'
  */
+
+/**
+ * Ajv defines types, but they don't work when importing the library with
+ * ESM syntax. Tweaking `jsconfig.json` with `esModuleInterop` didn't seem
+ * to fix things, so manually set the types with a cast. This issue is
+ * tracked upstream at https://github.com/ajv-validator/ajv/issues/2132.
+ */
+/** @type {typeof _AjvDraft04.default} */
+const AjvDraft04 = /** @type {any} */ (_AjvDraft04)
+
+/** @type {typeof _Ajv2019.default} */
+const Ajv2019 = /** @type {any} */ (_Ajv2019)
+
+/** @type {typeof _Ajv2020.default} */
+const Ajv2020 = /** @type {any} */ (_Ajv2020)
+
+/** @type {typeof _addFormats.default} */
+const addFormats = /** @type {any} */ (_addFormats)
 
 // Declare constants.
 const AjvDraft06SchemaJson = await readJsonFile(
@@ -829,7 +847,9 @@ async function taskMaintenance() {
                 `NOT OK (${res.status}/${res.statusText}): ${url} (after 405 code)`,
               )
             } catch (err) {
-              console.info(`NOT OK (${err.code}): ${url} (after 405 code)`)
+              console.info(
+                `NOT OK (${/** @type {FetchError} */ (err).code}): ${url} (after 405 code)`,
+              )
             }
             return
           }
