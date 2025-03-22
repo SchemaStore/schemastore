@@ -61,13 +61,13 @@ There are various ways you can contribute:
   - Add positive/negative tests
   - Refactor to pass under strict mode
 
-Most people want to add a new schema. For steps on how to do this, read the [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository) section below.
+Most people want to add a new schema. For steps on how to do this, read the [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository) section below. Find instructions for other tasks under the [How To](#how-to) section.
 
 If you want to contribute, but not sure what needs fixing, see the [help wanted](https://github.com/SchemaStore/schemastore/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22help+wanted%22) and [good first issue](https://github.com/SchemaStore/schemastore/issues?q=is%3Aopen+label%3A%22good+first+issue%22+sort%3Aupdated-desc) labels on GitHub.
 
 ## Overview
 
-Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs use this field to know which files the schema should be used for (in autocompletion).
+Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs and language servers use this field to know which files the schema should be used for (in autocompletion).
 
 Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. These tests may be in JSON, YAML, or TOML format.
 
@@ -91,9 +91,24 @@ The goal of JSON Schemas in this repository is to correctly validate schemas tha
 
 ### Best practices
 
-✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
+- We recommend using the `draft-07` JSON schema version. Later versions of JSON Schema are not yet recommended for use in SchemaStore until IDE and language support improves for those versions.
 
-✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
+❌ **Don't forget** add test files.
+
+### Useful Conventions
+
+- Consider using documentation URLs in `"description"` to improve UX. Most schemas use the format `<description>\n<url>`. For example: `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`
+- Consider using the [`base.json`][base] schema for `draft-07` or [`base-04.json`][base-04] for `draft-04` to use subschemas that are commonly used.
+- When writing `description`, avoid phrases like "there are three possibilities" and "valid values are" in favor of adding the constraints to the schema directly.
+- If you choose to use `title`, we recommend formatting it so that object values look like types in programming languages. This includes:
+  - Omitting leading articles and trailing punctuation
+  - Beginning it with a lowercase letter
+  - Using nouns instead of sentences
+
+**Unofficial Strict Mode**
+
+> [!WARNING]  
+> This "unofficial strict mode" may have bugs or be incomplete.
 
 There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses JSON Schema to validate your JSON Schema. It checks that:
 
@@ -102,21 +117,7 @@ There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses J
 - `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
 - It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema) for each hint/check
 
-To check your schema against that schema, use `node cli.js check-strict --schema-name=<schemaName.json>`.
-
-❌ **Don't forget** add test files.
-
-- Always be consistent across your schema: order properties and describe in the same style.
-- Always use `description`, `type`, `additionalProperties`.
-  - Always set `additionalProperties` to `false` unless documentation permits
-    additional properties explicitly. That tool the JSON schema is created for
-    can be changed in the future to allow wrong extra properties.
-- Don't end `title`/`description` values with colon.
-- Always omit leading articles for `title`-s and trailing punctuation to make
-  expected object values look more like types in programming languages. Also
-  start `title`-s with a lowercase letter and try use nouns for titles instead of sentences.
-- Always add documentation url to descriptions when available in the following
-  format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
+To check your schema against that schema, use `node cli.js check-strict --schema-name=<schemaName.json>`. Note that this is NOT the same as Ajv strict mode.
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
@@ -129,13 +130,13 @@ Sometimes, constraints do more harm than good. For example, [cron strings](http:
 - false positives are likely (due to their complexity or abundance of implementations)
 - its error message is too confusing or not helpful
 
-So, do not add regex patterns for any of the following:
+So, we recommend avoiding regex patterns for:
 
 - cron regexes
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
 
-In addition, be wary when adding exhaustive support to enum-type fields. Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
+In addition, be wary when adding exhaustive support to enum-type fields (without a `"type": "string"` fallback). Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
 
 #### Undocumented Features
 
@@ -194,7 +195,7 @@ Note that JSON Schema draft `2019-09` adds support for a `deprecated` field:
 }
 ```
 
-While this would be the best option, most schemas in this repository are `draft-07`. As a result, _Editors and IDEs may not use it_.
+While this would be the best option, most schemas in this repository are `draft-07`. As a result, _IDEs and language servers may not use it_.
 
 #### API Compatibility
 
@@ -368,7 +369,7 @@ To actually run the validation checks, see [How to validate a JSON Schema](#how-
 
 ## About `catalog.json`
 
-The `catalog.json` file is generally used by editors and extensions to determine which schemas apply to what files. Specifically:
+The `catalog.json` file is generally used by IDEs and language servers to determine which schemas apply to what files. Specifically:
 
 - VSCode ignores this file [see issue](https://github.com/microsoft/vscode/issues/26289)
 - [RedHat's YAML language server](#redhat-developeryaml-language-server) uses this file ([see configuration](https://github.com/redhat-developer/vscode-yaml/blob/41e0be736f2d07cdf7489e1c1c591b35b990e096/package.json#L176))
@@ -468,17 +469,7 @@ To fix this, run the formatter manually:
 npm run prettier:fix
 ```
 
-Note this will also format the following files:
-
-```sh
-$ git status --short
-M src/test/prettierrc/.prettierrc.yml
-M src/test/prettierrc/prettierrc.json
-```
-
-_Do not_ add those two files; pre-commit.ci seems to have issue with them. (Undo modifications to those files by running `git restore -- 'src/test/prettierrc/*'`)
-
-To run Prettier on scpecific files, run:
+To run Prettier on specific files, run:
 
 ```console
 # Run on a schema file
