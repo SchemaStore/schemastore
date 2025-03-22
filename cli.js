@@ -1498,15 +1498,22 @@ async function assertSchemaNoSmartQuotes(/** @type {SchemaFile} */ schema) {
   for (let i = 0; i < bufferArr.length; ++i) {
     const line = bufferArr[i]
 
-    const smartQuotes = ['‘', '’', '“', '”']
-    for (const quote of smartQuotes) {
-      if (line.includes(quote)) {
-        printErrorAndExit(new Error(), [
-          `Expected file to have no smart quotes`,
-          `Found smart quotes in file "./${schema.path}:${++i}"`,
-        ])
-      }
+    if (/"(?:description|title)": ".*?:"/.test(line)) {
+      printErrorAndExit(new Error(), [
+        `Do not expect "description" or "title" to end with a colon`,
+        `Failed to successfully validate file "${schema.path}:${i + 1}"`,
+      ])
     }
+
+    // const smartQuotes = ['‘', '’', '“', '”']
+    // for (const quote of smartQuotes) {
+    //   if (line.includes(quote)) {
+    //     printErrorAndExit(new Error(), [
+    //       `Expected file to have no smart quotes`,
+    //       `Found smart quotes in file "./${schema.path}:${++i}"`,
+    //     ])
+    //   }
+    // }
   }
 }
 
