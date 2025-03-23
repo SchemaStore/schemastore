@@ -407,6 +407,13 @@ This would not be accepted because the file detection would have too many false 
 - Omit `fileMatch` or set it to an empty array (which still allows the user to manually select it)
 - Prepend a directory name to the pattern (e.g. `"**/micro/runtime/syntax/*.yaml"`)
 
+### Use Simple `fileMatch` Patterns
+
+Glob implementations vary in their support of various pattern constructs.
+Lean towards keeping it simple rather than concise.
+
+For example, `{...}` alternations and some extended glob constructs can be written as multiple "simple" patterns instead.
+
 ## Compatible Language Servers and Tools
 
 ### [`redhat-developer/yaml-language-server`](https://github.com/redhat-developer/yaml-language-server)
