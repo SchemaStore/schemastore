@@ -1,0 +1,60 @@
+#:schema ../../schemas/json/vector.json
+data_dir = "/var/lib/vector/"
+
+tests = []
+
+[api]
+enabled = false
+address = "127.0.0.1:8686"
+playground = true
+
+[schema]
+enabled = false
+validation = false
+
+[healthchecks]
+enabled = true
+require_healthy = false
+
+[sources.generate_syslog]
+type = "demo_logs"
+interval = 1.0
+count = 100
+format = "syslog"
+
+[sources.generate_syslog.framing]
+method = "bytes"
+
+[sources.generate_syslog.decoding]
+codec = "bytes"
+
+[sinks.emit_syslog]
+type = "console"
+target = "stdout"
+inputs = ["remap_syslog"]
+
+[sinks.emit_syslog.healthcheck]
+enabled = true
+
+[sinks.emit_syslog.encoding]
+codec = "json"
+
+[sinks.emit_syslog.encoding.json]
+pretty = false
+
+[transforms.remap_syslog]
+type = "remap"
+source = """
+structured = parse_syslog!(.message)
+. = merge(., structured)
+"""
+metric_tag_values = "single"
+drop_on_error = false
+drop_on_abort = true
+reroute_dropped = false
+runtime = "ast"
+inputs = ["generate_syslog"]
+
+[enrichment_tables]
+
+[secret]

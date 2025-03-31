@@ -4,7 +4,7 @@ import node from 'eslint-plugin-n'
 import prettier from 'eslint-config-prettier'
 import globals from 'globals'
 
-/** @type {import('eslint').Linter.FlatConfig} */
+/** @type {import('eslint').Linter.Config} */
 export default [
   {
     ignores: ['**/schema.json.translated.to.js'],
@@ -27,6 +27,7 @@ export default [
       'no-unused-vars': 'off',
       'object-shorthand': ['error', 'always'],
       'n/no-process-exit': 'off',
+      'promise/always-return': ['error', { ignoreLastCallback: true }],
     },
   },
 ]
