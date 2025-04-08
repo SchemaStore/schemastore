@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json.schemastore.org/aspire-8.0.json",
+  "resources": {
+    "apiservice": {
+      "bindings": {
+        "http": {
+          "protocol": "tcp",
+          "scheme": "http",
+          "transport": "http"
+        },
+        "https": {
+          "protocol": "tcp",
+          "scheme": "https",
+          "transport": "http"
+        }
+      },
+      "env": {
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "ConnectionStrings__garnet": "{garnet.connectionString}",
+        "ConnectionStrings__redis": "{redis.connectionString}",
+        "ConnectionStrings__valkey": "{valkey.connectionString}",
+        "HTTP_PORTS": "{apiservice.bindings.http.targetPort}",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES": "true",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES": "true",
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory"
+      },
+      "path": "../Redis.ApiService/Redis.ApiService.csproj",
+      "type": "project.v0"
+    },
+    "garnet": {
+      "args": [
+        "--checkpointdir",
+        "/data/checkpoints",
+        "--recover",
+        "--aof",
+        "--aof-commit-freq",
+        "60000"
+      ],
+      "bindings": {
+        "tcp": {
+          "protocol": "tcp",
+          "scheme": "tcp",
+          "targetPort": 6379,
+          "transport": "tcp"
+        }
+      },
+      "connectionString": "{garnet.bindings.tcp.host}:{garnet.bindings.tcp.port}",
+      "image": "ghcr.io/microsoft/garnet:1.0",
+      "type": "container.v0",
+      "volumes": [
+        {
+          "name": "redis.apphost-7855b85e05-garnet-data",
+          "readOnly": false,
+          "target": "/data"
+        }
+      ]
+    },
+    "redis": {
+      "args": ["--requirepass", "{redis-password.value}", "--save", "60", "1"],
+      "bindings": {
+        "tcp": {
+          "protocol": "tcp",
+          "scheme": "tcp",
+          "targetPort": 6379,
+          "transport": "tcp"
+        }
+      },
+      "connectionString": "{redis.bindings.tcp.host}:{redis.bindings.tcp.port},password={redis-password.value}",
+      "image": "docker.io/library/redis:7.4",
+      "type": "container.v0",
+      "volumes": [
+        {
+          "name": "redis.apphost-7855b85e05-redis-data",
+          "readOnly": false,
+          "target": "/data"
+        }
+      ]
+    },
+    "redis-password": {
+      "inputs": {
+        "value": {
+          "default": {
+            "generate": {
+              "minLength": 22
+            }
+          },
+          "secret": true,
+          "type": "string"
+        }
+      },
+      "type": "parameter.v0",
+      "value": "{redis-password.inputs.value}"
+    },
+    "valkey": {
+      "args": ["--save", "60", "1"],
+      "bindings": {
+        "tcp": {
+          "protocol": "tcp",
+          "scheme": "tcp",
+          "targetPort": 6379,
+          "transport": "tcp"
+        }
+      },
+      "connectionString": "{valkey.bindings.tcp.host}:{valkey.bindings.tcp.port}",
+      "image": "docker.io/valkey/valkey:8.0",
+      "type": "container.v0",
+      "volumes": [
+        {
+          "name": "valkey-data",
+          "readOnly": false,
+          "target": "/data"
+        }
+      ]
+    }
+  }
+}
