@@ -44,7 +44,7 @@
       "description": "A Python packaging format."
     },
     "poetry-package-formats": {
-      "oneOf": [
+      "anyOf": [
         {
           "$ref": "#/definitions/poetry-package-format"
         },
@@ -58,7 +58,7 @@
       "description": "The format(s) for which the package must be included."
     },
     "poetry-dependency-any": {
-      "oneOf": [
+      "anyOf": [
         {
           "$ref": "#/definitions/poetry-dependency"
         },
@@ -140,13 +140,14 @@
       "additionalProperties": false,
       "properties": {
         "git": {
-          "type": "string",
           "description": "The url of the git repository.",
           "anyOf": [
             {
+              "type": "string",
               "format": "uri"
             },
             {
+              "type": "string",
               "pattern": "^([A-Za-z0-9\\-]+@|https://|http://)[A-Za-z][A-Za-z0-9+.-]*(:|/)[A-Za-z0-9\\-\\.]+(/[A-Za-z0-9\\-_\\.]+)+\\.git$"
             }
           ]
@@ -314,7 +315,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "oneOf": [
+        "anyOf": [
           {
             "$ref": "#/definitions/poetry-dependency"
           },
@@ -337,8 +338,7 @@
       }
     },
     "poetry-script-table": {
-      "type": "object",
-      "oneOf": [
+      "anyOf": [
         {
           "$ref": "#/definitions/poetry-extra-script-legacy"
         },
@@ -413,13 +413,22 @@
       }
     },
     "poetry-build-section": {
-      "oneOf": [
+      "anyOf": [
         {
           "$ref": "#/definitions/poetry-build-script"
         },
         {
           "$ref": "#/definitions/poetry-build-config"
         }
+      ]
+    },
+    "poetry-priority": {
+        "enum": [
+          "default",
+          "primary",
+          "secondary",
+          "supplemental",
+          "explicit"
       ]
     }
   },
@@ -489,6 +498,9 @@
     },
     "classifiers": {
       "type": "array",
+      "items": {
+        "type": "string"
+      },
       "description": "A list of trove classifiers."
     },
     "packages": {
@@ -543,6 +555,9 @@
     },
     "exclude": {
       "type": "array",
+      "items": {
+        "type": "string"
+      },
       "description": "A list of files and folders to exclude."
     },
     "dependencies": {
@@ -551,7 +566,6 @@
       "properties": {
         "python": {
           "$ref": "#/definitions/poetry-dependency",
-          "type": "string",
           "description": "The Python versions the package is compatible with."
         }
       },
@@ -568,6 +582,7 @@
           "$ref": "#/definitions/poetry-dependency-any"
         }
       },
+      "additionalProperties": false,
       "x-tombi-table-keys-order": "ascending"
     },
     "extras": {
@@ -580,6 +595,7 @@
           }
         }
       },
+      "additionalProperties": false,
       "x-tombi-table-keys-order": "ascending"
     },
     "group": {
@@ -610,6 +626,7 @@
           "additionalProperties": false
         }
       },
+      "additionalProperties": false,
       "x-tombi-table-keys-order": "ascending"
     },
     "build": {
@@ -620,7 +637,7 @@
       "description": "A hash of scripts to be installed.",
       "patternProperties": {
         "^[a-zA-Z-_.0-9]+$": {
-          "oneOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/poetry-script-legacy"
             },
@@ -630,6 +647,7 @@
           ]
         }
       },
+      "additionalProperties": false,
       "x-tombi-table-keys-order": "ascending"
     },
     "plugins": {
@@ -657,9 +675,11 @@
             "^[a-zA-Z-_.0-9]+$": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
+      "additionalProperties" : false,
       "x-tombi-table-keys-order": "ascending"
     },
     "urls": {
@@ -670,46 +690,59 @@
           "description": "The full url of the custom url."
         }
       },
+      "additionalProperties": false,
       "x-tombi-table-keys-order": "ascending"
     },
     "source": {
       "$comment": "The unique 'pypi' source constraint is not implemented yet.",
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["name"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "The name of the source."
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "const": "pypi",
+                "description": "The name of the source."
+              },
+              "priority": {
+                "$ref": "#/definitions/poetry-priority",
+                "description": "The priority of the source."
+              }
+            }
           },
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "description": "The url of the source."
-          },
-          "priority": {
-            "enum": [
-              "default",
-              "primary",
-              "secondary",
-              "supplemental",
-              "explicit"
-            ],
-            "description": "The priority of the source."
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "url"],
+            "properties": {
+              "name": {
+                "allOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "not": {
+                      "const": "pypi"
+                    }
+                  }
+                ],
+                "description": "The name of the source."
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The url of the source."
+              },
+              "priority": {
+                "$ref": "#/definitions/poetry-priority",
+                "description": "The priority of the source."
+              }
+            }
           }
-        },
-        "if": {
-          "properties": { "name": { "const": "pypi" } }
-        },
-        "then": {
-          "propertyNames": { "not": { "const": "url" } }
-        },
-        "else": {
-          "required": ["url"],
-          "properties": { "url": true }
-        }
+        ]
       }
     }
   }
