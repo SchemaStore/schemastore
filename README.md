@@ -2,7 +2,7 @@
 
 The largest collection of independent JSON schemas in the world.
 
-[![Build status](https://github.com/SchemaStore/schemastore/actions/workflows/nodejs.yml/badge.svg)](https://github.com/SchemaStore/schemastore/actions/workflows/nodejs.yml)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/SchemaStore/schemastore/master.svg)](https://results.pre-commit.ci/latest/github/SchemaStore/schemastore/master)
 
 The repository is a universal JSON schema store, where schemas for popular JSON documents can be found.
 
