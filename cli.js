@@ -385,6 +385,7 @@ function printErrorAndExit(error, messages, extraText) {
   console.warn('---')
   if (error instanceof Error && error?.stack) {
     process.stderr.write(error.stack)
+    process.stderr.write('\n')
   }
   process.exit(1)
 }
@@ -1153,6 +1154,7 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
       if (!allCatalogLocalJsonFiles.includes(schemaName)) {
         printErrorAndExit(new Error(), [
           `Expected schema file "${schemaName}" to have a corresponding entry in the catalog file "${CatalogFile}"`,
+          `Expected to find entry with "url" of "${UrlSchemaStore}${schemaName}"`,
           `If this is intentional, ignore this error by appending to the property "missingCatalogUrl" in file "${SchemaValidationFile}"`,
         ])
       }
