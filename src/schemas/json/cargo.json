@@ -33,17 +33,24 @@
     "DebugLevel": {
       "title": "Debug Level",
       "description": "The `debug` setting controls the [`-C debuginfo` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#debuginfo) which controls the\namount of debug information included in the compiled binary.",
-      "enum": [
-        0,
-        1,
-        2,
-        true,
-        false,
-        "none",
-        "line-directives-only",
-        "line-tables-only",
-        "limited",
-        "full"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "line-directives-only",
+            "line-tables-only",
+            "limited",
+            "full"
+          ]
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "enum": [0, 1, 2]
+        }
       ],
       "x-taplo": {
         "docs": {
@@ -80,6 +87,18 @@
       "title": "Detailed Dependency",
       "type": "object",
       "properties": {
+        "workspace": {
+          "description": "Inherit this dependency from the workspace manifest.",
+          "type": "boolean",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace"
+            }
+          }
+        },
+        "version": {
+          "$ref": "#/definitions/SemVerRequirement"
+        },
         "branch": {
           "description": "Specify the Git branch to use in case of a [Git dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories).",
           "type": "string",
@@ -100,6 +119,8 @@
         },
         "default_features": {
           "type": "boolean",
+          "description": "\"default_features\" is deprecated. Use \"default-features\" instead.",
+          "deprecated": true,
           "x-taplo": {
             "hidden": true
           }
@@ -120,6 +141,7 @@
               }
             }
           },
+          "x-tombi-array-values-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#choosing-features"
@@ -184,11 +206,11 @@
           }
         },
         "rev": {
-          "description": "Specify the Git revision to use in case of a [Git dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories).",
+          "description": "Specify the Git revision to use in case of a [Git dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#choice-of-commit).\n\nThis can be a commit hash, or a named reference exposed by the remote repository. GitHub Pull Requests may be specified using the `refs/pull/ID/head` format.",
           "type": "string",
           "x-taplo": {
             "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories"
+              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#choice-of-commit"
             }
           }
         },
@@ -200,20 +222,11 @@
               "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories"
             }
           }
-        },
-        "version": {
-          "$ref": "#/definitions/SemVerRequirement"
-        },
-        "workspace": {
-          "description": "Inherit this dependency from the workspace manifest.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace"
-            }
-          }
         }
       },
+      "minProperties": 1,
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "initFields": ["version"]
       }
@@ -234,7 +247,8 @@
             }
           }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "ascending"
     },
     "Edition": {
       "title": "Edition",
@@ -244,6 +258,17 @@
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/stable/edition-guide/introduction.html"
+        }
+      }
+    },
+    "Inherits": {
+      "title": "Inherits",
+      "description": "In addition to the built-in profiles, additional custom profiles can be defined.",
+      "type": "string",
+      "enum": ["dev", "test", "bench", "release"],
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#custom-profiles"
         }
       }
     },
@@ -280,27 +305,46 @@
     "Lints": {
       "type": "object",
       "properties": {
-        "clippy": {
-          "description": "Lint settings for [Clippy](https://doc.rust-lang.org/clippy/). See Clippy's [individual lints](https://rust-lang.github.io/rust-clippy/master/index.html) or [lint groups](https://doc.rust-lang.org/clippy/lints.html) documentation.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Lint"
-          }
-        },
         "rust": {
           "description": "Lint settings for the Rust compiler. See the Rust compiler's [individual lints](https://doc.rust-lang.org/rustc/lints/listing/index.html) or [lint groups](https://doc.rust-lang.org/rustc/lints/groups.html).",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/Lint"
-          }
+          },
+          "x-tombi-table-keys-order": "ascending"
+        },
+        "rustdoc": {
+          "description": "Lint settings for [Rustdoc](https://doc.rust-lang.org/rustdoc/). See Rustdoc's [individual lints](https://doc.rust-lang.org/rustdoc/lints.html) (rustdoc does not have lint groups)",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Lint"
+          },
+          "x-tombi-table-keys-order": "ascending"
+        },
+        "clippy": {
+          "description": "Lint settings for [Clippy](https://doc.rust-lang.org/clippy/). See Clippy's [individual lints](https://rust-lang.github.io/rust-clippy/master/index.html) or [lint groups](https://doc.rust-lang.org/clippy/lints.html) documentation.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Lint"
+          },
+          "x-tombi-table-keys-order": "ascending"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "ascending"
     },
     "Lto": {
       "title": "Lto",
       "description": "The `lto` setting controls the [`-C lto` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#lto) which controls LLVM's [link time optimizations](https://llvm.org/docs/LinkTimeOptimization.html). LTO can produce better optimized code, using\nwhole-program analysis, at the cost of longer linking time.\n                    \nSee also the [`-C linker-plugin-lto`](https://doc.rust-lang.org/rustc/codegen-options/index.html#linker-plugin-lto) `rustc` flag for cross-language LTO.",
-      "enum": ["fat", "thin", "off", true, false],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["fat", "thin", "off"]
+        },
+        {
+          "type": "boolean"
+        }
+      ],
       "x-taplo": {
         "docs": {
           "enumValues": [
@@ -321,7 +365,8 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "x-tombi-array-values-order": "ascending"
     },
     "Resolver": {
       "title": "Resolver",
@@ -337,7 +382,16 @@
     "OptLevel": {
       "title": "Optimization Level",
       "description": "The `opt-level` setting controls the [`-C opt-level` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#opt-level) which controls the level\nof optimization. Higher optimization levels may produce faster runtime code at\nthe expense of longer compiler times. Higher levels may also change and\nrearrange the compiled code which may make it harder to use with a debugger.\n\nIt is recommended to experiment with different levels to find the right\nbalance for your project. There may be surprising results, such as level `3`\nbeing slower than `2`, or the `\"s\"` and `\"z\"` levels not being necessarily\nsmaller. You may also want to reevaluate your settings over time as newer\nversions of `rustc` changes optimization behavior.\n\nSee also [Profile Guided Optimization](https://doc.rust-lang.org/rustc/profile-guided-optimization.html) for more advanced optimization\ntechniques.",
-      "enum": [0, 1, 2, 3, "s", "z"],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["s", "z"]
+        },
+        {
+          "type": "integer",
+          "enum": [0, 1, 2, 3]
+        }
+      ],
       "x-taplo": {
         "docs": {
           "enumValues": [
@@ -360,7 +414,30 @@
       "type": "object",
       "required": ["name"],
       "properties": {
+        "name": {
+          "description": "The package name is an identifier used to refer to the package. It is used\nwhen listed as a dependency in another package, and as the default name of\ninferred lib and bin targets.\n\nThe name must use only [alphanumeric](https://doc.rust-lang.org/std/primitive.char.html#method.is_alphanumeric) characters or `-` or `_`, and cannot be empty.\nNote that [`cargo new`](https://doc.rust-lang.org/cargo/commands/cargo-new.html) and [`cargo init`](https://doc.rust-lang.org/cargo/commands/cargo-init.html) impose some additional restrictions on\nthe package name, such as enforcing that it is a valid Rust identifier and not\na keyword. [crates.io](https://crates.io) imposes even more restrictions, such as\nenforcing only ASCII characters, not a reserved name, not a special Windows\nname such as \"nul\", is not too long, etc.",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field"
+            }
+          }
+        },
+        "version": {
+          "title": "Semantic Version",
+          "description": "Cargo bakes in the concept of [Semantic Versioning](https://semver.org/), so make sure you follow some basic rules:\n\n* Before you reach 1.0.0, anything goes, but if you make breaking changes,\n    increment the minor version. In Rust, breaking changes include adding fields to\n    structs or variants to enums.\n* After 1.0.0, only make breaking changes when you increment the major version.\n    Don't break the build.\n* After 1.0.0, don't add any new public API (no new `pub` anything) in patch-level\n    versions. Always increment the minor version if you add any new `pub` structs,\n    traits, fields, types, functions, methods or anything else.\n* Use version numbers with three numeric parts such as 1.0.0 rather than 1.0.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SemVer"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
         "authors": {
+          "title": "Authors",
+          "description": "The `authors` field lists people or organizations that are considered the\n\"authors\" of the package. The exact meaning is open to interpretation — it may\nlist the original or primary authors, current maintainers, or owners of the\npackage. These names will be listed on the crate's page on\n[crates.io](https://crates.io). An optional email address may be included within angled\nbrackets at the end of each author.\n\n> **Note**: [crates.io](https://crates.io) requires at least one author to be listed.",
           "anyOf": [
             {
               "$ref": "#/definitions/Authors"
@@ -370,12 +447,216 @@
             }
           ]
         },
-        "autobenches": {
-          "description": "Disable automatic discovery of `bench` targets.\n\nDisabling automatic discovery should only be needed for specialized\nsituations. For example, if you have a library where you want a *module* named\n`bin`, this would present a problem because Cargo would usually attempt to\ncompile anything in the `bin` directory as an executable. Here is a sample\nlayout of this scenario:\n\n```\n├── Cargo.toml\n└── src\n    ├── lib.rs\n    └── bin\n        └── mod.rs\n```\n",
-          "type": "boolean",
+        "edition": {
+          "title": "Edition",
+          "description": "The `edition` key affects which edition your package is compiled with. Cargo\nwill always generate packages via [`cargo new`](https://doc.rust-lang.org/cargo/commands/cargo-new.html) with the `edition` key set to the\nlatest edition. Setting the `edition` key in `[package]` will affect all\ntargets/crates in the package, including test suites, benchmarks, binaries,\nexamples, etc.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Edition"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "rust-version": {
+          "title": "RustVersion",
+          "description": "The `rust-version` field is an optional key that tells cargo what version of the\nRust language and compiler your package can be compiled with. If the currently\nselected version of the Rust compiler is older than the stated version, cargo\nwill exit with an error, telling the user what version is required.\n\nThe first version of Cargo that supports this field was released with Rust 1.56.0.\nIn older releases, the field will be ignored, and Cargo will display a warning.\n\n```toml\n[package]\n# ...\nrust-version = \"1.56\"\n```\n\nThe Rust version must be a bare version number with two or three components; it\ncannot include semver operators or pre-release identifiers. Compiler pre-release\nidentifiers such as -nightly will be ignored while checking the Rust version.\nThe `rust-version` must be equal to or newer than the version that first\nintroduced the configured `edition`.\n\nThe `rust-version` may be ignored using the `--ignore-rust-version` option.\n\nSetting the `rust-version` key in `[package]` will affect all targets/crates in\nthe package, including test suites, benchmarks, binaries, examples, etc.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RustVersion"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "description": {
+          "title": "Description",
+          "description": "The description is a short blurb about the package. [crates.io](https://crates.io) will display\nthis with your package. This should be plain text (not Markdown).\n\n```toml\n[package]\n# ...\ndescription = \"A short description of my package\"\n```\n\n> **Note**: [crates.io](https://crates.io) requires the `description` to be set.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Description"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "documentation": {
+          "title": "Documentation",
+          "description": "\nThe `documentation` field specifies a URL to a website hosting the crate's\ndocumentation. If no URL is specified in the manifest file, [crates.io](https://crates.io) will\nautomatically link your crate to the corresponding [docs.rs](https://docs.rs) page.\n\n```toml\n[package]\n# ...\ndocumentation = \"https://docs.rs/bitflags\"\n```\n",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Documentation"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "readme": {
+          "title": "Readme",
+          "description": "The `readme` field should be the path to a file in the package root (relative\nto this `Cargo.toml`) that contains general information about the package.\nThis file will be transferred to the registry when you publish. [crates.io](https://crates.io)\nwill interpret it as Markdown and render it on the crate's page.\n\n```toml\n[package]\n# ...\nreadme = \"README.md\"\n```\n\nIf no value is specified for this field, and a file named `README.md`,\n`README.txt` or `README` exists in the package root, then the name of that\nfile will be used. You can suppress this behavior by setting this field to\n`false`. If the field is set to `true`, a default value of `README.md` will\nbe assumed.\n",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Readme"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "homepage": {
+          "title": "Homepage",
+          "description": "The `homepage` field should be a URL to a site that is the home page for your\npackage.\n\n```toml\n[package]\n# ...\nhomepage = \"https://serde.rs/\"\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Homepage"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "repository": {
+          "title": "Repository",
+          "description": "The `repository` field should be a URL to the source repository for your\npackage.\n\n```toml\n[package]\n# ...\nrepository = \"https://github.com/rust-lang/cargo/\"\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Repository"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "license": {
+          "title": "License",
+          "description": "The `license` field contains the name of the software license that the package\nis released under.\n\n[crates.io](https://crates.io/) interprets the `license` field as an [SPDX 2.1 license\nexpression](https://spdx.org/spdx-specification-21-web-version#h.jxpfx0ykyb60). The name must be a known license\nfrom the [SPDX license list 3.6](https://github.com/spdx/license-list-data/tree/v3.6). Parentheses are not\ncurrently supported. See the [SPDX site](https://spdx.org/license-list) for more information.\n\nSPDX license expressions support AND and OR operators to combine multiple\nlicenses.\n\n```toml\n[package]\n# ...\nlicense = \"MIT OR Apache-2.0\"\n```\n\nUsing `OR` indicates the user may choose either license. Using `AND` indicates\nthe user must comply with both licenses simultaneously. The `WITH` operator\nindicates a license with a special exception. Some examples:\n\n* `MIT OR Apache-2.0`\n* `LGPL-2.1 AND MIT AND BSD-2-Clause`\n* `GPL-2.0+ WITH Bison-exception-2.2`\n\nIf a package is using a nonstandard license, then the `license-file` field may\nbe specified in lieu of the `license` field.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/License"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "license-file": {
+          "title": "LicenseFile",
+          "description": "The `license-file` field contains the path to a file\ncontaining the text of the license (relative to this `Cargo.toml`).\n\n```toml\n[package]\n# ...\nlicense-file = \"LICENSE.txt\"\n```\n\n> **Note**: [crates.io](https://crates.io) requires either `license` or `license-file` to be set.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LicenseFile"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "keywords": {
+          "title": "Keywords",
+          "description": "The `keywords` field is an array of strings that describe this package. This\ncan help when searching for the package on a registry, and you may choose any\nwords that would help someone find this crate.\n\n```toml\n[package]\n# ...\nkeywords = [\"gamedev\", \"graphics\"]\n```\n\n> **Note**: [crates.io](https://crates.io) has a maximum of 5 keywords. Each keyword must be\n> ASCII text, start with a letter, and only contain letters, numbers, `_` or\n> `-`, and have at most 20 characters.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Keywords"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "categories": {
+          "title": "Categories",
+          "description": "The `categories` field is an array of strings of the categories this package\nbelongs to.\n\n```toml\ncategories = [\"command-line-utilities\", \"development-tools::cargo-plugins\"]\n```\n\n> **Note**: [crates.io](https://crates.io) has a maximum of 5 categories. Each category should\n> match one of the strings available at https://crates.io/category_slugs, and\n> must match exactly.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Categories"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "workspace": {
+          "description": "The `workspace` field can be used to configure the workspace that this package\nwill be a member of. If not specified this will be inferred as the first\nCargo.toml with `[workspace]` upwards in the filesystem. Setting this is\nuseful if the member is not inside a subdirectory of the workspace root.\n\n```toml\n[package]\n# ...\nworkspace = \"path/to/workspace/root\"\n```\n\nThis field cannot be specified if the manifest already has a `[workspace]`\ntable defined. That is, a crate cannot both be a root crate in a workspace\n(contain `[workspace]`) and also be a member crate of another workspace\n(contain `package.workspace`).\n\nFor more information, see the [workspaces chapter](https://doc.rust-lang.org/cargo/reference/workspaces.html).",
+          "type": "string",
           "x-taplo": {
             "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#target-auto-discovery"
+              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-workspace-field"
+            }
+          }
+        },
+        "build": {
+          "$ref": "#/definitions/Build"
+        },
+        "links": {
+          "description": "The `links` field specifies the name of a native library that is being linked\nto. More information can be found in the [`links`](https://doc.rust-lang.org/cargo/reference/build-scripts.html#the-links-manifest-key) section of the build\nscript guide.\n\n```toml\n[package]\n# ...\nlinks = \"foo\"\n```",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-links-field"
+            }
+          }
+        },
+        "exclude": {
+          "title": "Exclude",
+          "description": "You can explicitly specify that a set of file patterns should be ignored or\nincluded for the purposes of packaging. The patterns specified in the\n`exclude` field identify a set of files that are not included, and the\npatterns in `include` specify files that are explicitly included.\n\nThe patterns should be [gitignore](https://git-scm.com/docs/gitignore)-style patterns. Briefly:\n\n- `foo` matches any file or directory with the name `foo` anywhere in the\n  package. This is equivalent to the pattern `**/foo`.\n- `/foo` matches any file or directory with the name `foo` only in the root of\n  the package.\n- `foo/` matches any *directory* with the name `foo` anywhere in the package.\n- Common glob patterns like `*`, `?`, and `[]` are supported:\n  - `*` matches zero or more characters except `/`.  For example, `*.html`\n    matches any file or directory with the `.html` extension anywhere in the\n    package.\n  - `?` matches any character except `/`. For example, `foo?` matches `food`,\n    but not `foo`.\n  - `[]` allows for matching a range of characters. For example, `[ab]`\n    matches either `a` or `b`. `[a-z]` matches letters a through z.\n- `**/` prefix matches in any directory. For example, `**/foo/bar` matches the\n  file or directory `bar` anywhere that is directly under directory `foo`.\n- `/**` suffix matches everything inside. For example, `foo/**` matches all\n  files inside directory `foo`, including all files in subdirectories below\n  `foo`.\n- `/**/` matches zero or more directories. For example, `a/**/b` matches\n  `a/b`, `a/x/b`, `a/x/y/b`, and so on.\n- `!` prefix negates a pattern. For example, a pattern of `src/**.rs` and\n  `!foo.rs` would match all files with the `.rs` extension inside the `src`\n  directory, except for any file named `foo.rs`.\n\nIf git is being used for a package, the `exclude` field will be seeded with\nthe `gitignore` settings from the repository.\n\n```toml\n[package]\n# ...\nexclude = [\"build/**/*.o\", \"doc/**/*.html\"]\n```\n\n```toml\n[package]\n# ...\ninclude = [\"src/**/*\", \"Cargo.toml\"]\n```\n\nThe options are mutually exclusive: setting `include` will override an\n`exclude`. Note that `include` must be an exhaustive list of files as otherwise\nnecessary source files may not be included. The package's `Cargo.toml` is\nautomatically included.\n\nThe include/exclude list is also used for change tracking in some situations.\nFor targets built with `rustdoc`, it is used to determine the list of files to\ntrack to determine if the target should be rebuilt. If the package has a\n[build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) that does not emit any `rerun-if-*` directives, then the\ninclude/exclude list is used for tracking if the build script should be re-run\nif any of those files change.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Exclude"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "include": {
+          "description": "You can explicitly specify that a set of file patterns should be ignored or\nincluded for the purposes of packaging. The patterns specified in the\n`exclude` field identify a set of files that are not included, and the\npatterns in `include` specify files that are explicitly included.\n\nThe patterns should be [gitignore](https://git-scm.com/docs/gitignore)-style patterns. Briefly:\n\n- `foo` matches any file or directory with the name `foo` anywhere in the\n  package. This is equivalent to the pattern `**/foo`.\n- `/foo` matches any file or directory with the name `foo` only in the root of\n  the package.\n- `foo/` matches any *directory* with the name `foo` anywhere in the package.\n- Common glob patterns like `*`, `?`, and `[]` are supported:\n  - `*` matches zero or more characters except `/`.  For example, `*.html`\n    matches any file or directory with the `.html` extension anywhere in the\n    package.\n  - `?` matches any character except `/`. For example, `foo?` matches `food`,\n    but not `foo`.\n  - `[]` allows for matching a range of characters. For example, `[ab]`\n    matches either `a` or `b`. `[a-z]` matches letters a through z.\n- `**/` prefix matches in any directory. For example, `**/foo/bar` matches the\n  file or directory `bar` anywhere that is directly under directory `foo`.\n- `/**` suffix matches everything inside. For example, `foo/**` matches all\n  files inside directory `foo`, including all files in subdirectories below\n  `foo`.\n- `/**/` matches zero or more directories. For example, `a/**/b` matches\n  `a/b`, `a/x/b`, `a/x/y/b`, and so on.\n- `!` prefix negates a pattern. For example, a pattern of `src/**.rs` and\n  `!foo.rs` would match all files with the `.rs` extension inside the `src`\n  directory, except for any file named `foo.rs`.\n\nIf git is being used for a package, the `exclude` field will be seeded with\nthe `gitignore` settings from the repository.\n\n```toml\n[package]\n# ...\nexclude = [\"build/**/*.o\", \"doc/**/*.html\"]\n```\n\n```toml\n[package]\n# ...\ninclude = [\"src/**/*\", \"Cargo.toml\"]\n```\n\nThe options are mutually exclusive: setting `include` will override an\n`exclude`. Note that `include` must be an exhaustive list of files as otherwise\nnecessary source files may not be included. The package's `Cargo.toml` is\nautomatically included.\n\nThe include/exclude list is also used for change tracking in some situations.\nFor targets built with `rustdoc`, it is used to determine the list of files to\ntrack to determine if the target should be rebuilt. If the package has a\n[build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) that does not emit any `rerun-if-*` directives, then the\ninclude/exclude list is used for tracking if the build script should be re-run\nif any of those files change.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Include"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "publish": {
+          "title": "Publish",
+          "description": "The `publish` field can be used to prevent a package from being published to a package registry (like *crates.io*) by mistake, for instance to keep a package\nprivate in a company.\n\n```toml\n[package]\n# ...\npublish = false\n```\n\nThe value may also be an array of strings which are registry names that are\nallowed to be published to.\n\n```toml\n[package]\n# ...\npublish = [\"some-registry-name\"]\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Publish"
+            },
+            {
+              "$ref": "#/definitions/WorkspaceInheritance"
+            }
+          ]
+        },
+        "metadata": {
+          "description": "Cargo by default will warn about unused keys in `Cargo.toml` to assist in\ndetecting typos and such. The `package.metadata` table, however, is completely\nignored by Cargo and will not be warned about. This section can be used for\ntools which would like to store package configuration in `Cargo.toml`. For\nexample:\n\n```toml\n[package]\nname = \"...\"\n# ...\n\n# Metadata used when generating an Android APK, for example.\n[package.metadata.android]\npackage-name = \"my-awesome-android-app\"\nassets = \"path/to/static\"\n```\n",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "playdate": {
+              "$ref": "#/definitions/PlaydateMetadata"
+            }
+          },
+          "x-tombi-table-keys-order": "schema",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-metadata-table"
+            }
+          }
+        },
+        "default-run": {
+          "description": "The `default-run` field in the `[package]` section of the manifest can be used\nto specify a default binary picked by [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html). For example, when there is\nboth `src/bin/a.rs` and `src/bin/b.rs`:\n\n```toml\n[package]\ndefault-run = \"a\"\n```",
+          "type": "string",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-default-run-field"
             }
           }
         },
@@ -406,77 +687,17 @@
             }
           }
         },
-        "build": {
-          "$ref": "#/definitions/Build"
-        },
-        "categories": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Categories"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "default-run": {
-          "description": "The `default-run` field in the `[package]` section of the manifest can be used\nto specify a default binary picked by [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html). For example, when there is\nboth `src/bin/a.rs` and `src/bin/b.rs`:\n\n```toml\n[package]\ndefault-run = \"a\"\n```",
-          "type": "string",
+        "autobenches": {
+          "description": "Disable automatic discovery of `bench` targets.\n\nDisabling automatic discovery should only be needed for specialized\nsituations. For example, if you have a library where you want a *module* named\n`bin`, this would present a problem because Cargo would usually attempt to\ncompile anything in the `bin` directory as an executable. Here is a sample\nlayout of this scenario:\n\n```\n├── Cargo.toml\n└── src\n    ├── lib.rs\n    └── bin\n        └── mod.rs\n```\n",
+          "type": "boolean",
           "x-taplo": {
             "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-default-run-field"
+              "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#target-auto-discovery"
             }
           }
         },
-        "description": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Description"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "documentation": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Documentation"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "edition": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Edition"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "exclude": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Exclude"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "homepage": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Homepage"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
+        "resolver": {
+          "$ref": "#/definitions/Resolver"
         },
         "im-a-teapot": {
           "description": "Sets whether the current package is a teapot or something else that is not capable of brewing tea.",
@@ -485,83 +706,10 @@
             "hidden": true
           }
         },
-        "include": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Include"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "keywords": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Keywords"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "license": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/License"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "license-file": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/LicenseFile"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "links": {
-          "description": "The `links` field specifies the name of a native library that is being linked\nto. More information can be found in the [`links`](https://doc.rust-lang.org/cargo/reference/build-scripts.html#the-links-manifest-key) section of the build\nscript guide.\n\n```toml\n[package]\n# ...\nlinks = \"foo\"\n```",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-links-field"
-            }
-          }
-        },
         "metabuild": {
           "$ref": "#/definitions/MetaBuild",
           "x-taplo": {
             "hidden": true
-          }
-        },
-        "metadata": {
-          "description": "Cargo by default will warn about unused keys in `Cargo.toml` to assist in\ndetecting typos and such. The `package.metadata` table, however, is completely\nignored by Cargo and will not be warned about. This section can be used for\ntools which would like to store package configuration in `Cargo.toml`. For\nexample:\n\n```toml\n[package]\nname = \"...\"\n# ...\n\n# Metadata used when generating an Android APK, for example.\n[package.metadata.android]\npackage-name = \"my-awesome-android-app\"\nassets = \"path/to/static\"\n```\n",
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "playdate": {
-              "$ref": "#/definitions/PlaydateMetadata"
-            }
-          },
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-metadata-table"
-            }
-          }
-        },
-        "name": {
-          "description": "The package name is an identifier used to refer to the package. It is used\nwhen listed as a dependency in another package, and as the default name of\ninferred lib and bin targets.\n\nThe name must use only [alphanumeric](https://doc.rust-lang.org/std/primitive.char.html#method.is_alphanumeric) characters or `-` or `_`, and cannot be empty.\nNote that [`cargo new`](https://doc.rust-lang.org/cargo/commands/cargo-new.html) and [`cargo init`](https://doc.rust-lang.org/cargo/commands/cargo-init.html) impose some additional restrictions on\nthe package name, such as enforcing that it is a valid Rust identifier and not\na keyword. [crates.io](https://crates.io) imposes even more restrictions, such as\nenforcing only ASCII characters, not a reserved name, not a special Windows\nname such as \"nul\", is not too long, etc.",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field"
-            }
           }
         },
         "namespaced-features": {
@@ -570,75 +718,15 @@
             "hidden": true
           }
         },
-        "publish": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Publish"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
         "publish-lockfile": {
           "type": "boolean",
           "x-taplo": {
             "hidden": true
           }
-        },
-        "readme": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Readme"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "repository": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Repository"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "resolver": {
-          "$ref": "#/definitions/Resolver"
-        },
-        "rust-version": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RustVersion"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "version": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SemVer"
-            },
-            {
-              "$ref": "#/definitions/WorkspaceInheritance"
-            }
-          ]
-        },
-        "workspace": {
-          "description": "The `workspace` field can be used to configure the workspace that this package\nwill be a member of. If not specified this will be inferred as the first\nCargo.toml with `[workspace]` upwards in the filesystem. Setting this is\nuseful if the member is not inside a subdirectory of the workspace root.\n\n```toml\n[package]\n# ...\nworkspace = \"path/to/workspace/root\"\n```\n\nThis field cannot be specified if the manifest already has a `[workspace]`\ntable defined. That is, a crate cannot both be a root crate in a workspace\n(contain `[workspace]`) and also be a member crate of another workspace\n(contain `package.workspace`).\n\nFor more information, see the [workspaces chapter](https://doc.rust-lang.org/cargo/reference/workspaces.html).",
-          "type": "string",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-workspace-field"
-            }
-          }
         }
       },
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-package-section"
@@ -666,37 +754,13 @@
       "title": "Platform",
       "type": "object",
       "properties": {
-        "build-dependencies": {
-          "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
-            },
-            "plugins": ["crates"],
-            "crates": {
-              "schemas": "dependencies"
-            }
-          }
-        },
-        "build_dependencies": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-taplo": {
-            "hidden": true
-          }
-        },
         "dependencies": {
           "description": "Cargo is configured to look for dependencies on [crates.io](https://crates.io) by default. Only\nthe name and a version string are required in this case. In [the cargo\nguide](https://doc.rust-lang.org/cargo/guide/index.html), we specified a dependency on the `time` crate:\n\n```toml\n[dependencies]\ntime = \"0.1.12\"\n```\n\nThe string `\"0.1.12\"` is a [semver](https://github.com/steveklabnik/semver#requirements) version requirement. Since this\nstring does not have any operators in it, it is interpreted the same way as\nif we had specified `\"^0.1.12\"`, which is called a caret requirement.\n\nA dependency can also be defined by a table with additional options:\n\n```toml\n[dependencies]\ntime = { path = \"../time\", version = \"0.1.12\" }\n```",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/Dependency"
           },
+          "x-tombi-table-keys-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html"
@@ -709,6 +773,7 @@
           "additionalProperties": {
             "$ref": "#/definitions/Dependency"
           },
+          "x-tombi-table-keys-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies"
@@ -724,15 +789,43 @@
           "additionalProperties": {
             "$ref": "#/definitions/Dependency"
           },
+          "x-tombi-table-keys-order": "ascending",
+          "x-taplo": {
+            "hidden": true
+          }
+        },
+        "build-dependencies": {
+          "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Dependency"
+          },
+          "x-tombi-table-keys-order": "ascending",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
+            },
+            "plugins": ["crates"],
+            "crates": {
+              "schemas": "dependencies"
+            }
+          }
+        },
+        "build_dependencies": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Dependency"
+          },
+          "x-tombi-table-keys-order": "ascending",
           "x-taplo": {
             "hidden": true
           }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "schema"
     },
     "BuildOverride": {
       "title": "Build Override",
-      "type": "object",
       "description": "Profile settings can be overridden for specific packages and build-time\ncrates. To override the settings for a specific package, use the `package`\ntable to change the settings for the named package:\n\n```toml\n# The `foo` package will use the -Copt-level=3 flag.\n[profile.dev.package.foo]\nopt-level = 3\n```\n\nThe package name is actually a [Package ID Spec](https://doc.rust-lang.org/cargo/reference/pkgid-spec.html), so you can\ntarget individual versions of a package with syntax such as\n`[profile.dev.package.\"foo:2.1.0\"]`.\n\nTo override the settings for all dependencies (but not any workspace member),\nuse the `\"*\"` package name:\n\n```toml\n# Set the default for dependencies.\n[profile.dev.package.\"*\"]\nopt-level = 2\n```\n\nTo override the settings for build scripts, proc macros, and their\ndependencies, use the `build-override` table:\n\n```toml\n# Set the settings for build scripts and proc-macros.\n[profile.dev.build-override]\nopt-level = 3\n```\n\n> Note: When a dependency is both a normal dependency and a build dependency,\n> Cargo will try to only build it once when `--target` is not specified. When\n> using `build-override`, the dependency may need to be built twice, once as a\n> normal dependency and once with the overridden build settings. This may\n> increase initial build times.\n",
       "allOf": [
         {
@@ -749,108 +842,215 @@
       }
     },
     "ProfileWithBuildOverride": {
-      "allOf": [
-        {
+      "title": "Profile with Build Override",
+      "type": "object",
+      "properties": {
+        "opt-level": {
+          "$ref": "#/definitions/OptLevel"
+        },
+        "debug": {
+          "$ref": "#/definitions/DebugLevel"
+        },
+        "split-debuginfo": {
+          "$ref": "#/definitions/SplitDebuginfo"
+        },
+        "strip": {
+          "$ref": "#/definitions/Strip"
+        },
+        "debug-assertions": {
+          "$ref": "#/definitions/DebugAssertions"
+        },
+        "overflow-checks": {
+          "$ref": "#/definitions/OverflowChecks"
+        },
+        "lto": {
+          "$ref": "#/definitions/Lto"
+        },
+        "panic": {
+          "$ref": "#/definitions/Panic"
+        },
+        "incremental": {
+          "$ref": "#/definitions/Incremental"
+        },
+        "codegen-units": {
+          "$ref": "#/definitions/CodegenUnits"
+        },
+        "rpath": {
+          "$ref": "#/definitions/Rpath"
+        },
+        "package": {
+          "$ref": "#/definitions/ProfilePackageOverrides"
+        },
+        "build-override": {
           "$ref": "#/definitions/Profile"
+        }
+      },
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SplitDebuginfo": {
+      "title": "SplitDebuginfo",
+      "description": "The split-debuginfo setting controls the -C split-debuginfo flag which controls whether debug information, if generated, is either placed in the executable itself or adjacent to it. This can be useful for reducing the size of the executable, but may make it harder to debug the executable.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["off"],
+          "description": "This is the default for platforms with ELF binaries and windows-gnu (not Windows MSVC and not macOS). This typically means that DWARF debug information can be found in the final artifact in sections of the executable. This option is not supported on Windows MSVC. On macOS this options prevents the final execution of dsymutil to generate debuginfo."
         },
         {
-          "type": "object",
-          "properties": {
-            "build-override": {
-              "$ref": "#/definitions/Profile"
-            }
-          }
+          "type": "string",
+          "enum": ["packed"],
+          "description": "This is the default for Windows MSVC and macOS. The term \"packed\" here means that all the debug information is packed into a separate file from the main executable. On Windows MSVC this is a *.pdb file, on macOS this is a *.dSYM folder, and on other platforms this is a *.dwp file."
+        },
+        {
+          "type": "string",
+          "enum": ["unpacked"],
+          "description": "This means that debug information will be found in separate files for each compilation unit (object file). This is not supported on Windows MSVC. On macOS this means the original object files will contain debug information. On other Unix platforms this means that *.dwo files will contain debug information."
         }
-      ]
+      ],
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo"
+        }
+      }
+    },
+    "Strip": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "The strip option controls the -C strip flag, which directs rustc to strip either symbols or debuginfo from a binary.",
+          "enum": ["none", "debuginfo", "symbols"],
+          "default": "none"
+        },
+        {
+          "type": "boolean",
+          "enum": [true],
+          "title": "Equivalent to \"symbols\"",
+          "description": "The strip option controls the -C strip flag, which directs rustc to strip either symbols or debuginfo from a binary."
+        },
+        {
+          "type": "boolean",
+          "enum": [false],
+          "title": "Equivalent to \"none\"",
+          "description": "The strip option controls the -C strip flag, which directs rustc to strip either symbols or debuginfo from a binary."
+        }
+      ],
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#strip"
+        }
+      }
+    },
+    "DebugAssertions": {
+      "description": "The `debug-assertions` setting controls the [`-C debug-assertions` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#debug-assertions) which\nturns `cfg(debug_assertions)` [conditional compilation](https://doc.rust-lang.org/reference/conditional-compilation.html#debug_assertions) on or off. Debug\nassertions are intended to include runtime validation which is only available\nin debug/development builds. These may be things that are too expensive or\notherwise undesirable in a release build. Debug assertions enables the\n[`debug_assert!` macro](https://doc.rust-lang.org/std/macro.debug_assert.html) in the standard library.",
+      "type": "boolean",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#debug-assertions"
+        }
+      }
+    },
+    "OverflowChecks": {
+      "description": "The `overflow-checks` setting controls the [`-C overflow-checks` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#overflow-checks) which\ncontrols the behavior of [runtime integer overflow](https://doc.rust-lang.org/reference/expressions/operator-expr.html#overflow). When overflow-checks are\nenabled, a panic will occur on overflow.",
+      "type": "boolean",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overflow-checks"
+        }
+      }
+    },
+    "Incremental": {
+      "description": "The `incremental` setting controls the [`-C incremental` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#incremental) which controls\nwhether or not incremental compilation is enabled. Incremental compilation\ncauses `rustc` to to save additional information to disk which will be reused\nwhen recompiling the crate, improving re-compile times. The additional\ninformation is stored in the `target` directory.\n\nThe valid options are:\n\n* `true`: enabled\n* `false`: disabled\n\nIncremental compilation is only used for workspace members and \"path\"\ndependencies.\n\nThe incremental value can be overridden globally with the `CARGO_INCREMENTAL`\n[environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html) or the [`build.incremental`](https://doc.rust-lang.org/cargo/reference/config.html#buildincremental) config variable.",
+      "type": "boolean",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#incremental"
+        }
+      }
+    },
+    "CodegenUnits": {
+      "description": "The `codegen-units` setting controls the [`-C codegen-units` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#codegen-units) which\ncontrols how many \"code generation units\" a crate will be split into. More\ncode generation units allows more of a crate to be processed in parallel\npossibly reducing compile time, but may produce slower code.\n\nThis option takes an integer greater than 0.\n\nThe default is 256 for [incremental](https://doc.rust-lang.org/cargo/reference/profiles.html#incremental) builds, and 16 for\nnon-incremental builds.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0,
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#codegen-units"
+        }
+      }
+    },
+    "Rpath": {
+      "description": "The `rpath` setting controls the [`-C rpath` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#rpath) which controls\nwhether or not [`rpath`](https://en.wikipedia.org/wiki/Rpath) is enabled.",
+      "type": "boolean",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#rpath"
+        }
+      }
+    },
+    "ProfilePackageOverrides": {
+      "description": "Package-specific overrides.\n\nThe package name is a [Package ID Spec](https://doc.rust-lang.org/cargo/reference/pkgid-spec.html), so you can\ntarget individual versions of a package with syntax such as `[profile.dev.package.\"foo:2.1.0\"]`.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Profile"
+      },
+      "x-tombi-table-keys-order": "ascending",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overrides"
+        }
+      }
     },
     "Profile": {
       "title": "Profile",
       "type": "object",
       "properties": {
-        "codegen-units": {
-          "description": "The `codegen-units` setting controls the [`-C codegen-units` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#codegen-units) which\ncontrols how many \"code generation units\" a crate will be split into. More\ncode generation units allows more of a crate to be processed in parallel\npossibly reducing compile time, but may produce slower code.\n\nThis option takes an integer greater than 0.\n\nThe default is 256 for [incremental](https://doc.rust-lang.org/cargo/reference/profiles.html#incremental) builds, and 16 for\nnon-incremental builds.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0,
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#codegen-units"
-            }
-          }
+        "inherits": {
+          "$ref": "#/definitions/Inherits"
+        },
+        "opt-level": {
+          "$ref": "#/definitions/OptLevel"
         },
         "debug": {
           "$ref": "#/definitions/DebugLevel"
         },
+        "split-debuginfo": {
+          "$ref": "#/definitions/SplitDebuginfo"
+        },
+        "strip": {
+          "$ref": "#/definitions/Strip"
+        },
         "debug-assertions": {
-          "description": "The `debug-assertions` setting controls the [`-C debug-assertions` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#debug-assertions) which\nturns `cfg(debug_assertions)` [conditional compilation](https://doc.rust-lang.org/reference/conditional-compilation.html#debug_assertions) on or off. Debug\nassertions are intended to include runtime validation which is only available\nin debug/development builds. These may be things that are too expensive or\notherwise undesirable in a release build. Debug assertions enables the\n[`debug_assert!` macro](https://doc.rust-lang.org/std/macro.debug_assert.html) in the standard library.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#debug-assertions"
-            }
-          }
+          "$ref": "#/definitions/DebugAssertions"
+        },
+        "overflow-checks": {
+          "$ref": "#/definitions/OverflowChecks"
+        },
+        "lto": {
+          "$ref": "#/definitions/Lto"
+        },
+        "panic": {
+          "$ref": "#/definitions/Panic"
+        },
+        "incremental": {
+          "$ref": "#/definitions/Incremental"
+        },
+        "codegen-units": {
+          "$ref": "#/definitions/CodegenUnits"
+        },
+        "rpath": {
+          "$ref": "#/definitions/Rpath"
+        },
+        "package": {
+          "$ref": "#/definitions/ProfilePackageOverrides"
         },
         "dir-name": {
           "type": "string",
           "x-taplo": {
             "hidden": true
           }
-        },
-        "incremental": {
-          "description": "The `incremental` setting controls the [`-C incremental` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#incremental) which controls\nwhether or not incremental compilation is enabled. Incremental compilation\ncauses `rustc` to to save additional information to disk which will be reused\nwhen recompiling the crate, improving re-compile times. The additional\ninformation is stored in the `target` directory.\n\nThe valid options are:\n\n* `true`: enabled\n* `false`: disabled\n\nIncremental compilation is only used for workspace members and \"path\"\ndependencies.\n\nThe incremental value can be overridden globally with the `CARGO_INCREMENTAL`\n[environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html) or the [`build.incremental`](https://doc.rust-lang.org/cargo/reference/config.html#buildincremental) config variable.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#incremental"
-            }
-          }
-        },
-        "inherits": {
-          "type": "string",
-          "x-taplo": {
-            "hidden": true
-          }
-        },
-        "lto": {
-          "$ref": "#/definitions/Lto"
-        },
-        "opt-level": {
-          "$ref": "#/definitions/OptLevel"
-        },
-        "overflow-checks": {
-          "description": "The `overflow-checks` setting controls the [`-C overflow-checks` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#overflow-checks) which\ncontrols the behavior of [runtime integer overflow](https://doc.rust-lang.org/reference/expressions/operator-expr.html#overflow). When overflow-checks are\nenabled, a panic will occur on overflow.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overflow-checks"
-            }
-          }
-        },
-        "package": {
-          "description": "Package-specific overrides.\n\nThe package name is a [Package ID Spec](https://doc.rust-lang.org/cargo/reference/pkgid-spec.html), so you can\ntarget individual versions of a package with syntax such as `[profile.dev.package.\"foo:2.1.0\"]`.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Profile"
-          },
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#overrides"
-            }
-          }
-        },
-        "panic": {
-          "$ref": "#/definitions/Panic"
-        },
-        "rpath": {
-          "description": "The `rpath` setting controls the [`-C rpath` flag](https://doc.rust-lang.org/rustc/codegen-options/index.html#rpath) which controls\nwhether or not [`rpath`](https://en.wikipedia.org/wiki/Rpath) is enabled.",
-          "type": "boolean",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/profiles.html#rpath"
-            }
-          }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "schema"
     },
     "Profiles": {
       "title": "Profiles",
@@ -902,7 +1102,8 @@
           "description": "An array of registry names.",
           "items": {
             "type": "string"
-          }
+          },
+          "x-tombi-array-values-order": "ascending"
         }
       ],
       "x-taplo": {
@@ -1002,6 +1203,7 @@
               }
             }
           },
+          "x-tombi-array-values-order": "ascending",
           "x-taplo": {
             "docs": {
               "enumValues": [
@@ -1027,6 +1229,7 @@
               "hidden": true
             }
           },
+          "x-tombi-array-values-order": "ascending",
           "x-taplo": {
             "hidden": true
           }
@@ -1112,6 +1315,7 @@
               }
             }
           },
+          "x-tombi-array-values-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-required-features-field"
@@ -1127,18 +1331,22 @@
             }
           }
         }
-      }
+      },
+      "x-tombi-table-keys-order": "schema"
     },
     "Workspace": {
       "title": "Workspace",
       "description": "The `[workspace]` table in `Cargo.toml` defines which packages are members of\nthe workspace:\n\n```toml\n[workspace]\nmembers = [\"member1\", \"path/to/member2\", \"crates/*\"]\nexclude = [\"crates/foo\", \"path/to/other\"]\n```\n\nAn empty `[workspace]` table can be used with a `[package]` to conveniently\ncreate a workspace with the package and all of its path dependencies.\n\nAll [`path` dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-path-dependencies) residing in the workspace directory automatically\nbecome members. Additional members can be listed with the `members` key, which\nshould be an array of strings containing directories with `Cargo.toml` files.\n\nThe `members` list also supports [globs](https://docs.rs/glob/0.3.0/glob/struct.Pattern.html) to match multiple paths, using\ntypical filename glob patterns like `*` and `?`.\n\nThe `exclude` key can be used to prevent paths from being included in a\nworkspace. This can be useful if some path dependencies aren't desired to be\nin the workspace at all, or using a glob pattern and you want to remove a\ndirectory.\n\nAn empty `[workspace]` table can be used with a `[package]` to conveniently\ncreate a workspace with the package and all of its path dependencies.",
       "type": "object",
       "properties": {
-        "default-members": {
-          "description": "The optional `default-members` key can be specified to set the members to\noperate on when in the workspace root and the package selection flags are not\nused:\n\n```toml\n[workspace]\nmembers = [\"path/to/member1\", \"path/to/member2\", \"path/to/member3/*\"]\ndefault-members = [\"path/to/member2\", \"path/to/member3/foo\"]\n```\n\nWhen specified, `default-members` must expand to a subset of `members`.",
+        "resolver": {
+          "$ref": "#/definitions/Resolver"
+        },
+        "members": {
+          "description": "All [`path` dependencies] residing in the workspace directory automatically\nbecome members. Additional members can be listed with the `members` key, which\nshould be an array of strings containing directories with `Cargo.toml` files.\n\nThe `members` list also supports [globs] to match multiple paths, using\ntypical filename glob patterns like `*` and `?`.",
           "type": "array",
           "items": {
-            "description": "The optional `default-members` key can be specified to set the members to\noperate on when in the workspace root and the package selection flags are not\nused:\n\n```toml\n[workspace]\nmembers = [\"path/to/member1\", \"path/to/member2\", \"path/to/member3/*\"]\ndefault-members = [\"path/to/member2\", \"path/to/member3/foo\"]\n```\n\nWhen specified, `default-members` must expand to a subset of `members`.",
+            "description": "All [`path` dependencies] residing in the workspace directory automatically\nbecome members. Additional members can be listed with the `members` key, which\nshould be an array of strings containing directories with `Cargo.toml` files.\n\nThe `members` list also supports [globs] to match multiple paths, using\ntypical filename glob patterns like `*` and `?`.",
             "type": "string",
             "x-taplo": {
               "links": {
@@ -1146,18 +1354,7 @@
               }
             }
           },
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
-            }
-          }
-        },
-        "dependencies": {
-          "description": "The `workspace.dependencies` table is where you define dependencies to be\ninherited by members of a workspace.\n\nSpecifying a workspace dependency is similar to [package dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) except:\n- Dependencies from this table cannot be declared as `optional`\n- [`features`][features] declared in this table are additive with the `features` from `[dependencies]`\n\nYou can then [inherit the workspace dependency as a package dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace)\n\nExample:\n```toml\n# [PROJECT_DIR]/Cargo.toml\n[workspace]\nmembers = [\"bar\"]\n\n[workspace.dependencies]\ncc = \"1.0.73\"\nrand = \"0.8.5\"\nregex = { version = \"1.6.0\", default-features = false, features = [\"std\"] }\n```\n\n```toml\n# [PROJECT_DIR]/bar/Cargo.toml\n[package]\nname = \"bar\"\nversion = \"0.2.0\"\n\n[dependencies]\nregex = { workspace = true, features = [\"unicode\"] }\n\n[build-dependencies]\ncc.workspace = true\n\n[dev-dependencies]\nrand.workspace = true\n```",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
+          "x-tombi-array-values-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
@@ -1176,6 +1373,99 @@
               }
             }
           },
+          "x-tombi-array-values-order": "ascending",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
+            }
+          }
+        },
+        "default-members": {
+          "description": "The optional `default-members` key can be specified to set the members to\noperate on when in the workspace root and the package selection flags are not\nused:\n\n```toml\n[workspace]\nmembers = [\"path/to/member1\", \"path/to/member2\", \"path/to/member3/*\"]\ndefault-members = [\"path/to/member2\", \"path/to/member3/foo\"]\n```\n\nWhen specified, `default-members` must expand to a subset of `members`.",
+          "type": "array",
+          "items": {
+            "description": "The optional `default-members` key can be specified to set the members to\noperate on when in the workspace root and the package selection flags are not\nused:\n\n```toml\n[workspace]\nmembers = [\"path/to/member1\", \"path/to/member2\", \"path/to/member3/*\"]\ndefault-members = [\"path/to/member2\", \"path/to/member3/foo\"]\n```\n\nWhen specified, `default-members` must expand to a subset of `members`.",
+            "type": "string",
+            "x-taplo": {
+              "links": {
+                "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
+              }
+            }
+          },
+          "x-tombi-array-values-order": "ascending",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
+            }
+          }
+        },
+        "package": {
+          "description": "The `workspace.package` table is where you define keys that can be\ninherited by members of a workspace. These keys can be inherited by\ndefining them in the member package with `{key}.workspace = true`.\n\nKeys that are supported:\n\n|                |                 |\n|----------------|-----------------|\n| `authors`      | `categories`    |\n| `description`  | `documentation` |\n| `edition`      | `exclude`       |\n| `homepage`     | `include`       |\n| `keywords`     | `license`       |\n| `license-file` | `publish`       |\n| `readme`       | `repository`    |\n| `rust-version` | `version`       |\n\n- `license-file` and `readme` are relative to the workspace root\n- `include` and `exclude` are relative to your package root\n\nExample:\n```toml\n# [PROJECT_DIR]/Cargo.toml\n[workspace]\nmembers = [\"bar\"]\n\n[workspace.package]\nversion = \"1.2.3\"\nauthors = [\"Nice Folks\"]\ndescription = \"A short description of my package\"\ndocumentation = \"https://example.com/bar\"\n```\n\n```toml\n# [PROJECT_DIR]/bar/Cargo.toml\n[package]\nname = \"bar\"\nversion.workspace = true\nauthors.workspace = true\ndescription.workspace = true\ndocumentation.workspace = true\n```",
+          "type": "object",
+          "properties": {
+            "version": {
+              "$ref": "#/definitions/SemVer"
+            },
+            "authors": {
+              "$ref": "#/definitions/Authors"
+            },
+            "edition": {
+              "$ref": "#/definitions/Edition"
+            },
+            "rust-version": {
+              "$ref": "#/definitions/RustVersion"
+            },
+            "description": {
+              "$ref": "#/definitions/Description"
+            },
+            "documentation": {
+              "$ref": "#/definitions/Documentation"
+            },
+            "readme": {
+              "$ref": "#/definitions/Readme"
+            },
+            "homepage": {
+              "$ref": "#/definitions/Homepage"
+            },
+            "repository": {
+              "$ref": "#/definitions/Repository"
+            },
+            "license": {
+              "$ref": "#/definitions/License"
+            },
+            "license-file": {
+              "$ref": "#/definitions/LicenseFile"
+            },
+            "keywords": {
+              "$ref": "#/definitions/Keywords"
+            },
+            "categories": {
+              "$ref": "#/definitions/Categories"
+            },
+            "exclude": {
+              "$ref": "#/definitions/Exclude"
+            },
+            "include": {
+              "$ref": "#/definitions/Include"
+            },
+            "publish": {
+              "$ref": "#/definitions/Publish"
+            }
+          },
+          "x-tombi-table-keys-order": "schema",
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-package-table"
+            }
+          }
+        },
+        "dependencies": {
+          "description": "The `workspace.dependencies` table is where you define dependencies to be\ninherited by members of a workspace.\n\nSpecifying a workspace dependency is similar to [package dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) except:\n- Dependencies from this table cannot be declared as `optional`\n- [`features`][features] declared in this table are additive with the `features` from `[dependencies]`\n\nYou can then [inherit the workspace dependency as a package dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace)\n\nExample:\n```toml\n# [PROJECT_DIR]/Cargo.toml\n[workspace]\nmembers = [\"bar\"]\n\n[workspace.dependencies]\ncc = \"1.0.73\"\nrand = \"0.8.5\"\nregex = { version = \"1.6.0\", default-features = false, features = [\"std\"] }\n```\n\n```toml\n# [PROJECT_DIR]/bar/Cargo.toml\n[package]\nname = \"bar\"\nversion = \"0.2.0\"\n\n[dependencies]\nregex = { workspace = true, features = [\"unicode\"] }\n\n[build-dependencies]\ncc.workspace = true\n\n[dev-dependencies]\nrand.workspace = true\n```",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Dependency"
+          },
+          "x-tombi-table-keys-order": "ascending",
           "x-taplo": {
             "links": {
               "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
@@ -1191,24 +1481,6 @@
             }
           }
         },
-        "members": {
-          "description": "All [`path` dependencies] residing in the workspace directory automatically\nbecome members. Additional members can be listed with the `members` key, which\nshould be an array of strings containing directories with `Cargo.toml` files.\n\nThe `members` list also supports [globs] to match multiple paths, using\ntypical filename glob patterns like `*` and `?`.",
-          "type": "array",
-          "items": {
-            "description": "All [`path` dependencies] residing in the workspace directory automatically\nbecome members. Additional members can be listed with the `members` key, which\nshould be an array of strings containing directories with `Cargo.toml` files.\n\nThe `members` list also supports [globs] to match multiple paths, using\ntypical filename glob patterns like `*` and `?`.",
-            "type": "string",
-            "x-taplo": {
-              "links": {
-                "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
-              }
-            }
-          },
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
-            }
-          }
-        },
         "metadata": {
           "description": "The `workspace.metadata` table is ignored by Cargo and will not be warned\nabout. This section can be used for tools that would like to store workspace\nconfiguration in `Cargo.toml`. For example:\n\n```toml\n[workspace]\nmembers = [\"member1\", \"member2\"]\n\n[workspace.metadata.webcontents]\nroot = \"path/to/webproject\"\ntool = [\"npm\", \"run\", \"build\"]\n# ...\n```\n\nThere is a similar set of tables at the package level at\n`package.metadata`. While cargo does not specify a\nformat for the content of either of these tables, it is suggested that\nexternal tools may wish to use them in a consistent fashion, such as referring\nto the data in `workspace.metadata` if data is missing from `package.metadata`,\nif that makes sense for the tool in question.\n",
           "type": "object",
@@ -1218,70 +1490,9 @@
               "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-workspace-section"
             }
           }
-        },
-        "resolver": {
-          "$ref": "#/definitions/Resolver"
-        },
-        "package": {
-          "description": "The `workspace.package` table is where you define keys that can be\ninherited by members of a workspace. These keys can be inherited by\ndefining them in the member package with `{key}.workspace = true`.\n\nKeys that are supported:\n\n|                |                 |\n|----------------|-----------------|\n| `authors`      | `categories`    |\n| `description`  | `documentation` |\n| `edition`      | `exclude`       |\n| `homepage`     | `include`       |\n| `keywords`     | `license`       |\n| `license-file` | `publish`       |\n| `readme`       | `repository`    |\n| `rust-version` | `version`       |\n\n- `license-file` and `readme` are relative to the workspace root\n- `include` and `exclude` are relative to your package root\n\nExample:\n```toml\n# [PROJECT_DIR]/Cargo.toml\n[workspace]\nmembers = [\"bar\"]\n\n[workspace.package]\nversion = \"1.2.3\"\nauthors = [\"Nice Folks\"]\ndescription = \"A short description of my package\"\ndocumentation = \"https://example.com/bar\"\n```\n\n```toml\n# [PROJECT_DIR]/bar/Cargo.toml\n[package]\nname = \"bar\"\nversion.workspace = true\nauthors.workspace = true\ndescription.workspace = true\ndocumentation.workspace = true\n```",
-          "type": "object",
-          "properties": {
-            "authors": {
-              "$ref": "#/definitions/Authors"
-            },
-            "categories": {
-              "$ref": "#/definitions/Categories"
-            },
-            "description": {
-              "$ref": "#/definitions/Description"
-            },
-            "documentation": {
-              "$ref": "#/definitions/Documentation"
-            },
-            "edition": {
-              "$ref": "#/definitions/Edition"
-            },
-            "exclude": {
-              "$ref": "#/definitions/Exclude"
-            },
-            "homepage": {
-              "$ref": "#/definitions/Homepage"
-            },
-            "include": {
-              "$ref": "#/definitions/Include"
-            },
-            "keywords": {
-              "$ref": "#/definitions/Keywords"
-            },
-            "license": {
-              "$ref": "#/definitions/License"
-            },
-            "license-file": {
-              "$ref": "#/definitions/LicenseFile"
-            },
-            "publish": {
-              "$ref": "#/definitions/Publish"
-            },
-            "readme": {
-              "$ref": "#/definitions/Readme"
-            },
-            "repository": {
-              "$ref": "#/definitions/Repository"
-            },
-            "rust-version": {
-              "$ref": "#/definitions/RustVersion"
-            },
-            "version": {
-              "$ref": "#/definitions/SemVer"
-            }
-          },
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html#the-package-table"
-            }
-          }
         }
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/workspaces.html"
@@ -1301,6 +1512,7 @@
           }
         }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-authors-field"
@@ -1320,6 +1532,7 @@
           }
         }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-categories-field"
@@ -1359,6 +1572,7 @@
           }
         }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
@@ -1387,6 +1601,7 @@
           }
         }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
@@ -1406,6 +1621,7 @@
           }
         }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-keywords-field"
@@ -1453,15 +1669,18 @@
       }
     },
     "WorkspaceInheritance": {
-      "title": "Workspace",
-      "description": "The `workspace` field allow keys to be inherited by defining them in the member package with `{key}.workspace = true`",
       "type": "object",
       "properties": {
         "workspace": {
+          "title": "Workspace",
+          "description": "The `workspace` field allow keys to be inherited by defining them in the member package with `{key}.workspace = true`",
           "type": "boolean",
           "enum": [true]
         }
-      }
+      },
+      "required": ["workspace"],
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema"
     },
     "PlaydateMetadata": {
       "title": "Playdate Package Metadata",
@@ -1587,6 +1806,7 @@
         }
       },
       "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "initKeys": [
           "bundle-id",
@@ -1614,6 +1834,7 @@
         "description": "Path to include.",
         "type": "string"
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-list"
@@ -1643,6 +1864,7 @@
           }
         ]
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-table"
@@ -1671,6 +1893,7 @@
           "description": "Allow build assets for dependencies."
         }
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#assets-options"
@@ -1687,6 +1910,7 @@
           "$ref": "#/definitions/PlaydateMetadataAssetsOptions"
         }
       },
+      "x-tombi-table-keys-order": "schema",
       "x-taplo": {
         "links": {
           "key": "https://github.com/boozook/playdate/blob/main/support/build/README.md#options"
@@ -1696,36 +1920,35 @@
   },
   "description": "A schema for Cargo.toml.",
   "properties": {
-    "badges": {
-      "description": "[crates.io](https://crates.io) can display various badges for build status, test coverage, etc. for\neach crate. All badges are optional.\n\n- The badges pertaining to build status that are currently available are\n  Appveyor, CircleCI, Cirrus CI, GitLab, Azure DevOps, Travis CI and Bitbucket\n  Pipelines.\n- Available badges pertaining to code test coverage are Codecov and Coveralls.\n- There are also maintenance-related badges based on isitmaintained.com\n  which state the issue resolution time, percent of open issues, and future\n  maintenance intentions.\n\nMost badge specifications require a `repository` key. It is expected to be in\n`user/repo` format.\n\n```toml\n[badges]\n\n# Appveyor: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`; `id` is optional; you can specify the appveyor project id if you\n# want to use that instead. `project_name` is optional; use when the repository\n# name differs from the appveyor project name.\nappveyor = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Circle CI: `repository` is required. `branch` is optional; default is `master`\ncircle-ci = { repository = \"...\", branch = \"master\" }\n\n# Cirrus CI: `repository` is required. `branch` is optional; default is `master`\ncirrus-ci = { repository = \"...\", branch = \"master\" }\n\n# GitLab: `repository` is required. `branch` is optional; default is `master`\ngitlab = { repository = \"...\", branch = \"master\" }\n\n# Azure DevOps: `project` is required. `pipeline` is required. `build` is optional; default is `1`\n# Note: project = `organization/project`, pipeline = `name_of_pipeline`, build = `definitionId`\nazure-devops = { project = \"...\", pipeline = \"...\", build=\"2\" }\n\n# Travis CI: `repository` in format \"<user>/<project>\" is required.\n# `branch` is optional; default is `master`\ntravis-ci = { repository = \"...\", branch = \"master\" }\n\n# Bitbucket Pipelines: `repository` is required. `branch` is required\nbitbucket-pipelines = { repository = \"...\", branch = \"master\" }\n\n# Codecov: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`.\ncodecov = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Coveralls: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default) and `bitbucket`.\ncoveralls = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Is it maintained resolution time: `repository` is required.\nis-it-maintained-issue-resolution = { repository = \"...\" }\n\n# Is it maintained percentage of open issues: `repository` is required.\nis-it-maintained-open-issues = { repository = \"...\" }\n\n# Maintenance: `status` is required. Available options are:\n# - `actively-developed`: New features are being added and bugs are being fixed.\n# - `passively-maintained`: There are no plans for new features, but the maintainer intends to\n#   respond to issues that get filed.\n# - `as-is`: The crate is feature complete, the maintainer does not intend to continue working on\n#   it or providing support, but it works for the purposes it was designed for.\n# - `experimental`: The author wants to share it with the community but is not intending to meet\n#   anyone's particular use case.\n# - `looking-for-maintainer`: The current maintainer would like to transfer the crate to someone\n#   else.\n# - `deprecated`: The maintainer does not recommend using this crate (the description of the crate\n#   can describe why, there could be a better solution available or there could be problems with\n#   the crate that the author does not want to fix).\n# - `none`: Displays no badge on crates.io, since the maintainer has not chosen to specify\n#   their intentions, potential crate users will need to investigate on their own.\nmaintenance = { status = \"...\" }\n```",
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": {
-          "type": "string"
-        }
-      },
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section"
-        }
-      }
-    },
-    "bench": {
-      "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
+    "cargo-features": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/Target",
-        "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
-        "x-taplo": {
-          "links": {
-            "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#benchmarks"
-          }
-        }
+        "type": "string"
       },
+      "x-tombi-array-values-order": "ascending"
+    },
+    "package": {
+      "$ref": "#/definitions/Package"
+    },
+    "project": {
+      "$ref": "#/definitions/Package",
+      "description": "[project] is deprecated. Use [package] instead.",
+      "deprecated": true,
       "x-taplo": {
+        "hidden": true
+      }
+    },
+    "workspace": {
+      "$ref": "#/definitions/Workspace"
+    },
+    "lib": {
+      "$ref": "#/definitions/Target",
+      "x-taplo": {
+        "docs": {
+          "main": "The library target defines a \"library\" that can be used and linked by other\nlibraries and executables. The filename defaults to `src/lib.rs`, and the name\nof the library defaults to the name of the package. A package can have only\none library. The settings for the library can be [customized](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target) in the `[lib]`\ntable in `Cargo.toml`.\n\n```toml\n# Example of customizing the library in Cargo.toml.\n[lib]\ncrate-type = [\"cdylib\"]\nbench = false\n```\n"
+        },
         "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#benchmarks"
+          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#library"
         }
       }
     },
@@ -1741,41 +1964,68 @@
           }
         }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#binaries"
         }
       }
     },
-    "build-dependencies": {
-      "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Dependency"
+    "example": {
+      "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Target",
+        "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
+        "x-taplo": {
+          "links": {
+            "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#examples"
+          }
+        }
       },
+      "x-tombi-array-values-order": "ascending",
       "x-taplo": {
         "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
-        },
-        "plugins": ["crates"],
-        "crates": {
-          "schemas": "dependencies"
+          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#examples"
         }
       }
     },
-    "build_dependencies": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Dependency"
-      },
-      "x-taplo": {
-        "hidden": true
-      }
-    },
-    "cargo-features": {
+    "test": {
+      "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
       "type": "array",
       "items": {
-        "type": "string"
+        "$ref": "#/definitions/Target",
+        "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
+        "x-taplo": {
+          "links": {
+            "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests"
+          }
+        }
+      },
+      "x-tombi-array-values-order": "ascending",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests"
+        }
+      }
+    },
+    "bench": {
+      "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Target",
+        "description": "Benchmarks provide a way to test the performance of your code using the\n[`cargo bench`](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) command. They follow the same structure as [tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#tests),\nwith each benchmark function annotated with the `#[bench]` attribute.\nSimilarly to tests:\n\n* Benchmarks are placed in the [`benches` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html).\n* Benchmark functions defined in libraries and binaries have access to the\n  *private* API within the target they are defined in. Benchmarks in the\n  `benches` directory may use the *public* API.\n* [The `bench` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-bench-field) can be used to define which targets\n  are benchmarked by default.\n* [The `harness` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field) can be used to disable the\n  built-in harness.\n\n> **Note**: The [`#[bench]`\n> attribute](https://doc.rust-lang.org/unstable-book/library-features/test.html) is currently\n> unstable and only available on the [nightly channel](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html). There are some\n> packages available on [crates.io](https://crates.io/keywords/benchmark) that\n> may help with running benchmarks on the stable channel, such as\n> [Criterion](https://crates.io/crates/criterion).",
+        "x-taplo": {
+          "links": {
+            "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#benchmarks"
+          }
+        }
+      },
+      "x-tombi-array-values-order": "ascending",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#benchmarks"
+        }
       }
     },
     "dependencies": {
@@ -1784,6 +2034,7 @@
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html"
@@ -1796,6 +2047,7 @@
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies"
@@ -1811,25 +2063,63 @@
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "description": "[dev_dependencies] is deprecated. Use [dev-dependencies] instead.",
+      "deprecated": true,
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "hidden": true
       }
     },
-    "example": {
-      "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Target",
-        "description": "Files located under the [examples directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are example uses of the functionality provided by the library. When compiled, they are placed in the[ target/debug/examples directory](https://doc.rust-lang.org/cargo/guide/build-cache.html).\n\nExamples can use the public API of the package's library. They are also linked with the [dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and [dev-dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in Cargo.toml.\n\nBy default, examples are executable binaries (with a `main()` function). You\ncan specify the [`crate-type` field](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) to make an example\nbe compiled as a library:\n\n```toml\n[[example]]\nname = \"foo\"\ncrate-type = [\"staticlib\"]\n```\n\nYou can run individual executable examples with the [`cargo run`](https://doc.rust-lang.org/cargo/commands/cargo-run.html) command with\nthe `--example <example-name>` option. Library examples can be built with\n[`cargo build`](https://doc.rust-lang.org/cargo/commands/cargo-build.html) with the `--example <example-name>` option. [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html)\nwith the `--example <example-name>` option can be used to copy executable\nbinaries to a common location. Examples are compiled by [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) by\ndefault to protect them from bit-rotting. Set [the `test`\nfield](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-test-field) to `true` if you have `#[test]` functions in the\nexample that you want to run with [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html).\n",
-        "x-taplo": {
-          "links": {
-            "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#examples"
-          }
-        }
+    "build-dependencies": {
+      "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Dependency"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#examples"
+          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
+        },
+        "plugins": ["crates"],
+        "crates": {
+          "schemas": "dependencies"
+        }
+      }
+    },
+    "build_dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Dependency"
+      },
+      "description": "[build_dependencies] is deprecated. Use [build-dependencies] instead.",
+      "deprecated": true,
+      "x-tombi-table-keys-order": "ascending",
+      "x-taplo": {
+        "hidden": true
+      }
+    },
+    "target": {
+      "type": "object",
+      "x-tombi-table-keys-order": "ascending",
+      "additionalProperties": {
+        "$ref": "#/definitions/Platform"
+      }
+    },
+    "badges": {
+      "description": "[crates.io](https://crates.io) can display various badges for build status, test coverage, etc. for\neach crate. All badges are optional.\n\n- The badges pertaining to build status that are currently available are\n  Appveyor, CircleCI, Cirrus CI, GitLab, Azure DevOps, Travis CI and Bitbucket\n  Pipelines.\n- Available badges pertaining to code test coverage are Codecov and Coveralls.\n- There are also maintenance-related badges based on isitmaintained.com\n  which state the issue resolution time, percent of open issues, and future\n  maintenance intentions.\n\nMost badge specifications require a `repository` key. It is expected to be in\n`user/repo` format.\n\n```toml\n[badges]\n\n# Appveyor: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`; `id` is optional; you can specify the appveyor project id if you\n# want to use that instead. `project_name` is optional; use when the repository\n# name differs from the appveyor project name.\nappveyor = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Circle CI: `repository` is required. `branch` is optional; default is `master`\ncircle-ci = { repository = \"...\", branch = \"master\" }\n\n# Cirrus CI: `repository` is required. `branch` is optional; default is `master`\ncirrus-ci = { repository = \"...\", branch = \"master\" }\n\n# GitLab: `repository` is required. `branch` is optional; default is `master`\ngitlab = { repository = \"...\", branch = \"master\" }\n\n# Azure DevOps: `project` is required. `pipeline` is required. `build` is optional; default is `1`\n# Note: project = `organization/project`, pipeline = `name_of_pipeline`, build = `definitionId`\nazure-devops = { project = \"...\", pipeline = \"...\", build=\"2\" }\n\n# Travis CI: `repository` in format \"<user>/<project>\" is required.\n# `branch` is optional; default is `master`\ntravis-ci = { repository = \"...\", branch = \"master\" }\n\n# Bitbucket Pipelines: `repository` is required. `branch` is required\nbitbucket-pipelines = { repository = \"...\", branch = \"master\" }\n\n# Codecov: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`.\ncodecov = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Coveralls: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default) and `bitbucket`.\ncoveralls = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Is it maintained resolution time: `repository` is required.\nis-it-maintained-issue-resolution = { repository = \"...\" }\n\n# Is it maintained percentage of open issues: `repository` is required.\nis-it-maintained-open-issues = { repository = \"...\" }\n\n# Maintenance: `status` is required. Available options are:\n# - `actively-developed`: New features are being added and bugs are being fixed.\n# - `passively-maintained`: There are no plans for new features, but the maintainer intends to\n#   respond to issues that get filed.\n# - `as-is`: The crate is feature complete, the maintainer does not intend to continue working on\n#   it or providing support, but it works for the purposes it was designed for.\n# - `experimental`: The author wants to share it with the community but is not intending to meet\n#   anyone's particular use case.\n# - `looking-for-maintainer`: The current maintainer would like to transfer the crate to someone\n#   else.\n# - `deprecated`: The maintainer does not recommend using this crate (the description of the crate\n#   can describe why, there could be a better solution available or there could be problems with\n#   the crate that the author does not want to fix).\n# - `none`: Displays no badge on crates.io, since the maintainer has not chosen to specify\n#   their intentions, potential crate users will need to investigate on their own.\nmaintenance = { status = \"...\" }\n```",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "x-tombi-table-keys-order": "ascending"
+      },
+      "x-tombi-table-keys-order": "ascending",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section"
         }
       }
     },
@@ -1840,22 +2130,13 @@
         "type": "array",
         "items": {
           "type": "string"
-        }
+        },
+        "x-tombi-array-values-order": "ascending"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/features.html"
-        }
-      }
-    },
-    "lib": {
-      "$ref": "#/definitions/Target",
-      "x-taplo": {
-        "docs": {
-          "main": "The library target defines a \"library\" that can be used and linked by other\nlibraries and executables. The filename defaults to `src/lib.rs`, and the name\nof the library defaults to the name of the package. A package can have only\none library. The settings for the library can be [customized](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target) in the `[lib]`\ntable in `Cargo.toml`.\n\n```toml\n# Example of customizing the library in Cargo.toml.\n[lib]\ncrate-type = [\"cdylib\"]\nbench = false\n```\n"
-        },
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#library"
         }
       }
     },
@@ -1873,7 +2154,9 @@
               "description": "Inherit lints from the workspace manifest."
             }
           },
-          "additionalProperties": false
+          "required": ["workspace"],
+          "additionalProperties": false,
+          "x-tombi-table-keys-order": "ascending"
         }
       ],
       "x-taplo": {
@@ -1882,9 +2165,6 @@
         }
       }
     },
-    "package": {
-      "$ref": "#/definitions/Package"
-    },
     "patch": {
       "description": "The `[patch]` section of `Cargo.toml` can be used to override dependencies\nwith other copies. The syntax is similar to the\n[`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) section.\n\n",
       "type": "object",
@@ -1892,21 +2172,14 @@
         "type": "object",
         "additionalProperties": {
           "$ref": "#/definitions/Dependency"
-        }
+        },
+        "x-tombi-table-keys-order": "ascending"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html#the-patch-section"
         }
-      }
-    },
-    "profile": {
-      "$ref": "#/definitions/Profiles"
-    },
-    "project": {
-      "$ref": "#/definitions/Package",
-      "x-taplo": {
-        "hidden": true
       }
     },
     "replace": {
@@ -1914,40 +2187,19 @@
       "additionalProperties": {
         "$ref": "#/definitions/Dependency"
       },
+      "x-tombi-table-keys-order": "ascending",
       "x-taplo": {
         "hidden": true
       }
     },
-    "target": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Platform"
-      }
-    },
-    "test": {
-      "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Target",
-        "description": "Files located under the [`tests` directory](https://doc.rust-lang.org/cargo/guide/project-layout.html) are integration\ntests. When you run [`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html), Cargo will compile each of these files as\na separate crate, and execute them.\n\nIntegration tests can use the public API of the package's library. They are\nalso linked with the [`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) and\n[`[dev-dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies) defined in `Cargo.toml`.\n\nIf you want to share code among multiple integration tests, you can place it\nin a separate module such as `tests/common/mod.rs` and then put `mod common;`\nin each test to import it.\n\nEach integration test results in a separate executable binary, and [`cargo\ntest`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) will run them serially. In some cases this can be inefficient, as it\ncan take longer to compile, and may not make full use of multiple CPUs when\nrunning the tests. If you have a lot of integration tests, you may want to\nconsider creating a single integration test, and split the tests into multiple\nmodules. The libtest harness will automatically find all of the `#[test]`\nannotated functions and run them in parallel. You can pass module names to\n[`cargo test`](https://doc.rust-lang.org/cargo/commands/cargo-test.html) to only run the tests within that module.\n\nBinary targets are automatically built if there is an integration test. This\nallows an integration test to execute the binary to exercise and test its\nbehavior. The `CARGO_BIN_EXE_<name>` [environment variable](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) is set when the\nintegration test is built so that it can use the [`env` macro](https://doc.rust-lang.org/std/macro.env.html) to locate the\nexecutable.",
-        "x-taplo": {
-          "links": {
-            "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests"
-          }
-        }
-      },
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests"
-        }
-      }
-    },
-    "workspace": {
-      "$ref": "#/definitions/Workspace"
+    "profile": {
+      "$ref": "#/definitions/Profiles"
     }
   },
   "title": "Cargo.toml",
   "type": "object",
+  "additionalProperties": false,
+  "x-tombi-table-keys-order": "schema",
   "x-taplo-info": {
     "authors": ["tamasfe (https://github.com/tamasfe)"],
     "patterns": ["^(.*(/|\\\\)Cargo\\.toml|Cargo\\.toml)$"]
