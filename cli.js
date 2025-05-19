@@ -20,7 +20,7 @@ import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
-import fetch from 'node-fetch'
+import fetch, { FetchError } from 'node-fetch'
 
 /**
  * @import { Ora } from 'ora'
@@ -117,7 +117,7 @@ if (argv.SchemaName) {
  * @typedef {Object} CatalogJsonEntry
  * @property {string} name
  * @property {string} description
- * @property {string[]} fileMatch
+ * @property {string[] | undefined} fileMatch
  * @property {string} url
  * @property {Record<string, string>} versions
  *
@@ -209,6 +209,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     spinner.start()
   }
 
+  let hasValidatedAtLeastOneFile = false
   for (const dirent1 of await fs.readdir(SchemaDir, { withFileTypes: true })) {
     if (isIgnoredFile(dirent1.name)) continue
 
@@ -223,34 +224,42 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
       continue
     }
 
+    hasValidatedAtLeastOneFile = true
+
     const schemaPath = path.join(SchemaDir, schemaName)
     const schemaFile = await toFile(schemaPath)
-    spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+    if (obj.actionName) {
+      if (process.env.CI) {
+        console.info(`Running "${obj.actionName}" on file "${schemaFile.path}"`)
+      } else {
+        spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+      }
+    }
     const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
 
     if (obj?.onPositiveTestFile) {
       const positiveTestDir = path.join(TestPositiveDir, schemaId)
-      if (await exists(positiveTestDir)) {
-        for (const testfile of await fs.readdir(positiveTestDir)) {
-          if (isIgnoredFile(testfile)) continue
+      for (const testfile of await fs
+        .readdir(positiveTestDir)
+        .catch(ignoreOnlyENOENT)) {
+        if (isIgnoredFile(testfile)) continue
 
-          const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
-          let file = await toFile(testfilePath)
-          await obj.onPositiveTestFile(schemaFile, file, data, { spinner })
-        }
+        const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
+        let file = await toFile(testfilePath)
+        await obj.onPositiveTestFile(schemaFile, file, data, { spinner })
       }
     }
 
     if (obj?.onNegativeTestFile) {
       const negativeTestDir = path.join(TestNegativeDir, schemaId)
-      if (await exists(negativeTestDir)) {
-        for (const testfile of await fs.readdir(negativeTestDir)) {
-          if (isIgnoredFile(testfile)) continue
+      for (const testfile of await fs
+        .readdir(negativeTestDir)
+        .catch(ignoreOnlyENOENT)) {
+        if (isIgnoredFile(testfile)) continue
 
-          const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
-          let file = await toFile(testfilePath)
-          await obj.onNegativeTestFile(schemaFile, file, data, { spinner })
-        }
+        const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
+        let file = await toFile(testfilePath)
+        await obj.onNegativeTestFile(schemaFile, file, data, { spinner })
       }
     }
 
@@ -259,7 +268,36 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
 
   if (obj.actionName) {
     spinner.stop()
+  }
+
+  if (!hasValidatedAtLeastOneFile) {
+    const fileExistsNotice =
+      argv['schema-name'] &&
+      (await exists(path.join(SchemaDir, argv['schema-name'])))
+        ? []
+        : [`No schema exists with filename "${argv['schema-name']}"`]
+    printErrorAndExit(
+      null,
+      [
+        `Failed to execute action "${obj.actionName}" on at least one file`,
+      ].concat(fileExistsNotice),
+    )
+  }
+
+  if (obj.actionName) {
     console.info(`✔️ Completed "${obj.actionName}"`)
+  }
+
+  function ignoreOnlyENOENT(/** @type {unknown} */ err) {
+    if (
+      err instanceof Error &&
+      /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT'
+    ) {
+      return []
+    } else {
+      spinner.stop()
+      throw err
+    }
   }
 }
 
@@ -271,7 +309,7 @@ async function toFile(/** @type {string} */ schemaPath) {
     text,
     json: await readDataFile({ filepath: schemaPath, text }),
     name: path.basename(schemaPath),
-    path: schemaPath,
+    path: schemaPath.replace(/^\.\//u, ''),
   }
 }
 
@@ -284,14 +322,18 @@ async function readDataFile(
       try {
         return JSON.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse JSON file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse JSON file "./${obj.filepath}"`,
+        ])
       }
       break
     case '.jsonc':
       try {
         return jsoncParser.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse JSONC file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse JSONC file "./${obj.filepath}"`,
+        ])
       }
       break
     case '.yaml':
@@ -299,19 +341,23 @@ async function readDataFile(
       try {
         return YAML.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse YAML file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse YAML file "./${obj.filepath}"`,
+        ])
       }
       break
     case '.toml':
       try {
         return TOML.parse(obj.text)
       } catch (err) {
-        printErrorAndExit(err, [`Failed to parse TOML file "${obj.filepath}"`])
+        printErrorAndExit(err, [
+          `Failed to parse TOML file "./${obj.filepath}"`,
+        ])
       }
       break
     default:
       printErrorAndExit(new Error(), [
-        `Unable to handle file extension "${fileExtension}" for file "${obj.filepath}"`,
+        `Unable to handle file extension "${fileExtension}" for file "./${obj.filepath}"`,
       ])
       break
   }
@@ -337,8 +383,10 @@ function printErrorAndExit(error, messages, extraText) {
   }
 
   console.warn('---')
-  process.stderr.write(error instanceof Error ? (error?.stack ?? '') : '')
-  process.stderr.write('\n')
+  if (error instanceof Error && error?.stack) {
+    process.stderr.write(error.stack)
+    process.stderr.write('\n')
+  }
   process.exit(1)
 }
 
@@ -438,7 +486,21 @@ async function ajvFactory(
   /**
    * Ditto, but with keywords (ex. "x-intellij-html-description")..
    */
-  for (const unknownKeyword of unknownKeywords) {
+  for (const unknownKeyword of unknownKeywords.concat([
+    'allowTrailingCommas',
+    'defaultSnippets',
+    'markdownDescription',
+    'enumDescriptions',
+    'markdownEnumDescriptions',
+    'x-taplo',
+    'x-taplo-info',
+    'x-tombi-toml-version',
+    'x-tombi-array-values-order',
+    'x-tombi-table-keys-order',
+    'x-intellij-language-injection',
+    'x-intellij-html-description',
+    'x-intellij-enum-metadata',
+  ])) {
     ajv.addKeyword(unknownKeyword)
   }
 
@@ -462,6 +524,27 @@ function getSchemaOptions(/** @type {string} */ schemaName) {
       return path.join(SchemaDir, schemaName2)
     }),
   }
+}
+
+/**
+ * @param {string} filepath
+ * @param {string} schemaFilepath
+ * @param {unknown[] | null | undefined} ajvErrors
+ * @returns {never}
+ */
+function printSchemaValidationErrorAndExit(
+  filepath,
+  schemaFilepath,
+  ajvErrors,
+) {
+  printErrorAndExit(
+    null,
+    [
+      `Failed to validate file "${filepath}" against schema file "./${schemaFilepath}"`,
+      `Showing first error out of ${ajvErrors?.length ?? '?'} total error(s)`,
+    ],
+    util.formatWithOptions({ colors: true }, '%O', ajvErrors?.[0] ?? '???'),
+  )
 }
 
 async function taskNewSchema() {
@@ -576,13 +659,12 @@ async function taskCheck() {
   assertCatalogJsonHasNoDuplicateNames()
   assertCatalogJsonHasNoBadFields()
   assertCatalogJsonHasNoFileMatchConflict()
-  await assertCatalogJsonLocalUrlsMustRefFile()
-  await assertCatalogJsonIncludesAllSchemas()
+  await assertCatalogJsonLocalURLsAreOneToOne()
 
   // Check schema-validation.jsonc.
   await assertFileValidatesAgainstSchema(
     SchemaValidationFile,
-    './src/schema-validation.schema.json',
+    'src/schema-validation.schema.json',
   )
   await assertFilePassesJsonLint(await toFile(SchemaValidationFile), {
     ignoreComments: true,
@@ -651,7 +733,7 @@ async function taskCheck() {
         spinner.fail()
         printErrorAndExit(
           err,
-          [`Failed to create Ajv instance for schema "${schemaFile.path}"`],
+          [`Failed to create Ajv instance for schema "./${schemaFile.path}"`],
           JSON.stringify({ options, schemaDialect, isFullStrictMode }, null, 2),
         )
       }
@@ -662,7 +744,7 @@ async function taskCheck() {
       } catch (err) {
         spinner.fail()
         printErrorAndExit(err, [
-          `Failed to compile schema file "${schemaFile.path}"`,
+          `Failed to compile schema file "./${schemaFile.path}"`,
         ])
       }
 
@@ -670,21 +752,18 @@ async function taskCheck() {
         validateFn,
       }
     },
-    async onPositiveTestFile(schemaFile, testFile, data, { spinner }) {
-      const validate = data.validateFn
-      if (!validate(testFile.json)) {
+    async onPositiveTestFile(
+      schemaFile,
+      testFile,
+      { validateFn },
+      { spinner },
+    ) {
+      if (!validateFn(testFile.json)) {
         spinner.fail()
-        printErrorAndExit(
-          validate.err,
-          [
-            `Schema validation failed ./${testFile.path}`,
-            `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
-          ],
-          util.formatWithOptions(
-            { colors: true },
-            '%O',
-            validate.errors?.[0] ?? '???',
-          ),
+        printSchemaValidationErrorAndExit(
+          testFile.path,
+          schemaFile.path,
+          validateFn.errors,
         )
       }
     },
@@ -693,8 +772,8 @@ async function taskCheck() {
       if (validate(testFile.json)) {
         spinner.fail()
         printErrorAndExit(new Error(), [
-          `Schema validation succeeded but was supposed to fail ./${testFile.path}`,
-          `For schema ${schemaFile.path}`,
+          `Schema validation succeeded for test file "./${testFile.path}", but was supposed to fail `,
+          `For schema "./${schemaFile.path}"`,
         ])
       }
     },
@@ -703,7 +782,6 @@ async function taskCheck() {
   // Print information.
   console.info(`===== REPORT =====`)
   await printSimpleStatistics()
-  await printCountSchemaVersions()
 }
 
 async function taskCheckStrict() {
@@ -719,27 +797,19 @@ async function taskCheckStrict() {
     validateFn = ajv.compile(metaSchemaFile.json)
   } catch (err) {
     printErrorAndExit(err, [
-      `Failed to compile schema file ${metaSchemaFile.path}`,
+      `Failed to compile schema file "./${metaSchemaFile.path}"`,
     ])
   }
 
   await forEachFile({
     actionName: 'strict metaschema check',
     async onSchemaFile(schemaFile, { spinner }) {
-      const validate = validateFn
-      if (!validate(schemaFile.json)) {
+      if (!validateFn(schemaFile.json)) {
         spinner.fail()
-        printErrorAndExit(
-          validate.err,
-          [
-            `Schema validation failed ./${schemaFile.path}`,
-            `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
-          ],
-          util.formatWithOptions(
-            { colors: true },
-            '%O',
-            validate.errors?.[0] ?? '???',
-          ),
+        printSchemaValidationErrorAndExit(
+          schemaFile.path,
+          metaSchemaFile.path,
+          validateFn.errors,
         )
       }
     },
@@ -748,7 +818,6 @@ async function taskCheckStrict() {
   // Print information.
   console.info(`===== REPORT =====`)
   await printSimpleStatistics()
-  await printCountSchemaVersions()
 }
 
 async function taskCheckRemote() {
@@ -762,20 +831,65 @@ async function taskReport() {
 async function taskMaintenance() {
   {
     console.info(`===== BROKEN SCHEMAS =====`)
-    forEachCatalogUrl(async (url) => {
+    forEachCatalogUrl((url) => {
       if (url.startsWith(UrlSchemaStore)) return
 
-      await fetch(url, { method: 'HEAD' })
-        .then((res) => {
-          if (!res.ok) {
-            console.info(`NOT OK (${res.status}/${res.statusText}): ${url}`)
+      fetch(url)
+        .then(async (res) => {
+          if (res.ok) {
+            assertJsonOrYaml(url, await res.text())
+            return
           }
 
-          return undefined
+          if (
+            [
+              // https://github.com/SchemaStore/schemastore/pull/3926#issuecomment-2234102850
+              'https://deployments.allegrogroup.com/tycho/schema',
+            ].includes(url)
+          ) {
+            return
+          }
+
+          if (res.status === 405) {
+            try {
+              const res = await fetch(url)
+              if (res.ok) {
+                assertJsonOrYaml(url, await res.text())
+                return
+              }
+
+              console.info(
+                `NOT OK (${res.status}/${res.statusText}): ${url} (after 405 code)`,
+              )
+            } catch (err) {
+              console.info(
+                `NOT OK (${/** @type {FetchError} */ (err).code}): ${url} (after 405 code)`,
+              )
+            }
+            return
+          }
+          console.info(`NOT OK (${res.status}/${res.statusText}): ${url}`)
         })
         .catch((err) => {
           console.info(`NOT OK (${err.code}): ${url}`)
         })
+
+      function assertJsonOrYaml(
+        /** @type {string} */ url,
+        /** @type {string} */ str,
+      ) {
+        try {
+          JSON.parse(str)
+          return
+        } catch {}
+
+        try {
+          YAML.parse(str)
+          return
+        } catch {}
+
+        console.info(`NOT OK (Not JSON/YAML): ${url}`)
+      }
     })
   }
   // await printDowngradableSchemaVersions()
@@ -851,12 +965,23 @@ async function assertFileSystemIsValid() {
         const schemaPath = path.join(SchemaDir, testDir + '.json')
         if (!(await exists(schemaPath))) {
           printErrorAndExit(new Error(), [
-            `Failed to find a schema file at "${schemaPath}"`,
-            `Expected schema file computed from directory at "${path.join(rootTestDir, testDir)}"`,
+            `Failed to find a schema file at "./${schemaPath}"`,
+            `Expected schema file computed from directory at "./${path.join(rootTestDir, testDir)}"`,
           ])
         }
       }
     }
+  }
+
+  /**
+   * Check for miscellaneous things.
+   */
+  const results = await fs.readdir(path.dirname(CatalogFile))
+  if (results.length !== 1) {
+    printErrorAndExit(new Error(), [
+      `Expected only one file in directory "${path.dirname(CatalogFile)}"`,
+      `Found ${results.length} files: ${new Intl.ListFormat().format(results.map((result) => `"${result}"`))}`,
+    ])
   }
 
   console.info('✔️ Directory structure conforms to expected layout')
@@ -872,8 +997,12 @@ function assertCatalogJsonHasNoDuplicateNames() {
       schemaNames.indexOf(catalogEntry.name) !==
       schemaNames.lastIndexOf(catalogEntry.name)
     ) {
+      const duplicateEntry =
+        Catalog.schemas[schemaNames.lastIndexOf(catalogEntry.name)]
       printErrorAndExit(new Error(), [
         `Found two schema entries with duplicate "name" of "${catalogEntry.name}" in file "${CatalogFile}"`,
+        `The first entry has url "${catalogEntry.url}"`,
+        `The second entry has url "${duplicateEntry.url}"`,
         `Expected the "name" property of schema entries to be unique`,
       ])
     }
@@ -905,8 +1034,8 @@ function assertCatalogJsonHasNoBadFields() {
     for (const property of /** @type {const} */ (['name', 'description'])) {
       if (catalogEntry?.[property]?.toLowerCase()?.includes('schema')) {
         printErrorAndExit(new Error(), [
-          `Expected the "name" or "description" properties of catalog entries to not include the word "schema"`,
-          `All files are already schemas, so its meaning is implied`,
+          `Expected the "name" or "description" properties of entries in "${CatalogFile}" to not include the word "schema"`,
+          `All specified files are already schemas, so its meaning is implied`,
           `If the JSON schema is actually a meta-schema (or some other exception applies), ignore this error by appending to the property "catalogEntryNoLintNameOrDescription" in file "${SchemaValidationFile}"`,
           `The invalid entry has a "url" of "${catalogEntry.url}" in file "${CatalogFile}"`,
         ])
@@ -949,8 +1078,18 @@ function assertCatalogJsonHasNoFileMatchConflict() {
       }
 
       if (allFileMatches.includes(fileGlob)) {
+        const firstEntry = Catalog.schemas.find((entry) =>
+          entry.fileMatch?.includes(fileGlob),
+        )
+        // @ts-expect-error Node v18 supports "Array.prototype.findLast".
+        const lastEntry = Catalog.schemas.findLast((entry) =>
+          entry.fileMatch?.includes(fileGlob),
+        )
         printErrorAndExit(new Error(), [
-          `Expected "fileMatch" value of "${fileGlob}" to be unique across all "fileMatch" properties in file "${CatalogFile}"`,
+          `Found two schema entries with duplicate "fileMatch" entry of "${fileGlob}" in file "${CatalogFile}"`,
+          `The first entry has url "${firstEntry?.url}"`,
+          `The second entry has url "${lastEntry?.url}"`,
+          `Expected all values in "fileMatch" entries to be unique`,
         ])
       }
 
@@ -961,61 +1100,70 @@ function assertCatalogJsonHasNoFileMatchConflict() {
   console.info('✔️ catalog.json has no duplicate "fileMatch" values')
 }
 
-async function assertCatalogJsonLocalUrlsMustRefFile() {
-  await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
-    // Skip external schemas.
-    if (!catalogUrl.startsWith(UrlSchemaStore)) {
-      return
-    }
+async function assertCatalogJsonLocalURLsAreOneToOne() {
+  // Check that each local URL in the catalog has a corresponding JSON Schema file.
+  {
+    await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
+      // Skip external schemas.
+      if (!catalogUrl.startsWith(UrlSchemaStore)) {
+        return
+      }
 
-    const filename = new URL(catalogUrl).pathname.slice(1)
-
-    // Check that local URLs have end in .json
-    if (!filename.endsWith('.json')) {
-      printErrorAndExit(new Error(), [
-        `Expected catalog entries for local files to have a "url" that ends in ".json"`,
-        `The invalid entry has a "url" of "${catalogUrl}" in file "${CatalogFile}"`,
-      ])
-    }
-
-    // Check if schema file exist or not.
-    if (!exists(path.join(SchemaDir, filename))) {
-      printErrorAndExit(new Error(), [
-        `Expected schema file to exist at "${path.join(SchemaDir, filename)}", but no file found`,
-        `Schema file path inferred from catalog entry with a "url" of "${catalogUrl}" in file "${CatalogFile}"`,
-      ])
-    }
-  })
-
-  console.info(`✔️ catalog.json has no invalid schema URLs`)
-}
-
-async function assertCatalogJsonIncludesAllSchemas() {
-  const /** @type {string[]} */ allCatalogLocalJsonFiles = []
-
-  await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
-    if (catalogUrl.startsWith(UrlSchemaStore)) {
       const filename = new URL(catalogUrl).pathname.slice(1)
-      allCatalogLocalJsonFiles.push(filename)
-    }
-  })
 
-  for (const schemaName of await fs.readdir(SchemaDir)) {
-    if (isIgnoredFile(schemaName)) continue
+      // Check that local URLs end in .json
+      if (!filename.endsWith('.json')) {
+        printErrorAndExit(new Error(), [
+          `Expected catalog entries for local files to have a "url" that ends in ".json"`,
+          `The invalid entry has a "url" of "${catalogUrl}" in file "${CatalogFile}"`,
+        ])
+      }
 
-    if (SchemaValidation.missingCatalogUrl.includes(schemaName)) {
-      return
-    }
+      // Check if schema file exist or not.
+      if (!exists(path.join(SchemaDir, filename))) {
+        printErrorAndExit(new Error(), [
+          `Expected schema file to exist at "./${path.join(SchemaDir, filename)}", but no file found`,
+          `Schema file path inferred from catalog entry with a "url" of "${catalogUrl}" in file "${CatalogFile}"`,
+        ])
+      }
+    })
 
-    if (!allCatalogLocalJsonFiles.includes(schemaName)) {
-      printErrorAndExit(new Error(), [
-        `Expected schema file "${schemaName}" to have a corresponding entry in the catalog file "${CatalogFile}"`,
-        `If this is intentional, ignore this error by appending to the property "missingCatalogUrl" in file "${SchemaValidationFile}"`,
-      ])
-    }
+    console.info(`✔️ catalog.json has no invalid schema URLs`)
   }
 
-  console.info(`✔️ catalog.json has all local entries that exist in file total`)
+  // Check that each JSON Schema file has a corresponding local entry in the catalog.
+  {
+    const /** @type {string[]} */ allCatalogLocalJsonFiles = []
+
+    await forEachCatalogUrl((catalogUrl) => {
+      if (catalogUrl.startsWith(UrlSchemaStore)) {
+        const filename = new URL(catalogUrl).pathname.slice(1)
+        allCatalogLocalJsonFiles.push(filename)
+      }
+    })
+
+    for (const schemaName of await fs.readdir(SchemaDir)) {
+      if (isIgnoredFile(schemaName)) continue
+      if (
+        SchemaValidation.missingCatalogUrl.includes(schemaName) ||
+        SchemaValidation.skiptest.includes(schemaName)
+      ) {
+        continue
+      }
+
+      if (!allCatalogLocalJsonFiles.includes(schemaName)) {
+        printErrorAndExit(new Error(), [
+          `Expected schema file "${schemaName}" to have a corresponding entry in the catalog file "${CatalogFile}"`,
+          `Expected to find entry with "url" of "${UrlSchemaStore}${schemaName}"`,
+          `If this is intentional, ignore this error by appending to the property "missingCatalogUrl" in file "${SchemaValidationFile}"`,
+        ])
+      }
+    }
+
+    console.info(
+      `✔️ catalog.json has all local entries that exist in file total`,
+    )
+  }
 }
 
 async function assertSchemaValidationJsonReferencesNoNonexistentFiles() {
@@ -1095,8 +1243,9 @@ async function assertTestFileHasSchemaPragma(
           await fs.writeFile(testFile.path, newContent)
         }
       } else {
+        spinner.stop()
         printErrorAndExit(new Error(), [
-          `Failed to find schema pragma for YAML File "${testFile.path}"`,
+          `Failed to find schema pragma for YAML File "./${testFile.path}"`,
           `Expected first line of file to be "${expected}"`,
           `But, found first line of file to be "${firstLine}"`,
           `Append "--fix" to the command line to automatically fix all fixable issues`,
@@ -1121,8 +1270,9 @@ async function assertTestFileHasSchemaPragma(
           await fs.writeFile(testFile.path, newContent)
         }
       } else {
+        spinner.stop()
         printErrorAndExit(new Error(), [
-          `Failed to find schema pragma for TOML File "${testFile.path}"`,
+          `Failed to find schema pragma for TOML File "./${testFile.path}"`,
           `Expected first line of file to be "${expected}"`,
           `But, found first line of file to be "${firstLine}"`,
           `Append "--fix" to the command line to automatically fix all fixable issues`,
@@ -1178,14 +1328,14 @@ function assertSchemaValidationJsonHasValidSkipTest() {
 
     if (FoldersPositiveTest.includes(folderName)) {
       printErrorAndExit(new Error(), [
-        `Did not expect to find positive test directory at "${path.join(TestPositiveDir, folderName)}"`,
+        `Did not expect to find positive test directory at "./${path.join(TestPositiveDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any positive test files`,
       ])
     }
 
     if (FoldersNegativeTest.includes(folderName)) {
       printErrorAndExit(new Error(), [
-        `Did not expect to find negative test directory at "${path.join(TestNegativeDir, folderName)}"`,
+        `Did not expect to find negative test directory at "./${path.join(TestNegativeDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any negative test files`,
       ])
     }
@@ -1200,7 +1350,7 @@ function assertFileHasCorrectExtensions(
 ) {
   if (!allowedExtensions.includes(path.parse(pathname).ext)) {
     printErrorAndExit(new Error(), [
-      `Expected schema file "${pathname}" to have a valid file extension`,
+      `Expected schema file "./${pathname}" to have a valid file extension`,
       `Valid file extensions: ${JSON.stringify(allowedExtensions, null, 2)}`,
     ])
   }
@@ -1223,7 +1373,7 @@ function assertFileHasNoBom(/** @type {DataFile} */ file) {
 
       if (bomFound) {
         printErrorAndExit(new Error(), [
-          `File must not have ${bom.name} BOM: ${file.path}`,
+          `Expected to have no BOM (${bom.name} BOM) in file "./${file.path}"`,
         ])
       }
     }
@@ -1245,7 +1395,7 @@ async function assertFilePassesJsonLint(
     })
   } catch (err) {
     printErrorAndExit(err, [
-      `Failed strict jsonlint parse of file "${path.basename(file.path)}"`,
+      `Failed strict jsonlint parse of file "./${file.path}"`,
     ])
   }
 }
@@ -1267,14 +1417,7 @@ async function assertFileValidatesAgainstSchema(
   if (ajv.validate(schemaJson, data)) {
     console.info(`✔️ ${path.basename(filepath)} validates against its schema`)
   } else {
-    printErrorAndExit(
-      new Error(),
-      [
-        `Failed to validate file "${path.basename(filepath)}" against schema file "${schemaFilepath}"`,
-        `Showing first error out of ${ajv.errors?.length ?? '?'} total error(s)`,
-      ],
-      util.formatWithOptions({ colors: true }, '%O', ajv.errors?.[0] ?? '???'),
-    )
+    printSchemaValidationErrorAndExit(filepath, schemaFilepath, ajv.errors)
   }
 }
 
@@ -1286,7 +1429,7 @@ async function assertSchemaHasValidSchemaField(
   )
   if (!schemaDialectUrls.includes(schema.json.$schema)) {
     printErrorAndExit(new Error(), [
-      `Schema file has invalid or missing '$schema' keyword => ${schema.name}`,
+      `Invalid or missing '$schema' keyword in schema file "${schema.name}"`,
       `Valid schemas: ${JSON.stringify(schemaDialectUrls)}`,
     ])
   }
@@ -1297,9 +1440,10 @@ async function assertSchemaHasValidSchemaField(
     ).map((schemaDialect) => schemaDialect.url)
     if (tooHighSchemas.includes(schema.json.$schema)) {
       printErrorAndExit(new Error(), [
-        `Schema version is too high => in file ${schema.name}`,
-        `Schema version '${schema.json.$schema}' is not supported by many editors and IDEs`,
-        `Schema file "${schema.path}" must use a lower schema version.`,
+        `Found a too high schema version in file "./${schema.path}"`,
+        `Schema version "${schema.json.$schema}" is not supported by many editors and IDEs`,
+        `We recommend using a lower schema version.`,
+        `To ignore this error, append to the "highSchemaVersion" key in "${SchemaValidationFile}"`,
       ])
     }
   }
@@ -1319,14 +1463,14 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
   if (schemasWithDollarlessId.includes(schema.json.$schema)) {
     if (schema.json.id === undefined) {
       printErrorAndExit(new Error(), [
-        `Missing property 'id' for schema 'src/schemas/json/${schema.name}'`,
+        `Missing property 'id' for schema "./${path.join(SchemaDir, schema.name)}"`,
       ])
     }
     schemaId = schema.json.id
   } else {
     if (schema.json.$id === undefined) {
       printErrorAndExit(new Error(), [
-        `Missing property '$id' for schema 'src/schemas/json/${schema.name}'`,
+        `Missing property '$id' for schema "./${path.join(SchemaDir, schema.name)}"`,
       ])
     }
     schemaId = schema.json.$id
@@ -1334,8 +1478,8 @@ async function assertSchemaHasValidIdField(/** @type {SchemaFile} */ schema) {
 
   if (!schemaId.startsWith('https://') && !schemaId.startsWith('http://')) {
     printErrorAndExit(new Error(), [
-      schemaId,
-      `Schema id/$id must begin with 'https://' or 'http://' for schema 'src/schemas/json/${schema.name}'`,
+      `Expected schema id/$id to begin with 'https://' or 'http://'`,
+      `Found schema with value of "${schemaId}" in "./${path.join(SchemaDir, schema.name)}"`,
     ])
   }
 }
@@ -1351,15 +1495,15 @@ async function assertSchemaHasCorrectMetadata(
   if (schemasWithDollarlessId.includes(schema.json.$schema)) {
     if (schema.json.$id) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Bad property of '$id'; expected 'id' for this schema version`,
       ])
     }
 
     if (schema.json.id !== `https://json.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
-        `Incorrect property 'id' for schema 'src/schemas/json/${schema.name}'`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
+        `Incorrect property 'id' for schema "./${path.join(SchemaDir, schema.name)}"`,
         `Expected value of "https://json.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.id}"`,
       ])
@@ -1367,15 +1511,15 @@ async function assertSchemaHasCorrectMetadata(
   } else {
     if (schema.json.id) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Bad property of 'id'; expected '$id' for this schema version`,
       ])
     }
 
     if (schema.json.$id !== `https://json.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
-        `Expected to find correct metadata on schema file "${schema.path}"`,
-        `Incorrect property '$id' for schema 'src/schemas/json/${schema.name}'`,
+        `Expected to find correct metadata on schema file "./${schema.path}"`,
+        `Incorrect property '$id' for schema "./${path.join(SchemaDir, schema.name)}"`,
         `Expected value of "https://json.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.$id}"`,
       ])
@@ -1390,14 +1534,22 @@ async function assertSchemaNoSmartQuotes(/** @type {SchemaFile} */ schema) {
   for (let i = 0; i < bufferArr.length; ++i) {
     const line = bufferArr[i]
 
-    const smartQuotes = ['‘', '’', '“', '”']
-    for (const quote of smartQuotes) {
-      if (line.includes(quote)) {
-        printErrorAndExit(new Error(), [
-          `Schema file should not have a smart quote: ${schema.path}:${++i}`,
-        ])
-      }
+    if (/"(?:description|title)": ".*?:"/.test(line)) {
+      printErrorAndExit(new Error(), [
+        `Do not expect "description" or "title" to end with a colon`,
+        `Failed to successfully validate file "${schema.path}:${i + 1}"`,
+      ])
     }
+
+    // const smartQuotes = ['‘', '’', '“', '”']
+    // for (const quote of smartQuotes) {
+    //   if (line.includes(quote)) {
+    //     printErrorAndExit(new Error(), [
+    //       `Expected file to have no smart quotes`,
+    //       `Found smart quotes in file "./${schema.path}:${++i}"`,
+    //     ])
+    //   }
+    // }
   }
 }
 
@@ -1406,7 +1558,7 @@ async function assertTopLevelRefIsStandalone(/** @type {SchemaFile} */ schema) {
     for (const [member] of Object.entries(schema.json)) {
       if (member !== '$ref') {
         printErrorAndExit(new Error(), [
-          `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for ${schema.name}`,
+          `Schemas that reference a remote schema must only have $ref as a property. Found property "${member}" for "${schema.name}"`,
         ])
       }
     }
@@ -1416,40 +1568,6 @@ async function assertTopLevelRefIsStandalone(/** @type {SchemaFile} */ schema) {
 async function printSchemaReport() {
   // `bowtie validate --implementation go-gojsonschema ./src/schemas/json/ava.json ./src/test/ava/ava.config.json`
   console.log('TODO')
-}
-
-async function printCountSchemaVersions() {
-  let totalSchemas = 0
-  /** @type {Map<string, number>} */
-  const schemaDialectCounts = new Map(
-    SchemaDialects.map((schemaDialect) => [schemaDialect.url, 0]),
-  )
-
-  await forEachFile({
-    async onSchemaFile(/** @type {SchemaFile} */ schema) {
-      totalSchemas += 1
-
-      let schemaDialect = getSchemaDialect(schema.json.$schema)
-      if (schemaDialect) {
-        schemaDialectCounts.set(
-          schemaDialect.url,
-          // @ts-expect-error
-          schemaDialectCounts.get(schemaDialect.url) + 1,
-        )
-      }
-    },
-  })
-
-  console.info(`Out of ${totalSchemas} TESTED schemas:`)
-  for (const schemaDialect of SchemaDialects) {
-    const versionPadded = schemaDialect.draftVersion.startsWith('draft-')
-      ? schemaDialect.draftVersion
-      : ` ${schemaDialect.draftVersion}`
-
-    console.info(
-      `- Total ${versionPadded}: ${schemaDialectCounts.get(schemaDialect.url)}`,
-    )
-  }
 }
 
 async function printDowngradableSchemaVersions() {
@@ -1543,51 +1661,86 @@ async function printSimpleStatistics() {
     console.info()
   }
 
-  let totalSchemas = 0
-  let validatingInStrictMode = 0
-  let missingPositiveTests = 0
-  let missingNegativeTests = 0
+  {
+    let totalSchemas = 0
+    let validatingInStrictMode = 0
+    let totalPositiveTests = 0
+    let totalNegativeTests = 0
 
-  for (const schemaName of SchemasToBeTested) {
-    if (SchemaValidation.skiptest.includes(schemaName)) {
-      continue
+    for (const schemaName of SchemasToBeTested) {
+      if (SchemaValidation.skiptest.includes(schemaName)) {
+        continue
+      }
+
+      totalSchemas += 1
+
+      if (SchemaValidation.ajvNotStrictMode.includes(schemaName)) {
+        validatingInStrictMode += 1
+      }
+
+      if (FoldersPositiveTest.includes(schemaName.replace('.json', ''))) {
+        totalPositiveTests += 1
+      }
+
+      if (FoldersNegativeTest.includes(schemaName.replace('.json', ''))) {
+        totalNegativeTests += 1
+      }
     }
 
-    totalSchemas += 1
+    const strictModePercent = Math.round(
+      (validatingInStrictMode / totalSchemas) * 100,
+    )
+    const positivePercent = Math.round(
+      (totalPositiveTests / totalSchemas) * 100,
+    )
+    const negativePercent = Math.round(
+      (totalNegativeTests / totalSchemas) * 100,
+    )
 
-    if (SchemaValidation.ajvNotStrictMode.includes(schemaName)) {
-      validatingInStrictMode += 1
-    }
-
-    if (!FoldersPositiveTest.includes(schemaName.replace('.json', ''))) {
-      missingPositiveTests += 1
-    }
-
-    if (!FoldersNegativeTest.includes(schemaName.replace('.json', ''))) {
-      missingNegativeTests += 1
-    }
+    console.info(`Out of ${totalSchemas} TESTED schemas:`)
+    console.info(
+      `- ${validatingInStrictMode} (${strictModePercent}%) are validated with Ajv's strict mode`,
+    )
+    console.info(`- ${totalPositiveTests} (${positivePercent}%) have tests`)
+    console.info(
+      `- ${totalNegativeTests} (${negativePercent}%) have negative tests`,
+    )
+    console.info()
   }
 
-  const strictModePercent = Math.round(
-    (validatingInStrictMode / totalSchemas) * 100,
-  )
-  const positivePercent = Math.round(
-    (missingPositiveTests / totalSchemas) * 100,
-  )
-  const negativePercent = Math.round(
-    (missingNegativeTests / totalSchemas) * 100,
-  )
+  {
+    let totalSchemas = 0
+    /** @type {Map<string, number>} */
+    const schemaDialectCounts = new Map(
+      SchemaDialects.map((schemaDialect) => [schemaDialect.url, 0]),
+    )
 
-  console.info(`Out of ${totalSchemas} TESTED schemas:`)
-  console.info(
-    `- ${validatingInStrictMode} (${strictModePercent}%) are validated with Ajv's strict mode`,
-  )
-  console.info(
-    `- ${missingPositiveTests} (${positivePercent}%) do not have tests.`,
-  )
-  console.info(
-    `- ${missingNegativeTests} (${negativePercent}%) do not have negative tests.`,
-  )
+    await forEachFile({
+      async onSchemaFile(/** @type {SchemaFile} */ schema) {
+        totalSchemas += 1
+
+        let schemaDialect = getSchemaDialect(schema.json.$schema)
+        if (schemaDialect) {
+          schemaDialectCounts.set(
+            schemaDialect.url,
+            // @ts-expect-error
+            schemaDialectCounts.get(schemaDialect.url) + 1,
+          )
+        }
+      },
+    })
+
+    console.info(`Out of ${totalSchemas} TESTED schemas:`)
+    for (const schemaDialect of SchemaDialects) {
+      const versionPadded = schemaDialect.draftVersion.startsWith('draft-')
+        ? schemaDialect.draftVersion
+        : ` ${schemaDialect.draftVersion}`
+
+      console.info(
+        `- Total ${versionPadded}: ${schemaDialectCounts.get(schemaDialect.url)}`,
+      )
+    }
+  }
 }
 
 {
