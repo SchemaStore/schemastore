@@ -20,7 +20,7 @@ import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
-import fetch from 'node-fetch'
+import fetch,  { FetchError } from 'node-fetch'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 const execFileAsync = promisify(execFile)
