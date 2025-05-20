@@ -267,9 +267,9 @@ async function buildXRegistry() {
     const filename = path.basename(new URL(url).pathname)
     const candidateIds = []
     if (!filename.toLowerCase().startsWith('schema.')) {
-      const nameWithoutExtension = filename.replace(/\.[^/.]+$/, '');
+      const nameWithoutExtension = filename.replace(/\.[^/.]+$/, '')
       if (nameWithoutExtension.length > 0) {
-        candidateIds.push(nameWithoutExtension);
+        candidateIds.push(nameWithoutExtension)
       }
     }
     const name = sanitizeName(schema.name)
@@ -312,7 +312,7 @@ async function buildXRegistry() {
                 `Schema ${schema.url} candidate id "${id}" rejected due to schema id casing conflict: found conflicting id "${existingId}".`,
               )
               idConflict = true
-              break;
+              break
             }
           }
         }

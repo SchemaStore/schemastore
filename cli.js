@@ -21,9 +21,9 @@ import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
 import fetch from 'node-fetch'
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-const execFileAsync = promisify(execFile);
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+const execFileAsync = promisify(execFile)
 
 /**
  * @import { Ora } from 'ora'
@@ -1782,47 +1782,53 @@ EXAMPLES:
     console.info(helpMenu)
     process.exit(0)
   }
-/**
- * Executes the xRegistry build process
- */
-async function buildXRegistry() {
-  try {
-    console.info('Building xRegistry from catalog.json...');
-    const { stdout, stderr } = await execFileAsync('node', ['scripts/build-xregistry.js']);
-    if (stdout) console.log(stdout);
-    if (stderr) console.error(stderr);
+  /**
+   * Executes the xRegistry build process
+   */
+  async function buildXRegistry() {
+    try {
+      console.info('Building xRegistry from catalog.json...')
+      const { stdout, stderr } = await execFileAsync('node', [
+        'scripts/build-xregistry.js',
+      ])
+      if (stdout) console.log(stdout)
+      if (stderr) console.error(stderr)
 
-    const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync('sh', ['scripts/build_xregistry_site.sh']);
-    if (siteStdout) console.log(siteStdout);
-    if (siteStderr) console.error(siteStderr);
+      const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync(
+        'sh',
+        ['scripts/build_xregistry_site.sh'],
+      )
+      if (siteStdout) console.log(siteStdout)
+      if (siteStderr) console.error(siteStderr)
 
-    const { stdout: postStdout, stderr: postStderr } = await execFileAsync('node', ['scripts/postprocess-xregistry-site.js']);
-    if (postStdout) console.log(postStdout);
-    if (postStderr) console.error(postStderr);
+      const { stdout: postStdout, stderr: postStderr } = await execFileAsync(
+        'node',
+        ['scripts/postprocess-xregistry-site.js'],
+      )
+      if (postStdout) console.log(postStdout)
+      if (postStderr) console.error(postStderr)
 
-    return true;
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('Error executing xRegistry build:', error.message);
-      if ('stdout' in error) console.log(error.stdout);
-      if ('stderr' in error) console.error(error.stderr);
-    } else {
-      console.error('Unknown error occurred during xRegistry build:', error);
+      return true
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error executing xRegistry build:', error.message)
+        if ('stdout' in error) console.log(error.stdout)
+        if ('stderr' in error) console.error(error.stderr)
+      } else {
+        console.error('Unknown error occurred during xRegistry build:', error)
+      }
+      return false
     }
-    return false;
   }
-}
 
-
-/**
- * Task to build the xRegistry
- */
-async function taskBuildXRegistry() {
-  if (!(await buildXRegistry())) {
-    process.exit(1);
+  /**
+   * Task to build the xRegistry
+   */
+  async function taskBuildXRegistry() {
+    if (!(await buildXRegistry())) {
+      process.exit(1)
+    }
   }
-}
-
 
   /** @type {Record<string, () => Promise<unknown>>} */
   const taskMap = {

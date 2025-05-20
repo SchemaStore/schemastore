@@ -1,6 +1,7 @@
 ---
 applyTo: '**'
 ---
+
 # Schema Registry Service - Version 1.0-rc1
 
 ## Abstract
@@ -173,35 +174,41 @@ detail below, is as follows:
 
 ```yaml
 {
-  "groups": [
-    {
-      "singular": "schemagroup",
-      "plural": "schemagroups",
+  'groups':
+    [
+      {
+        'singular': 'schemagroup',
+        'plural': 'schemagroups',
 
-      "resources": [
-        {
-          "singular": "schema",
-          "plural": "schemas",
-          "versions": 0,
+        'resources':
+          [
+            {
+              'singular': 'schema',
+              'plural': 'schemas',
+              'versions': 0,
 
-          "attributes": {
-            "format": {
-              "name": "format",
-              "type": "string",
-              "description": "Schema format identifier for this schema version"
-            }
-          },
-          "metaattributes": {
-            "validation": {
-              "name": "validation",
-              "type": "boolean",
-              "description": "Verify compliance with specified 'format'"
-            }
-          }
-        }
-      ]
-    }
-  ]
+              'attributes':
+                {
+                  'format':
+                    {
+                      'name': 'format',
+                      'type': 'string',
+                      'description': 'Schema format identifier for this schema version',
+                    },
+                },
+              'metaattributes':
+                {
+                  'validation':
+                    {
+                      'name': 'validation',
+                      'type': 'boolean',
+                      'description': "Verify compliance with specified 'format'",
+                    },
+                },
+            },
+          ],
+      },
+    ],
 }
 ```
 
@@ -229,20 +236,18 @@ containing 5 schemas.
 
 ```yaml
 {
-  "specversion": 1.0-rc1,
+  'specversion': 1.0-rc1,
   # other xRegistry top-level attributes excluded for brevity
 
-  "schemagroupsurl": "http://example.com/schemagroups",
-  "schemagroupscount": 1,
-  "schemagroups": {
-    "com.example.schemas": {
-      "schemagroupid": "com.example.schemas",
-      # Other xRegistry group-level attributes excluded for brevity
+  'schemagroupsurl': 'http://example.com/schemagroups',
+  'schemagroupscount': 1,
+  'schemagroups': { 'com.example.schemas': {
+          'schemagroupid': 'com.example.schemas',
+          # Other xRegistry group-level attributes excluded for brevity
 
-      "schemasurl": "https://example.com/schemagroups/com.example.schemas/schemas",
-      "schemascount": 5
-    }
-  }
+          'schemasurl': 'https://example.com/schemagroups/com.example.schemas/schemas',
+          'schemascount': 5,
+        } },
 }
 ```
 
@@ -257,6 +262,7 @@ All Versions of a schema MUST adhere to the semantic rules of the schema's
 `compatibility` attribute. This specification defines "compatibility" for
 schemas as follows; version B of a schema is said to be compatible with
 version A of a schema if all of the following are true:
+
 - Any document that adheres to the rules specified by schema A also adheres to
   rules specified by schema B.
 - Any processing rules defined for schema A also apply for schema B.
@@ -271,6 +277,7 @@ Implementations of this specification SHOULD use the xRegistry default
 algorithm for generating new `versionid` values and for determining which is
 the latest Version. See [Version IDs](../core/spec.md#version-ids) for more
 information, but in summary it means:
+
 - `versionid`s are unsigned integers starting with `1`
 - They monotomically increase by `1` with each new Version
 - The latest is the Version with the lexically largest `versionid` value after
@@ -301,6 +308,7 @@ the core xRegistry Resource
 
   If `format` is not specified, or if the value is not known by the server
   (but it an allowable value), then the server MUST NOT perform any validation.
+
 - Constraints:
   - OPTIONAL
   - When not specified, the default value MUST be `false`.
@@ -320,6 +328,7 @@ the core xRegistry Resource
   For many schema registry use cases this attribute is important for schema
   validation purposes, and as such implementations can choose to modify the
   model to make this attribute mandatory.
+
 - Constraints:
   - If present, MUST be a non-empty string
   - MUST follow the naming convention `{NAME}/{VERSION}`, whereby `{NAME}` is
@@ -338,68 +347,60 @@ Versions for a schema named `com.example.telemetrydata`:
 
 ```yaml
 {
-  "specversion": 1.0-rc1,
+  'specversion': 1.0-rc1,
   # other xRegistry top-level attributes excluded for brevity
 
-  "schemagroupsurl": "http://example.com/schemagroups",
-  "schemagroupscount": 1,
-  "schemagroups": {
-    "com.example.telemetry": {
-      "schemagroupid": "com.example.telemetry",
-      # other xRegistry group-level attributes excluded for brevity
+  'schemagroupsurl': 'http://example.com/schemagroups',
+  'schemagroupscount': 1,
+  'schemagroups': { 'com.example.telemetry': {
+          'schemagroupid': 'com.example.telemetry',
+          # other xRegistry group-level attributes excluded for brevity
 
-      "schemasurl": "http://example.com/schemagroups/com.example.telemetry/schemas",
-      "schemascount": 1,
-      "schemas": {
-        "com.example.telemetrydata": {
-          "schemaid": "com.example.telemetrydata",
-          "versionid": "3",
-          "description": "device telemetry event data",
-          "ancestor": "2",
-          "format": "Protobuf/3",
-          # other xRegistry default Version attributes excluded for brevity
+          'schemasurl': 'http://example.com/schemagroups/com.example.telemetry/schemas',
+          'schemascount': 1,
+          'schemas': { 'com.example.telemetrydata': {
+                  'schemaid': 'com.example.telemetrydata',
+                  'versionid': '3',
+                  'description': 'device telemetry event data',
+                  'ancestor': '2',
+                  'format': 'Protobuf/3',
+                  # other xRegistry default Version attributes excluded for brevity
 
-          "schema": "syntax = \"proto3\"; message Metrics { float metric = 1; string unit = 2; string description = 3; } }",
+                  'schema': 'syntax = "proto3"; message Metrics { float metric = 1; string unit = 2; string description = 3; } }',
 
-          "metaurl": "http://example.com/schemagroups/com.example.telemetry/schemas/com.example.telemetrydata/meta",
-          "versionsurl": "http://example.com/schemagroups/com.example.telemetry/schemas/com.example.telemetrydata/versions",
-          "versionscount": 3,
-          "versions": {
-            "1": {
-              "schemaid": "com.example.telemetrydata",
-              "versionid": "1",
-              "description": "device telemetry event data",
-              "ancestor": "1",
-              "format": "Protobuf/3",
-              # other xRegistry Version-level attributes excluded for brevity
+                  'metaurl': 'http://example.com/schemagroups/com.example.telemetry/schemas/com.example.telemetrydata/meta',
+                  'versionsurl': 'http://example.com/schemagroups/com.example.telemetry/schemas/com.example.telemetrydata/versions',
+                  'versionscount': 3,
+                  'versions': { '1': {
+                          'schemaid': 'com.example.telemetrydata',
+                          'versionid': '1',
+                          'description': 'device telemetry event data',
+                          'ancestor': '1',
+                          'format': 'Protobuf/3',
+                          # other xRegistry Version-level attributes excluded for brevity
 
-              "schema": "syntax = \"proto3\"; message Metrics { float metric = 1; } }"
-            },
-            "2": {
-              "schemaid": "com.example.telemetrydata",
-              "versionid": "2",
-              "description": "device telemetry event data",
-              "ancestor": "1",
-              "format": "Protobuf/3",
-              # other xRegistry Version-level attributes excluded for brevity
+                          'schema': 'syntax = "proto3"; message Metrics { float metric = 1; } }',
+                        }, '2': {
+                          'schemaid': 'com.example.telemetrydata',
+                          'versionid': '2',
+                          'description': 'device telemetry event data',
+                          'ancestor': '1',
+                          'format': 'Protobuf/3',
+                          # other xRegistry Version-level attributes excluded for brevity
 
-              "schema": "syntax = \"proto3\"; message Metrics { float metric = 1; string unit = 2; } }"
-            },
-            "3": {
-              "schemaid": "com.example.telemetrydata",
-              "versionid": "3",
-              "description": "device telemetry event data",
-              "ancestor": "2",
-              "format": "Protobuf/3",
-              # other xRegistry Version-level attributes excluded for brevity
+                          'schema': 'syntax = "proto3"; message Metrics { float metric = 1; string unit = 2; } }',
+                        }, '3': {
+                          'schemaid': 'com.example.telemetrydata',
+                          'versionid': '3',
+                          'description': 'device telemetry event data',
+                          'ancestor': '2',
+                          'format': 'Protobuf/3',
+                          # other xRegistry Version-level attributes excluded for brevity
 
-              "schema": "syntax = \"proto3\"; message Metrics { float metric = 1; string unit = 2; string description = 3; } }"
-            }
-          }
-        }
-      }
-    }
-  }
+                          'schema': 'syntax = "proto3"; message Metrics { float metric = 1; string unit = 2; string description = 3; } }',
+                        } },
+                } },
+        } },
 }
 ```
 
@@ -494,13 +495,13 @@ character is used as a separator when the URI already contains a fragment.
 Examples:
 
 - If the Avro schema document is referenced using the URI
-`https://example.com/avro/telemetry.avsc`, the URI fragment `#TelemetryEvent`
-references the record declaration of the `TelemetryEvent` record.
+  `https://example.com/avro/telemetry.avsc`, the URI fragment `#TelemetryEvent`
+  references the record declaration of the `TelemetryEvent` record.
 - If the Avro schema document is a local Schema Registry reference like
-`#/schemagroups/com.example.telemetry/schemas/com.example.telemetrydata`, in the
-which the reference is already in the form of a URI fragment, the suffix is
-appended separated with a colon, for instance
-`.../com.example.telemetrydata:TelemetryEvent`.
+  `#/schemagroups/com.example.telemetry/schemas/com.example.telemetrydata`, in the
+  which the reference is already in the form of a URI fragment, the suffix is
+  appended separated with a colon, for instance
+  `.../com.example.telemetrydata:TelemetryEvent`.
 
 #### Protobuf Schema
 
@@ -556,13 +557,12 @@ Examples:
 [RFC6570]: https://www.rfc-editor.org/rfc/rfc6570
 [rfc3339]: https://tools.ietf.org/html/rfc3339
 
-
 {
-  "groups": {
-    "schemagroups": {
-      "singular": "schemagroup",
-      "modelversion": "1.0-rc1",
-      "compatiblewith": "https://xregistry.io/xreg/domains/schema/specs/model.json",
+"groups": {
+"schemagroups": {
+"singular": "schemagroup",
+"modelversion": "1.0-rc1",
+"compatiblewith": "https://xregistry.io/xreg/domains/schema/specs/model.json",
 
       "attributes": {
         "*": {
@@ -600,5 +600,6 @@ Examples:
         }
       }
     }
-  }
+
+}
 }
