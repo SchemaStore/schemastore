@@ -62,7 +62,10 @@ const SchemaValidation = /** @type {SchemaValidationJson} */ (
 const SchemaDir = './src/schemas/json'
 const TestPositiveDir = './src/test'
 const TestNegativeDir = './src/negative_test'
-const UrlSchemaStore = 'https://json.schemastore.org/'
+const SchemaStoreUrls = /** @type {const} */ ([
+  'https://json.schemastore.org/',
+  'https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/',
+])
 const [SchemasToBeTested, FoldersPositiveTest, FoldersNegativeTest] = (
   await Promise.all([
     fs.readdir(SchemaDir),
@@ -230,9 +233,11 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     const schemaFile = await toFile(schemaPath)
     if (obj.actionName) {
       if (process.env.CI) {
-        console.info(`Running "${obj.actionName}" on file "${schemaFile.path}"`)
+        console.info(
+          `Running "${obj.actionName}" on file "./${schemaFile.path}"`,
+        )
       } else {
-        spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+        spinner.text = `Running "${obj.actionName}" on file "./${schemaFile.path}"`
       }
     }
     const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
@@ -832,7 +837,12 @@ async function taskMaintenance() {
   {
     console.info(`===== BROKEN SCHEMAS =====`)
     forEachCatalogUrl((url) => {
-      if (url.startsWith(UrlSchemaStore)) return
+      if (
+        url.startsWith(SchemaStoreUrls[0]) ||
+        url.startsWith(SchemaStoreUrls[1])
+      ) {
+        return
+      }
 
       fetch(url)
         .then(async (res) => {
@@ -1105,11 +1115,14 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
   {
     await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
       // Skip external schemas.
-      if (!catalogUrl.startsWith(UrlSchemaStore)) {
+      if (
+        !catalogUrl.startsWith(SchemaStoreUrls[0]) &&
+        !catalogUrl.startsWith(SchemaStoreUrls[1])
+      ) {
         return
       }
 
-      const filename = new URL(catalogUrl).pathname.slice(1)
+      const filename = path.basename(new URL(catalogUrl).pathname)
 
       // Check that local URLs end in .json
       if (!filename.endsWith('.json')) {
@@ -1136,8 +1149,11 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
     const /** @type {string[]} */ allCatalogLocalJsonFiles = []
 
     await forEachCatalogUrl((catalogUrl) => {
-      if (catalogUrl.startsWith(UrlSchemaStore)) {
-        const filename = new URL(catalogUrl).pathname.slice(1)
+      if (
+        catalogUrl.startsWith(SchemaStoreUrls[0]) ||
+        catalogUrl.startsWith(SchemaStoreUrls[1])
+      ) {
+        const filename = path.basename(new URL(catalogUrl).pathname)
         allCatalogLocalJsonFiles.push(filename)
       }
     })
@@ -1154,7 +1170,9 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
       if (!allCatalogLocalJsonFiles.includes(schemaName)) {
         printErrorAndExit(new Error(), [
           `Expected schema file "${schemaName}" to have a corresponding entry in the catalog file "${CatalogFile}"`,
-          `Expected to find entry with "url" of "${UrlSchemaStore}${schemaName}"`,
+          `Expected to find entry with "url" that is one of:`,
+          `  - "${SchemaStoreUrls[0]}${schemaName}"`,
+          `  - "${SchemaStoreUrls[1]}${schemaName}"`,
           `If this is intentional, ignore this error by appending to the property "missingCatalogUrl" in file "${SchemaValidationFile}"`,
         ])
       }
@@ -1641,7 +1659,8 @@ async function printSimpleStatistics() {
     let countScanURLInternal = 0
 
     await forEachCatalogUrl((catalogUrl) => {
-      catalogUrl.startsWith(UrlSchemaStore)
+      catalogUrl.startsWith(SchemaStoreUrls[0]) ||
+      catalogUrl.startsWith(SchemaStoreUrls[1])
         ? countScanURLInternal++
         : countScanURLExternal++
     })
