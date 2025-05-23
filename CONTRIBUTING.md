@@ -634,6 +634,7 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
 - Within [schema-validation.jsonc](./src/schema-validation.jsonc), in `"options": []`, add an entry:
   `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
+  - Note that all transitive schemas must be specified in `externalSchema`
 
 ### How to add a `$ref` to a JSON Schema that's self-hosted
 
