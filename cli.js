@@ -21,6 +21,9 @@ import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
 import fetch, { FetchError } from 'node-fetch'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+const execFileAsync = promisify(execFile)
 
 /**
  * @import { Ora } from 'ora'
@@ -86,11 +89,11 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'schema-name', 'unstable-check-with'],
-    boolean: ['help'],
+    boolean: ['help', 'build-xregistry', 'verify-xregistry'],
   })
 )
 if (argv.SchemaName) {
@@ -1773,6 +1776,7 @@ TASKS:
   check-strict: Checks all or the given schema against the strict meta schema
   check-remote: Run all build checks for remote schemas
   maintenance: Run maintenance checks
+  build-xregistry: Build the xRegistry from the catalog.json
 
 EXAMPLES:
   node ./cli.js check
@@ -1797,6 +1801,53 @@ EXAMPLES:
     console.info(helpMenu)
     process.exit(0)
   }
+  /**
+   * Executes the xRegistry build process
+   */
+  async function buildXRegistry() {
+    try {
+      console.info('Building xRegistry from catalog.json...')
+      const { stdout, stderr } = await execFileAsync('node', [
+        'scripts/build-xregistry.js',
+      ])
+      if (stdout) console.log(stdout)
+      if (stderr) console.error(stderr)
+
+      const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync(
+        'sh',
+        ['scripts/build_xregistry_site.sh'],
+      )
+      if (siteStdout) console.log(siteStdout)
+      if (siteStderr) console.error(siteStderr)
+
+      const { stdout: postStdout, stderr: postStderr } = await execFileAsync(
+        'node',
+        ['scripts/postprocess-xregistry-site.js'],
+      )
+      if (postStdout) console.log(postStdout)
+      if (postStderr) console.error(postStderr)
+
+      return true
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error executing xRegistry build:', error.message)
+        if ('stdout' in error) console.log(error.stdout)
+        if ('stderr' in error) console.error(error.stderr)
+      } else {
+        console.error('Unknown error occurred during xRegistry build:', error)
+      }
+      return false
+    }
+  }
+
+  /**
+   * Task to build the xRegistry
+   */
+  async function taskBuildXRegistry() {
+    if (!(await buildXRegistry())) {
+      process.exit(1)
+    }
+  }
 
   /** @type {Record<string, () => Promise<unknown>>} */
   const taskMap = {
@@ -1807,6 +1858,7 @@ EXAMPLES:
     'check-remote': taskCheckRemote,
     report: taskReport,
     maintenance: taskMaintenance,
+    'build-xregistry': taskBuildXRegistry,
     build: taskCheck, // Undocumented alias.
   }
   const taskOrFn = argv._[0]
