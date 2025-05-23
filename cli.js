@@ -905,6 +905,34 @@ async function taskMaintenance() {
   // await printDowngradableSchemaVersions()
 }
 
+async function taskBuildWebsite() {
+  await fs.mkdir('./website', { recursive: true })
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website', schemaName),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website', path.parse(schemaName).name),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+}
+
 async function assertFileSystemIsValid() {
   /**
    * Check that files exist only where files belong, and directories exist only
@@ -1807,6 +1835,7 @@ EXAMPLES:
     'check-remote': taskCheckRemote,
     report: taskReport,
     maintenance: taskMaintenance,
+    'build-website': taskBuildWebsite,
     build: taskCheck, // Undocumented alias.
   }
   const taskOrFn = argv._[0]
