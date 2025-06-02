@@ -6,11 +6,11 @@ import fsCb from 'node:fs'
 import readline from 'node:readline'
 import util from 'node:util'
 
-import AjvDraft04 from 'ajv-draft-04'
+import _AjvDraft04 from 'ajv-draft-04'
 import { Ajv as AjvDraft06And07 } from 'ajv'
-import Ajv2019 from 'ajv/dist/2019.js'
-import Ajv2020 from 'ajv/dist/2020.js'
-import addFormats from 'ajv-formats'
+import _Ajv2019 from 'ajv/dist/2019.js'
+import _Ajv2020 from 'ajv/dist/2020.js'
+import _addFormats from 'ajv-formats'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
@@ -20,11 +20,32 @@ import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
-import fetch from 'node-fetch'
+import fetch, { FetchError } from 'node-fetch'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+const execFileAsync = promisify(execFile)
 
 /**
  * @import { Ora } from 'ora'
  */
+
+/**
+ * Ajv defines types, but they don't work when importing the library with
+ * ESM syntax. Tweaking `jsconfig.json` with `esModuleInterop` didn't seem
+ * to fix things, so manually set the types with a cast. This issue is
+ * tracked upstream at https://github.com/ajv-validator/ajv/issues/2132.
+ */
+/** @type {typeof _AjvDraft04.default} */
+const AjvDraft04 = /** @type {any} */ (_AjvDraft04)
+
+/** @type {typeof _Ajv2019.default} */
+const Ajv2019 = /** @type {any} */ (_Ajv2019)
+
+/** @type {typeof _Ajv2020.default} */
+const Ajv2020 = /** @type {any} */ (_Ajv2020)
+
+/** @type {typeof _addFormats.default} */
+const addFormats = /** @type {any} */ (_addFormats)
 
 // Declare constants.
 const AjvDraft06SchemaJson = await readJsonFile(
@@ -44,7 +65,10 @@ const SchemaValidation = /** @type {SchemaValidationJson} */ (
 const SchemaDir = './src/schemas/json'
 const TestPositiveDir = './src/test'
 const TestNegativeDir = './src/negative_test'
-const UrlSchemaStore = 'https://json.schemastore.org/'
+const SchemaStoreUrls = /** @type {const} */ ([
+  'https://json.schemastore.org/',
+  'https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/',
+])
 const [SchemasToBeTested, FoldersPositiveTest, FoldersNegativeTest] = (
   await Promise.all([
     fs.readdir(SchemaDir),
@@ -65,11 +89,11 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'schema-name', 'unstable-check-with'],
-    boolean: ['help'],
+    boolean: ['help', 'build-xregistry', 'verify-xregistry'],
   })
 )
 if (argv.SchemaName) {
@@ -191,6 +215,7 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     spinner.start()
   }
 
+  let hasValidatedAtLeastOneFile = false
   for (const dirent1 of await fs.readdir(SchemaDir, { withFileTypes: true })) {
     if (isIgnoredFile(dirent1.name)) continue
 
@@ -205,40 +230,44 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
       continue
     }
 
+    hasValidatedAtLeastOneFile = true
+
     const schemaPath = path.join(SchemaDir, schemaName)
     const schemaFile = await toFile(schemaPath)
     if (obj.actionName) {
       if (process.env.CI) {
-        console.info(`Running "${obj.actionName}" on file "${schemaFile.path}"`)
+        console.info(
+          `Running "${obj.actionName}" on file "./${schemaFile.path}"`,
+        )
       } else {
-        spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+        spinner.text = `Running "${obj.actionName}" on file "./${schemaFile.path}"`
       }
     }
     const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
 
     if (obj?.onPositiveTestFile) {
       const positiveTestDir = path.join(TestPositiveDir, schemaId)
-      if (await exists(positiveTestDir)) {
-        for (const testfile of await fs.readdir(positiveTestDir)) {
-          if (isIgnoredFile(testfile)) continue
+      for (const testfile of await fs
+        .readdir(positiveTestDir)
+        .catch(ignoreOnlyENOENT)) {
+        if (isIgnoredFile(testfile)) continue
 
-          const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
-          let file = await toFile(testfilePath)
-          await obj.onPositiveTestFile(schemaFile, file, data, { spinner })
-        }
+        const testfilePath = path.join(TestPositiveDir, schemaId, testfile)
+        let file = await toFile(testfilePath)
+        await obj.onPositiveTestFile(schemaFile, file, data, { spinner })
       }
     }
 
     if (obj?.onNegativeTestFile) {
       const negativeTestDir = path.join(TestNegativeDir, schemaId)
-      if (await exists(negativeTestDir)) {
-        for (const testfile of await fs.readdir(negativeTestDir)) {
-          if (isIgnoredFile(testfile)) continue
+      for (const testfile of await fs
+        .readdir(negativeTestDir)
+        .catch(ignoreOnlyENOENT)) {
+        if (isIgnoredFile(testfile)) continue
 
-          const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
-          let file = await toFile(testfilePath)
-          await obj.onNegativeTestFile(schemaFile, file, data, { spinner })
-        }
+        const testfilePath = path.join(TestNegativeDir, schemaId, testfile)
+        let file = await toFile(testfilePath)
+        await obj.onNegativeTestFile(schemaFile, file, data, { spinner })
       }
     }
 
@@ -247,7 +276,36 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
 
   if (obj.actionName) {
     spinner.stop()
+  }
+
+  if (!hasValidatedAtLeastOneFile) {
+    const fileExistsNotice =
+      argv['schema-name'] &&
+      (await exists(path.join(SchemaDir, argv['schema-name'])))
+        ? []
+        : [`No schema exists with filename "${argv['schema-name']}"`]
+    printErrorAndExit(
+      null,
+      [
+        `Failed to execute action "${obj.actionName}" on at least one file`,
+      ].concat(fileExistsNotice),
+    )
+  }
+
+  if (obj.actionName) {
     console.info(`✔️ Completed "${obj.actionName}"`)
+  }
+
+  function ignoreOnlyENOENT(/** @type {unknown} */ err) {
+    if (
+      err instanceof Error &&
+      /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT'
+    ) {
+      return []
+    } else {
+      spinner.stop()
+      throw err
+    }
   }
 }
 
@@ -333,8 +391,10 @@ function printErrorAndExit(error, messages, extraText) {
   }
 
   console.warn('---')
-  process.stderr.write(error instanceof Error ? (error?.stack ?? '') : '')
-  process.stderr.write('\n')
+  if (error instanceof Error && error?.stack) {
+    process.stderr.write(error.stack)
+    process.stderr.write('\n')
+  }
   process.exit(1)
 }
 
@@ -434,7 +494,21 @@ async function ajvFactory(
   /**
    * Ditto, but with keywords (ex. "x-intellij-html-description")..
    */
-  for (const unknownKeyword of unknownKeywords) {
+  for (const unknownKeyword of unknownKeywords.concat([
+    'allowTrailingCommas',
+    'defaultSnippets',
+    'markdownDescription',
+    'enumDescriptions',
+    'markdownEnumDescriptions',
+    'x-taplo',
+    'x-taplo-info',
+    'x-tombi-toml-version',
+    'x-tombi-array-values-order',
+    'x-tombi-table-keys-order',
+    'x-intellij-language-injection',
+    'x-intellij-html-description',
+    'x-intellij-enum-metadata',
+  ])) {
     ajv.addKeyword(unknownKeyword)
   }
 
@@ -458,6 +532,27 @@ function getSchemaOptions(/** @type {string} */ schemaName) {
       return path.join(SchemaDir, schemaName2)
     }),
   }
+}
+
+/**
+ * @param {string} filepath
+ * @param {string} schemaFilepath
+ * @param {unknown[] | null | undefined} ajvErrors
+ * @returns {never}
+ */
+function printSchemaValidationErrorAndExit(
+  filepath,
+  schemaFilepath,
+  ajvErrors,
+) {
+  printErrorAndExit(
+    null,
+    [
+      `Failed to validate file "${filepath}" against schema file "./${schemaFilepath}"`,
+      `Showing first error out of ${ajvErrors?.length ?? '?'} total error(s)`,
+    ],
+    util.formatWithOptions({ colors: true }, '%O', ajvErrors?.[0] ?? '???'),
+  )
 }
 
 async function taskNewSchema() {
@@ -665,21 +760,18 @@ async function taskCheck() {
         validateFn,
       }
     },
-    async onPositiveTestFile(schemaFile, testFile, data, { spinner }) {
-      const validate = data.validateFn
-      if (!validate(testFile.json)) {
+    async onPositiveTestFile(
+      schemaFile,
+      testFile,
+      { validateFn },
+      { spinner },
+    ) {
+      if (!validateFn(testFile.json)) {
         spinner.fail()
-        printErrorAndExit(
-          validate.err,
-          [
-            `Schema validation failed for test file "./${testFile.path}"`,
-            `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
-          ],
-          util.formatWithOptions(
-            { colors: true },
-            '%O',
-            validate.errors?.[0] ?? '???',
-          ),
+        printSchemaValidationErrorAndExit(
+          testFile.path,
+          schemaFile.path,
+          validateFn.errors,
         )
       }
     },
@@ -720,20 +812,12 @@ async function taskCheckStrict() {
   await forEachFile({
     actionName: 'strict metaschema check',
     async onSchemaFile(schemaFile, { spinner }) {
-      const validate = validateFn
-      if (!validate(schemaFile.json)) {
+      if (!validateFn(schemaFile.json)) {
         spinner.fail()
-        printErrorAndExit(
-          validate.err,
-          [
-            `Schema validation failed "./${schemaFile.path}"`,
-            `Showing first error out of ${validate.errors?.length ?? '?'} total error(s)`,
-          ],
-          util.formatWithOptions(
-            { colors: true },
-            '%O',
-            validate.errors?.[0] ?? '???',
-          ),
+        printSchemaValidationErrorAndExit(
+          schemaFile.path,
+          metaSchemaFile.path,
+          validateFn.errors,
         )
       }
     },
@@ -756,7 +840,12 @@ async function taskMaintenance() {
   {
     console.info(`===== BROKEN SCHEMAS =====`)
     forEachCatalogUrl((url) => {
-      if (url.startsWith(UrlSchemaStore)) return
+      if (
+        url.startsWith(SchemaStoreUrls[0]) ||
+        url.startsWith(SchemaStoreUrls[1])
+      ) {
+        return
+      }
 
       fetch(url)
         .then(async (res) => {
@@ -786,7 +875,9 @@ async function taskMaintenance() {
                 `NOT OK (${res.status}/${res.statusText}): ${url} (after 405 code)`,
               )
             } catch (err) {
-              console.info(`NOT OK (${err.code}): ${url} (after 405 code)`)
+              console.info(
+                `NOT OK (${/** @type {FetchError} */ (err).code}): ${url} (after 405 code)`,
+              )
             }
             return
           }
@@ -815,6 +906,34 @@ async function taskMaintenance() {
     })
   }
   // await printDowngradableSchemaVersions()
+}
+
+async function taskBuildWebsite() {
+  await fs.mkdir('./website', { recursive: true })
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website', schemaName),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website', path.parse(schemaName).name),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
 }
 
 async function assertFileSystemIsValid() {
@@ -1027,11 +1146,14 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
   {
     await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
       // Skip external schemas.
-      if (!catalogUrl.startsWith(UrlSchemaStore)) {
+      if (
+        !catalogUrl.startsWith(SchemaStoreUrls[0]) &&
+        !catalogUrl.startsWith(SchemaStoreUrls[1])
+      ) {
         return
       }
 
-      const filename = new URL(catalogUrl).pathname.slice(1)
+      const filename = path.basename(new URL(catalogUrl).pathname)
 
       // Check that local URLs end in .json
       if (!filename.endsWith('.json')) {
@@ -1058,8 +1180,11 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
     const /** @type {string[]} */ allCatalogLocalJsonFiles = []
 
     await forEachCatalogUrl((catalogUrl) => {
-      if (catalogUrl.startsWith(UrlSchemaStore)) {
-        const filename = new URL(catalogUrl).pathname.slice(1)
+      if (
+        catalogUrl.startsWith(SchemaStoreUrls[0]) ||
+        catalogUrl.startsWith(SchemaStoreUrls[1])
+      ) {
+        const filename = path.basename(new URL(catalogUrl).pathname)
         allCatalogLocalJsonFiles.push(filename)
       }
     })
@@ -1076,6 +1201,9 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
       if (!allCatalogLocalJsonFiles.includes(schemaName)) {
         printErrorAndExit(new Error(), [
           `Expected schema file "${schemaName}" to have a corresponding entry in the catalog file "${CatalogFile}"`,
+          `Expected to find entry with "url" that is one of:`,
+          `  - "${SchemaStoreUrls[0]}${schemaName}"`,
+          `  - "${SchemaStoreUrls[1]}${schemaName}"`,
           `If this is intentional, ignore this error by appending to the property "missingCatalogUrl" in file "${SchemaValidationFile}"`,
         ])
       }
@@ -1164,6 +1292,7 @@ async function assertTestFileHasSchemaPragma(
           await fs.writeFile(testFile.path, newContent)
         }
       } else {
+        spinner.stop()
         printErrorAndExit(new Error(), [
           `Failed to find schema pragma for YAML File "./${testFile.path}"`,
           `Expected first line of file to be "${expected}"`,
@@ -1190,6 +1319,7 @@ async function assertTestFileHasSchemaPragma(
           await fs.writeFile(testFile.path, newContent)
         }
       } else {
+        spinner.stop()
         printErrorAndExit(new Error(), [
           `Failed to find schema pragma for TOML File "./${testFile.path}"`,
           `Expected first line of file to be "${expected}"`,
@@ -1336,14 +1466,7 @@ async function assertFileValidatesAgainstSchema(
   if (ajv.validate(schemaJson, data)) {
     console.info(`✔️ ${path.basename(filepath)} validates against its schema`)
   } else {
-    printErrorAndExit(
-      new Error(),
-      [
-        `Failed to validate file "${filepath}" against schema file "./${schemaFilepath}"`,
-        `Showing first error out of ${ajv.errors?.length ?? '?'} total error(s)`,
-      ],
-      util.formatWithOptions({ colors: true }, '%O', ajv.errors?.[0] ?? '???'),
-    )
+    printSchemaValidationErrorAndExit(filepath, schemaFilepath, ajv.errors)
   }
 }
 
@@ -1460,15 +1583,22 @@ async function assertSchemaNoSmartQuotes(/** @type {SchemaFile} */ schema) {
   for (let i = 0; i < bufferArr.length; ++i) {
     const line = bufferArr[i]
 
-    const smartQuotes = ['‘', '’', '“', '”']
-    for (const quote of smartQuotes) {
-      if (line.includes(quote)) {
-        printErrorAndExit(new Error(), [
-          `Expected file to have no smart quotes`,
-          `Found smart quotes in file "./${schema.path}:${++i}"`,
-        ])
-      }
+    if (/"(?:description|title)": ".*?:"/.test(line)) {
+      printErrorAndExit(new Error(), [
+        `Do not expect "description" or "title" to end with a colon`,
+        `Failed to successfully validate file "${schema.path}:${i + 1}"`,
+      ])
     }
+
+    // const smartQuotes = ['‘', '’', '“', '”']
+    // for (const quote of smartQuotes) {
+    //   if (line.includes(quote)) {
+    //     printErrorAndExit(new Error(), [
+    //       `Expected file to have no smart quotes`,
+    //       `Found smart quotes in file "./${schema.path}:${++i}"`,
+    //     ])
+    //   }
+    // }
   }
 }
 
@@ -1560,7 +1690,8 @@ async function printSimpleStatistics() {
     let countScanURLInternal = 0
 
     await forEachCatalogUrl((catalogUrl) => {
-      catalogUrl.startsWith(UrlSchemaStore)
+      catalogUrl.startsWith(SchemaStoreUrls[0]) ||
+      catalogUrl.startsWith(SchemaStoreUrls[1])
         ? countScanURLInternal++
         : countScanURLExternal++
     })
@@ -1583,8 +1714,8 @@ async function printSimpleStatistics() {
   {
     let totalSchemas = 0
     let validatingInStrictMode = 0
-    let missingPositiveTests = 0
-    let missingNegativeTests = 0
+    let totalPositiveTests = 0
+    let totalNegativeTests = 0
 
     for (const schemaName of SchemasToBeTested) {
       if (SchemaValidation.skiptest.includes(schemaName)) {
@@ -1597,12 +1728,12 @@ async function printSimpleStatistics() {
         validatingInStrictMode += 1
       }
 
-      if (!FoldersPositiveTest.includes(schemaName.replace('.json', ''))) {
-        missingPositiveTests += 1
+      if (FoldersPositiveTest.includes(schemaName.replace('.json', ''))) {
+        totalPositiveTests += 1
       }
 
-      if (!FoldersNegativeTest.includes(schemaName.replace('.json', ''))) {
-        missingNegativeTests += 1
+      if (FoldersNegativeTest.includes(schemaName.replace('.json', ''))) {
+        totalNegativeTests += 1
       }
     }
 
@@ -1610,21 +1741,19 @@ async function printSimpleStatistics() {
       (validatingInStrictMode / totalSchemas) * 100,
     )
     const positivePercent = Math.round(
-      (missingPositiveTests / totalSchemas) * 100,
+      (totalPositiveTests / totalSchemas) * 100,
     )
     const negativePercent = Math.round(
-      (missingNegativeTests / totalSchemas) * 100,
+      (totalNegativeTests / totalSchemas) * 100,
     )
 
     console.info(`Out of ${totalSchemas} TESTED schemas:`)
     console.info(
       `- ${validatingInStrictMode} (${strictModePercent}%) are validated with Ajv's strict mode`,
     )
+    console.info(`- ${totalPositiveTests} (${positivePercent}%) have tests`)
     console.info(
-      `- ${missingPositiveTests} (${positivePercent}%) do not have tests.`,
-    )
-    console.info(
-      `- ${missingNegativeTests} (${negativePercent}%) do not have negative tests.`,
+      `- ${totalNegativeTests} (${negativePercent}%) have negative tests`,
     )
     console.info()
   }
@@ -1675,6 +1804,7 @@ TASKS:
   check-strict: Checks all or the given schema against the strict meta schema
   check-remote: Run all build checks for remote schemas
   maintenance: Run maintenance checks
+  build-xregistry: Build the xRegistry from the catalog.json
 
 EXAMPLES:
   node ./cli.js check
@@ -1699,6 +1829,53 @@ EXAMPLES:
     console.info(helpMenu)
     process.exit(0)
   }
+  /**
+   * Executes the xRegistry build process
+   */
+  async function buildXRegistry() {
+    try {
+      console.info('Building xRegistry from catalog.json...')
+      const { stdout, stderr } = await execFileAsync('node', [
+        'scripts/build-xregistry.js',
+      ])
+      if (stdout) console.log(stdout)
+      if (stderr) console.error(stderr)
+
+      const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync(
+        'sh',
+        ['scripts/build_xregistry_site.sh'],
+      )
+      if (siteStdout) console.log(siteStdout)
+      if (siteStderr) console.error(siteStderr)
+
+      const { stdout: postStdout, stderr: postStderr } = await execFileAsync(
+        'node',
+        ['scripts/postprocess-xregistry-site.js'],
+      )
+      if (postStdout) console.log(postStdout)
+      if (postStderr) console.error(postStderr)
+
+      return true
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error executing xRegistry build:', error.message)
+        if ('stdout' in error) console.log(error.stdout)
+        if ('stderr' in error) console.error(error.stderr)
+      } else {
+        console.error('Unknown error occurred during xRegistry build:', error)
+      }
+      return false
+    }
+  }
+
+  /**
+   * Task to build the xRegistry
+   */
+  async function taskBuildXRegistry() {
+    if (!(await buildXRegistry())) {
+      process.exit(1)
+    }
+  }
 
   /** @type {Record<string, () => Promise<unknown>>} */
   const taskMap = {
@@ -1709,6 +1886,8 @@ EXAMPLES:
     'check-remote': taskCheckRemote,
     report: taskReport,
     maintenance: taskMaintenance,
+    'build-website': taskBuildWebsite,
+    'build-xregistry': taskBuildXRegistry,
     build: taskCheck, // Undocumented alias.
   }
   const taskOrFn = argv._[0]
