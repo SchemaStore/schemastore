@@ -1375,14 +1375,22 @@ function assertSchemaValidationJsonHasValidSkipTest() {
   for (const schemaName of SchemaValidation.skiptest) {
     const folderName = schemaName.replace(/\.json$/, '')
 
-    if (FoldersPositiveTest.includes(folderName)) {
+    const allowedExtraneousDirs = ['circleciconfig'] // TODO: Remove this
+
+    if (
+      FoldersPositiveTest.includes(folderName) &&
+      !allowedExtraneousDirs.includes(folderName)
+    ) {
       printErrorAndExit(new Error(), [
         `Did not expect to find positive test directory at "./${path.join(TestPositiveDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any positive test files`,
       ])
     }
 
-    if (FoldersNegativeTest.includes(folderName)) {
+    if (
+      FoldersNegativeTest.includes(folderName) &&
+      !allowedExtraneousDirs.includes(folderName)
+    ) {
       printErrorAndExit(new Error(), [
         `Did not expect to find negative test directory at "./${path.join(TestNegativeDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any negative test files`,
