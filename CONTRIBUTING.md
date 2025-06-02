@@ -109,6 +109,8 @@ The goal of JSON Schemas in this repository is to correctly validate schemas tha
 
 #### Avoiding Overconstraint
 
+##### Complexity
+
 Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. In general, do not add a constraint if:
 
 - false positives are likely (due to their complexity or abundance of implementations)
@@ -120,7 +122,21 @@ So, we recommend avoiding regex patterns for:
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
 
-In addition, be wary when adding exhaustive support to enum-type fields (without a `"type": "string"` fallback). Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
+##### Enums
+
+Be wary when adding exhaustive support to enum-type fields (without a `"type": "string"` fallback). Keep in mind:
+
+- New enum values that are supported by a new tool version (and not yet added to SchemaStore) should _not_ error
+- The schema may be extended by a tool that you have no knowledge of
+
+##### Properties
+
+Do not blindly add `"additionalProperties": false`. Keep in mind that:
+
+- New properties that are supported by a new tool version (and not yet added to SchemaStore) should _not_ error
+- The schema may be extended by a tool that you have no knowledge of
+
+It is recognized that stricter checking may be desired, as in the case of checking for typos. In that case, check to see if your validator has an option for stronger checks. For example, [Tombi](https://tombi-toml.github.io/tombi) enables a [strict mode](https://tombi-toml.github.io/tombi/docs/json-schema#strict-mode) by default.
 
 #### Undocumented Features
 
