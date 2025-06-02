@@ -98,30 +98,14 @@ The goal of JSON Schemas in this repository is to correctly validate schemas tha
 ### Useful Conventions
 
 - Consider using documentation URLs in `"description"` to improve UX. Most schemas use the format `<description>\n<url>`. For example: `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`
-- Consider using the [`base.json`][base] schema for `draft-07` or [`base-04.json`][base-04] for `draft-04` to use subschemas that are commonly used.
 - When writing `description`, avoid phrases like "there are three possibilities" and "valid values are" in favor of adding the constraints to the schema directly.
 - If you choose to use `title`, we recommend formatting it so that object values look like types in programming languages. This includes:
   - Omitting leading articles and trailing punctuation
   - Beginning it with a lowercase letter
   - Using nouns instead of sentences
 
-**Unofficial Strict Mode**
-
-> [!WARNING]  
-> This "unofficial strict mode" may have bugs or be incomplete.
-
-There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses JSON Schema to validate your JSON Schema. It checks that:
-
-- `type`, `title`, `description` properties are required
-- There are no empty arrays. For instance, it's impossible to write less than 2 sub-schemas for `allOf`
-- `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
-- It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema) for each hint/check
-
-To check your schema against that schema, use `node cli.js check-strict --schema-name=<schemaName.json>`. Note that this is NOT the same as Ajv strict mode.
-
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
-[draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
 
 #### Avoiding Overconstraint
 
