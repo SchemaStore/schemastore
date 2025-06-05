@@ -971,7 +971,7 @@ async function taskBuildWebsite() {
   <h3 id="api">Public API</h3>
   <p>
     <img src="/img/api.png" width="256" height="88" alt="Public API for JSON Schemas" class="left" />
-    The JSON <a href="~/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
+    The JSON <a href="/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
     Each schema file can be used in tooling such as command line validators, editor auto-completion etc.
   </p>
   <p>
