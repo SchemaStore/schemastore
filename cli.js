@@ -1082,8 +1082,8 @@ async function taskBuildWebsite() {
 <html>
 <head prefix="og: http://ogp.me/ns#">
 	<title>${pageTitle}</title>
+	<!-- Generated from cli.js -->
 
-	<base href="https://www.schemastore.org/" />
 	<meta charset="utf-8" />
 	<meta name="description" content="${pageDescription}" />
 	<meta name="viewport" content="initial-scale=1.0" />
@@ -1153,6 +1153,12 @@ async function taskBuildWebsite() {
     './src/api/json/catalog.json',
     './website/api/json/catalog.json',
   )
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/css', './website/css', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/img', './website/img', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/js', './website/js', { recursive: true })
 }
 
 async function assertFileSystemIsValid() {
