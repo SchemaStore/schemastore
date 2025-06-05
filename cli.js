@@ -1137,7 +1137,7 @@ async function taskBuildWebsite() {
 	<div role="main" id="main" class="container">
 		${body}
 	</div>
-	
+
 	<footer role="contentinfo" class="container">
 		<p>Open source on <a href="https://github.com/schemastore/schemastore/">GitHub</a></p>
 	</footer>
@@ -1146,6 +1146,12 @@ async function taskBuildWebsite() {
 </body>
 </html>
 `,
+  )
+
+  await fs.mkdir('./website/api/json', { recursive: true })
+  await fs.copyFile(
+    './src/api/json/catalog.json',
+    './website/api/json/catalog.json',
   )
 }
 
