@@ -1153,8 +1153,11 @@ async function taskBuildWebsite() {
     './src/api/json/catalog.json',
     './website/api/json/catalog.json',
   )
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/css', './website/css', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/img', './website/img', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/js', './website/js', { recursive: true })
 }
 
