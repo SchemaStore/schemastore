@@ -909,7 +909,7 @@ async function taskMaintenance() {
 }
 
 async function taskBuildWebsite() {
-  await fs.mkdir('./website', { recursive: true })
+  await fs.mkdir('./website/schemas/json', { recursive: true })
   await Promise.all(
     SchemasToBeTested.map((schemaName) => {
       return fs
@@ -928,6 +928,30 @@ async function taskBuildWebsite() {
         .copyFile(
           path.join(SchemaDir, schemaName),
           path.join('./website', path.parse(schemaName).name),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website/schemas/json', schemaName),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website/schemas/json', path.parse(schemaName).name),
         )
         .catch((err) => {
           if (err.code !== 'EISDIR') throw err
