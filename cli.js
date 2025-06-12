@@ -66,7 +66,7 @@ const SchemaDir = './src/schemas/json'
 const TestPositiveDir = './src/test'
 const TestNegativeDir = './src/negative_test'
 const SchemaStoreUrls = /** @type {const} */ ([
-  'https://json.schemastore.org/',
+  'https://www.schemastore.org/',
   'https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/',
 ])
 const [SchemasToBeTested, FoldersPositiveTest, FoldersNegativeTest] = (
@@ -584,7 +584,7 @@ async function taskNewSchema() {
     await fs.writeFile(
       schemaFile,
       `{
-  "$id": "https://json.schemastore.org/${schemaName}.json",
+  "$id": "https://www.schemastore.org/${schemaName}.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "properties": {
@@ -604,7 +604,7 @@ async function taskNewSchema() {
   "name": "",
   "description": "",
   "fileMatch": ["${schemaName}.yml", "${schemaName}.yaml"],
-  "url": "https://json.schemastore.org/${schemaName}.json"
+  "url": "https://www.schemastore.org/${schemaName}.json"
 }`)
     process.exit(0)
   }
@@ -1006,7 +1006,7 @@ async function taskBuildWebsite() {
   "name": "bower.json",
   "description": "Bower package description file",
   "fileMatch": [ "bower.json", ".bower.json" ],
-  "url": "https://json.schemastore.org/bower.json"
+  "url": "https://www.schemastore.org/bower.json"
 }
 </pre>
   <p>
@@ -1806,11 +1806,11 @@ async function assertSchemaHasCorrectMetadata(
       ])
     }
 
-    if (schema.json.id !== `https://json.schemastore.org/${schema.name}`) {
+    if (schema.json.id !== `https://www.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
         `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Incorrect property 'id' for schema "./${path.join(SchemaDir, schema.name)}"`,
-        `Expected value of "https://json.schemastore.org/${schema.name}"`,
+        `Expected value of "https://www.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.id}"`,
       ])
     }
@@ -1822,11 +1822,11 @@ async function assertSchemaHasCorrectMetadata(
       ])
     }
 
-    if (schema.json.$id !== `https://json.schemastore.org/${schema.name}`) {
+    if (schema.json.$id !== `https://www.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
         `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Incorrect property '$id' for schema "./${path.join(SchemaDir, schema.name)}"`,
-        `Expected value of "https://json.schemastore.org/${schema.name}"`,
+        `Expected value of "https://www.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.$id}"`,
       ])
     }
