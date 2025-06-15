@@ -909,7 +909,7 @@ async function taskMaintenance() {
 }
 
 async function taskBuildWebsite() {
-  await fs.mkdir('./website', { recursive: true })
+  await fs.mkdir('./website/schemas/json', { recursive: true })
   await Promise.all(
     SchemasToBeTested.map((schemaName) => {
       return fs
@@ -928,6 +928,30 @@ async function taskBuildWebsite() {
         .copyFile(
           path.join(SchemaDir, schemaName),
           path.join('./website', path.parse(schemaName).name),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website/schemas/json', schemaName),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website/schemas/json', path.parse(schemaName).name),
         )
         .catch((err) => {
           if (err.code !== 'EISDIR') throw err
@@ -971,7 +995,7 @@ async function taskBuildWebsite() {
   <h3 id="api">Public API</h3>
   <p>
     <img src="/img/api.png" width="256" height="88" alt="Public API for JSON Schemas" class="left" />
-    The JSON <a href="~/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
+    The JSON <a href="/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
     Each schema file can be used in tooling such as command line validators, editor auto-completion etc.
   </p>
   <p>
@@ -1082,8 +1106,8 @@ async function taskBuildWebsite() {
 <html>
 <head prefix="og: http://ogp.me/ns#">
 	<title>${pageTitle}</title>
+	<!-- Generated from cli.js -->
 
-	<base href="https://www.schemastore.org/" />
 	<meta charset="utf-8" />
 	<meta name="description" content="${pageDescription}" />
 	<meta name="viewport" content="initial-scale=1.0" />
@@ -1137,7 +1161,7 @@ async function taskBuildWebsite() {
 	<div role="main" id="main" class="container">
 		${body}
 	</div>
-	
+
 	<footer role="contentinfo" class="container">
 		<p>Open source on <a href="https://github.com/schemastore/schemastore/">GitHub</a></p>
 	</footer>
@@ -1147,6 +1171,18 @@ async function taskBuildWebsite() {
 </html>
 `,
   )
+
+  await fs.mkdir('./website/api/json', { recursive: true })
+  await fs.copyFile(
+    './src/api/json/catalog.json',
+    './website/api/json/catalog.json',
+  )
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/css', './website/css', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/img', './website/img', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/js', './website/js', { recursive: true })
 }
 
 async function assertFileSystemIsValid() {
