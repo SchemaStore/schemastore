@@ -2,7 +2,48 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/claude-code-settings.json",
   "$defs": {
-    "rule": {
+    "hookCommand": {
+      "type": "object",
+      "description": "Hook command configuration",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of hook implementation",
+          "const": "command"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Optional timeout in seconds for this specific command",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "hookMatcher": {
+      "type": "object",
+      "description": "Hook matcher configuration with multiple hooks",
+      "additionalProperties": false,
+      "required": ["hooks"],
+      "properties": {
+        "matcher": {
+          "type": "string",
+          "description": "String (e.g. Write) to match values related to the hook event, e.g. tool names"
+        },
+        "hooks": {
+          "type": "array",
+          "description": "Array of hooks to execute",
+          "items": {
+            "$ref": "#/$defs/hookCommand"
+          }
+        }
+      }
+    },
+    "permissionRule": {
       "type": "string",
       "description": "Tool permission rule (e.g., 'Bash(ls:*)', 'Read(~/.zshrc)', 'WebFetch(domain:github.com)')",
       "pattern": "^(Agent|Bash|Edit|Glob|Grep|LS|MultiEdit|NotebookEdit|NotebookRead|Read|TodoRead|TodoWrite|WebFetch|WebSearch|Write)\\(?|^mcp__"
@@ -21,14 +62,8 @@
       "type": "string",
       "description": "Custom script path to generate an auth value"
     },
-    "autoUpdaterStatus": {
-      "type": "string",
-      "description": "Enable or disable the auto-updater",
-      "enum": ["enabled", "disabled"],
-      "default": "enabled"
-    },
     "cleanupPeriodDays": {
-      "type": "number",
+      "type": "integer",
       "description": "How long to locally retain chat transcripts (in days)",
       "default": 30,
       "minimum": 0
@@ -52,8 +87,7 @@
     },
     "model": {
       "type": "string",
-      "description": "Claude model to use",
-      "enum": ["opus", "sonnet"]
+      "description": "Deprecated: use env.ANTHROPIC_MODEL and env.ANTHROPIC_SMALL_FAST_MODEL instead. Either \"sonnet\", \"opus\", or a specific Claude model ID (see https://docs.anthropic.com/en/docs/about-claude/models/overview)"
     },
     "permissions": {
       "type": "object",
@@ -62,42 +96,104 @@
       "properties": {
         "allow": {
           "type": "array",
-          "description": "List of allowed tool rules",
-          "items": { "$ref": "#/$defs/rule" },
+          "description": "List of allowed tool permission rules",
+          "items": { "$ref": "#/$defs/permissionRule" },
           "uniqueItems": true
         },
         "deny": {
           "type": "array",
-          "description": "List of denied tool rules",
-          "items": { "$ref": "#/$defs/rule" },
+          "description": "List of denied tool permission rules",
+          "items": { "$ref": "#/$defs/permissionRule" },
+          "uniqueItems": true
+        },
+        "defaultMode": {
+          "type": "string",
+          "description": "Default permission mode for tool execution",
+          "enum": ["acceptEdits", "bypassPermissions","default", "plan"]
+        },
+        "disableBypassPermissionsMode": {
+          "type": "string",
+          "description": "Disable bypass permissions mode",
+          "const": "disable"
+        },
+        "additionalDirectories": {
+          "type": "array",
+          "description": "Paths to additional directories Claude can access beyond the working directory",
+          "items": {
+            "type": "string"
+          },
           "uniqueItems": true
         }
-      },
-      "default": {
-        "allow": [],
-        "deny": []
       }
     },
-    "preferredNotifChannel": {
-      "type": "string",
-      "description": "Preferred notification channel",
-      "enum": [
-        "iterm2",
-        "iterm2_with_bell",
-        "terminal_bell",
-        "notifications_disabled"
-      ],
-      "default": "iterm2"
-    },
-    "theme": {
-      "type": "string",
-      "description": "UI theme configuration",
-      "enum": ["dark", "light", "light-daltonized", "dark-daltonized"]
-    },
-    "verbose": {
+    "enableAllProjectMcpServers": {
       "type": "boolean",
-      "description": "Show full bash and command outputs",
-      "default": false
+      "description": "Whether to automatically approve all MCP servers in the project"
+    },
+    "enabledMcpjsonServers": {
+      "type": "array",
+      "description": "List of allowed MCP servers from .mcp.json",
+      "items": {
+        "type": "string"
+      }
+    },
+    "disabledMcpjsonServers": {
+      "type": "array",
+      "description": "List of denied MCP servers from .mcp.json",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Hooks configuration for executing commands at specific points in Claude Code's lifecycle",
+      "additionalProperties": false,
+      "properties": {
+        "PreToolUse": {
+          "type": "array",
+          "description": "Hooks that run before tool calls",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PostToolUse": {
+          "type": "array",
+          "description": "Hooks that run after tool completion",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "Notification": {
+          "type": "array",
+          "description": "Hooks that trigger on notifications",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "Stop": {
+          "type": "array",
+          "description": "Hooks that run when agents finish responding",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "SubagentStop": {
+          "type": "array",
+          "description": "Hooks that run when subagents finish responding",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        }
+      }
+    },
+    "learnMode": {
+      "type": "boolean",
+      "description": "Request the model focuses more on educating and co-creating with the user, rather than just completing tasks"
+    },
+    "forceLoginMethod": {
+      "type": "string",
+      "description": "Force a specific login method, and skip the login method selection screen",
+      "enum": ["claudeai", "console"]
     }
   }
 }
