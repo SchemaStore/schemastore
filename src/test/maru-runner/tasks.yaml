@@ -1,0 +1,173 @@
+# yaml-language-server: $schema=../../schemas/json/maru-runner.json
+includes:
+  - foo: ./more-tasks/foo.yaml
+  - intentional: ./loop-task.yaml
+  - remote: https://raw.githubusercontent.com/defenseunicorns/maru-runner/${GIT_REVISION}/src/test/tasks/remote-import-tasks.yaml
+  # This tests that Maru uses the correct Accept Header for the GitHub API when that is used
+  - remote-api: https://api.github.com/repos/defenseunicorns/maru-runner/contents/src/test/tasks/tasks-no-default.yaml?ref=${GIT_REVISION}
+  # This tests that Maru properly handles authentication and GitLab paths (which are URL encoded)
+  - remote-gitlab: https://gitlab.com/api/v4/projects/66014760/repository/files/tasks%2Eyaml/raw
+
+variables:
+  - name: REPLACE_ME
+    default: replaced
+  - name: FOO_VAR
+    default: default
+  - name: TO_BE_OVERWRITTEN
+    default: default
+  - name: COOL_DIR
+    default: src/test/tasks
+  - name: COOL_FILE
+    default: my-env
+
+tasks:
+  - name: default
+    description: Run Default Task
+    actions:
+      - cmd: echo "This is the default task"
+  - name: echo-env-var
+    description: Test that env vars take precedence over var defaults
+    actions:
+      - cmd: echo "${TO_BE_OVERWRITTEN}"
+  - name: remote-import
+    actions:
+      - task: remote:echo-var
+  - name: remote-import-to-local
+    actions:
+      - task: remote:local-baz
+  - name: action
+    actions:
+      - cmd: echo "specific test string"
+  - name: interactive
+    description: Run an interactive task
+    actions:
+      - description: Create a spinner that spins
+        cmd: |
+          printf '\033[G ⬒ Spinning...'
+          sleep 0.1
+          printf '\033[G ⬔ Spinning...'
+          sleep 0.1
+          printf '\033[G ◨ Spinning...'
+          sleep 0.1
+          printf '\033[G ◪ Spinning...'
+          sleep 0.1
+          printf '\033[G ⬓ Spinning...'
+          sleep 0.1
+          printf '\033[G ⬕ Spinning...'
+          sleep 0.1
+          printf '\033[G ◧ Spinning...'
+          sleep 0.1
+          printf '\033[G ◩ Spinning...'
+  - name: cmd-set-variable
+    actions:
+      - cmd: echo unique-value
+        mute: true
+        setVariables:
+          - name: ACTION_VAR
+      - cmd: echo "I'm set from setVariables - ${ACTION_VAR}"
+      - cmd: echo "I'm set from a runner var - ${REPLACE_ME}"
+      - cmd: echo "I'm set from a --set var - ${REPLACE_ME}"
+      - cmd: echo "I'm set from a --set var - $REPLACE_ME"
+      - cmd: echo "I'm set from a new --set var - ${UNICORNS}"
+      - cmd: echo "I'm set automatically - MARU=${MARU}"
+      - cmd: MARU=hello; echo "I was changed on the command line - MARU=${MARU}"
+  - name: print-common-env
+    actions:
+      - cmd: echo MARU_ARCH=[$MARU_ARCH]
+      - cmd: echo MARU=[$MARU]
+  - name: reference
+    actions:
+      - task: referenced
+  - name: referenced
+    actions:
+      - cmd: echo "other-task"
+  - name: recursive
+    actions:
+      - task: recursed
+  - name: recursed
+    actions:
+      - task: recursed1
+  - name: recursed1
+    actions:
+      - task: recursive
+  - name: rerun-tasks-child
+    actions:
+      - task: rerun-tasks
+  - name: rerun-tasks
+    actions:
+      - task: rerunnable-task
+      - task: rerunnable-task
+      - task: rerunnable-task2
+  - name: rerunnable-task
+    actions:
+      - task: rerunnable-echo
+  - name: rerunnable-task2
+    actions:
+      - task: rerunnable-task
+  - name: rerunnable-echo
+    actions:
+      - cmd: echo "I should be able to be called over and over within reason."
+  - name: rerun-tasks-recursive
+    actions:
+      - task: rerunnable-task
+      - task: rerunnable-task
+      - task: recursive
+  - name: foobar
+    actions:
+      - task: foo:foobar
+  - name: more-foobar
+    actions:
+      - task: foo:foobar
+      - task: remote:echo-var
+  - name: extra-foobar
+    actions:
+      - task: more-foobar
+  - name: more-foo
+    actions:
+      - task: foo:fooybar
+      - task: foo:foobar
+  - name: wait-success
+    actions:
+      - maxTotalSeconds: 1
+        wait:
+          network:
+            protocol: tcp
+            address: githubstatus.com:443
+  - name: wait-fail
+    actions:
+      - maxTotalSeconds: 1
+        wait:
+          cluster:
+            kind: StatefulSet
+            name: cool-name
+            namespace: tasks
+  - name: include-loop
+    actions:
+      - task: intentional:loop
+  - name: env-from-file
+    envPath: './my-env'
+    actions:
+      - cmd: echo $MARU_ARCH
+      - cmd: echo $SECRET_KEY
+      - cmd: echo $PORT
+      - cmd: echo $SPECIAL
+      - task: pass-env-vars
+      - task: overwrite-env-path
+  - name: pass-env-vars
+    actions:
+      - cmd: echo env var from calling task - $SECRET_KEY
+  - name: overwrite-env-path
+    envPath: './my-other-env'
+    actions:
+      - cmd: echo overwritten env var - $PORT
+  - name: file-and-dir
+    description: Tests setting dir from variable
+    actions:
+      - cmd: cat ${COOL_FILE}
+        dir: ${COOL_DIR}
+  - name: env-templating
+    description: Tests setting an env var from variable
+    actions:
+      - cmd: echo ${HELLO_KITTEH}
+        env:
+          - HELLO_KITTEH=hello-${REPLACE_ME}
