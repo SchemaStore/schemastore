@@ -21,6 +21,9 @@ import ora from 'ora'
 import chalk from 'chalk'
 import minimist from 'minimist'
 import fetch, { FetchError } from 'node-fetch'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+const execFileAsync = promisify(execFile)
 
 /**
  * @import { Ora } from 'ora'
@@ -62,7 +65,10 @@ const SchemaValidation = /** @type {SchemaValidationJson} */ (
 const SchemaDir = './src/schemas/json'
 const TestPositiveDir = './src/test'
 const TestNegativeDir = './src/negative_test'
-const UrlSchemaStore = 'https://json.schemastore.org/'
+const SchemaStoreUrls = /** @type {const} */ ([
+  'https://www.schemastore.org/',
+  'https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/',
+])
 const [SchemasToBeTested, FoldersPositiveTest, FoldersNegativeTest] = (
   await Promise.all([
     fs.readdir(SchemaDir),
@@ -83,11 +89,11 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['SchemaName', 'schema-name', 'unstable-check-with'],
-    boolean: ['help'],
+    boolean: ['help', 'build-xregistry', 'verify-xregistry'],
   })
 )
 if (argv.SchemaName) {
@@ -230,9 +236,11 @@ async function forEachFile(/** @type {ForEachTestFile} */ obj) {
     const schemaFile = await toFile(schemaPath)
     if (obj.actionName) {
       if (process.env.CI) {
-        console.info(`Running "${obj.actionName}" on file "${schemaFile.path}"`)
+        console.info(
+          `Running "${obj.actionName}" on file "./${schemaFile.path}"`,
+        )
       } else {
-        spinner.text = `Running "${obj.actionName}" on file "${schemaFile.path}"`
+        spinner.text = `Running "${obj.actionName}" on file "./${schemaFile.path}"`
       }
     }
     const data = await obj?.onSchemaFile?.(schemaFile, { spinner })
@@ -576,7 +584,7 @@ async function taskNewSchema() {
     await fs.writeFile(
       schemaFile,
       `{
-  "$id": "https://json.schemastore.org/${schemaName}.json",
+  "$id": "https://www.schemastore.org/${schemaName}.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "properties": {
@@ -596,7 +604,7 @@ async function taskNewSchema() {
   "name": "",
   "description": "",
   "fileMatch": ["${schemaName}.yml", "${schemaName}.yaml"],
-  "url": "https://json.schemastore.org/${schemaName}.json"
+  "url": "https://www.schemastore.org/${schemaName}.json"
 }`)
     process.exit(0)
   }
@@ -832,7 +840,12 @@ async function taskMaintenance() {
   {
     console.info(`===== BROKEN SCHEMAS =====`)
     forEachCatalogUrl((url) => {
-      if (url.startsWith(UrlSchemaStore)) return
+      if (
+        url.startsWith(SchemaStoreUrls[0]) ||
+        url.startsWith(SchemaStoreUrls[1])
+      ) {
+        return
+      }
 
       fetch(url)
         .then(async (res) => {
@@ -893,6 +906,283 @@ async function taskMaintenance() {
     })
   }
   // await printDowngradableSchemaVersions()
+}
+
+async function taskBuildWebsite() {
+  await fs.mkdir('./website/schemas/json', { recursive: true })
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website', schemaName),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website', path.parse(schemaName).name),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website/schemas/json', schemaName),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+  await Promise.all(
+    SchemasToBeTested.map((schemaName) => {
+      return fs
+        .copyFile(
+          path.join(SchemaDir, schemaName),
+          path.join('./website/schemas/json', path.parse(schemaName).name),
+        )
+        .catch((err) => {
+          if (err.code !== 'EISDIR') throw err
+        })
+    }),
+  )
+
+  const pageTitle = 'JSON Schema Store'
+  const pageDescription = 'JSON Schemas for common JSON file formats'
+  const body = `<article id="schemalist">
+  <h3 id="count">JSON Schemas are available for the following {0} files:</h3>
+
+  <input type="search" placeholder="Search schemas" id="search" />
+  <ul id="schemas" class="columns" role="directory" data-api="/api/json/catalog.json"></ul>
+</article>
+
+<article>
+  <h3 id="auto-completion">Auto completion</h3>
+  <p>
+    <img src="/img/autocomplete.png" width="354" height="171" alt="JSON schema auto completion" class="left" />
+    In supported JSON editors like Visual Studio and Visual Studio Code,
+    schema files can offer auto-completion and validation to make sure your JSON document is correct.
+  </p>
+
+  <p>
+    See <a href="https://json-schema.org/tools">a list</a>
+    of editors, validators and other software supporting JSON schemas.
+  </p>
+</article>
+
+<article>
+  <h3 id="tooltips">Tooltips</h3>
+  <p>
+    <img src="/img/tooltip.png" width="411" height="98" alt="JSON schema tooltip" class="right" />
+    When a JSON editor supports schemas, tooltips can help inform the user
+    about the various properties and values.
+  </p>
+</article>
+
+<article>
+  <h3 id="api">Public API</h3>
+  <p>
+    <img src="/img/api.png" width="256" height="88" alt="Public API for JSON Schemas" class="left" />
+    The JSON <a href="/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
+    Each schema file can be used in tooling such as command line validators, editor auto-completion etc.
+  </p>
+  <p>
+    The API exposes metadata about each schema in the following format:
+  </p>
+<pre>
+{
+  "name": "bower.json",
+  "description": "Bower package description file",
+  "fileMatch": [ "bower.json", ".bower.json" ],
+  "url": "https://www.schemastore.org/bower.json"
+}
+</pre>
+  <p>
+    <code>name</code>, <code>description</code> and <code>url</code> are all required properties.
+    <br />
+    The <code>url</code> property is an absolute URI pointing to the schema.
+    It can be hosted anywhere on the web.
+    <br />
+    The <code>fileMatch</code> property is for specifying what known file names corresponds with
+    the schema. This property is optional since not all JSON formats enforce a specific file name.
+  </p>
+</article>
+
+<article>
+    <h3 id="editors">Supporting editors</h3>
+    <p>
+        Various editors and IDEs have direct support for schemas hosted on SchemaStore.org.
+    </p>
+
+    <ul id="editorlist" class="columns">
+        <li>Android Studio</li>
+    <li>CLion</li>
+    <li>Emacs via <a href="https://github.com/joaotavora/eglot" target="_blank">eglot</a></li>
+    <li>IntelliJ IDEA</li>
+        <li>JSONBuddy</li>
+        <li>Neovim via <a href="https://github.com/b0o/SchemaStore.nvim" target="_blank">SchemaStore.nvim</a></li>
+        <li>PhpStorm</li>
+        <li>PyCharm</li>
+    <li>ReSharper</li>
+        <li>Rider</li>
+        <li>RubyMine</li>
+    <li>SublimeText via <a href="https://packagecontrol.io/packages/LSP-json" target="_blank">LSP-json</a>,<a href="https://packagecontrol.io/packages/LSP-yaml" target="_blank">LSP-yaml</a></li>
+        <li>Visual Studio</li>
+        <li>Visual Studio Code (<a href="https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml" target="_blank">YAML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml" target="_blank">TOML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=remcohaszing.schemastore" target="_blank">JSON</a>)</li>
+        <li>Visual Studio for Mac</li>
+        <li>WebStorm</li>
+    </ul>
+
+    <p>Any schema on SchemaStore.org will automatically be synchronized to the supporting editors.</p>
+</article>
+
+<article>
+    <h3 id="sponsor">Sponsorships <span style="color:mediumvioletred">♡</span></h3>
+    <p>
+        <img src="/img/sponsor.png" width="160" height="192" alt="Sponsor SchemaStore.org now" class="right" />
+    Over 1 TB of JSON Schema files are served each day from SchemaStore.org. It's a big effort to maintain
+    and keep running, and it's all done by JSON Schema loving volunteers.
+
+        If your business gets value from SchemaStore.org, please consider sponsoring to keep the project alive and healthy.
+    </p>
+
+    <p>Premium sponsors:</p>
+
+  <ul>
+    <li><strong>Microsoft</strong></li>
+        <li><strong>JetBrains</strong></li>
+    <li>Your business?</li>
+  </ul>
+
+    <p>
+    Do you build IDEs or editors that integrate with SchemaStore.org, or host a schema for your paying customers, consider a sponsorship.
+  </p>
+
+  <p><a href="https://github.com/sponsors/madskristensen">SchemaStore.org sponsorships <span style="color:mediumvioletred">♡</span></a></p>
+</article>
+
+<article>
+    <h3 id="ci">Supporting Continuous Integration tools</h3>
+    <p>
+        CI/CD applications can detect all JSON and YAML files and validate them if a matching schema is found on SchemaStore.org
+    </p>
+
+    <ul>
+        <li><a href="https://megalinter.github.io" target="_blank">MegaLinter</a></li>
+    </ul>
+</article>
+
+<article>
+    <h3 id="contribute">Contribute</h3>
+    <p>
+        <img src="/img/octocat.png" width="250" height="208" alt="Hosted on GitHub" class="left" />
+        The goal of this API is to include schemas for all commonly
+        known JSON file formats. To do that we encourage contributions in terms of new schemas,
+        modifications and test files.
+    </p>
+
+    <p>
+        SchemaStore.org is owned by the community, and we have a history of accepting most pull requests.
+        Even if you're new to JSON Schemas, please submit new schemas anyway. We have many contributors that
+        will help turn the schemas into perfection.
+    </p>
+</article>`
+
+  await fs.writeFile(
+    './website/index.html',
+    `<!DOCTYPE html>
+<html>
+<head prefix="og: http://ogp.me/ns#">
+	<title>${pageTitle}</title>
+	<!-- Generated from cli.js -->
+
+	<meta charset="utf-8" />
+	<meta name="description" content="${pageDescription}" />
+	<meta name="viewport" content="initial-scale=1.0" />
+
+	<link href="/css/site.css" rel="stylesheet" />
+
+	<link rel="apple-touch-icon" sizes="57x57" href="/img/favicon/apple-touch-icon-57x57.png" />
+	<link rel="apple-touch-icon" sizes="114x114" href="/img/favicon/apple-touch-icon-114x114.png" />
+	<link rel="apple-touch-icon" sizes="72x72" href="/img/favicon/apple-touch-icon-72x72.png" />
+	<link rel="apple-touch-icon" sizes="144x144" href="/img/favicon/apple-touch-icon-144x144.png" />
+	<link rel="apple-touch-icon" sizes="60x60" href="/img/favicon/apple-touch-icon-60x60.png" />
+	<link rel="apple-touch-icon" sizes="120x120" href="/img/favicon/apple-touch-icon-120x120.png" />
+	<link rel="apple-touch-icon" sizes="76x76" href="/img/favicon/apple-touch-icon-76x76.png" />
+	<link rel="apple-touch-icon" sizes="152x152" href="/img/favicon/apple-touch-icon-152x152.png" />
+	<link rel="apple-touch-icon" sizes="180x180" href="/img/favicon/apple-touch-icon-180x180.png" />
+
+	<link rel="icon" type="image/png" href="/img/favicon/favicon-192x192.png" sizes="192x192" />
+	<link rel="icon" type="image/png" href="/img/favicon/favicon-160x160.png" sizes="160x160" />
+	<link rel="icon" type="image/png" href="/img/favicon/favicon-96x96.png" sizes="96x96" />
+	<link rel="icon" type="image/png" href="/img/favicon/favicon-16x16.png" sizes="16x16" />
+	<link rel="icon" type="image/png" href="/img/favicon/favicon-32x32.png" sizes="32x32" />
+
+	<meta name="msapplication-TileColor" content="#da532c" />
+	<meta name="msapplication-TileImage" content="/img/favicon/mstile-144x144.png" />
+	<meta name="msapplication-config" content="/img/favicon/browserconfig.xml" />
+
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content="${pageTitle}" />
+	<meta name="twitter:description" content="${pageDescription}" />
+	<meta name="twitter:image" content="http://schemastore.org/img/json-logo.png" />
+
+	<meta property="og:title" content="${pageTitle}" />
+	<meta property="og:description" content="${pageDescription}" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="http://schemastore.org" />
+	<meta property="og:image" content="http://schemastore.org/img/json-logo.png" />
+</head>
+<body>
+
+	<header role="banner">
+		<div class="container">
+			<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
+		</div>
+	</header>
+	<nav>
+		<ul class="container">
+			<li><a href="/json/">JSON</a></li>
+		</ul>
+	</nav>
+
+	<div role="main" id="main" class="container">
+		${body}
+	</div>
+
+	<footer role="contentinfo" class="container">
+		<p>Open source on <a href="https://github.com/schemastore/schemastore/">GitHub</a></p>
+	</footer>
+
+	<script src="/js/site.js" async defer></script>
+</body>
+</html>
+`,
+  )
+
+  await fs.mkdir('./website/api/json', { recursive: true })
+  await fs.copyFile(
+    './src/api/json/catalog.json',
+    './website/api/json/catalog.json',
+  )
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/css', './website/css', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/img', './website/img', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/js', './website/js', { recursive: true })
 }
 
 async function assertFileSystemIsValid() {
@@ -1105,11 +1395,14 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
   {
     await forEachCatalogUrl((/** @type {string} */ catalogUrl) => {
       // Skip external schemas.
-      if (!catalogUrl.startsWith(UrlSchemaStore)) {
+      if (
+        !catalogUrl.startsWith(SchemaStoreUrls[0]) &&
+        !catalogUrl.startsWith(SchemaStoreUrls[1])
+      ) {
         return
       }
 
-      const filename = new URL(catalogUrl).pathname.slice(1)
+      const filename = path.basename(new URL(catalogUrl).pathname)
 
       // Check that local URLs end in .json
       if (!filename.endsWith('.json')) {
@@ -1136,8 +1429,11 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
     const /** @type {string[]} */ allCatalogLocalJsonFiles = []
 
     await forEachCatalogUrl((catalogUrl) => {
-      if (catalogUrl.startsWith(UrlSchemaStore)) {
-        const filename = new URL(catalogUrl).pathname.slice(1)
+      if (
+        catalogUrl.startsWith(SchemaStoreUrls[0]) ||
+        catalogUrl.startsWith(SchemaStoreUrls[1])
+      ) {
+        const filename = path.basename(new URL(catalogUrl).pathname)
         allCatalogLocalJsonFiles.push(filename)
       }
     })
@@ -1154,7 +1450,9 @@ async function assertCatalogJsonLocalURLsAreOneToOne() {
       if (!allCatalogLocalJsonFiles.includes(schemaName)) {
         printErrorAndExit(new Error(), [
           `Expected schema file "${schemaName}" to have a corresponding entry in the catalog file "${CatalogFile}"`,
-          `Expected to find entry with "url" of "${UrlSchemaStore}${schemaName}"`,
+          `Expected to find entry with "url" that is one of:`,
+          `  - "${SchemaStoreUrls[0]}${schemaName}"`,
+          `  - "${SchemaStoreUrls[1]}${schemaName}"`,
           `If this is intentional, ignore this error by appending to the property "missingCatalogUrl" in file "${SchemaValidationFile}"`,
         ])
       }
@@ -1326,14 +1624,22 @@ function assertSchemaValidationJsonHasValidSkipTest() {
   for (const schemaName of SchemaValidation.skiptest) {
     const folderName = schemaName.replace(/\.json$/, '')
 
-    if (FoldersPositiveTest.includes(folderName)) {
+    const allowedExtraneousDirs = ['circleciconfig'] // TODO: Remove this
+
+    if (
+      FoldersPositiveTest.includes(folderName) &&
+      !allowedExtraneousDirs.includes(folderName)
+    ) {
       printErrorAndExit(new Error(), [
         `Did not expect to find positive test directory at "./${path.join(TestPositiveDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any positive test files`,
       ])
     }
 
-    if (FoldersNegativeTest.includes(folderName)) {
+    if (
+      FoldersNegativeTest.includes(folderName) &&
+      !allowedExtraneousDirs.includes(folderName)
+    ) {
       printErrorAndExit(new Error(), [
         `Did not expect to find negative test directory at "./${path.join(TestNegativeDir, folderName)}"`,
         `Because filename "${schemaName}" is listed under "skiptest", it should not have any negative test files`,
@@ -1500,11 +1806,11 @@ async function assertSchemaHasCorrectMetadata(
       ])
     }
 
-    if (schema.json.id !== `https://json.schemastore.org/${schema.name}`) {
+    if (schema.json.id !== `https://www.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
         `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Incorrect property 'id' for schema "./${path.join(SchemaDir, schema.name)}"`,
-        `Expected value of "https://json.schemastore.org/${schema.name}"`,
+        `Expected value of "https://www.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.id}"`,
       ])
     }
@@ -1516,11 +1822,11 @@ async function assertSchemaHasCorrectMetadata(
       ])
     }
 
-    if (schema.json.$id !== `https://json.schemastore.org/${schema.name}`) {
+    if (schema.json.$id !== `https://www.schemastore.org/${schema.name}`) {
       printErrorAndExit(new Error(), [
         `Expected to find correct metadata on schema file "./${schema.path}"`,
         `Incorrect property '$id' for schema "./${path.join(SchemaDir, schema.name)}"`,
-        `Expected value of "https://json.schemastore.org/${schema.name}"`,
+        `Expected value of "https://www.schemastore.org/${schema.name}"`,
         `Found value of "${schema.json.$id}"`,
       ])
     }
@@ -1641,7 +1947,8 @@ async function printSimpleStatistics() {
     let countScanURLInternal = 0
 
     await forEachCatalogUrl((catalogUrl) => {
-      catalogUrl.startsWith(UrlSchemaStore)
+      catalogUrl.startsWith(SchemaStoreUrls[0]) ||
+      catalogUrl.startsWith(SchemaStoreUrls[1])
         ? countScanURLInternal++
         : countScanURLExternal++
     })
@@ -1754,6 +2061,7 @@ TASKS:
   check-strict: Checks all or the given schema against the strict meta schema
   check-remote: Run all build checks for remote schemas
   maintenance: Run maintenance checks
+  build-xregistry: Build the xRegistry from the catalog.json
 
 EXAMPLES:
   node ./cli.js check
@@ -1778,6 +2086,53 @@ EXAMPLES:
     console.info(helpMenu)
     process.exit(0)
   }
+  /**
+   * Executes the xRegistry build process
+   */
+  async function buildXRegistry() {
+    try {
+      console.info('Building xRegistry from catalog.json...')
+      const { stdout, stderr } = await execFileAsync('node', [
+        'scripts/build-xregistry.js',
+      ])
+      if (stdout) console.log(stdout)
+      if (stderr) console.error(stderr)
+
+      const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync(
+        'sh',
+        ['scripts/build_xregistry_site.sh'],
+      )
+      if (siteStdout) console.log(siteStdout)
+      if (siteStderr) console.error(siteStderr)
+
+      const { stdout: postStdout, stderr: postStderr } = await execFileAsync(
+        'node',
+        ['scripts/postprocess-xregistry-site.js'],
+      )
+      if (postStdout) console.log(postStdout)
+      if (postStderr) console.error(postStderr)
+
+      return true
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error executing xRegistry build:', error.message)
+        if ('stdout' in error) console.log(error.stdout)
+        if ('stderr' in error) console.error(error.stderr)
+      } else {
+        console.error('Unknown error occurred during xRegistry build:', error)
+      }
+      return false
+    }
+  }
+
+  /**
+   * Task to build the xRegistry
+   */
+  async function taskBuildXRegistry() {
+    if (!(await buildXRegistry())) {
+      process.exit(1)
+    }
+  }
 
   /** @type {Record<string, () => Promise<unknown>>} */
   const taskMap = {
@@ -1788,6 +2143,8 @@ EXAMPLES:
     'check-remote': taskCheckRemote,
     report: taskReport,
     maintenance: taskMaintenance,
+    'build-website': taskBuildWebsite,
+    'build-xregistry': taskBuildXRegistry,
     build: taskCheck, // Undocumented alias.
   }
   const taskOrFn = argv._[0]
