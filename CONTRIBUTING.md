@@ -98,32 +98,18 @@ The goal of JSON Schemas in this repository is to correctly validate schemas tha
 ### Useful Conventions
 
 - Consider using documentation URLs in `"description"` to improve UX. Most schemas use the format `<description>\n<url>`. For example: `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`
-- Consider using the [`base.json`][base] schema for `draft-07` or [`base-04.json`][base-04] for `draft-04` to use subschemas that are commonly used.
 - When writing `description`, avoid phrases like "there are three possibilities" and "valid values are" in favor of adding the constraints to the schema directly.
 - If you choose to use `title`, we recommend formatting it so that object values look like types in programming languages. This includes:
   - Omitting leading articles and trailing punctuation
   - Beginning it with a lowercase letter
   - Using nouns instead of sentences
 
-**Unofficial Strict Mode**
-
-> [!WARNING]  
-> This "unofficial strict mode" may have bugs or be incomplete.
-
-There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses JSON Schema to validate your JSON Schema. It checks that:
-
-- `type`, `title`, `description` properties are required
-- There are no empty arrays. For instance, it's impossible to write less than 2 sub-schemas for `allOf`
-- `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
-- It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema) for each hint/check
-
-To check your schema against that schema, use `node cli.js check-strict --schema-name=<schemaName.json>`. Note that this is NOT the same as Ajv strict mode.
-
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
-[draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
 
 #### Avoiding Overconstraint
+
+##### Complexity
 
 Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. In general, do not add a constraint if:
 
@@ -136,7 +122,21 @@ So, we recommend avoiding regex patterns for:
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
 
-In addition, be wary when adding exhaustive support to enum-type fields (without a `"type": "string"` fallback). Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
+##### Enums
+
+Be wary when adding exhaustive support to enum-type fields (without a `"type": "string"` fallback). Keep in mind:
+
+- New enum values that are supported by a new tool version (and not yet added to SchemaStore) should _not_ error
+- The schema may be extended by a tool that you have no knowledge of
+
+##### Properties
+
+Do not blindly add `"additionalProperties": false`. Keep in mind that:
+
+- New properties that are supported by a new tool version (and not yet added to SchemaStore) should _not_ error
+- The schema may be extended by a tool that you have no knowledge of
+
+It is recognized that stricter checking may be desired, as in the case of checking for typos. In that case, check to see if your validator has an option for stronger checks. For example, [Tombi](https://tombi-toml.github.io/tombi) enables a [strict mode](https://tombi-toml.github.io/tombi/docs/json-schema#strict-mode) by default.
 
 #### Undocumented Features
 
@@ -634,6 +634,7 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
 - Within [schema-validation.jsonc](./src/schema-validation.jsonc), in `"options": []`, add an entry:
   `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
+  - Note that all transitive schemas must be specified in `externalSchema`
 
 ### How to add a `$ref` to a JSON Schema that's self-hosted
 

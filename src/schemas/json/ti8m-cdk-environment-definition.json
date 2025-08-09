@@ -1,0 +1,694 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/ti8m-cdk-environment-definition.json",
+  "title": "Environment Definition",
+  "description": "Definition of an application environment",
+  "type": "object",
+  "properties": {
+    "app": {
+      "type": "string",
+      "description": "the name of the application-(component) defined by this environment"
+    },
+    "config-set": {
+      "type": "object",
+      "description": "configuration sets, which can be referenced from the service definitions",
+      "additionalProperties": {
+        "$ref": "#/definitions/serviceConfiguration",
+        "description": "A set of service-configurations applied to several services in the same way."
+      }
+    },
+    "services": {
+      "type": "array",
+      "description": "list of services which are part of this environment",
+      "items": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/definitions/serviceConfiguration"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "alias": {
+                "type": "string",
+                "description": "a convenient name, unique within the environment."
+              },
+              "name": {
+                "type": "string",
+                "description": "the name of the service, usually prefixed by the environment name to continue the historic way of supporting plain docker/docker-compose environments"
+              },
+              "hostname": {
+                "type": "string",
+                "description": "the hostname of the docker-container, to override the automatic created hostnames for docker-compose environments"
+              },
+              "external-name": {
+                "type": "string",
+                "description": "the external name of the service, this is usually a DNS name for an external service, e.g. api.google.com"
+              },
+              "image": {
+                "type": "string",
+                "description": "URL of the docker registry containing the services image"
+              },
+              "config-sets": {
+                "type": "array",
+                "description": "list of configuration sets to be applied to this service",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "exposed-route": {
+                "type": "object",
+                "description": "Additional properties for routes",
+                "properties": {
+                  "timeout": {
+                    "type": "string",
+                    "description": "the timeout in minutes or seconds (e.g. 10m, 10s)"
+                  },
+                  "rewrite-target": {
+                    "type": "string",
+                    "description": "the target path for url rewrites (replaces the entry path of the route)"
+                  }
+                }
+              }
+            },
+            "required": ["name", "alias"]
+          }
+        ]
+      }
+    }
+  },
+  "required": ["app"],
+  "definitions": {
+    "serviceConfiguration": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "object",
+          "description": "List of environment variables set in the Container/Pod",
+          "patternProperties": {
+            "^.*$": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "keyRefName": {
+                      "type": "string",
+                      "description": "the name of the secret to reference"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "the (entry) key of the referenced secret"
+                    }
+                  }
+                },
+                {
+                  "type": "string",
+                  "description": "plain simple value of the variable"
+                },
+                {
+                  "type": "number",
+                  "description": "plain simple value of the variable"
+                },
+                {
+                  "type": "boolean",
+                  "description": "plain simple value of the variable"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "entrypoint": {
+          "type": "string",
+          "description": "The entrypoint that is used to start the image (Only works with docker-compose and OpenShift"
+        },
+        "additionalLabels": {
+          "type": "object",
+          "properties": {
+            "deployment": {
+              "$ref": "#/definitions/labels",
+              "type": "object",
+              "description": "List of labels for deployments"
+            },
+            "service": {
+              "$ref": "#/definitions/labels",
+              "type": "object",
+              "description": "List of labels for services"
+            }
+          },
+          "additionalProperties": false
+        },
+        "liveness": {
+          "$ref": "#/definitions/probe",
+          "type": "object",
+          "description": "Defines a check, failure of which leads to the restart of the service"
+        },
+        "startup": {
+          "$ref": "#/definitions/probe",
+          "type": "object",
+          "description": "A startup probe indicates whether the application within a container is started. All other probes are disabled until the startup succeeds"
+        },
+        "readiness": {
+          "$ref": "#/definitions/probe",
+          "type": "object",
+          "description": "Defines a check, failure of which leads to the service not receiving any requests"
+        },
+        "deploymentStrategy": {
+          "type": "object",
+          "description": "How to roll out changed versions of the service (Recreate or Rolling)",
+          "properties": {
+            "type": {
+              "enum": ["Rolling", "Recreate"],
+              "default": "Recreate"
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "updatePeriodSeconds": {
+                  "type": "number",
+                  "description": "Number of seconds to wait between pod updates"
+                },
+                "intervalSeconds": {
+                  "type": "number",
+                  "description": "Number of seconds to wait between evaluations of the deployment status"
+                },
+                "timeoutSeconds": {
+                  "description": "Time to wait for a successful scale-up before rolling back to the previous deployment",
+                  "oneOf": [
+                    { "type": "number" },
+                    { "$ref": "#/definitions/templateParameterReference" }
+                  ]
+                },
+                "maxSurge": {
+                  "description": "Maximum temporary excess number of pods above the desired number of replicas",
+                  "oneOf": [
+                    { "type": "number" },
+                    { "$ref": "#/definitions/templateParameterReference" }
+                  ]
+                },
+                "maxUnavailable": {
+                  "description": "Maximum temporarily lacking pods compared to the desired number of replicas",
+                  "oneOf": [
+                    { "type": "number" },
+                    { "$ref": "#/definitions/templateParameterReference" }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "needsDbSchema": {
+          "type": "boolean",
+          "description": "true, if this service needs a database schema to persist information."
+        },
+        "pull-policy": {
+          "type": "string",
+          "description": "Image pull policy for openshift. Default: IfNotPresent",
+          "enum": ["IfNotPresent", "Always"]
+        },
+        "service-account": {
+          "type": "string",
+          "description": "The service account to use for Openshift."
+        },
+        "service-account-name": {
+          "type": "string",
+          "description": "The name of the service account to use for Openshift."
+        },
+        "host-aliases": {
+          "$ref": "#/definitions/host-aliases",
+          "type": "array",
+          "description": "Host entries added to /etc/hosts file"
+        },
+        "replicas": {
+          "description": "Number of desired instances.",
+          "anyOf": [
+            { "type": "number" },
+            { "type": "string" },
+            { "$ref": "#/definitions/templateParameterReference" }
+          ]
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceSpec",
+          "description": "Specifies resource usage of a container instance"
+        },
+        "deploymentResources": {
+          "$ref": "#/definitions/resourceSpec",
+          "type": "object",
+          "description": "Specifies resource usage of a deployment container instance"
+        },
+        "nodeSelector": {
+          "$ref": "#/definitions/nodeSelector",
+          "type": "array",
+          "description": "Label for a desired node selector"
+        },
+        "tolerations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/toleration"
+          },
+          "description": "Tolerations section for Openshift"
+        },
+        "podAntiAffinity": {
+          "$ref": "#/definitions/podAntiAffinity",
+          "type": "array",
+          "description": "podAntiAffinity"
+        },
+        "port-override": {
+          "$ref": "#/definitions/port-override",
+          "type": "array",
+          "description": "ports exposed by the service"
+        },
+        "nlb": {
+          "type": "boolean",
+          "description": "marks this service as 'network load-balanced'. On AWS this is a simple alternative to setting up a router and ingresses, which is the preferred method."
+        },
+        "config-files": {
+          "$ref": "#/definitions/config-files",
+          "type": "array",
+          "description": "configuration files to be mapped into the pod"
+        },
+        "secret-files": {
+          "$ref": "#/definitions/secret-files",
+          "type": "array",
+          "description": "secret files to be mounted in the pod"
+        },
+        "volumes": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/volumes",
+              "type": "array",
+              "description": "Volumes claimed by the service - these are usable cluster environments as well as docker-compose"
+            },
+            {
+              "type": "object",
+              "description": "For docker-compose targets: Keys in this object are directories on the host (if they contain slashes), or names of global volumes (if there are no slashes)",
+              "additionalProperties": true
+            }
+          ]
+        },
+        "customData": {
+          "type": "object",
+          "description": "Custom data object which will be passed as is into the render context",
+          "additionalProperties": true
+        },
+        "expose": {
+          "$ref": "#/definitions/expose"
+        },
+        "template-parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/templateParameter"
+          }
+        },
+        "external-port": {
+          "type": "number"
+        },
+        "external-ip": {
+          "type": "string"
+        },
+        "disableAutomountServiceAccountToken": {
+          "description": "(K8s/OpenShift only) Indicates whether a service account token should be mounted",
+          "type": "boolean"
+        },
+        "disableServiceLinks": {
+          "description": "(K8s/OpenShift only) Indicates whether information about services should be injected into pod's environment variables, matching the syntax of Docker links",
+          "type": "boolean"
+        },
+        "revisionHistoryLimit": {
+          "description": "(K8s/OpenShift only) The number of old ReplicationControllers to retain to allow for rollbacks",
+          "type": "number"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "oneOf": [
+        {
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "the url-path to http-GET for the check."
+            },
+            "port": {
+              "type": "string",
+              "description": "the port on which to http-GET the path for checking this service"
+            },
+            "scheme": {
+              "type": "string",
+              "description": "(optional) the scheme used for the probe HTTP or HTTPS defaults to HTTP",
+              "pattern": "(HTTP|HTTPS)"
+            }
+          },
+          "required": ["port", "path"]
+        },
+        {
+          "properties": {
+            "tcpSocket": {
+              "type": "string",
+              "description": "the port on which to tcp checking this service"
+            }
+          },
+          "required": ["tcpSocket"]
+        },
+        {
+          "properties": {
+            "commands": {
+              "type": "array",
+              "description": "list of probe commands",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "arg": {
+                    "type": "string",
+                    "description": "argument"
+                  }
+                }
+              }
+            }
+          },
+          "required": ["commands"]
+        }
+      ],
+      "properties": {
+        "initialDelay": {
+          "type": "number",
+          "description": "(optional) the initial delay to wait before starting to probe in seconds"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "(optional) the time in seconds to wait for an http response for each call to the probe endpoint"
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "(optional) the number of times the probe is allowed to fail the health check before performing its duty (e.g., recreating a pod or marking a pod as unavailable)"
+        },
+        "successThreshold": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "(optional) the number of times the probe has to pass the health check before performing its duty (e.g., marking a pod as available)"
+        }
+      }
+    },
+    "resourceSpec": {
+      "type": "object",
+      "properties": {
+        "limits": {
+          "$ref": "#/definitions/resources",
+          "type": "object",
+          "description": "Upper limits of resources available to a container instance"
+        },
+        "requests": {
+          "$ref": "#/definitions/resources",
+          "type": "object",
+          "description": "Amount of resources necessary to run a container instance. Must be less than limits."
+        }
+      }
+    },
+    "nodeSelector": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "nodeSelector key"
+        },
+        "value": {
+          "type": "string",
+          "description": "nodeSelector value"
+        }
+      }
+    },
+    "podAntiAffinity": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "podAntiAffinity key"
+        },
+        "operator": {
+          "type": "string",
+          "description": "podAntiAffinity operator"
+        },
+        "values": {
+          "type": "array",
+          "description": "podAntiAffinity values",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topologyKey": {
+          "type": "string",
+          "description": "podAntiAffinity topologyKey"
+        }
+      }
+    },
+    "toleration": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Toleration key. The key is any string, up to 253 characters. The key must begin with a letter or number, and may contain letters, numbers, hyphens, dots, and underscores."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Toleration operator. The operator is one of the following: Equal or Exists"
+        },
+        "value": {
+          "type": "string",
+          "description": "Toleration value. The value is any string, up to 63 characters. The value must begin with a letter or number, and may contain letters, numbers, hyphens, dots, and underscores."
+        },
+        "effect": {
+          "type": "string",
+          "description": "Toleration effect. The effect is one of the following: NoSchedule, PreferNoSchedule or NoExecute"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "cpu": {
+          "description": "The number of cores, can be specified as integer cores, or in milli-cores (eg: '100m')",
+          "oneOf": [
+            { "$ref": "#/definitions/templateParameterReference" },
+            { "type": "string", "pattern": "\\d+m?" }
+          ]
+        },
+        "memory": {
+          "description": "The amount of main memory in either of M,G (base 10) or Mi, Gi (base 2). (eg: '3Gi')",
+          "oneOf": [
+            { "type": "string", "pattern": "\\d+(M|G|Mi|Gi)" },
+            { "$ref": "#/definitions/templateParameterReference" }
+          ]
+        }
+      },
+      "required": ["cpu", "memory"]
+    },
+    "config-files": {
+      "type": "array",
+      "description": "list of configuration files to be mapped into the service-container",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "name of the source file"
+          },
+          "target": {
+            "type": "string",
+            "description": "name & path of the file inside the container"
+          },
+          "isBinaryFile": {
+            "type": "boolean",
+            "description": "Whether the file is binary. Needed for kubernetes environments so that binaryData is used in the ConfigMap.",
+            "default": false
+          }
+        }
+      }
+    },
+    "secret-files": {
+      "type": "array",
+      "description": "list of secret files to be mounted in the service-container",
+      "items": {
+        "type": "object",
+        "required": ["secret", "mountPath"],
+        "properties": {
+          "secret": {
+            "type": "string",
+            "description": "Name of the secret to be mounted. If no key and target specified, all the items of the secret will be mounted in the mount path.",
+            "examples": ["truststore"]
+          },
+          "mountPath": {
+            "type": "string",
+            "description": "Mount path in the target service-container where the secret files will be available.",
+            "examples": ["/secrets"]
+          },
+          "key": {
+            "type": "string",
+            "description": "(Optional) Specifies the use of a single item of the secret identified by its key.",
+            "examples": ["truststore.jks"]
+          },
+          "target": {
+            "type": "string",
+            "description": "(Optional) When using a specific secret item, then target file name needs to be specified.",
+            "examples": ["truststore.jks"]
+          }
+        }
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "description": "list of volumes needed by this service, may result in persistent volume-claims or transient volumes",
+      "items": {
+        "type": "object",
+        "properties": {
+          "persistentVolumeClaimName": {
+            "type": "string",
+            "description": "existing pvc Name that is already existing on openshift"
+          },
+          "path": {
+            "type": "string",
+            "description": "path onto which the volume will be mounted"
+          },
+          "size": {
+            "type": "string",
+            "description": "the requested size of the volume in Mega- or Giga-Byte. If this is specified, it will generate a volume-claim, if not an anonymous volume of type emptyDir will be created",
+            "pattern": "\\d+(M|G|Mi|Gi)"
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "whether or not the volume can be mounted by multiple nodes, generates a global volume for docker-compose environments"
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    "labels": {
+      "type": "object",
+      "description": "List of labels",
+      "patternProperties": {
+        "^.*$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "host-aliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string",
+            "description": "IP of the hostalias"
+          },
+          "hostnames": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hostname": {
+                  "type": "string",
+                  "description": "Hostname"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "port-override": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "port": {
+                "type": "number",
+                "description": "port number exposed by the container"
+              },
+              "externalPort": {
+                "type": "number",
+                "description": "port number exposed to clients (service port). If omitted implicitly equal to the port"
+              },
+              "nodePort": {
+                "description": "port number exposed on the Kubernetes cluster nodes. This generates a separate Service of type NodePort, if set.",
+                "oneOf": [
+                  { "type": "number" },
+                  { "$ref": "#/definitions/templateParameterReference" }
+                ]
+              },
+              "portLabel": {
+                "type": "string",
+                "description": "name of the port"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "expose": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/exposure"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/exposure"
+          }
+        }
+      ]
+    },
+    "exposure": {
+      "type": "object",
+      "description": "defines, which endpoints, if any, to expose to the outside of the cluster",
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "The host to be used for this exposure, the global cluster host is the default."
+        },
+        "path": {
+          "type": "array",
+          "description": "list of paths (path-beginnings) to be routed to this service",
+          "items": {
+            "type": "string"
+          }
+        },
+        "port": {
+          "type": "integer",
+          "description": "the internal port of the service that exposes the path"
+        },
+        "tls-termination": {
+          "type": "string",
+          "description": "TLS termination on OpenShift",
+          "enum": ["edge", "passthrough", "reencrypt"]
+        }
+      },
+      "required": ["path"]
+    },
+    "templateParameterReference": {
+      "type": "string",
+      "pattern": "\\$\\{\\{?.+\\}?\\}"
+    },
+    "templateParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": ["description", "name", "value"]
+    }
+  }
+}

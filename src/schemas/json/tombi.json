@@ -2,20 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/tombi.json",
   "title": "Tombi",
-  "description": "**Tombi** (鳶) is a toolkit for TOML; providing a formatter/linter and language server.\n See the [GitHub repository](https://github.com/tombi-toml/tombi) for more information.",
+  "description": "**Tombi** (鳶) is a toolkit for TOML; providing a formatter/linter and language server.\nSee the [GitHub repository](https://github.com/tombi-toml/tombi) for more information.",
   "type": "object",
   "properties": {
-    "format": {
-      "title": "Formatter options.",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/FormatOptions"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "toml-version": {
       "title": "TOML version.",
       "description": "TOML version to use if not specified in the schema.",
@@ -30,22 +19,43 @@
       "default": "v1.0.0"
     },
     "include": {
-      "title": "File patterns to include.",
-      "description": "The file match pattern to include in formatting and linting.\n Supports glob pattern.",
+      "title": "Deprecated. Use `files.include` instead.",
       "type": ["array", "null"],
       "items": {
         "type": "string"
       },
+      "deprecated": true,
       "minItems": 1
     },
     "exclude": {
-      "title": "File patterns to exclude.",
-      "description": "The file match pattern to exclude from formatting and linting.\n Supports glob pattern.",
+      "title": "Deprecated. Use `files.exclude` instead.",
       "type": ["array", "null"],
       "items": {
         "type": "string"
       },
+      "deprecated": true,
       "minItems": 1
+    },
+    "files": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/FilesOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "format": {
+      "title": "Formatter options.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/FormatOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "lint": {
       "title": "Linter options.",
@@ -58,16 +68,28 @@
         }
       ]
     },
-    "server": {
-      "title": "Language server options.",
+    "lsp": {
+      "title": "Language Server Protocol options.",
       "anyOf": [
         {
-          "$ref": "#/definitions/ServerOptions"
+          "$ref": "#/definitions/LspOptions"
         },
         {
           "type": "null"
         }
       ]
+    },
+    "server": {
+      "title": "Deprecated. Use `lsp` instead.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LspOptions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "deprecated": true
     },
     "schema": {
       "title": "Schema options.",
@@ -89,7 +111,7 @@
     }
   },
   "additionalProperties": false,
-  "x-tombi-toml-version": "v1.0.0",
+  "x-tombi-toml-version": "v1.1.0-preview",
   "x-tombi-table-keys-order": "schema",
   "definitions": {
     "TomlVersion": {
@@ -97,60 +119,48 @@
       "type": "string",
       "enum": ["v1.0.0", "v1.1.0-preview"]
     },
+    "FilesOptions": {
+      "title": "Files options.",
+      "type": "object",
+      "properties": {
+        "include": {
+          "title": "File patterns to include.",
+          "description": "The file match pattern to include in formatting and linting.\nSupports glob pattern.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "default": ["**/*.toml"]
+        },
+        "exclude": {
+          "title": "File patterns to exclude.",
+          "description": "The file match pattern to exclude from formatting and linting.\nSupports glob pattern.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema"
+    },
     "FormatOptions": {
       "title": "Formatter options.",
-      "description": "To avoid needless discussion of formatting rules,\n we do not currently have a configuration item for formatting.",
+      "description": "To avoid needless discussion of formatting rules,\nwe do not currently have a configuration item for formatting.",
       "type": "object",
       "additionalProperties": false,
       "x-tombi-table-keys-order": "schema"
     },
     "LintOptions": {
       "type": "object",
-      "additionalProperties": false,
-      "x-tombi-table-keys-order": "schema"
-    },
-    "ServerOptions": {
-      "title": "Language Server options.",
-      "type": "object",
       "properties": {
-        "hover": {
-          "title": "Hover Feature options.",
+        "rules": {
+          "title": "Lint rules.",
           "anyOf": [
             {
-              "$ref": "#/definitions/ServerHover"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "completion": {
-          "title": "Completion Feature options.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ServerCompletion"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "formatting": {
-          "title": "Formatting Feature options.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ServerFormatting"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "diagnostics": {
-          "title": "Diagnostics Feature options.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ServerDiagnostics"
+              "$ref": "#/definitions/LintRules"
             },
             {
               "type": "null"
@@ -161,12 +171,188 @@
       "additionalProperties": false,
       "x-tombi-table-keys-order": "schema"
     },
-    "ServerHover": {
+    "LintRules": {
+      "type": "object",
+      "properties": {
+        "key-empty": {
+          "title": "Key empty.",
+          "description": "Check if the key is empty.\n\n```toml\n# VALID BUT DISCOURAGED\n\"\" = true\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SeverityLevelDefaultWarn"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dotted-keys-out-of-order": {
+          "title": "Dotted keys out of order.",
+          "description": "Check if dotted keys are defined out of order.\n\n```toml\n# VALID BUT DISCOURAGED\napple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\norange.skin = \"thick\"\n\n# RECOMMENDED\napple.type = \"fruit\"\napple.skin = \"thin\"\norange.type = \"fruit\"\norange.skin = \"thick\"\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SeverityLevelDefaultWarn"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tables-out-of-order": {
+          "title": "Tables out of order.",
+          "description": "Check if tables are defined out of order.\n\n```toml\n# VALID BUT DISCOURAGED\n[fruit.apple]\n[animal]\n[fruit.orange]\n\n# RECOMMENDED\n[fruit.apple]\n[fruit.orange]\n[animal]\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SeverityLevelDefaultWarn"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "version-sort"
+    },
+    "SeverityLevelDefaultWarn": {
+      "default": "warn",
+      "allOf": [
+        {
+          "$ref": "#/definitions/SeverityLevel"
+        }
+      ]
+    },
+    "SeverityLevel": {
+      "oneOf": [
+        {
+          "title": "Disable the Rule.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "title": "Display as Warning.",
+          "type": "string",
+          "const": "warn"
+        },
+        {
+          "title": "Display as Error.",
+          "type": "string",
+          "const": "error"
+        }
+      ]
+    },
+    "LspOptions": {
+      "type": "object",
+      "properties": {
+        "code-action": {
+          "title": "Code Action Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspCodeAction"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completion": {
+          "title": "Completion Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspCompletion"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostics": {
+          "title": "Diagnostics Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspDiagnostics"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "document-link": {
+          "title": "Document Link Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspDocumentLink"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formatting": {
+          "title": "Formatting Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspFormatting"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "goto-declaration": {
+          "title": "Goto Declaration Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspGotoDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "goto-definition": {
+          "title": "Goto Definition Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspGotoDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "goto-type-definition": {
+          "title": "Goto Type Definition Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspGotoDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hover": {
+          "title": "Hover Feature options.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LspHover"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "ascending"
+    },
+    "LspCodeAction": {
       "type": "object",
       "properties": {
         "enabled": {
-          "title": "Enable hover feature.",
-          "description": "Whether to enable hover.",
+          "title": "Enable code action feature.",
+          "description": "Whether to enable code action.",
           "anyOf": [
             {
               "$ref": "#/definitions/BoolDefaultTrue"
@@ -183,12 +369,12 @@
       "type": "boolean",
       "default": true
     },
-    "ServerCompletion": {
+    "LspCompletion": {
       "type": "object",
       "properties": {
         "enabled": {
           "title": "Enable completion feature.",
-          "description": "Whether to enable completion.\n\n **WARNING**: 🚧 This feature is experimental 🚧",
+          "description": "Whether to enable completion.",
           "anyOf": [
             {
               "$ref": "#/definitions/BoolDefaultTrue"
@@ -201,7 +387,43 @@
       },
       "additionalProperties": false
     },
-    "ServerFormatting": {
+    "LspDiagnostics": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "title": "Enable diagnostics feature.",
+          "description": "Whether to enable diagnostics.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "LspDocumentLink": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "title": "Enable document link feature.",
+          "description": "Whether to enable document link.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "LspFormatting": {
       "type": "object",
       "properties": {
         "enabled": {
@@ -219,12 +441,30 @@
       },
       "additionalProperties": false
     },
-    "ServerDiagnostics": {
+    "LspGotoDefinition": {
       "type": "object",
       "properties": {
         "enabled": {
-          "title": "Enable diagnostics feature.",
-          "description": "Whether to enable diagnostics.",
+          "title": "Enable goto definition feature.",
+          "description": "Whether to enable goto definition.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "LspHover": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "title": "Enable hover feature.",
+          "description": "Whether to enable hover.",
           "anyOf": [
             {
               "$ref": "#/definitions/BoolDefaultTrue"
@@ -253,7 +493,7 @@
         },
         "strict": {
           "title": "Enable or disable strict schema validation.",
-          "description": "If `additionalProperties` is not specified in the JSON Schema,\n the strict mode treats it as `additionalProperties: false`,\n which is different from the JSON Schema specification.",
+          "description": "If `additionalProperties` is not specified in the JSON Schema,\nthe strict mode treats it as `additionalProperties: false`,\nwhich is different from the JSON Schema specification.",
           "anyOf": [
             {
               "$ref": "#/definitions/BoolDefaultTrue"
@@ -279,25 +519,58 @@
       "x-tombi-table-keys-order": "schema"
     },
     "SchemaCatalog": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/NewSchemaCatalog"
+        },
+        {
+          "$ref": "#/definitions/SchemaCatalogOld"
+        }
+      ]
+    },
+    "NewSchemaCatalog": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "title": "The schema catalog path/url array.",
+          "description": "The catalog is evaluated after the schemas specified by [[schemas]].\\\nSchemas are loaded in order from the beginning of the catalog list.",
+          "type": ["array", "null"],
+          "items": {
+            "$ref": "#/definitions/SchemaCatalogPath"
+          },
+          "default": [
+            "tombi:///json/catalog.json",
+            "https://json.schemastore.org/api/json/catalog.json"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SchemaCatalogPath": {
+      "description": "Generic value that can be either single or multiple",
+      "type": "string"
+    },
+    "SchemaCatalogOld": {
       "type": "object",
       "properties": {
         "path": {
           "title": "The schema catalog path or url.",
-          "description": "The catalog is evaluated after the schemas specified by [[schemas]].\n\n You can specify multiple catalogs by making it an array.\n If you specify an array, the catalogs are searched in order of priority starting from the first catalog.\n If you want to disable the default catalog, specify an empty array.",
+          "description": "**🚧 Deprecated 🚧**\\\nPlease use `schema.catalog.paths` instead.",
           "anyOf": [
             {
-              "$ref": "#/definitions/OneOrMany_for_SchemaCatalogPath"
+              "$ref": "#/definitions/OneOrMany"
             },
             {
               "type": "null"
             }
           ],
-          "default": "https://www.schemastore.org/api/json/catalog.json"
+          "deprecated": true,
+          "default": "https://json.schemastore.org/api/json/catalog.json"
         }
       },
       "additionalProperties": false
     },
-    "OneOrMany_for_SchemaCatalogPath": {
+    "OneOrMany": {
       "anyOf": [
         {
           "$ref": "#/definitions/SchemaCatalogPath"
@@ -310,10 +583,6 @@
         }
       ]
     },
-    "SchemaCatalogPath": {
-      "description": "Generic value that can be either single or multiple",
-      "type": "string"
-    },
     "Schema": {
       "anyOf": [
         {
@@ -321,6 +590,9 @@
         },
         {
           "$ref": "#/definitions/SubSchema"
+        },
+        {
+          "$ref": "#/definitions/OldSubSchema"
         }
       ]
     },
@@ -345,7 +617,7 @@
         },
         "include": {
           "title": "The file match pattern of the schema.",
-          "description": "The file match pattern to include the target to apply the schema.\n Supports glob pattern.",
+          "description": "The file match pattern to include the target to apply the schema.\nSupports glob pattern.",
           "type": "array",
           "items": {
             "type": "string"
@@ -361,13 +633,42 @@
       "title": "The schema for the sub value.",
       "type": "object",
       "properties": {
+        "root": {
+          "title": "The accessors to apply the sub schema.",
+          "type": "string",
+          "examples": ["tools.tombi", "items[0].name"],
+          "minLength": 1
+        },
         "path": {
           "title": "The sub schema path.",
           "type": "string"
         },
         "include": {
           "title": "The file match pattern of the sub schema.",
-          "description": "The file match pattern to include the target to apply the sub schema.\n Supports glob pattern.",
+          "description": "The file match pattern to include the target to apply the sub schema.\nSupports glob pattern.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": ["root", "path", "include"],
+      "x-tombi-table-keys-order": "schema"
+    },
+    "OldSubSchema": {
+      "title": "The schema for the old sub value.",
+      "description": "This is for backward compatibility.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "title": "The sub schema path.",
+          "type": "string"
+        },
+        "include": {
+          "title": "The file match pattern of the sub schema.",
+          "description": "The file match pattern to include the target to apply the sub schema.\nSupports glob pattern.",
           "type": "array",
           "items": {
             "type": "string"
@@ -376,12 +677,14 @@
         },
         "root-keys": {
           "title": "The keys to apply the sub schema.",
-          "type": ["string", "null"],
+          "description": "**🚧 Deprecated 🚧**\\\nPlease use `schemas[*].root` instead.",
+          "type": "string",
+          "deprecated": true,
           "minLength": 1
         }
       },
       "additionalProperties": false,
-      "required": ["path", "include"],
+      "required": ["path", "include", "root-keys"],
       "x-tombi-table-keys-order": "schema"
     }
   }
