@@ -505,6 +505,7 @@ async function ajvFactory(
     'x-tombi-toml-version',
     'x-tombi-array-values-order',
     'x-tombi-table-keys-order',
+    'x-tombi-string-formats',
     'x-intellij-language-injection',
     'x-intellij-html-description',
     'x-intellij-enum-metadata',
