@@ -1153,11 +1153,6 @@ async function taskBuildWebsite() {
 			<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
 		</div>
 	</header>
-	<nav>
-		<ul class="container">
-			<li><a href="/json/">JSON</a></li>
-		</ul>
-	</nav>
 
 	<div role="main" id="main" class="container">
 		${body}
