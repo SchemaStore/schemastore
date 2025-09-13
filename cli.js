@@ -504,6 +504,7 @@ async function ajvFactory(
     'x-taplo-info',
     'x-tombi-toml-version',
     'x-tombi-array-values-order',
+    'x-tombi-array-values-order-by',
     'x-tombi-table-keys-order',
     'x-tombi-string-formats',
     'x-intellij-language-injection',
