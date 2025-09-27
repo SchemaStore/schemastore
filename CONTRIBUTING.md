@@ -334,6 +334,10 @@ Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/
 
 Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-string-formats) for details.
 
+**`x-tombi-additional-key-label`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-additional-key-label) for details.
+
 **`x-intellij-language-injection`**
 
 Used by Intellij.
