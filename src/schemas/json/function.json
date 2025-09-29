@@ -42,7 +42,12 @@
               "table",
               "notificationHub",
               "twilioSms",
-              "sendGrid"
+              "sendGrid",
+              "sql",
+              "sqlTrigger",
+              "kusto",
+              "mysql",
+              "mysqlTrigger"
             ]
           }
         },
@@ -191,8 +196,7 @@
         },
         "schedule": {
           "type": "string",
-          "description": "A cron expression of the format '{second} {minute} {hour} {day} {month} {day of week}' to specify the schedule.",
-          "pattern": "^(\\*|((([1-5]\\d)|\\d)(-(([1-5]\\d)|\\d)(/\\d+)?)?)(,((([1-5]\\d)|\\d)(-(([1-5]\\d)|\\d)(/\\d+)?)?))*)(/\\d+)? (\\*|((([1-5]\\d)|\\d)(-(([1-5]\\d)|\\d)(/\\d+)?)?)(,((([1-5]\\d)|\\d)(-(([1-5]\\d)|\\d)(/\\d+)?)?))*)(/\\d+)? (\\*|(((1\\d)|(2[0-3])|\\d)(-((1\\d)|(2[0-3])|\\d)(/\\d+)?)?)(,(((1\\d)|(2[0-3])|\\d)(-((1\\d)|(2[0-3])|\\d)(/\\d+)?)?))*)(/\\d+)? (\\*|((([1-2]\\d)|(3[0-1])|[1-9])(-(([1-2]\\d)|(3[0-1])|[1-9])(/\\d+)?)?)(,((([1-2]\\d)|(3[0-1])|[1-9])(-(([1-2]\\d)|(3[0-1])|[1-9])(/\\d+)?)?))*)(/\\d+)? (\\*|(([A-Za-z]+|(1[0-2])|[1-9])(-([A-Za-z]+|(1[0-2])|[1-9])(/\\d+)?)?)(,(([A-Za-z]+|(1[0-2])|[1-9])(-([A-Za-z]+|(1[0-2])|[1-9])(/\\d+)?)?))*)(/\\d+)? (\\*|(([A-Za-z]+|[0-6])(-([A-Za-z]+|[0-6])(/\\d+)?)?)(,(([A-Za-z]+|[0-6])(-([A-Za-z]+|[0-6])(/\\d+)?)?))*)(/\\d+)?$"
+          "description": "A cron expression of the format '{second} {minute} {hour} {day} {month} {day of week}' to specify the schedule."
         },
         "runOnStartup": {
           "type": "boolean",
@@ -514,8 +518,178 @@
           "description": "The text of the email."
         }
       }
+    },
+    "sqlBinding": {
+      "properties": {
+        "connectionStringSetting": {
+          "type": "string",
+          "description": "The name of the app setting that contains the SQL connection string used to connect to the database."
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "enum": ["sqlTrigger"]
+            },
+            "tableName": {
+              "type": "string",
+              "description": "The name of the table to be monitored for changes."
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": ["sql"]
+            },
+            "direction": {
+              "enum": ["in"]
+            },
+            "commandText": {
+              "type": "string",
+              "description": "Either a query string or the name of a stored procedure to execute."
+            },
+            "commandType": {
+              "enum": ["text", "storedProcedure"],
+              "description": "Whether the commandText is a query (text) or a stored procedure (storedProcedure)."
+            },
+            "parameters": {
+              "type": "string",
+              "description": "The parameters to the query or stored procedure."
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "sql"
+            },
+            "direction": {
+              "const": "out"
+            },
+            "commandText": {
+              "type": "string",
+              "description": "The name of the table into which rows will be upserted."
+            }
+          }
+        }
+      ]
+    },
+    "kustoBinding": {
+      "properties": {
+        "connection": {
+          "type": "string",
+          "description": "Name of the app setting that contains the kusto connection string used to connect to kusto."
+        },
+        "database": {
+          "type": "string",
+          "description": "Name of the database within your kusto account to which data will be read/written."
+        },
+        "managedServiceIdentity": {
+          "type": "string",
+          "description": "A managed service identity that has to be attached to use the bindings."
+        },
+        "type": {
+          "enum": ["kusto"]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "direction": {
+              "enum": ["in"]
+            },
+            "kqlCommand": {
+              "type": "string",
+              "description": "The Kusto command to execute.Can be a KQL query or a KQL function with optional parameters."
+            },
+            "kqlParameters": {
+              "type": "string",
+              "description": "The parameters to the query or function. Named parameters are of the form @paramName=paramValue."
+            }
+          }
+        },
+        {
+          "properties": {
+            "direction": {
+              "enum": ["out"]
+            },
+            "tableName": {
+              "type": "string",
+              "description": "The table to ingest the data into."
+            },
+            "mappingRef": {
+              "type": "string",
+              "description": "An ingestion mapping ref that points to the mapping created in kusto and referenced in ingestion (optional)."
+            },
+            "dataFormat": {
+              "type": "string",
+              "description": "Dataformat to use in ingestion.The default dataformat is `multijson/json`. This has been tested for text formats"
+            }
+          }
+        }
+      ]
+    },
+    "mySqlBinding": {
+      "properties": {
+        "connectionStringSetting": {
+          "type": "string",
+          "description": "The name of the app setting that contains the MySql connection string used to connect to the database."
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "enum": ["mysql"]
+            },
+            "direction": {
+              "enum": ["in"]
+            },
+            "commandText": {
+              "type": "string",
+              "description": "Either a query string or the name of a stored procedure to execute."
+            },
+            "commandType": {
+              "enum": ["text", "storedProcedure"],
+              "description": "Whether the commandText is a query or a stored procedure."
+            },
+            "parameters": {
+              "type": "string",
+              "description": "The parameters to the query or stored procedure."
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "mysql"
+            },
+            "direction": {
+              "enum": ["out"]
+            },
+            "commandText": {
+              "type": "string",
+              "description": "The name of the table into which rows will be upserted."
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": ["mysqlTrigger"]
+            },
+            "tableName": {
+              "type": "string",
+              "description": "The name of the table to be monitored for changes."
+            }
+          }
+        }
+      ]
     }
   },
+  "id": "https://json.schemastore.org/function.json",
   "properties": {
     "disabled": {
       "type": "boolean",
@@ -636,6 +810,15 @@
               },
               {
                 "$ref": "#/definitions/sendGridBinding"
+              },
+              {
+                "$ref": "#/definitions/sqlBinding"
+              },
+              {
+                "$ref": "#/definitions/kustoBinding"
+              },
+              {
+                "$ref": "#/definitions/mySqlBinding"
               }
             ]
           }

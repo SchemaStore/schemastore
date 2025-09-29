@@ -1,0 +1,771 @@
+# yaml-language-server: $schema=../../schemas/json/metricshub-connector.json
+extends:
+  - ../System/System
+metrics:
+  metric.state_set:
+    description: test
+    type:
+      stateSet:
+        - ok
+        - failed
+  metric.counter:
+    description: test
+    type: Counter
+    unit: B
+  metric.gauge:
+    description: test
+    type: Gauge
+    unit: '1'
+  metric.up_down_counter:
+    description: test
+    type: UpDownCounter
+    unit: W
+constants:
+  constant: 'value'
+pre:
+  pre_source:
+    type: http
+    authenticationToken: token
+    header: header
+    body: body
+    method: get
+    url: url
+    path: path
+    resultContent: header
+    executeForEachEntryOf:
+      source: source_name
+      concatMethod:
+        concatStart: '1'
+        concatEnd: '5'
+    forceSerialization: true
+sudoCommands:
+  - command
+translations:
+  table:
+    key: value
+connector:
+  detection:
+    appliesTo:
+      - hp
+  displayName: name
+  information: information
+  platforms: platform
+  projectVersion: '1.3.2'
+  reliesOn: dependency
+  version: '1.0'
+monitors:
+  file_system:
+    simple:
+      sources:
+        fileSystemInformation:
+          type: wmi
+          namespace: root\CIMv2
+          query: SELECT DeviceID,FreeSpace,Size,VolumeName FROM Win32_LogicalDisk
+          computes:
+            - type: subtract
+              column: 3
+              value: $2
+      mapping:
+        source: ${source::fileSystemInformation}
+        attributes:
+          id: $1
+          system.filesystem.device: $1
+          system.filesystem.volumeName: $4
+        metrics:
+          system.filesystem.usage{system.filesystem.state=free}: $2
+          system.filesystem.usage{system.filesystem.state=used}: $3
+  service:
+    simple:
+      sources:
+        serviceInformation:
+          type: wmi
+          namespace: root\CIMv2
+          query: SELECT Name,ProcessId,State FROM Win32_Service WHERE StartMode != 'Disabled'
+      mapping:
+        source: ${source::serviceInformation}
+        attributes:
+          id: $1
+          processId: $2
+        metrics:
+          system.service.state: $3
+  paging:
+    simple:
+      sources:
+        pagingUsageInformation:
+          type: wmi
+          namespace: root\CIMv2
+          query: SELECT PercentUsage,PercentUsage_Base,PercentUsage,PercentUsage_Base FROM Win32_PerfRawData_PerfOS_PagingFile WHERE Name = '_Total'
+          computes:
+            - type: subtract
+              column: 2
+              value: $1
+            - type: divide
+              column: 3
+              value: $4
+            - type: append
+              column: 3
+              value: ;1
+            - type: subtract
+              column: 4
+              value: $3
+
+        pagingCombinedInformation:
+          type: wmi
+          namespace: root\CIMv2
+          query: SELECT PageWritesPersec,PageReadsPersec,PageFaultsPersec,WriteCopiesPersec FROM Win32_PerfRawData_PerfOS_Memory
+          computes:
+            - type: subtract
+              column: 3
+              value: $4
+            - type: prepend
+              column: 1
+              value: ${source::pagingUsageInformation}
+      mapping:
+        source: ${source::pagingCombinedInformation}
+        attributes:
+          id: paging
+        metrics:
+          system.paging.usage{system.paging.state="used"}: $1
+          system.paging.usage{system.paging.state="free"}: $2
+          system.paging.utilization{system.paging.state="used"}: $3
+          system.paging.utilization{system.paging.state="free"}: $4
+          system.paging.operations{system.paging.direction="out"}: $6
+          system.paging.operations{system.paging.direction="in"}: $7
+          system.paging.faults{system.paging.type="soft"}: $8
+          system.paging.faults{system.paging.type="hard"}: $9
+  enclosure:
+    discovery:
+      sources:
+        source(1):
+          type: ipmi
+          forceSerialization: true
+          computes:
+            - type: awk
+              script: ${file::enclosure.awk}
+              keep: ^MSHW;
+              separators: ;
+              selectColumns: 2,3,4,5,6,7,8,9,10,11
+        source(2):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: enclosure
+      mapping:
+        source: ${source::monitors.enclosure.discovery.sources.source(2)}
+        attributes:
+          id: IPMI
+          vendor: $2
+          model: $3
+          serial_number: $4
+          info: $8
+          name: '${awk::sprintf("Enclosure: (%s %s)", $2, $3)}'
+        conditionalCollection:
+          hw.status{hw.type="enclosure"}: $5
+          hw.enclosure.power: $7
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: ipmi
+          forceSerialization: true
+          computes:
+            - type: awk
+              script: ${file::enclosure.awk}
+              keep: ^MSHW;
+              separators: ;
+              selectColumns: 2,3,4,5,6,7,8,9,10,11
+        source(2):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: enclosure
+
+            - type: convert
+              column: 5
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.enclosure.collect.sources.source(2)}
+        attributes:
+          id: IPMI
+        metrics:
+          hw.status{hw.type="enclosure"}: $5
+          hw.enclosure.power: $7
+          hw.enclosure.energy: fakeCounter($7)
+        legacyTextParameters:
+          StatusInformation: $6
+  fan:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: fan
+
+            - type: append
+              column: 3
+              value: ;;
+
+            - type: append
+              column: 9
+              value: ;
+        source(2):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Fan Device
+
+            - type: keepColumns
+              columnNumbers: 1,2,3,7,8,9
+
+            - type: append
+              column: 5
+              value: ;;;;
+        source(3):
+          type: tableUnion
+          tables:
+            - ${source::monitors.fan.discovery.sources.source(1)}
+            - ${source::monitors.fan.discovery.sources.source(2)}
+      mapping:
+        source: ${source::monitors.fan.discovery.sources.source(3)}
+        attributes:
+          id: $2
+          __display_id: $3
+          sensor_location: $6
+          info: $10
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $3, $6)}
+        metrics:
+          hw.fan.speed.limit{limit_type="low.degraded"}: $8
+          hw.fan.speed.limit{limit_type="low.critical"}: $9
+        conditionalCollection:
+          hw.status{hw.type="fan"}: $4
+          hw.fan.speed: $7
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: fan
+
+            - type: append
+              column: 3
+              value: ;;
+        source(2):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Fan Device
+
+            - type: keepColumns
+              columnNumbers: 1,2,7,8,9
+
+            - type: append
+              column: 2
+              value: ;
+
+            - type: append
+              column: 6
+              value: ;;;
+
+            - type: convert
+              column: 4
+              conversion: array2SimpleStatus
+        source(3):
+          type: tableUnion
+          tables:
+            - ${source::monitors.fan.collect.sources.source(1)}
+            - ${source::monitors.fan.collect.sources.source(2)}
+      mapping:
+        source: ${source::monitors.fan.collect.sources.source(3)}
+        attributes:
+          id: $2
+        metrics:
+          hw.fan.speed: $7
+          hw.status{hw.type="fan"}: $4
+        legacyTextParameters:
+          StatusInformation: $5
+  temperature:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: temperature
+      mapping:
+        source: ${source::monitors.temperature.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          __display_id: $3
+          sensor_location: $4
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $3, $4)}
+        metrics:
+          hw.temperature.limit{limit_type="high.degraded"}: $6
+          hw.temperature.limit{limit_type="high.critical"}: $7
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: temperature
+      mapping:
+        source: ${source::monitors.temperature.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.temperature: $5
+  voltage:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: voltage
+      mapping:
+        source: ${source::monitors.voltage.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          __display_id: $3
+          sensor_location: $4
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $3, $4)}
+        metrics:
+          hw.voltage.limit{limit_type="low.critical"}: $6
+          hw.voltage.limit{limit_type="high.degraded"}: $7
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: voltage
+      mapping:
+        source: ${source::monitors.voltage.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.voltage: $5
+  power_supply:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Power supply
+            - type: prepend
+              column: 6
+              value: 'SerialNumber: '
+            - type: prepend
+              column: 5
+              value: 'Model: '
+      mapping:
+        source: ${source::monitors.power_supply.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          info: ${awk::join(" ", $9, $6, $5)}
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: $2
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Power supply
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.power_supply.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="power_supply"}: $7
+        legacyTextParameters:
+          StatusInformation: $8
+  cpu:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Processor
+            - type: prepend
+              column: 6
+              value: 'SerialNumber: '
+      mapping:
+        source: ${source::monitors.cpu.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          vendor: $4
+          model: $5
+          info: ${awk::join(" ", $9, $6)}
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s - %s)", $2, $4, $5)}
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Processor
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.cpu.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="cpu"}: $7
+        legacyTextParameters:
+          StatusInformation: $8
+  memory:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Memory module,Memory Device
+
+            - type: duplicateColumn
+              column: 5
+
+            - type: extract
+              column: 5
+              subColumn: 1
+              subSeparators: '|'
+
+            - type: extract
+              column: 6
+              subColumn: 2
+              subSeparators: '|'
+      mapping:
+        source: ${source::monitors.memory.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          __display_id: $3
+          vendor: $4
+          model: $5
+          serial_number: $7
+          info: $10
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s - %s MB)", $3, $4, $6)}
+        metrics:
+          hw.memory.limit: mebiByte2Byte($6)
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Memory module,Memory Device
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.memory.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="memory"}: $7
+        legacyTextParameters:
+          StatusInformation: $8
+  physical_disk:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Disk or disk bay,Disk or Disk Bay,Disk Drive Bay
+      mapping:
+        source: ${source::monitors.physical_disk.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          vendor: $4
+          model: $5
+          serial_number: $6
+          info: $9
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $2, $4)}
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Disk or disk bay,Disk or Disk Bay,Disk Drive Bay
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.physical_disk.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="physical_disk"}: $7
+        legacyTextParameters:
+          StatusInformation: $8
+  led:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: led
+      mapping:
+        source: ${source::monitors.led.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          __display_id: $3
+          color: $5
+          __on_status: $6
+          __off_status: $7
+          __blinking_status: $8
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $3, $5)}
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: led
+
+            - type: duplicateColumn
+              column: 9
+      mapping:
+        source: ${source::monitors.led.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="led"}: legacyLedStatus($9)
+        legacyTextParameters:
+          StatusInformation: $10
+  other_device:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: excludeMatchingLines
+              column: 1
+              valueList: Battery,Disk or Disk Bay,Disk or disk bay,Disk Drive Bay,Memory module,Memory Device,LED,Temperature,Voltage,Power supply,Fan,Fan Device,Enclosure,FRU,Processor,Current,PowerConsumption,EnergyUsage,Blade,Processing Blade
+            - type: prepend
+              column: 6
+              value: 'Serial Number: '
+      mapping:
+        source: ${source::monitors.other_device.discovery.sources.source(1)}
+        attributes:
+          device_type: $1
+          id: $2
+          __display_id: $3
+          additional_label: $4
+          info: ${awk::join(" ", $9, $6)}
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: '${awk::sprintf("%s: %s (%s)", $1, $3, $4)}'
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: excludeMatchingLines
+              column: 1
+              valueList: Battery,Disk or Disk Bay,Disk or disk bay,Disk Drive Bay,Memory module,Memory Device,LED,Temperature,Voltage,Power supply,Fan,Fan Device,Enclosure,FRU,Processor,Current,PowerConsumption,EnergyUsage,Blade,Processing Blade
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.other_device.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="other_device"}: $7
+        legacyTextParameters:
+          StatusInformation: $8
+  blade:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: 'Blade,Processing Blade'
+      mapping:
+        source: ${source::monitors.blade.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          model: $5
+          serial_number: $6
+          info: $9
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $2, $5)}
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: Blade,Processing Blade
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.blade.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="blade"}: $7
+        legacyTextParameters:
+          StatusInformation: $8
+  battery:
+    discovery:
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.discovery.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: battery
+            - type: prepend
+              column: 6
+              value: 'serialNumber: '
+      mapping:
+        source: ${source::monitors.battery.discovery.sources.source(1)}
+        attributes:
+          id: $2
+          __display_id: $3
+          model: $5
+          info: ${awk::join(" ", $9, $6)}
+          hw.parent.type: enclosure
+          hw.parent.id: IPMI
+          name: ${awk::sprintf("%s (%s)", $3, $5)}
+    collect:
+      type: multiInstance
+      keys:
+        - id
+      sources:
+        source(1):
+          type: copy
+          from: ${source::monitors.enclosure.collect.sources.source(1)}
+          computes:
+            - type: keepOnlyMatchingLines
+              column: 1
+              valueList: battery
+
+            - type: convert
+              column: 7
+              conversion: array2SimpleStatus
+      mapping:
+        source: ${source::monitors.battery.collect.sources.source(1)}
+        attributes:
+          id: $2
+        metrics:
+          hw.status{hw.type="battery"}: $7
+        legacyTextParameters:
+          StatusInformation: $8

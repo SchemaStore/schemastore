@@ -1,6 +1,6 @@
 {
-  "$ref": "#/definitions/Kustomization",
   "$schema": "http://json-schema.org/draft-04/schema#",
+  "$ref": "#/definitions/Kustomization",
   "definitions": {
     "ConfigMapArgs": {
       "description": "ConfigMapArgs contains the metadata of how to generate a configmap",
@@ -151,6 +151,30 @@
         },
         "includeCRDs": {
           "type": "boolean"
+        },
+        "skipHooks": {
+          "type": "boolean"
+        },
+        "additionalValuesFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skipTests": {
+          "type": "boolean"
+        },
+        "apiVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kubeVersion": {
+          "type": "string"
+        },
+        "nameTemplate": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
@@ -169,6 +193,10 @@
         },
         "newTag": {
           "type": "string"
+        },
+        "tagSuffix": {
+          "type": "string",
+          "description": "UNDOCUMENTED."
         }
       },
       "additionalProperties": false,
@@ -316,8 +344,8 @@
           "type": "string"
         },
         "metadata": {
-          "description": "Contains metadata about a Resource",
-          "$ref": "#/definitions/Metadata"
+          "$ref": "#/definitions/Metadata",
+          "description": "Contains metadata about a Resource"
         },
         "namePrefix": {
           "description": "NamePrefix will prefix the names of all resources mentioned in the kustomization file including generated configmaps and secrets",
@@ -410,6 +438,41 @@
           },
           "type": "array"
         },
+        "sortOptions": {
+          "description": "sortOptions is used to sort the resources kustomize outputs",
+          "oneOf": [
+            {
+              "properties": {
+                "order": {
+                  "enum": ["legacy"]
+                },
+                "legacySortOptions": {
+                  "properties": {
+                    "orderFirst": {
+                      "type": "array"
+                    },
+                    "orderLast": {
+                      "type": "array"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false,
+              "type": "object"
+            },
+            {
+              "properties": {
+                "order": {
+                  "enum": ["fifo"]
+                }
+              },
+              "additionalProperties": false,
+              "type": "object"
+            }
+          ]
+        },
         "transformers": {
           "description": "Transformers is a list of files containing transformers",
           "items": {
@@ -446,11 +509,11 @@
           }
         },
         "includeSelectors": {
-          "description": "IncludeSelectors inidicates should transformer include the fieldSpecs for selectors",
+          "description": "IncludeSelectors indicates should transformer include the fieldSpecs for selectors",
           "type": "boolean"
         },
         "includeTemplates": {
-          "description": "IncludeTemplates inidicates should transformer include the template labels",
+          "description": "IncludeTemplates indicates should transformer include the template labels",
           "type": "boolean"
         },
         "fields": {
@@ -514,8 +577,8 @@
               "type": "string"
             },
             "target": {
-              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
-              "$ref": "#/definitions/PatchTarget"
+              "$ref": "#/definitions/PatchTarget",
+              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization"
             }
           },
           "additionalProperties": false,
@@ -529,8 +592,8 @@
               "type": "string"
             },
             "target": {
-              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
-              "$ref": "#/definitions/PatchTarget"
+              "$ref": "#/definitions/PatchTarget",
+              "description": "Refers to a Kubernetes object that the json patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization"
             }
           },
           "additionalProperties": false,
@@ -620,15 +683,30 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "PatchesOptions": {
+      "properties": {
+        "allowNameChange": {
+          "type": "boolean"
+        },
+        "allowKindChange": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "PatchesPatchPath": {
       "required": ["path"],
       "properties": {
+        "options": {
+          "$ref": "#/definitions/PatchesOptions"
+        },
         "path": {
           "type": "string"
         },
         "target": {
-          "description": "Refers to a Kubernetes object that the patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
-          "$ref": "#/definitions/PatchTargetOptional"
+          "$ref": "#/definitions/PatchTargetOptional",
+          "description": "Refers to a Kubernetes object that the patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization"
         }
       },
       "additionalProperties": false
@@ -636,12 +714,15 @@
     "PatchesInlinePatch": {
       "required": ["patch"],
       "properties": {
+        "options": {
+          "$ref": "#/definitions/PatchesOptions"
+        },
         "patch": {
           "type": "string"
         },
         "target": {
-          "description": "Refers to a Kubernetes object that the patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization",
-          "$ref": "#/definitions/PatchTargetOptional"
+          "$ref": "#/definitions/PatchTargetOptional",
+          "description": "Refers to a Kubernetes object that the patch will be applied to. It must refer to a Kubernetes resource under the purview of this kustomization"
         }
       },
       "additionalProperties": false
@@ -874,6 +955,10 @@
         "name": {
           "type": "string"
         },
+        "namespace": {
+          "type": "string",
+          "description": "UNDOCUMENTED."
+        },
         "version": {
           "type": "string"
         }
@@ -886,20 +971,21 @@
       "required": ["name", "objref"],
       "properties": {
         "fieldref": {
-          "description": "Refers to the field of the object referred to by objref whose value will be extracted for use in replacing $(FOO)",
-          "$ref": "#/definitions/FieldSelector"
+          "$ref": "#/definitions/FieldSelector",
+          "description": "Refers to the field of the object referred to by objref whose value will be extracted for use in replacing $(FOO)"
         },
         "name": {
           "description": "Value of identifier name e.g. FOO used in container args, annotations, Appears in pod template as $(FOO)",
           "type": "string"
         },
         "objref": {
-          "description": "Refers to a Kubernetes resource under the purview of this kustomization",
-          "$ref": "#/definitions/Target"
+          "$ref": "#/definitions/Target",
+          "description": "Refers to a Kubernetes resource under the purview of this kustomization"
         }
       },
       "additionalProperties": false,
       "type": "object"
     }
-  }
+  },
+  "id": "https://json.schemastore.org/kustomization.json"
 }

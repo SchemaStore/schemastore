@@ -1,0 +1,624 @@
+# yaml-language-server: $schema=../../schemas/json/jreleaser-1.11.0.json
+environment:
+  properties:
+    outputDir: out
+    jdkPathPrefix: 'build/jdks'
+    jdkFilePrefix: 'zulu17.32.13-ca-jdk17.0.2'
+    graalFilePrefix: 'graalvm-ce-java17-22.3.0'
+    nativeImageDir: '{{outputDir}}/jreleaser/assemble/app-native/native-image'
+    jpackageDir: '{{outputDir}}/jreleaser/assemble/app-installer/jpackage'
+    skipJpackageResolver: 'true'
+    skipNativeImageResolver: 'true'
+
+hooks:
+  environment:
+    KEY_GLOBAL: global
+  script:
+    environment:
+      KEY_SCRIPT: script
+    before:
+      - run: 'echo "{{event.name}} {{event.type}}"'
+        environment:
+          KEY_LOCAL: local
+        platforms:
+          - '!windows'
+  command:
+    environment:
+      KEY_COMMAND: command
+    before:
+      - cmd: 'echo "{{event.name}} {{event.type}}"'
+        environment:
+          KEY_LOCAL: local
+
+project:
+  name: app
+  description: Sample application
+  longDescription: Sample application
+  links:
+    homepage: https://acme.com/awesome-app
+  authors:
+    - Andres Almiray
+  license: Apache-2.0
+  java:
+    groupId: com.acme
+    version: '8'
+    mainClass: com.acme.Main
+  inceptionYear: '2021'
+  stereotype: CLI
+  vendor: Kordamp
+  screenshots:
+    - url: https://jreleaser.org/images/app-full-release-command.png
+      caption: JReleaser in action
+  icons:
+    - url: https://raw.githubusercontent.com/jreleaser/jreleaser/main/src/media/icon_256x256.png
+      width: 256
+      height: 256
+  tags:
+    - 'tool'
+    - 'java'
+
+platform:
+  replacements:
+    aarch_64: aarch64
+
+announce:
+  article:
+    active: ALWAYS
+    templateDirectory: src/jreleaser/templates/article
+    files:
+      - path: post.md.tpl
+    repository:
+      active: ALWAYS
+      name: smoketests-article
+  bluesky:
+    active: ALWAYS
+    statusTemplate: src/jreleaser/templates/bluesky.tpl
+  discord:
+    active: ALWAYS
+  discourse:
+    active: ALWAYS
+    host: https://discourse.acme.com
+  discussions:
+    active: ALWAYS
+    organization: acme
+    team: tools
+  gitter:
+    active: ALWAYS
+  googleChat:
+    active: ALWAYS
+  linkedin:
+    active: ALWAYS
+  http:
+    news:
+      active: ALWAYS
+      url: https://acme.com/news
+      authorization: BASIC
+  mail:
+    active: ALWAYS
+    host: smtp.acme.com
+    auth: true
+    username: duke
+    from: duke@acme.com
+  mastodon:
+    active: ALWAYS
+    host: https://mastodon.acme.com
+    statusTemplate: src/jreleaser/templates/mastodon.tpl
+  mattermost:
+    active: ALWAYS
+  openCollective:
+    active: ALWAYS
+  slack:
+    active: ALWAYS
+    channel: '#announce'
+  teams:
+    active: ALWAYS
+  telegram:
+    active: ALWAYS
+  twitter:
+    active: ALWAYS
+    statusTemplate: src/jreleaser/templates/twitter.tpl
+  webhooks:
+    acme:
+      active: ALWAYS
+  zulip:
+    active: ALWAYS
+    account: duke@zulip.acme.com
+    apiHost: https://zulip.acme.com
+
+release:
+  github:
+    overwrite: true
+    sign: true
+    discussionCategoryName: 'Announcements'
+    issues:
+      enabled: true
+    changelog:
+      formatted: ALWAYS
+      preset: 'conventional-commits'
+      contributors:
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
+
+signing:
+  active: ALWAYS
+  armored: true
+
+checksum:
+  algorithms:
+    - SHA_512
+
+catalog:
+  swid:
+    swid-tag:
+      active: ALWAYS
+  sbom:
+    cyclonedx:
+      active: ALWAYS
+      files: false
+      pack:
+        enabled: true
+        name: '{{projectName}}-{{projectVersion}}-cyclonedx-sboms'
+    syft:
+      active: ALWAYS
+      files: false
+      pack:
+        enabled: true
+        name: '{{projectName}}-{{projectVersion}}-syft-sboms'
+
+assemble:
+  archive:
+    mvnw:
+      active: ALWAYS
+      attachPlatform: true
+      formats:
+        - ZIP
+        - TAR
+        - TAR_BZ2
+        - TAR_GZ
+        - TAR_XZ
+        - TAR_ZST
+        - TBZ2
+        - TGZ
+        - TXZ
+      artifacts:
+        - path: jreleaser.yml
+          transform: /META-INF/jreleaser.yml
+      files:
+        - pattern: 'pom.xml'
+      fileSets:
+        - input: '.'
+          includes:
+            - 'LICENSE'
+        - input: '.mvn'
+          output: '.mvn'
+        - input: '.'
+          output: 'bin'
+          includes: ['mvnw{.cmd,}']
+
+  javaArchive:
+    app:
+      active: ALWAYS
+      formats:
+        - ZIP
+        - TGZ
+      fileSets:
+        - input: '.'
+          includes:
+            - 'LICENSE'
+      mainJar:
+        path: target/{{distributionName}}-{{projectVersion}}.jar
+      swid:
+        tagRef: swid-tag
+
+  jlink:
+    app-standalone:
+      active: ALWAYS
+      java:
+        version: '17'
+      imageName: '{{distributionName}}-{{projectEffectiveVersion}}'
+      executable: app
+      jdeps:
+        multiRelease: base
+        ignoreMissingDeps: true
+      targetJdks:
+        - path: '{{jdkPathPrefix}}/zulu17Osx/{{jdkFilePrefix}}-macosx_x64/zulu-17.jdk/Contents/Home'
+          platform: 'osx-x86_64'
+        - path: '{{jdkPathPrefix}}/zulu17OsxArm/{{jdkFilePrefix}}-macosx_aarch64/zulu-17.jdk/Contents/Home'
+          platform: 'osx-aarch_64'
+        - path: '{{jdkPathPrefix}}/zulu17Linux/{{jdkFilePrefix}}-linux_x64'
+          platform: 'linux-x86_64'
+        - path: '{{jdkPathPrefix}}/zulu17LinuxArm/{{jdkFilePrefix}}-linux_aarch64'
+          platform: 'linux-aarch_64'
+        - path: '{{jdkPathPrefix}}/zulu17LinuxMusl/{{jdkFilePrefix}}-linux_musl_x64'
+          platform: 'linux_musl-x86_64'
+        - path: '{{jdkPathPrefix}}/zulu17LinuxMuslArm/{{jdkFilePrefix}}-linux_musl_aarch64'
+          platform: 'linux_musl-aarch_64'
+        - path: '{{jdkPathPrefix}}/zulu17Windows/{{jdkFilePrefix}}-win_x64'
+          platform: 'windows-x86_64'
+        - path: '{{jdkPathPrefix}}/zulu17WindowsArm/{{jdkFilePrefix}}-win_aarch64'
+          platform: 'windows-aarch_64'
+      mainJar:
+        path: 'target/app-{{projectVersion}}.jar'
+
+  jpackage:
+    app-installer:
+      active: ALWAYS
+      jlink: app-standalone
+      attachPlatform: true
+      applicationPackage:
+        appName: app
+        appVersion: '{{projectVersionNumber}}'
+        vendor: Acme
+      osx:
+        types: [pkg]
+        appName: App
+        packageName: App
+        packageIdentifier: com.acme.app
+        icon: 'src/jreleaser/icons/app.icns'
+        resourceDir: 'src/app/osx'
+      linux:
+        types: [deb, rpm]
+        maintainer: duke@acme.com
+        icon: 'src/jreleaser/icons/icon_256x256.png'
+      windows:
+        types: [msi]
+        console: true
+        dirChooser: true
+        icon: 'src/jreleaser/icons/app.ico'
+        resourceDir: 'src/jpackage/windows'
+
+  nativeImage:
+    app-native:
+      active: ALWAYS
+      java:
+        version: '17'
+      imageName: '{{distributionName}}-{{projectEffectiveVersion}}'
+      executable: app
+      mainJar:
+        path: 'target/app-{{projectVersion}}.jar'
+      graalJdks:
+        - path: '{{jdkPathPrefix}}/graal17Osx/{{graalFilePrefix}}/Contents/Home'
+          platform: 'osx-x86_64'
+        - path: '{{jdkPathPrefix}}/graal17Linux/{{graalFilePrefix}}'
+          platform: 'linux-x86_64'
+        - path: '{{jdkPathPrefix}}/graal17Windows/{{graalFilePrefix}}'
+          platform: 'windows-x86_64'
+      upx:
+        active: ALWAYS
+        version: '3.96'
+      args:
+        - '-Duser.language=en'
+        - '-H:Optimize=2'
+        - '-H:+RemoveUnusedSymbols'
+
+distributions:
+  app-uber:
+    type: SINGLE_JAR
+    artifacts:
+      - path: target/app-{{projectVersion}}.jar
+    java:
+      artifactId: app
+
+  app:
+    flatpak:
+      active: ALWAYS
+      continueOnError: true
+      componentId: com.acme.app
+      developerName: Acme
+      runtime: FREEDESKTOP
+      runtimeVersion: '21.08'
+      categories:
+        - Developer Tools
+      repository:
+        active: RELEASE
+        name: come.acme.app
+        branch: master
+    chocolatey:
+      active: ALWAYS
+      remoteBuild: true
+      title: App
+      iconUrl: 'https://rawcdn.githack.com/jreleaser/jreleaser/0934fa1fa3f0bd09c0c8c39fbdeb5df2ce507457/src/media/icon_128x128.png'
+      repository:
+        active: RELEASE
+        name: smoketests-chocolatey
+    jbang:
+      active: NEVER
+    macports:
+      active: ALWAYS
+      categories:
+        - devel
+        - java
+      maintainers:
+        - '@duke'
+      repository:
+        active: RELEASE
+        name: smoketests-macports
+    scoop:
+      active: ALWAYS
+      repository:
+        active: RELEASE
+        name: smoketests-scoop
+    sdkman:
+      active: RELEASE
+    snap:
+      active: ALWAYS
+      remoteBuild: true
+      base: core18
+      architectures:
+        - buildOn: [amd64, arm64]
+    spec:
+      active: ALWAYS
+      repository:
+        active: RELEASE
+        name: smoketests-copr
+    artifacts:
+      - path: '{{outputDir}}/jreleaser/assemble/{{distributionName}}/java-archive/{{distributionName}}-{{projectVersion}}.zip'
+        extraProperties:
+          skipSpec: 'true'
+      - path: '{{outputDir}}/jreleaser/assemble/{{distributionName}}/java-archive/{{distributionName}}-{{projectVersion}}.tgz'
+        extraProperties:
+          skipFlatpak: 'true'
+
+  app-standalone:
+    executable:
+      name: app
+      windowsExtension: bat
+    appImage:
+      active: ALWAYS
+      continueOnError: true
+      componentId: com.acme.app
+      developerName: App
+      categories:
+        - Development
+      repository:
+        active: RELEASE
+        name: smoketests-appimage
+        commitMessage: 'app {{tagName}}'
+    brew:
+      active: ALWAYS
+      formulaName: app
+      multiPlatform: true
+      repository:
+        active: RELEASE
+        name: homebrew-smoke
+        commitMessage: 'app {{tagName}}'
+    docker:
+      active: ALWAYS
+      repository:
+        active: ALWAYS
+        commitMessage: 'app {{tagName}}'
+      registries:
+        - serverName: DEFAULT
+          username: app
+      labels:
+        'org.opencontainers.image.title': 'app'
+      postCommands:
+        - 'VOLUME /workspace'
+      specs:
+        slim:
+          imageNames:
+            - 'app/app-{{dockerSpecName}}:{{tagName}}'
+            - 'app/app-{{dockerSpecName}}:latest'
+          matchers:
+            platform: 'linux-x86_64'
+          preCommands:
+            - 'ARG DEBIAN_FRONTEND=noninteractive'
+            - 'ENV TZ=Europe/Zurich'
+            - 'RUN apt-get update && apt-get install -y unzip binutils fakeroot rpm'
+        alpine:
+          imageNames:
+            - 'app/app-{{dockerSpecName}}:{{tagName}}'
+            - 'app/app-{{dockerSpecName}}:latest'
+          matchers:
+            platform: 'linux_musl-x86_64'
+          preCommands:
+            - 'RUN apk add unzip binutils fakeroot rpm bash'
+    jib:
+      active: ALWAYS
+      repository:
+        active: ALWAYS
+        commitMessage: 'app {{tagName}}'
+      registries:
+        - name: github
+          server: ghcr.io
+      labels:
+        'org.opencontainers.image.title': 'app'
+      specs:
+        slim:
+          imageNames:
+            - 'app/app-{{jibSpecName}}:{{tagName}}'
+            - 'app/app-{{jibSpecName}}:latest'
+          matchers:
+            platform: 'linux-x86_64'
+        alpine:
+          imageNames:
+            - 'app/app-{{jibSpecName}}:{{tagName}}'
+            - 'app/app-{{jibSpecName}}:latest'
+          matchers:
+            platform: 'linux_musl-x86_64'
+
+  app-installer:
+    winget:
+      active: RELEASE
+      package:
+        name: app
+      repository:
+        active: ALWAYS
+        name: app-winget
+        commitMessage: 'app {{tagName}}'
+    executable:
+      name: app
+      windowsExtension: exe
+    artifacts:
+      - path: '{{jpackageDir}}/App-{{projectVersionNumber}}-osx-x86_64.pkg'
+        platform: 'osx-x86_64'
+      - path: '{{jpackageDir}}/app_{{projectVersionNumber}}-1_amd64.deb'
+        platform: 'linux-x86_64'
+      - path: '{{jpackageDir}}/app-{{projectVersionNumber}}-1.x86_64.rpm'
+        platform: 'linux-x86_64'
+      - path: '{{jpackageDir}}/app-{{projectVersionNumber}}-windows-x86_64.msi'
+        platform: 'windows-x86_64'
+
+  app-native:
+    executable:
+      name: app
+      windowsExtension: exe
+    artifacts:
+      - path: '{{nativeImageDir}}/{{distributionName}}-{{projectVersion}}-osx-x86_64.zip'
+        platform: 'osx-x86_64'
+      - path: '{{nativeImageDir}}/{{distributionName}}-{{projectVersion}}-linux-x86_64.zip'
+        platform: 'linux-x86_64'
+      - path: '{{nativeImageDir}}/{{distributionName}}-{{projectVersion}}-windows-x86_64.zip'
+        platform: 'windows-x86_64'
+
+  app-flat:
+    executable:
+      name: app
+      windowsExtension: bat
+    artifacts:
+      - path: 'src/flat/app'
+        platform: 'osx-x86_64'
+      - path: 'src/flat/app'
+        platform: 'osx-aarch_64'
+      - path: 'src/flat/app'
+        platform: 'linux-x86_64'
+      - path: 'src/flat/app'
+        platform: 'linux-aarch_64'
+      - path: 'src/flat/app'
+        platform: 'linux_musl-x86_64'
+      - path: 'src/flat/app'
+        platform: 'linux_musl-aarch_64'
+      - path: 'src/flat/app.bat'
+        platform: 'windows-x86_64'
+      - path: 'src/flat/app.bat'
+        platform: 'windows-aarch_64'
+
+files:
+  artifacts:
+    - path: LICENSE
+      extraProperties:
+        skipChecksum: 'true'
+        skipSigning: 'true'
+
+deploy:
+  maven:
+    github:
+      acme:
+        active: ALWAYS
+        stagingRepositories:
+          - target/staging-deploy
+    gitlab:
+      acme:
+        active: ALWAYS
+        url: https://gitlab.com/api/v4/projects/{{projectIdentifier}}/packages/maven
+        projectIdentifier: '12345678'
+        stagingRepositories:
+          - target/staging-deploy
+    gitea:
+      acme:
+        active: ALWAYS
+        url: https://codeberg.org/api/packages/{{owner}}/maven
+        stagingRepositories:
+          - target/staging-deploy
+    nexus2:
+      maven-central:
+        active: ALWAYS
+        url: https://s01.oss.sonatype.org/service/local
+        snapshotUrl: https://ossrh.oss.sonatype.org/content/repositories/snapshots/
+        closeRepository: true
+        releaseRepository: true
+        stagingRepositories:
+          - target/staging-deploy
+    artifactory:
+      acme:
+        active: ALWAYS
+        url: https://acme.jfrog.io/artifactory/maven
+        sign: true
+        applyMavenCentralRules: true
+        stagingRepositories:
+          - target/staging-deploy
+    azure:
+      acme:
+        active: ALWAYS
+        url: https://pkgs.dev.azure.com/acme/_packaging/acme/maven/v1
+        sign: true
+        applyMavenCentralRules: true
+        stagingRepositories:
+          - target/staging-deploy
+
+download:
+  active: ALWAYS
+  http:
+    d1:
+      assets:
+        - input: https://github.com/jreleaser/jreleaser/raw/main/src/media/icon_256x256.png
+          output: '{{projectName}}.png'
+        - input: https://github.com/ixchelruiz/app/releases/download/v1.0.0/app-{{projectVersion}}.zip
+          unpack:
+            enabled: true
+  ftp:
+    d2:
+      assets:
+        - input: upload/app.png
+        - input: upload/app-{{projectVersion}}.zip
+          unpack:
+            enabled: true
+  scp:
+    d3:
+      assets:
+        - input: /tmp/upload/app.png
+          output: '{{downloaderName}}/{{artifactFile}}'
+        - input: /tmp/upload/app-{{projectVersion}}.zip
+          unpack:
+            enabled: true
+  sftp:
+    d4:
+      assets:
+        - input: /tmp/upload/app.png
+        - input: /tmp/upload/app-{{projectVersion}}.zip
+          unpack:
+            enabled: true
+
+upload:
+  artifactory:
+    u1:
+      active: ALWAYS
+      host: https://acme.jfrog.io/artifactory
+      repositories:
+        - path: 'binaries/{{projectName}}/{{projectVersion}}/{{artifactFile}}'
+  ftp:
+    u2:
+      active: ALWAYS
+      path: 'uploads/{{projectName}}/{{tagName}}/{{artifactFile}}'
+      downloadUrl: 'https://download.acme.com/{{projectName}}/{{tagName}}/{{artifactFile}}'
+  gitea:
+    u3:
+      active: ALWAYS
+      host: gitea.acme.com
+      owner: duke
+      packageName: app
+  gitlab:
+    u4:
+      active: ALWAYS
+      host: gitlab.acme.com
+      packageName: app
+      projectIdentifier: '12345678'
+  http:
+    u5:
+      active: ALWAYS
+      uploadUrl: 'https://artifacts.acme.com/{{projectName}}/{{tagName}}/{{artifactFile}}'
+      downloadUrl: 'https://download.acme.com/{{projectName}}/{{tagName}}/{{artifactFile}}'
+  s3:
+    u6:
+      active: ALWAYS
+  scp:
+    u7:
+      active: ALWAYS
+      host: uploads.acme.com
+      path: '/uploads/{{projectName}}/{{tagName}}/{{artifactFile}}'
+      downloadUrl: 'https://download.acme.com/{{projectName}}/{{tagName}}/{{artifactFile}}'
+  sftp:
+    u8:
+      active: ALWAYS
+      host: uploads.acme.com
+      path: '/uploads/{{projectName}}/{{tagName}}/{{artifactFile}}'
+      downloadUrl: 'https://download.acme.com/{{projectName}}/{{tagName}}/{{artifactFile}}'

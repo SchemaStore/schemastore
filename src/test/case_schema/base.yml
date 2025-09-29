@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../../schemas/json/case_schema.json
+api:
+  host: https://localhost:8080
+  uri: /nft-web/trade/create-sale-order
+  method: POST
+  headers:
+  request_body:
+template:
+  headers:
+    authorization: ${{get_user_token(18821213961)}}
+  provider_data:
+    - provider_type: sql
+      provider_db: nft_community
+      provider_sql: select id from tokens where owner_id = 569884276904961071 and type = 'CHARACTER_CHIBI' order by created_at desc limit 1
+  request_body:
+    {
+      'tokenId': '${provider[0].id}',
+      'price': 5.0,
+      'startTime': 1705399260000,
+      'stock': 1,
+    }
+cases:
+  - case_id: success
+    describe: 成功创建
+    assert:
+      code: $.code == 0
+      db: select stock from c2c.product where id = ${response_data.data.saleOrderId} order by createdAt desc limit 1 == 1
+  - case_id: neg_price
+    describe: 价格为负数
+    request_body:
+      price: -5.0
+    assert:
+      code: $.code == -1
+      message: $.message == 价格不能为零或者负数
+      data: $.data == None
+  - case_id: repeat
+    describe: 重复挂单
+    provider_data:
+      - provider_type: sql
+        provider_db: nft_community
+        provider_sql: select id from tokens where owner_id = 569884276904961071 and trading_order_type = 'SALE_ORDER' and type = 'CHARACTER_CHIBI' order by created_at desc limit 1
+    request_body:
+      {
+        'tokenId': '${provider[0].id}',
+        'price': 5.0,
+        'startTime': 1705399260000,
+        'stock': 1,
+      }
+    assert:
+      code: $.code == -1
+      message: $.message == 已有在售挂单了

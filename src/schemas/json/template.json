@@ -1,8 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/template.json",
   "definitions": {
     "datatype": {
-      "description": "Indicates limitations on the valid values a symbol may be assigned. The datatype \"choice\" also requires providing symbols.choices configuration for the symbol.",
+      "description": "Indicates limitations on the valid values a symbol may be assigned. When specified, the symbol value is attempted to be converted to this type. The datatype \"choice\" is supported only for parameter symbols and requires providing symbols.choices configuration for the symbol.",
       "anyOf": [
         {
           "enum": ["choice", "bool", "float", "int", "hex", "text"]
@@ -405,11 +406,6 @@
       "type": "string",
       "minLength": 1
     },
-    "preferDefaultName": {
-      "description": "Indicates if the template's default name will be used when no name option is specified during instantiation.",
-      "type": "boolean",
-      "default": "false"
-    },
     "generatorVersions": {
       "description": "The semantic version range of the Microsoft.TemplateEngine.Orchestrator.RunnableProjects package that this template is usable with. In older versions of the engine, the four octet version string is used but is matched against a constant which was never changed from 1.0.0.0 - either syntax is now accepted, however the four octet string will not be changed from 1.0.0.0.",
       "type": "string",
@@ -480,6 +476,18 @@
               "id": {
                 "description": "Defines identifier to be used when localizing the post action artifacts.",
                 "type": "string"
+              },
+              "applyFileRenamesToArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of arguments names from 'args' to which the file renames configured in symbols should be applied."
+              },
+              "applyFileRenamesToManualInstructions": {
+                "description": "If set to true, the file renames configured in symbols should be applied to manual instructions.",
+                "type": "boolean",
+                "default": false
               },
               "manualInstructions": {
                 "description": "An ordered list of possible instructions to display if the action cannot be performed. Each element in the list must contain a key named \"text\", whose value contains the instructions. Each element may also optionally provide a key named \"condition\" - a Boolean evaluate-able string. The first instruction whose condition is false or blank will be considered valid, all others are ignored.",
@@ -744,6 +752,10 @@
       "pattern": "^([0-9]+)$",
       "default": 0
     },
+    "preferDefaultName": {
+      "description": "Indicated which behaviour to use when no `--name` is specified during template creation. If `true` it will use the template's `defaultName`. If no `defaultName` is found, or `preferDefaultName` is `false` it uses the fallback (output folder).",
+      "type": ["boolean"]
+    },
     "preferNameDirectory": {
       "description": "Indicates whether to create a directory for the template if name is specified but an output directory is not set (instead of creating the content directly in the current directory).",
       "type": "boolean"
@@ -770,12 +782,12 @@
     "shortName": {
       "oneOf": [
         {
-          "description": "A shorthand name for selecting the template (applies to environments where the template name is specified by the user - not selected via a GUI).",
+          "description": "A shorthand name for selecting the template in CLI environment. The template short name should be unique across all the installed templates.",
           "type": "string"
         },
         {
           "type": "array",
-          "description": "A shorthand name for selecting the template (applies to environments where the template name is specified by the user - not selected via a GUI).",
+          "description": "A shorthand name for selecting the template in CLI environment. The first element is a primary choice, and will be used in scenarios which allow only single value for the short name. The template short name should be unique across all the installed templates.",
           "items": {
             "type": "string"
           }
@@ -784,7 +796,7 @@
       "minLength": 1
     },
     "sourceName": {
-      "description": "The name in the source tree to replace with the name the user specifies.",
+      "description": "The text in the source content to replace with the name the user specifies. The value of the 'sourceName' is available in built-in 'name' symbol that can be used as the source for creating other symbols and condition expressions. See important information about how to select correct 'sourceName' in https://github.com/dotnet/templating/wiki/Naming-and-default-value-forms.",
       "type": "string"
     },
     "sources": {
@@ -834,7 +846,8 @@
                     "firstUpperCase",
                     "firstUpperCaseInvariant",
                     "titleCase",
-                    "kebabCase"
+                    "kebabCase",
+                    "snakeCase"
                   ]
                 }
               }
@@ -1008,6 +1021,14 @@
                 "enum": ["kebabCase"]
               }
             }
+          },
+          {
+            "description": "Converts the value to snake case using the casing rules of the invariant culture.",
+            "properties": {
+              "identifier": {
+                "enum": ["snakeCase"]
+              }
+            }
           }
         ]
       }
@@ -1052,14 +1073,18 @@
                 "description": "Defines the portion of file names which will be replaced by symbol value."
               },
               "onlyIf": {
-                "properties": {
-                  "after": {
-                    "description": "The replacement string occurs after this value.",
-                    "type": "string"
-                  },
-                  "before": {
-                    "description": "The replacement string occurs before this value.",
-                    "type": "string"
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "after": {
+                      "description": "The replacement string occurs after this value.",
+                      "type": "string"
+                    },
+                    "before": {
+                      "description": "The replacement string occurs before this value.",
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -1093,14 +1118,18 @@
                 "description": "Defines the portion of file names which will be replaced by symbol value."
               },
               "onlyIf": {
-                "properties": {
-                  "after": {
-                    "description": "The replacement string occurs after this value.",
-                    "type": "string"
-                  },
-                  "before": {
-                    "description": "The replacement string occurs before this value.",
-                    "type": "string"
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "after": {
+                      "description": "The replacement string occurs after this value.",
+                      "type": "string"
+                    },
+                    "before": {
+                      "description": "The replacement string occurs before this value.",
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -1122,14 +1151,18 @@
                 "description": "Defines the portion of file names which will be replaced by symbol value."
               },
               "onlyIf": {
-                "properties": {
-                  "after": {
-                    "description": "The replacement string occurs after this value.",
-                    "type": "string"
-                  },
-                  "before": {
-                    "description": "The replacement string occurs before this value.",
-                    "type": "string"
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "after": {
+                      "description": "The replacement string occurs after this value.",
+                      "type": "string"
+                    },
+                    "before": {
+                      "description": "The replacement string occurs before this value.",
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -1238,14 +1271,18 @@
                 "description": "The element defines the portion of file names which will be replaced by symbol value."
               },
               "onlyIf": {
-                "properties": {
-                  "after": {
-                    "description": "The replacement string occurs after this value.",
-                    "type": "string"
-                  },
-                  "before": {
-                    "description": "The replacement string occurs before this value.",
-                    "type": "string"
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "after": {
+                      "description": "The replacement string occurs after this value.",
+                      "type": "string"
+                    },
+                    "before": {
+                      "description": "The replacement string occurs before this value.",
+                      "type": "string"
+                    }
                   }
                 }
               },

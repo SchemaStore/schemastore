@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/helmfile.json",
   "definitions": {
     "repository": {
       "type": "object",
@@ -38,17 +39,14 @@
       "type": "object",
       "description": "Default values to set for args along with dedicated keys that can be set by contributors, cli args take precedence over these.",
       "properties": {
-        "tillerNamespace": {
-          "type": "string"
-        },
-        "tillerless": {
-          "type": "boolean"
-        },
         "kubeContext": {
-          "type": "string"
+          "type": "string",
+          "description": "Dedicated default key for kube-context (--kube-context)."
         },
         "cleanupOnFail": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "When true, cleans up any new resources created during a failed release.",
+          "default": false
         },
         "args": {
           "type": "array",
@@ -61,91 +59,173 @@
           }
         },
         "verify": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Verify the chart before upgrading (only works with packaged charts not directories).",
+          "default": false
         },
         "wait": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Wait for k8s resources via --wait.",
+          "default": false
         },
         "waitForJobs": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "If true and --wait enabled, will wait until all Jobs have been completed before marking the release as successful. It will wait for as long as --timeout",
+          "default": false
         },
         "timeout": {
-          "type": "number"
+          "type": "number",
+          "description": "Time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks, and waits on pod/pvc/svc/deployment readiness)",
+          "default": 300
         },
         "recreatePods": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Performs pods restart for the resource if applicable.",
+          "default": false
         },
         "force": {
-          "type": "boolean"
-        },
-        "tls": {
-          "type": "boolean"
-        },
-        "tlsCACert": {
-          "type": "string"
-        },
-        "tlsCert": {
-          "type": "string"
-        },
-        "tlsKey": {
-          "type": "string"
+          "type": "boolean",
+          "description": "Forces resource update through delete/recreate if needed.",
+          "default": false
         },
         "historyMax": {
           "type": "number",
-          "description": "limit the maximum number of revisions saved per release. Use 0 for no limit.",
+          "description": "Limit the maximum number of revisions saved per release. Use 0 for no limit.",
           "default": 10
         },
         "createNamespace": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "When using helm 3.2+, automatically create release namespaces if they do not exist.",
+          "default": true
+        },
+        "devel": {
+          "type": "boolean",
+          "description": "If used with charts museum allows to pull unstable charts for deployment, for example: if 1.2.3 and 1.2.4-dev versions exist and set to true, 1.2.4-dev will be pulled (default false)",
+          "default": false
+        },
+        "reuseValues": {
+          "type": "boolean",
+          "description": "If set to true, reuses the last release's values and merges them with ones provided in helmfile.",
+          "default": false
+        },
+        "skipDeps": {
+          "description": "When set to `true`, skips running `helm dep up` and `helm dep build` on this release's chart.",
+          "type": "boolean",
+          "default": false
+        },
+        "cascade": {
+          "type": "string",
+          "description": "Cascade `--cascade` to helmv3 delete, available values: background, foreground, or orphan.",
+          "default": "background",
+          "enum": ["background", "foreground", "orphan"]
+        },
+        "postRenderer": {
+          "type": "string",
+          "description": "Propagate `--post-renderer` to helmv3 template and helm install.",
+          "examples": ["path/to/postRenderer"]
+        },
+        "insecureSkipTLSVerify": {
+          "type": "boolean",
+          "description": "Is true if the TLS verification should be skipped when fetching remote chart.",
+          "default": false
         }
       }
     },
     "release": {
       "type": "object",
       "properties": {
-        "atomic": {
-          "type": "boolean"
+        "name": {
+          "type": "string",
+          "description": "The name of the release."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "The namespace to install the release into."
         },
         "chart": {
+          "description": "The chart name to be installed. The chart name can be either: 1) a chart reference: https://helm.sh/docs/topics/charts/#chart-references, 2) a path to a directory containing a chart, 3) a path to a packaged chart, or 4) a URL.",
           "type": "string"
+        },
+        "atomic": {
+          "type": "boolean",
+          "description": "Restores previous state in case of failed release.",
+          "default": false
         },
         "cleanupOnFail": {
           "type": "boolean",
+          "description": "When true, cleans up any new resources created during a failed release.",
           "default": false
         },
+        "kubeContext": {
+          "type": "string",
+          "description": "--kube-context to be passed to helm commands.\nDefaults tp an empty string, which means the standard kubeconfig, either ~/kubeconfig or the file pointed by $KUBECONFIG environment variable)",
+          "default": ""
+        },
         "condition": {
-          "type": "string"
+          "type": "string",
+          "description": "Wen set, helmfile will only attempt to install the release if the condition is true"
         },
         "createNamespace": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "When using helm 3.2+, automatically create release namespaces if they do not exist.",
+          "default": true
         },
         "devel": {
           "type": "boolean",
-          "description": "if used with charts museum allows to pull unstable charts for deployment, for example: if 1.2.3 and 1.2.4-dev versions exist and set to true, 1.2.4-dev will be pulled (default false)",
+          "description": "If used with charts museum allows to pull unstable charts for deployment, for example: if 1.2.3 and 1.2.4-dev versions exist and set to true, 1.2.4-dev will be pulled.",
           "default": false
         },
         "disableValidation": {
-          "type": "boolean"
+          "description": "Disables validation of the rendered templates before releasing.",
+          "type": "boolean",
+          "default": false
         },
         "disableValidationOnInstall": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Passes --disable-validation to helm 3 diff plugin, this requires diff plugin >= 3.1.2",
+          "default": false
         },
         "disableOpenAPIValidation": {
-          "type": "boolean"
-        },
-        "force": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Passes --disable-openapi-validation to helm 3 diff plugin, this requires diff plugin >= 3.1.2",
+          "default": false
         },
         "historyMax": {
-          "type": "number"
+          "type": "number",
+          "description": "Limit the maximum number of revisions saved per release. Use 0 for no limit.",
+          "default": 10
+        },
+        "skipDeps": {
+          "description": "When set to `true`, skips running `helm dep up` and `helm dep build` on this release's chart.",
+          "type": "boolean",
+          "default": false
+        },
+        "cascade": {
+          "type": "string",
+          "description": "Cascade `--cascade` to helmv3 delete, available values: background, foreground, or orphan",
+          "default": "background",
+          "enum": ["background", "foreground", "orphan"]
+        },
+        "postRenderer": {
+          "type": "string",
+          "description": "Propagate `--post-renderer` to helmv3 template and helm install.",
+          "examples": ["path/to/postRenderer"]
+        },
+        "insecureSkipTLSVerify": {
+          "type": "boolean",
+          "description": "Is true if the TLS verification should be skipped when fetching remote chart",
+          "default": false
         },
         "hooks": {
+          "description": "Hooks allow to trigger actions at certain points in helm's lifecycle.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/hook"
           }
         },
         "installed": {
+          "description": "Set `false` to uninstall this release on sync.",
+          "default": true,
           "anyOf": [
             {
               "type": "boolean"
@@ -158,30 +238,37 @@
             }
           ]
         },
-        "kubeContext": {
-          "type": "string"
-        },
         "labels": {
           "$ref": "#/definitions/map"
         },
         "missingFileHandler": {
-          "type": "string",
-          "$ref": "#/definitions/missingFileHandler"
-        },
-        "name": {
+          "$ref": "#/definitions/missingFileHandler",
           "type": "string"
-        },
-        "namespace": {
-          "type": "string",
-          "examples": ["default"]
-        },
-        "recreatePods": {
-          "type": "boolean"
         },
         "secrets": {
           "type": "array",
+          "description": "Will attempt to decrypt it using helm-secrets plugin",
           "items": {
             "type": "string"
+          }
+        },
+        "inherit": {
+          "type": "array",
+          "description": "Inherit from one or more release templates",
+          "items": {
+            "type": "object",
+            "properties": {
+              "template": {
+                "type": "string"
+              },
+              "except": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["template"]
           }
         },
         "set": {
@@ -231,31 +318,20 @@
             ]
           }
         },
-        "skipDeps": {
+        "timeout": {
+          "type": "number",
+          "description": "Time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks, and waits on pod/pvc/svc/deployment readiness)",
+          "default": 300
+        },
+        "recreatePods": {
           "type": "boolean",
-          "description": "When set to `true`, skips running `helm dep up` and `helm dep build` on this release's chart.",
+          "description": "Performs pods restart for the resource if applicable",
           "default": false
         },
-        "tillerNamespace": {
-          "type": "string"
-        },
-        "tillerless": {
-          "type": "boolean"
-        },
-        "timeout": {
-          "type": "number"
-        },
-        "tls": {
-          "type": "boolean"
-        },
-        "tlsCACert": {
-          "type": "string"
-        },
-        "tlsCert": {
-          "type": "string"
-        },
-        "tlsKey": {
-          "type": "string"
+        "force": {
+          "type": "boolean",
+          "description": "Forces resource update through delete/recreate if needed.",
+          "default": false
         },
         "values": {
           "type": "array",
@@ -287,13 +363,25 @@
           ]
         },
         "wait": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Wait for k8s resources via --wait.",
+          "default": false
         },
         "waitForJobs": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "If set and --wait enabled, will wait until all Jobs have been completed before marking the release as successful. It will wait for as long as --timeout.",
+          "default": false
         }
       },
-      "required": ["name", "chart"]
+      "required": ["name"],
+      "oneOf": [
+        {
+          "required": ["chart"]
+        },
+        {
+          "required": ["inherit"]
+        }
+      ]
     },
     "helmfile": {
       "anyOf": [
@@ -341,7 +429,7 @@
     },
     "missingFileHandler": {
       "type": "string",
-      "enum": ["Error", "Warn"]
+      "enum": ["Error", "Warn", "Info", "Debug"]
     },
     "environment": {
       "type": "object",
@@ -379,7 +467,16 @@
         "events": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "prepare",
+              "preapply",
+              "presync",
+              "preuninstall",
+              "postuninstall",
+              "postsync",
+              "cleanup"
+            ]
           }
         },
         "showlogs": {
@@ -434,7 +531,7 @@
   "properties": {
     "apiVersions": {
       "type": "array",
-      "description": "Configure a fixed list of API versions to pass to 'helm template' via the --api-versions flag with the below:",
+      "description": "Configure a fixed list of API versions to pass to 'helm template' via the `--api-versions` flag.",
       "items": {
         "type": "string",
         "examples": ["example/v1"]
@@ -470,9 +567,9 @@
       }
     },
     "commonLabels": {
+      "$ref": "#/definitions/map",
       "type": "object",
-      "description": "these labels will be applied to all releases in a Helmfile. Useful in templating if you have a helmfile per environment or customer and don't want to copy the same label to each release",
-      "$ref": "#/definitions/map"
+      "description": "these labels will be applied to all releases in a Helmfile. Useful in templating if you have a helmfile per environment or customer and don't want to copy the same label to each release"
     },
     "helmBinary": {
       "type": "string",

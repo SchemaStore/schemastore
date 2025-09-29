@@ -1,6 +1,6 @@
 {
-  "$id": "https://github.com/hyperjumptech/monika/main/monika-config-schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/hyperjumptech/monika/main/monika-config-schema.json",
   "additionalProperties": false,
   "definitions": {
     "urlFormat": {
@@ -86,35 +86,51 @@
       "description": "Monitor redis health ",
       "items": {
         "type": "object",
-        "additionalProperties": true,
-        "required": ["host", "port"],
-        "properties": {
-          "host": {
-            "title": "Redis host",
-            "description": "The hostname or IP address of the redis server",
-            "type": "string",
-            "default": "172.15.0.1",
-            "examples": ["localhost", "192.168.0.1"]
+        "anyOf": [
+          {
+            "required": ["uri"],
+            "additionalProperties": true,
+            "properties": {
+              "uri": {
+                "title": "URI connection",
+                "type": "string",
+                "description": "redis uri connection configuration",
+                "examples": ["redis://alice:mypassword@172.15.0.2:6379"]
+              }
+            }
           },
-          "port": {
-            "title": "Port number",
-            "description": "Port number used for the redis",
-            "type": "integer",
-            "default": "6379"
-          },
-          "password": {
-            "title": "Password",
-            "description": "Password used for the redis AUTH, if set.",
-            "type": "string",
-            "default": ""
-          },
-          "username": {
-            "title": "Username",
-            "description": "Username used for the redis AUTH, if set.",
-            "type": "string",
-            "default": ""
+          {
+            "required": ["host", "port"],
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "title": "Redis host",
+                "description": "The hostname or IP address of the redis server",
+                "type": "string",
+                "default": "172.15.0.1",
+                "examples": ["localhost", "192.168.0.1"]
+              },
+              "port": {
+                "title": "Port number",
+                "description": "Port number used for the redis",
+                "type": "integer",
+                "default": "6379"
+              },
+              "password": {
+                "title": "Password",
+                "description": "Password used for the redis AUTH, if set.",
+                "type": "string",
+                "default": ""
+              },
+              "username": {
+                "title": "Username",
+                "description": "Username used for the redis AUTH, if set.",
+                "type": "string",
+                "default": ""
+              }
+            }
           }
-        }
+        ]
       }
     },
     "mongo": {
@@ -165,7 +181,7 @@
     "mariadb": {
       "title": "MariaDB/Mysql",
       "type": "array",
-      "description": "Monitor MariaDB/Mysql health ",
+      "description": "Monitor MariaDB/Mysql health",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -203,6 +219,25 @@
         }
       }
     },
+    "ping": {
+      "title": "Ping",
+      "type": "array",
+      "description": "The ICMP ping probe",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uri"],
+        "properties": {
+          "uri": {
+            "title": "Uri",
+            "type": "string",
+            "description": "The uri address to probe",
+            "default": "https://api.github.com/zen",
+            "examples": ["https://github.com", "https://httpbin.org/status/200"]
+          }
+        }
+      }
+    },
     "requests": {
       "title": "Requests",
       "type": "array",
@@ -211,12 +246,35 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["url"],
+        "patternProperties": {
+          "ping": { "type": "boolean" }
+        },
         "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string",
+            "description": "Unique string identification of the request",
+            "examples": ["1"],
+            "default": "1"
+          },
           "method": {
             "title": "HTTP Method",
             "type": "string",
             "description": "The http method",
-            "enum": ["GET", "POST", "DELETE", "PUT", "PATCH"],
+            "enum": [
+              "CONNECT",
+              "DELETE",
+              "GET",
+              "HEAD",
+              "LINK",
+              "OPTIONS",
+              "PATCH",
+              "POST",
+              "PURGE",
+              "PUT",
+              "TRACE",
+              "UNLINK"
+            ],
             "default": "GET"
           },
           "url": {
@@ -241,11 +299,6 @@
           "alerts": {
             "$ref": "#/definitions/alerts"
           },
-          "ping": {
-            "title": "Ping",
-            "type": "boolean",
-            "description": "If defined and to true, the request is an ICMP ping"
-          },
           "allowUnauthorized": {
             "title": "AllowUnauthorized",
             "type": "boolean",
@@ -253,6 +306,13 @@
           },
           "body": {
             "$ref": "#/definitions/body"
+          },
+          "followRedirects": {
+            "title": "Follow Redirects",
+            "description": "The request follows redirects as many times as specified here",
+            "type": "integer",
+            "examples": ["21"],
+            "default": "21"
           },
           "headers": {
             "$ref": "#/definitions/headers"
@@ -294,6 +354,13 @@
             "required": ["assertion", "message"],
             "additionalProperties": false,
             "properties": {
+              "id": {
+                "title": "Id",
+                "type": "string",
+                "description": "Unique string identification of the alert",
+                "examples": ["alert-1"],
+                "default": "alert-1"
+              },
               "assertion": {
                 "title": "Assertion",
                 "type": "string",
@@ -312,6 +379,13 @@
             "required": ["query", "message"],
             "additionalProperties": false,
             "properties": {
+              "id": {
+                "title": "Id",
+                "type": "string",
+                "description": "Unique string identification of the alert",
+                "examples": ["alert-1"],
+                "default": "alert-1"
+              },
               "query": {
                 "title": "Query",
                 "type": "string",
@@ -454,6 +528,9 @@
           },
           "alerts": {
             "$ref": "#/definitions/alerts"
+          },
+          "ping": {
+            "$ref": "#/definitions/ping"
           }
         }
       }
@@ -716,18 +793,22 @@
                 "const": "pagerduty"
               },
               "data": {
-                "type": "object",
-                "description": "Data for your payload",
-                "additionalProperties": false,
-                "required": ["key", "probeID"],
-                "properties": {
-                  "key": {
-                    "type": "string",
-                    "description": "Pagerduty integration key"
-                  },
-                  "probeID": {
-                    "type": "string",
-                    "description": "Monika Probe ID"
+                "type": "array",
+                "description": "An array of email addresses that will receive the e-mail from Monika",
+                "items": {
+                  "type": "object",
+                  "description": "Data for your payload",
+                  "additionalProperties": false,
+                  "required": ["key", "probeID"],
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Pagerduty integration key"
+                    },
+                    "probeID": {
+                      "type": "string",
+                      "description": "Monika Probe ID"
+                    }
                   }
                 }
               }
@@ -818,14 +899,8 @@
               "data": {
                 "type": "object",
                 "description": "Data for your payload",
-                "additionalProperties": false,
-                "required": [
-                  "recipients",
-                  "hostname",
-                  "port",
-                  "username",
-                  "password"
-                ],
+                "additionalProperties": true,
+                "required": ["recipients", "hostname", "port"],
                 "properties": {
                   "recipients": {
                     "type": "array",
@@ -1141,6 +1216,38 @@
                 }
               }
             }
+          },
+          {
+            "title": "Instatus",
+            "type": "object",
+            "required": ["id", "type", "data"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The type of notification",
+                "default": "instatus"
+              },
+              "type": {
+                "const": "instatus"
+              },
+              "data": {
+                "type": "object",
+                "description": "Data for your payload",
+                "additionalProperties": false,
+                "required": ["apiKey", "pageID"],
+                "properties": {
+                  "apiKey": {
+                    "type": "string",
+                    "description": "Instatus API key"
+                  },
+                  "pageID": {
+                    "type": "string",
+                    "description": "Instatus Page ID"
+                  }
+                }
+              }
+            }
           }
         ]
       }
@@ -1220,6 +1327,12 @@
           "examples": [30]
         }
       }
+    },
+    "version": {
+      "type": "string",
+      "title": "Monika configuration version",
+      "description": "Monika configuration version",
+      "default": "1"
     }
   },
   "type": "object"

@@ -61,6 +61,6 @@
         }
       }, 300)
     },
-    false
+    false,
   )
 })(typeof window !== 'undefined' ? window : this)

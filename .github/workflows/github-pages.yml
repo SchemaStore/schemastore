@@ -1,0 +1,51 @@
+name: 'Deploy to GitHub pages'
+
+on:
+  schedule:
+    # Every day at 20:30 UTC.
+    - cron: '30 20 * * *'
+  push:
+    branches: ['master']
+  workflow_dispatch:
+
+permissions:
+  contents: 'read'
+  pages: 'write'
+  id-token: 'write'
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  # Build job.
+  build:
+    runs-on: 'ubuntu-latest'
+    if: ${{ github.repository_owner == 'SchemaStore' }}
+    steps:
+      - uses: 'actions/checkout@v5'
+      - uses: 'actions/setup-node@v4'
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: './package-lock.json'
+      - run: 'npm clean-install'
+      - run: 'node ./cli.js build-website'
+      - uses: 'actions/configure-pages@v5'
+      - uses: 'actions/upload-pages-artifact@v4'
+        with:
+          path: './website'
+
+  # Deployment job.
+  deploy:
+    environment:
+      name: 'github-pages'
+      url: '${{ steps.deployment.outputs.page_url }}'
+    runs-on: 'ubuntu-latest'
+    if: ${{ github.repository_owner == 'SchemaStore' }}
+    needs: 'build'
+    steps:
+      - id: 'deployment'
+        uses: 'actions/deploy-pages@v4'

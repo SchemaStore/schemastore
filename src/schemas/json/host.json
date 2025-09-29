@@ -398,6 +398,10 @@
           "description": "The maximum number of entity operations that are processed as a batch. If set to 1, batching is disabled, and each operation message is processed by a separate function invocation.",
           "type": "integer",
           "default": 50
+        },
+        "useTablePartitionManagement": {
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false
@@ -612,7 +616,7 @@
       "type": "object",
       "properties": {
         "extensionBundle": {
-          "description": "Configuration settings for extension bundle",
+          "description": "Configuration settings for extension bundle - a predefined set of compatible binding extensions to a function app",
           "type": "object",
           "properties": {
             "id": {
@@ -623,14 +627,18 @@
             "version": {
               "description": "The version of the extension bundle.",
               "type": "string",
-              "examples": ["[1.*, 2.0.0)", "[2.*, 3.0.0)"],
-              "default": "[2.*, 3.0.0)"
+              "examples": ["[4.*, 5.0.0)"],
+              "default": "[4.*, 5.0.0)"
             }
           },
           "examples": [
             {
               "id": "Microsoft.Azure.Functions.ExtensionBundle",
-              "version": "[2.*, 3.0.0)"
+              "version": "[4.*, 5.0.0)"
+            },
+            {
+              "id": "Microsoft.Azure.Functions.ExtensionBundle.Preview",
+              "version": "[4.*, 5.0.0)"
             }
           ],
           "additionalProperties": false
@@ -762,6 +770,11 @@
                   "type": "boolean",
                   "default": true
                 },
+                "enableLiveMetricsFilters": {
+                  "description": "Enables live metrics filters.",
+                  "type": "boolean",
+                  "default": true
+                },
                 "enableDependencyTracking": {
                   "description": "Enables dependency tracking",
                   "type": "boolean",
@@ -771,6 +784,11 @@
                   "description": "Enables Kudu performance counters collection.",
                   "type": "boolean",
                   "default": true
+                },
+                "enableMetricsCustomDimensionOptimization": {
+                  "description": "Enables optimization that bypasses custom dimensions in Metrics telemetry.",
+                  "type": "boolean",
+                  "default": false
                 },
                 "httpAutoCollectionOptions": {
                   "type": "object",
@@ -1052,6 +1070,11 @@
               "description": "Forward HttpTrigger request to the custom handler",
               "type": "boolean",
               "default": false
+            },
+            "enableProxyingHttpRequest": {
+              "description": "Proxy HttpTrigger request to the custom handler",
+              "type": "boolean",
+              "default": false
             }
           },
           "additionalProperties": false
@@ -1097,84 +1120,187 @@
             },
             "serviceBus": {
               "description": "Configuration settings for 'serviceBus' triggers.",
-              "type": "object",
-              "properties": {
-                "prefetchCount": {
-                  "description": "The default PrefetchCount that will be used by the underlying MessageReceiver.",
-                  "type": "integer"
-                },
-                "messageHandlerOptions": {
-                  "description": "The options that will be used for the message handler registered with the MessageReceiver.",
+              "oneOf": [
+                {
                   "type": "object",
                   "properties": {
-                    "maxConcurrentCalls": {
-                      "description": "The maximum number of concurrent calls to the callback the message pump should initiate.",
-                      "type": "integer",
-                      "default": 32
+                    "prefetchCount": {
+                      "description": "The default PrefetchCount that will be used by the underlying MessageReceiver.",
+                      "type": "integer"
                     },
-                    "maxAutoRenewDuration": {
-                      "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
+                    "messageHandlerOptions": {
+                      "description": "The options that will be used for the message handler registered with the MessageReceiver.",
+                      "type": "object",
+                      "properties": {
+                        "maxConcurrentCalls": {
+                          "description": "The maximum number of concurrent calls to the callback the message pump should initiate.",
+                          "type": "integer",
+                          "default": 32
+                        },
+                        "maxAutoRenewDuration": {
+                          "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
+                          "type": "string",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "default": "00:05:00"
+                        },
+                        "autoComplete": {
+                          "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "sessionHandlerOptions": {
+                      "type": "object",
+                      "properties": {
+                        "maxAutoRenewDuration": {
+                          "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
+                          "type": "string",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "default": "00:55:00"
+                        },
+                        "autoComplete": {
+                          "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
+                          "type": "boolean",
+                          "default": false
+                        },
+                        "maxConcurrentSessions": {
+                          "description": "The maximum number of sessions that can be handled concurrently per scaled instance.",
+                          "type": "integer",
+                          "default": 16
+                        },
+                        "messageWaitTimeout": {
+                          "type": "string",
+                          "default": "00:00:30"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "batchOptions": {
+                      "type": "object",
+                      "properties": {
+                        "maxMessageCount": {
+                          "description": "The maximum number of messages sent to the function when triggered.",
+                          "type": "integer",
+                          "default": 1000
+                        },
+                        "operationTimeout": {
+                          "description": "A time span value expressed in hh:mm:ss.",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "default": "00:01:00"
+                        },
+                        "autoComplete": {
+                          "description": "Whether the trigger should automatically call complete after processing, or if the function code will manually call complete.",
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "clientRetryOptions": {
+                      "description": "The clientRetryOptions settings only apply to interactions with the Service Bus service. They don't affect retries of function executions.",
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "description": "The approach to use for calculating retry delays. The default exponential mode retries attempts with a delay based on a back-off strategy where each attempt increases the wait duration before retrying. The Fixed mode retries attempts at fixed intervals with each delay having a consistent duration.",
+                          "type": "string",
+                          "enum": ["exponential", "fixed"],
+                          "default": "exponential"
+                        },
+                        "tryTimeout": {
+                          "description": "The maximum duration to wait for an operation per attempt.",
+                          "type": "string",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "default": "00:01:00"
+                        },
+                        "delay": {
+                          "description": "The delay or back-off factor to apply between retry attempts.",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d\\d$",
+                          "type": "string",
+                          "default": "00:00:00.80"
+                        },
+                        "maxDelay": {
+                          "description": "The maximum delay to allow between retry attempts.",
+                          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                          "type": "string",
+                          "default": "00:00:01"
+                        },
+                        "maxRetries": {
+                          "description": "The maximum number of retry attempts before considering the associated operation to have failed.",
+                          "type": "integer",
+                          "default": 3
+                        }
+                      }
+                    },
+                    "prefetchCount": {
+                      "description": "Gets or sets the number of messages that the message receiver can simultaneously request.",
+                      "type": "integer",
+                      "default": 0
+                    },
+                    "transportType": {
+                      "description": "The protocol and transport that is used for communicating with Service Bus.",
+                      "type": "string",
+                      "enum": ["amqpTcp", "amqpWebSockets"],
+                      "default": "amqpTcp"
+                    },
+                    "webProxy": {
+                      "description": "The proxy to use for communicating with Event Hubs over web sockets. A proxy cannot be used with the amqpTcp transport.",
+                      "type": "string"
+                    },
+                    "autoCompleteMessages": {
+                      "description": "Determines whether or not to automatically complete messages after successful execution of the function and should be used in place of the autoComplete configuration setting.",
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "maxAutoLockRenewalDuration": {
+                      "description": "The maximum duration within which the message lock will be renewed automatically. This setting only applies for functions that receive a single message at a time.",
                       "type": "string",
                       "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
                       "default": "00:05:00"
                     },
-                    "autoComplete": {
-                      "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
-                      "type": "boolean",
-                      "default": true
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "sessionHandlerOptions": {
-                  "type": "object",
-                  "properties": {
-                    "maxAutoRenewDuration": {
-                      "description": "The maximum duration within which the Service Bus message lock will be renewed automatically.",
-                      "type": "string",
-                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:55:00"
-                    },
-                    "autoComplete": {
-                      "description": "Value determining whether messages will be completed automatically, or whether the function will take responsibility message completion.",
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "maxConcurrentSessions": {
-                      "description": "The maximum number of sessions that can be handled concurrently per scaled instance.",
+                    "maxConcurrentCalls": {
+                      "description": "The maximum number of concurrent calls to the callback that should be initiated per scaled instance. By default, the Functions runtime processes multiple messages concurrently. This setting is used only when the isSessionsEnabled property or attribute on the trigger is set to false. This setting only applies for functions that receive a single message at a time.",
                       "type": "integer",
                       "default": 16
                     },
-                    "messageWaitTimeout": {
-                      "type": "string",
-                      "default": "00:00:30"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "batchOptions": {
-                  "type": "object",
-                  "properties": {
-                    "maxMessageCount": {
-                      "description": "The maximum number of messages sent to the function when triggered.",
+                    "maxConcurrentSessions": {
+                      "description": "The maximum number of sessions that can be handled concurrently per scaled instance. This setting is used only when the isSessionsEnabled property or attribute on the trigger is set to true. This setting only applies for functions that receive a single message at a time.",
+                      "type": "integer",
+                      "default": 8
+                    },
+                    "maxMessageBatchSize": {
+                      "description": "The maximum number of messages that will be passed to each function call. This setting only applies for functions that receive a batch of messages.",
                       "type": "integer",
                       "default": 1000
                     },
-                    "operationTimeout": {
-                      "description": "A time span value expressed in hh:mm:ss.",
+                    "maxBatchWaitTime": {
+                      "description": "The maximum interval that the trigger should wait to fill a batch before invoking the function. The wait time is only considered when minMessageBatchSize is larger than 1 and is ignored otherwise. If less than minMessageBatchSize messages were available before the wait time elapses, the function is invoked with a partial batch. The longest allowed wait time is 50% of the entity message lock duration, meaning the maximum allowed is 2 minutes and 30 seconds. Otherwise, you may get lock exceptions. NOTE: This interval is not a strict guarantee for the exact timing on which the function is invoked. There is a small margin of error due to timer precision.",
+                      "type": "string",
                       "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
-                      "default": "00:01:00"
+                      "default": "00:00:30"
                     },
-                    "autoComplete": {
-                      "description": "Whether the trigger should automatically call complete after processing, or if the function code will manually call complete.",
+                    "sessionIdleTimeout": {
+                      "description": "The maximum amount of time to wait for a message to be received for the currently active session. After this time has elapsed, the session will be closed and the function will attempt to process another session.",
+                      "type": "string",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                    },
+                    "enableCrossEntityTransactions": {
+                      "description": "Whether or not to enable transactions that span multiple entities on a Service Bus namespace.",
                       "type": "boolean",
-                      "default": true
+                      "default": false
                     }
                   },
                   "additionalProperties": false
                 }
-              },
-              "additionalProperties": false
+              ],
+              "default": null
             },
             "eventHubs": {
               "description": "Configuration settings for 'eventHub' triggers.",
@@ -1182,6 +1308,11 @@
                 {
                   "type": "object",
                   "properties": {
+                    "targetUnprocessedEventThreshold": {
+                      "description": "The target number of unprocessed events per worker for Event Hub-triggered functions. This is used in target-based scaling to override the default scaling threshold inferred from maxEventBatchSize.",
+                      "type": "integer",
+                      "minimum": 1
+                    },
                     "maxEventBatchSize": {
                       "description": "The maximum number of events that will be included in a batch for a single invocation.",
                       "type": "integer",
@@ -1340,11 +1471,18 @@
                   "description": "The number of concurrent invocations allowed for each blob-triggered function.",
                   "type": "integer",
                   "minimum": 1
+                },
+                "poisonBlobThreshold": {
+                  "description": "The number of times to try processing a message before moving it to the poison queue.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 5
                 }
               },
               "additionalProperties": false
             }
-          }
+          },
+          "additionalProperties": false
         },
         "concurrency": {
           "description": "Configuration settings for dynamic concurrency",
@@ -1362,6 +1500,15 @@
             }
           },
           "additionalProperties": false
+        },
+        "sendCanceledInvocationsToWorker": {
+          "description": "Where the language worker supports 'Cancellation', send canceled invocations to the worker. If not set, defaults to true.",
+          "type": "boolean",
+          "default": true
+        },
+        "telemetryMode": {
+          "description": "Used to enable output of logs and traces in an OpenTelemetry output format to one or more endpoints that support OpenTelemetry.",
+          "enum": ["OpenTelemetry"]
         }
       },
       "required": ["version"],
@@ -1378,13 +1525,14 @@
           },
           "extensionBundle": {
             "id": "Microsoft.Azure.Functions.ExtensionBundle",
-            "version": "[2.*, 3.0.0)"
+            "version": "[4.*, 5.0.0)"
           }
         }
       ],
       "additionalProperties": false
     }
   },
+  "id": "https://json.schemastore.org/host.json",
   "oneOf": [
     {
       "$ref": "#/definitions/version-1"

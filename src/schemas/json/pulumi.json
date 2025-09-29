@@ -1,186 +1,260 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "definitions": {
-    "Plugin": {
-      "description": "Backend of the project.",
+  "$id": "https://json.schemastore.org/pulumi.json",
+  "$defs": {
+    "pluginOptions": {
+      "title": "PluginOptions",
       "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path"],
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Name of the plugin"
         },
         "path": {
+          "type": "string",
+          "description": "Path to the plugin folder"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the plugin, if not set, will match any version the engine requests."
+        }
+      }
+    },
+    "simpleConfigType": {
+      "title": "SimpleConfigType",
+      "enum": ["string", "integer", "boolean", "array"]
+    },
+    "configItemsType": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/simpleConfigType"
+            },
+            {
+              "$ref": "#/$defs/configItemsType"
+            }
+          ]
+        },
+        "items": {
+          "$ref": "#/$defs/configItemsType"
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "array"
+          }
+        }
+      },
+      "then": {}
+    },
+    "configTypeDeclaration": {
+      "title": "ConfigTypeDeclaration",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/simpleConfigType"
+        },
+        "items": {
+          "$ref": "#/$defs/configItemsType"
+        },
+        "description": {
           "type": "string"
         },
-        "options": {
-          "type": "object"
-        }
+        "secret": {
+          "type": "boolean"
+        },
+        "default": {},
+        "value": {}
       }
     }
   },
-  "description": "The Pulumi.yaml project file specifies metadata about your project, such as the project name and language runtime for your project. Docs https://www.pulumi.com/docs/reference/pulumi-yaml/",
+  "additionalProperties": true,
+  "description": "A schema for Pulumi project files.",
   "properties": {
-    "backend": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "description": "URL is optional field to explicitly set backend url.",
-          "type": "string"
-        }
-      }
+    "name": {
+      "description": "Name of the project containing alphanumeric characters, hyphens, underscores, and periods.",
+      "type": "string",
+      "minLength": 1
     },
     "description": {
       "description": "Description of the project.",
-      "type": "string"
+      "type": ["string", "null"]
     },
-    "main": {
-      "description": "Path to the Pulumi program. The default is the working directory.",
-      "type": "string"
+    "author": {
+      "description": "Author is an optional author that created this project.",
+      "type": ["string", "null"]
     },
-    "name": {
-      "type": "string",
-      "description": "Name of the project containing alphanumeric characters, hyphens, underscores, and periods."
+    "website": {
+      "description": "Website is an optional website for additional info about this project.",
+      "type": ["string", "null"]
     },
-    "config": {
-      "description": "Project level config",
-      "type": "object",
-      "patternProperties": {
-        "^[A-Za-z_][A-Za-z0-9_]*$": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "description": {
-                  "type": "string"
-                },
-                "default": {
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "boolean"
-                    }
-                  ]
-                },
-                "secret": {
-                  "type": "string"
-                },
-                "items": {
-                  "type": "array"
-                }
-              },
-              "required": ["type"]
-            }
-          ]
-        }
-      }
-    },
-    "options": {
-      "description": "Additional project options.",
-      "type": "object",
-      "properties": {
-        "refresh": {
-          "type": "string",
-          "enum": ["always"],
-          "description": "Set to always to refresh the state before performing a Pulumi operation."
-        }
-      }
-    },
-    "plugins": {
-      "description": "Override for the plugin selection. Intended for use in developing pulumi plugins.",
-      "type": "object",
-      "properties": {
-        "analyzers": {
-          "description": "Plugin for the policy.",
-          "$ref": "#/definitions/Plugin"
-        },
-        "providers": {
-          "description": "Plugin for the provider.",
-          "$ref": "#/definitions/Plugin"
-        },
-        "languages": {
-          "description": "Plugin in for the language.",
-          "$ref": "#/definitions/Plugin"
-        }
-      }
+    "license": {
+      "description": "License is the optional license governing this project's usage.",
+      "type": ["string", "null"]
     },
     "runtime": {
-      "description": "Installed language runtime of the project: nodejs, python, go, dotnet, java or yaml.",
+      "title": "ProjectRuntimeInfo",
       "oneOf": [
         {
-          "type": "string"
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
         },
         {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Name",
               "type": "string",
-              "examples": ["nodejs", "python", "go", "dotnet", "java", "yaml"]
+              "minLength": 1
             },
             "options": {
-              "description": "Options for the runtime.",
+              "title": "Options",
               "type": "object",
-              "properties": {
-                "typescript": {
-                  "type": "boolean",
-                  "description": "Boolean indicating whether to use ts-node or not. (Only applicable for the nodejs runtime)"
-                },
-                "nodeargs": {
-                  "description": "Arguments to pass to node. (Only applicable for the nodejs runtime)",
-                  "type": "string"
-                },
-                "buildTarget": {
-                  "description": "Path to save the compiled go binary to. (Only applicable for the go runtime)",
-                  "type": "string"
-                },
-                "binary": {
-                  "description": "Path to pre-built executable. (Applicable for the go, .net, and java runtimes)",
-                  "type": "string"
-                },
-                "virtualenv": {
-                  "description": "Virtual environment path. (Ony applicable for the python runtime)",
-                  "type": "string"
-                },
-                "compiler": {
-                  "description": "Executable and arguments that emit to standard out. (Only applicable for the YAML projects)",
-                  "type": "string"
-                }
-              },
               "additionalProperties": true
             }
           },
-          "required": ["name"]
+          "additionalProperties": false
         }
       ]
     },
+    "main": {
+      "description": "Path to the Pulumi program. The default is the working directory.",
+      "type": ["string", "null"]
+    },
+    "config": {
+      "description": "A map of configuration keys to their types. Using config directory location relative to the location of Pulumi.yaml is a deprecated use of this key. Use stackConfigDir instead.",
+      "type": ["object", "null"],
+      "properties": {
+        "secret": {
+          "description": "If true this configuration value should be encrypted.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array"
+          },
+          {
+            "$ref": "#/$defs/configTypeDeclaration"
+          }
+        ]
+      }
+    },
     "stackConfigDir": {
       "description": "Config directory location relative to the location of Pulumi.yaml.",
-      "type": "string"
+      "type": ["string", "null"]
+    },
+    "backend": {
+      "description": "Backend of the project.",
+      "type": ["object", "null"],
+      "properties": {
+        "url": {
+          "description": "URL is optional field to explicitly set backend url",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "options": {
+      "description": "Additional project options.",
+      "type": ["object", "null"],
+      "properties": {
+        "refresh": {
+          "description": "Set to \"always\" to refresh the state before performing a Pulumi operation.",
+          "type": "string",
+          "const": "always"
+        }
+      },
+      "additionalProperties": false
     },
     "template": {
-      "description": "Config to be used when creating new stacks in the project.",
-      "type": "object",
+      "title": "ProjectTemplate",
+      "description": "ProjectTemplate is a Pulumi project template manifest.",
+      "type": ["object", "null"],
       "properties": {
         "description": {
           "description": "Description of the template.",
-          "type": "string"
+          "type": ["string", "null"]
+        },
+        "quickstart": {
+          "description": "Quickstart contains optional text to be displayed after template creation.",
+          "type": ["string", "null"]
+        },
+        "important": {
+          "description": "Important indicates the template is important and should be listed by default.",
+          "type": ["boolean", "null"]
         },
         "config": {
-          "description": "Config to request when using this template with pulumi new.",
-          "type": "object"
+          "description": "Config to apply to each stack in the project.",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "description": "Description of the config.",
+                "type": ["string", "null"]
+              },
+              "default": {
+                "description": "Default value of the config."
+              },
+              "secret": {
+                "description": "Boolean indicating if the configuration is labeled as a secret.",
+                "type": ["boolean", "null"]
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "plugins": {
+      "description": "Override for the plugin selection. Intended for use in developing pulumi plugins.",
+      "type": "object",
+      "properties": {
+        "providers": {
+          "description": "Plugins for resource providers.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pluginOptions"
+          }
+        },
+        "analyzers": {
+          "description": "Plugins for policy analyzers.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pluginOptions"
+          }
+        },
+        "languages": {
+          "description": "Plugins for languages.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pluginOptions"
+          }
         }
       }
     }
   },
   "required": ["name", "runtime"],
+  "title": "Pulumi Project",
   "type": "object"
 }

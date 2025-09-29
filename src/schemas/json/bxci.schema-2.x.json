@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/bxci.schema-2.x.json",
   "definitions": {
     "branchPattern": {
       "description": "Regular expression for validating branch names",
@@ -41,7 +42,8 @@
         },
         "branch_pattern": {
           "$ref": "#/definitions/branchPattern",
-          "description": "Specifies in which branches this stage will be executed"
+          "description": "Specifies in which branches this stage will be executed",
+          "default": "^master$|^release/.*$"
         },
         "groupId": {
           "type": "string",
@@ -102,6 +104,31 @@
           "type": "boolean",
           "default": true,
           "description": "Sets whether debug logs are visible in the job output"
+        },
+        "waitForResultsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sets whether the scan should be executed synchronously (default). The Synchronous mode allows viewing scan results in Jenkins"
+        },
+        "vulnerabilityThresholdEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sets whether the scan should fail if the number of vulnerabilities is above the configured thresholds. This option is only available if the waitForResultsEnabled parameter is enabled"
+        },
+        "highThreshold": {
+          "type": "integer",
+          "default": 0,
+          "description": "Sets the maximum number of High vulnerabilities allowed"
+        },
+        "mediumThreshold": {
+          "type": "integer",
+          "default": 10,
+          "description": "Sets the maximum number of Medium vulnerabilities allowed"
+        },
+        "lowThreshold": {
+          "type": "integer",
+          "default": null,
+          "description": "Sets the maximum number of Low vulnerabilities allowed"
         }
       },
       "additionalProperties": false
@@ -115,36 +142,126 @@
         },
         "breaks_build": {
           "type": "boolean",
-          "description": "Waits for analysis result and breaks the build when the project fails for some quality gates.",
+          "description": "Waits for analysis result and breaks the build when the project fails for some quality gates",
           "default": false
+        },
+        "branch_analysis": {
+          "type": "boolean",
+          "description": "Indicates whether sonnar server supports branch analysis, to provide dedicated parameters.",
+          "default": true
+        },
+        "branch_pattern": {
+          "type": "string",
+          "description": "Indicates what branches static analysis will be performed.",
+          "examples": ["^master$|^release/.+$", "master"]
+        },
+        "image": {
+          "type": "string",
+          "description": "Prebuilt Docker image for running scan into it. If not specified, it will use the same image used for main build.",
+          "examples": ["myrepo:port/my-awesome-image:1.2.3"]
         },
         "timeout": {
           "$ref": "#/definitions/timeout",
           "description": "Seconds to wait for the result of the quality gate. Only applies when breaks_build is set to true",
           "default": 120
+        },
+        "exclusions": {
+          "type": "string",
+          "description": "Comma separated list of wildcard patterns defining files to be excluded from the SonarQube scan",
+          "examples": ["**/excluded-folder/**, **/example/*.html"]
         }
       },
+      "additionalProperties": false
+    },
+    "when": {
+      "type": "object",
+      "title": "When",
+      "description": "Condition that should be met to run this step",
+      "properties": {
+        "branch": {
+          "$ref": "#/definitions/branchPattern",
+          "title": "Branch"
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "List of steps to run",
+      "title": "Steps"
+    },
+    "singleStage": {
+      "type": "object",
+      "title": "Stage",
+      "properties": {
+        "steps": {
+          "$ref": "#/definitions/steps"
+        },
+        "when": {
+          "$ref": "#/definitions/when"
+        }
+      },
+      "required": ["steps"],
+      "additionalProperties": false
+    },
+    "failFast": {
+      "type": "boolean",
+      "title": "Fail Fast",
+      "default": false,
+      "description": "Forces parallel stages to all be aborted when one of them fails"
+    },
+    "parallelStage": {
+      "type": "object",
+      "title": "Parallel Stage",
+      "properties": {
+        "when": {
+          "$ref": "#/definitions/when"
+        },
+        "fail_fast": {
+          "$ref": "#/definitions/failFast"
+        },
+        "parallel": {
+          "type": "object",
+          "description": "List of stages to be executed in parallel",
+          "patternProperties": {
+            "^\\w+( \\w+)*$": {
+              "$ref": "#/definitions/singleStage",
+              "description": "Stage name in the Jenkins pipeline"
+            }
+          }
+        }
+      },
+      "required": ["parallel"],
       "additionalProperties": false
     },
     "stage": {
       "type": "object",
       "properties": {
-        "steps": {
-          "type": "array",
-          "description": "List of steps to run"
-        },
         "when": {
-          "type": "object",
-          "description": "Condition that should be met to run this step",
-          "properties": {
-            "branch": {
-              "$ref": "#/definitions/branchPattern",
-              "description": "Specifies in which branches this stage will be executed"
+          "$ref": "#/definitions/when"
+        },
+        "steps": {
+          "$ref": "#/definitions/steps"
+        },
+        "fail_fast": {
+          "$ref": "#/definitions/failFast"
+        },
+        "parallel": {
+          "title": "Parallel",
+          "patternProperties": {
+            "^\\w+( \\w+)*$": {
+              "$ref": "#/definitions/singleStage"
             }
           }
         }
       },
-      "required": ["steps"],
+      "anyOf": [
+        {
+          "$ref": "#/definitions/singleStage"
+        },
+        {
+          "$ref": "#/definitions/parallelStage"
+        }
+      ],
       "additionalProperties": false
     },
     "releaseChannel": {
@@ -153,7 +270,7 @@
     },
     "releaseChannelBranch": {
       "$ref": "#/definitions/branchPattern",
-      "description": "Indicates on which branches the artifact will be published."
+      "description": "Indicates on which branches the artifact will be published"
     },
     "dockerfile": {
       "description": "Dockerfile path",
@@ -186,6 +303,14 @@
             }
           },
           "additionalProperties": false
+        },
+        "args": {
+          "type": "array",
+          "description": "List of build args (--build-arg) to pass in docker build",
+          "title": "Docker build args",
+          "items": {
+            "$ref": "#/definitions/outputDockerBuildArgs"
+          }
         }
       },
       "required": ["dockerfile", "image_name"],
@@ -196,6 +321,40 @@
       "items": {
         "$ref": "#/definitions/dockerReleaseChannel"
       }
+    },
+    "outputDockerBuildArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "ARG name"
+        },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "Environment variable whose value will be used to set the ARG"
+        },
+        "value": {
+          "type": "string",
+          "description": "Value of the ARG"
+        }
+      },
+      "required": ["key"],
+      "oneOf": [
+        {
+          "required": ["env"],
+          "not": {
+            "required": ["value"]
+          }
+        },
+        {
+          "required": ["value"],
+          "not": {
+            "required": ["env"]
+          }
+        }
+      ]
     },
     "dockerReleaseChannel": {
       "type": "object",
@@ -356,6 +515,18 @@
             "https://registry.npmjs.org"
           ]
         },
+        "credentials": {
+          "$ref": "#/definitions/credentials",
+          "description": "Jenkins credentials ID for publishing into the specified Docker registry"
+        },
+        "maven_releases_repo": {
+          "type": "string",
+          "description": "Maven repository for deploying releases"
+        },
+        "maven_snapshots_repo": {
+          "type": "string",
+          "description": "Maven repository for deploying snapshots"
+        },
         "params": {
           "type": "string",
           "description": "Optional params for npm publish or mvn deploy command.",
@@ -369,7 +540,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "enum": ["maven", "npm"],
+          "enum": ["maven", "npm", "local"],
           "description": "Cache type",
           "default": "maven"
         },
@@ -432,8 +603,8 @@
                   "examples": ["remote-host.com/image-name:tag"]
                 },
                 "dockerfile": {
-                  "description": "Path to a local Dockerfile",
                   "$ref": "#/definitions/dockerfile",
+                  "description": "Path to a local Dockerfile",
                   "examples": [".ci/Dockerfile"]
                 }
               },
@@ -466,6 +637,21 @@
               "description": "Whether Jenkins workspace should be cleaned after the build",
               "default": true
             },
+            "commit_time_threshold": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "const": 0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\d+[mhd]$"
+                }
+              ],
+              "description": "Commit age threshold. Disables automated builds older than this parameter. When 0, this feature is disabled",
+              "default": false,
+              "examples": [0, "2m", "30m", "1d", "30m", "10d"]
+            },
             "checkmarx": {
               "$ref": "#/definitions/checkmarx",
               "description": "Adds a Static Analysis stage for CheckMarx. See https://www.jenkins.io/doc/pipeline/steps/checkmarx/ for all the configuration options."
@@ -492,8 +678,7 @@
               }
             }
           },
-          "additionalProperties": false,
-          "required": ["repository"]
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -532,6 +717,7 @@
     },
     "stages": {
       "type": "object",
+      "title": "Stages",
       "description": "Defines the stages and steps required to build the project.",
       "patternProperties": {
         "^\\w+( \\w+)*$": {

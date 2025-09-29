@@ -11,6 +11,8 @@
       ]
     },
     "production": {
+      "missingFileHandler": "Error",
+      "secrets": ["environment/production/secrets.yaml"],
       "values": [
         "environment/production/values.yaml",
         {
@@ -21,37 +23,35 @@
             "enabled": false
           }
         }
-      ],
-      "secrets": ["environment/production/secrets.yaml"],
-      "missingFileHandler": "Error"
+      ]
     }
   },
   "helmDefaults": {
-    "tillerNamespace": "tiller-namespace",
-    "tillerless": false,
-    "kubeContext": "kube-context",
-    "cleanupOnFail": false,
     "args": ["--set k=v"],
-    "verify": true,
-    "wait": true,
-    "waitForJobs": true,
+    "cleanupOnFail": false,
+    "createNamespace": true,
+    "force": false,
+    "historyMax": 10,
     "hooks": [
       {
-        "events": ["prepare", "cleanup"],
-        "showlogs": true,
+        "args": ["{{`{{.Environment.Name}}`}}", "{{`{{.HelmfileCommand}}`}}"],
         "command": "echo",
-        "args": ["{{`{{.Environment.Name}}`}}", "{{`{{.HelmfileCommand}}`}}"]
+        "events": ["prepare", "cleanup"],
+        "showlogs": true
       }
     ],
-    "timeout": 600,
+    "kubeContext": "kube-context",
     "recreatePods": true,
-    "force": false,
+    "tillerNamespace": "tiller-namespace",
+    "tillerless": false,
+    "timeout": 600,
     "tls": true,
     "tlsCACert": "path/to/ca.pem",
     "tlsCert": "path/to/cert.pem",
     "tlsKey": "path/to/key.pem",
-    "historyMax": 10,
-    "createNamespace": true
+    "verify": true,
+    "wait": true,
+    "waitForJobs": true
   },
   "helmfiles": [
     {
@@ -74,39 +74,27 @@
   "missingFileHandler": "Error",
   "releases": [
     {
-      "name": "vault",
-      "namespace": "vault",
+      "atomic": true,
+      "chart": "roboll/vault-secret-manager",
+      "cleanupOnFail": false,
+      "condition": "vault.enabled",
       "createNamespace": true,
+      "force": false,
+      "historyMax": 10,
+      "installed": true,
+      "kubeContext": "kube-context",
       "labels": {
         "foo": "bar"
       },
-      "chart": "roboll/vault-secret-manager",
-      "version": "~1.24.1",
-      "condition": "vault.enabled",
       "missingFileHandler": "Warn",
-      "values": [
-        "vault.yaml",
-        {
-          "address": "https://vault.example.com"
-        },
-        {
-          "image": {
-            "tag": "string"
-          },
-          "db": {
-            "username": "string",
-            "password": "string"
-          },
-          "proxy": {
-            "domain": "string",
-            "scheme": "string"
-          }
-        }
-      ],
+      "name": "vault",
+      "namespace": "vault",
+      "recreatePods": true,
+      "secrets": ["vault_secret.yaml"],
       "set": [
         {
-          "name": "foo.config",
-          "file": "path/to/file"
+          "file": "path/to/file",
+          "name": "foo.config"
         },
         {
           "name": "bar[0]",
@@ -117,28 +105,40 @@
           "value": "namespace"
         }
       ],
-      "secrets": ["vault_secret.yaml"],
-      "verify": true,
-      "wait": true,
-      "timeout": 60,
-      "recreatePods": true,
-      "force": false,
-      "installed": true,
-      "atomic": true,
-      "cleanupOnFail": false,
       "tillerNamespace": "vault",
       "tillerless": false,
+      "timeout": 60,
       "tls": true,
       "tlsCACert": "path/to/ca.pem",
       "tlsCert": "path/to/cert.pem",
       "tlsKey": "path/to/key.pem",
-      "kubeContext": "kube-context",
-      "historyMax": 10
+      "values": [
+        "vault.yaml",
+        {
+          "address": "https://vault.example.com"
+        },
+        {
+          "db": {
+            "password": "string",
+            "username": "string"
+          },
+          "image": {
+            "tag": "string"
+          },
+          "proxy": {
+            "domain": "string",
+            "scheme": "string"
+          }
+        }
+      ],
+      "verify": true,
+      "version": "~1.24.1",
+      "wait": true
     },
     {
+      "chart": "../my-charts/grafana",
       "name": "grafana",
       "namespace": "another",
-      "chart": "../my-charts/grafana",
       "values": [
         "../../my-values/grafana/values.yaml",
         "./values/{{ requiredEnv \"PLATFORM_ENV\" }}/config.yaml",
@@ -147,6 +147,14 @@
         }
       ],
       "wait": true
+    },
+    {
+      "inherit": [
+        {
+          "template": "default"
+        }
+      ],
+      "name": "grafana"
     }
   ],
   "repositories": [
@@ -163,17 +171,17 @@
       "url": "git+https://github.com/reactiveops/polaris@deploy/helm?ref=master"
     },
     {
-      "name": "roboll",
-      "url": "https://roboll.io/charts",
       "certFile": "optional_client_cert",
       "keyFile": "optional_client_key",
-      "username": "optional_username",
-      "password": "optional_password"
+      "name": "roboll",
+      "password": "optional_password",
+      "url": "https://roboll.io/charts",
+      "username": "optional_username"
     },
     {
+      "caFile": "optional_ca_crt",
       "name": "insecure",
-      "url": "https://charts.my-insecure-domain.com",
-      "caFile": "optional_ca_crt"
+      "url": "https://charts.my-insecure-domain.com"
     }
   ]
 }

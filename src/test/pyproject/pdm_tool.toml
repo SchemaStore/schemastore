@@ -1,0 +1,83 @@
+#:schema ../../schemas/json/pyproject.json
+[tool.pdm]
+plugins = ["sync-pre-commit-lock"]
+distribution = false
+ignore_package_warnings = [
+  "scipy",
+  "tensorflow-*",
+] # https://pdm-project.org/latest/usage/config/#ignore-package-warnings
+
+[tool.pdm.dev-dependencies] # https://pdm-project.org/latest/usage/dependency/#add-development-only-dependencies
+dev = ["pytest>=7.4.3"]
+lint = ["mypy>=1.7.1"]
+
+[tool.pdm.resolution] # https://pdm-project.org/latest/usage/config/#respect-the-order-of-the-sources
+allow-prereleases = true    # https://pdm-project.org/latest/usage/config/#allow-prereleases-in-resolution-result
+respect-source-order = true
+excludes = ["tensorflow"]
+
+[tool.pdm.resolution.overrides] # https://pdm-project.org/latest/usage/config/#override-the-resolved-package-versions
+asgiref = "3.2.10"                                                # exact version
+urllib3 = ">=1.26.2"                                              # version range
+pytz = "https://mypypi.org/packages/pytz-2020.9-py3-none-any.whl" # absolute URL
+
+[tool.pdm.options] # https://pdm-project.org/latest/usage/config/#passing-constant-arguments-to-every-pdm-invocation
+add = ["--no-isolation", "--no-self"]
+install = ["--no-self"]
+lock = ["--no-cross-platform"]
+
+[[tool.pdm.source]] # https://pdm-project.org/latest/usage/config/#configure-the-package-indexes
+name = "private"
+url = "https://private.pypi.org/simple"
+verify_ssl = true
+type = "index"
+include_packages = [
+  "foo",
+  "foo-*",
+] # https://pdm-project.org/latest/usage/config/#specify-index-for-individual-packages
+
+[tool.pdm.scripts] # https://pdm-project.org/latest/usage/scripts/
+_.env_file = ".env"                                    # https://pdm-project.org/latest/usage/scripts/#shared-options
+start.cmd = "flask run -p 54321"
+start.env = { FOO = "bar", FLASK_ENV = "development" }
+start.env_file = ".env"
+start.help = "Start the server"
+
+start1 = { cmd = "flask run -p 54321", env_file = { override = ".env" } }
+
+start2 = { cmd = [
+  "flask",
+  "run",
+  # Important comment here about always using port 54321
+  "-p",
+  "54321",
+], env = { FOO = "bar", FLASK_ENV = "development" } }
+filter_error = { shell = "cat error.log|grep CRITICAL > critical.log" }
+foobar = { call = "foo_package.bar_module:main" }
+foobar1 = { call = "foo_package.bar_module:main('dev')" }
+lint = "flake8"
+test = "pytest"
+all = { composite = ["lint", "test"] }
+all1 = { composite = ["lint mypackage/", "test -v tests/"] }
+
+[tool.pdm.version] # https://backend.pdm-project.org/metadata/#dynamic-project-version
+source = "scm"
+tag_regex = '^(?:\D*)?(?P<version>([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|c|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$)$'
+write_to = "foo/_version.py"
+write_template = "__version__ = '{}'"
+
+[tool.pdm.build] # https://backend.pdm-project.org/build_config/#specify-the-package-files
+includes = ["mypackage/", "script.py"]
+excludes = ["**/*.json"]
+source-includes = ["scripts/", "tests/"]
+package-dir = "mysrc"
+run-setuptools = false                   # https://backend.pdm-project.org/build_config/#run-setuptools
+is-purelib = true                        # https://backend.pdm-project.org/build_config/#is-purelib
+editable-backend = "path"                # https://backend.pdm-project.org/build_config/#choose-the-editable-build-format
+custom-hook = "build.py"                 # https://backend.pdm-project.org/build_config/#local-build-hooks
+
+[tool.pdm.build.wheel-data] # https://backend.pdm-project.org/build_config/#wheel-data-files
+# Install all files under scripts/ to the $prefix/bin directory
+scripts = ["scripts/*"]
+# Install all files under include/ to the $prefix/include directory recursively, keeping the directory structure
+include = [{ path = "include/**/*.h", relative-to = "include/" }]

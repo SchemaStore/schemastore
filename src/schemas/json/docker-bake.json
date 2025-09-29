@@ -1,0 +1,255 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/docker-bake.json",
+  "title": "Docker Bake JSON Schema",
+  "description": "The Bake file is a file for defining workflows that you run using docker buildx bake.",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "target": {
+      "description": "A target reflects a single docker build invocation.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/target"
+      }
+    },
+    "group": {
+      "description": "Groups allow you to invoke multiple builds (targets) at once.",
+      "type": "object",
+      "properties": {
+        "default": {
+          "$ref": "#/definitions/group"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/group"
+      }
+    },
+    "variable": {
+      "description": "The HCL file format supports variable block definitions. You can use variables as build arguments in your Dockerfile, or interpolate them in attribute values in your Bake file.\nYou can assign a default value for a variable in the Bake file, or assign a null value to it. If you assign a null value, Buildx uses the default value from the Dockerfile instead.\nYou can override variable defaults set in the Bake file using environment variables.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "default": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "function": {
+      "description": "Functions allow you to define custom functions that you can use in your Bake file. You can use functions to generate values for attributes in your targets.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "description": "Arguments for the function.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variadic_params": {
+            "description": "Variable-length argument list.",
+            "type": "string"
+          },
+          "result": {
+            "description": "Return value. It can take not only just string but also other functions, variables and etc.\nIf you want to interpolate variables or logic, put them in ${}.\nFor example, if you want to increment a number param, you can do it like this: ${number+1}",
+            "type": "string"
+          }
+        },
+        "required": ["result"]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "keyValue": {
+      "type": "string",
+      "pattern": "^[^=]+=[^=]+$"
+    },
+    "shmSize": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*[bkmg]?$"
+    },
+    "ulimit": {
+      "type": "string",
+      "pattern": "^[a-z]+=[0-9]+(?::[0-9]+)?$"
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["targets"]
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Use the args attribute to define build arguments for the target. This has the same effect as passing a --build-arg flag to the build command.\nYou can set args attributes to use null values. Doing so forces the target to use the ARG value specified in the Dockerfile.",
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "null"]
+          }
+        },
+        "annotations": {
+          "description": "The annotations attribute lets you add annotations to images built with bake. The key takes a list of annotations, in the format of KEY=VALUE.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/definitions/keyValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "attest": {
+          "description": "The attest attribute lets you apply build attestations to the target. This attribute accepts the long-form CSV version of attestation parameters.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/keyValue"
+          }
+        },
+        "cache-from": {
+          "description": "Build cache sources. The builder imports cache from the locations you specify. It uses the Buildx cache storage backends, and it works the same way as the --cache-from flag. This takes a list value, so you can specify multiple cache sources.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cache-to": {
+          "description": "Build cache export destinations. The builder exports its build cache to the locations you specify. It uses the Buildx cache storage backends, and it works the same way as the --cache-to flag. This takes a list value, so you can specify multiple cache export targets.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "context": {
+          "description": "Specifies the location of the build context to use for this target. Accepts a URL or a directory path. This is the same as the build context positional argument that you pass to the build command.",
+          "type": "string",
+          "default": "."
+        },
+        "contexts": {
+          "description": "Additional build contexts. This is the same as the --build-context flag. This attribute takes a map, where keys result in named contexts that you can reference in your builds.\nYou can specify different types of contexts, such local directories, Git URLs, and even other Bake targets. Bake automatically determines the type of a context based on the pattern of the context value.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "dockerfile-inline": {
+          "description": "Uses the string value as an inline Dockerfile for the build target.\nThe dockerfile-inline takes precedence over the dockerfile attribute. If you specify both, Bake uses the inline version.",
+          "type": "string"
+        },
+        "dockerfile": {
+          "description": "Name of the Dockerfile to use for the build. This is the same as the --file flag for the docker build command.",
+          "type": "string",
+          "default": "Dockerfile"
+        },
+        "inherits": {
+          "description": "A target can inherit attributes from other targets. Use inherits to reference from one target to another.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "description": "Assigns image labels to the build. This is the same as the --label flag for docker build.\nt's possible to use a null value for labels. If you do, the builder uses the label value specified in the Dockerfile.",
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "null"]
+          }
+        },
+        "matrix": {
+          "description": "A matrix strategy lets you fork a single target into multiple different variants, based on parameters that you specify. This works in a similar way to [Matrix strategies for GitHub Actions]. You can use this to reduce duplication in your bake definition.\nThe matrix attribute is a map of parameter names to lists of values. Bake builds each possible combination of values as a separate target.\nEach generated target must have a unique name. To specify how target names should resolve, use the name attribute.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array"
+          }
+        },
+        "name": {
+          "description": "Specify name resolution for targets that use a matrix strategy.",
+          "type": "string"
+        },
+        "no-cache-filter": {
+          "description": "Don't use build cache for the specified stages. This is the same as the --no-cache-filter flag for docker build.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "no-cache": {
+          "description": "Don't use cache when building the image. This is the same as the --no-cache flag for docker build.",
+          "type": "boolean"
+        },
+        "output": {
+          "description": "Configuration for exporting the build output. This is the same as the --output flag.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platforms": {
+          "description": "Set target platforms for the build target. This is the same as the --platform flag.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pull": {
+          "description": "Configures whether the builder should attempt to pull images when building the target. This is the same as the --pull flag for docker build.",
+          "type": "boolean"
+        },
+        "secret": {
+          "description": "Defines secrets to expose to the build target. This is the same as the --secret flag.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "shm-size": {
+          "$ref": "#/definitions/shmSize",
+          "description": "Sets the size of the shared memory allocated for build containers when using RUN instructions.\nThe format is <number><unit>. number must be greater than 0. Unit is optional and can be b (bytes), k (kilobytes), m (megabytes), or g (gigabytes). If you omit the unit, the system uses bytes.\nThis is the same as the --shm-size flag for docker build."
+        },
+        "ssh": {
+          "description": "Defines SSH agent sockets or keys to expose to the build. This is the same as the --ssh flag. This can be useful if you need to access private repositories during a build.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "description": "Image names and tags to use for the build target. This is the same as the --tag flag.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "target": {
+          "description": "Set the target build stage to build. This is the same as the --target flag.",
+          "type": "string"
+        },
+        "ulimits": {
+          "description": "Ulimits overrides the default ulimits of build's containers when using RUN instructions and are specified with a soft and hard limit as such: <type>=<soft limit>[:<hard limit>].",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ulimit"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object"
+}
