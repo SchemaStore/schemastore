@@ -15,7 +15,8 @@
         },
         "command": {
           "type": "string",
-          "description": "Shell command to execute"
+          "description": "Shell command to execute",
+          "minLength": 1
         },
         "timeout": {
           "type": "number",
@@ -32,7 +33,7 @@
       "properties": {
         "matcher": {
           "type": "string",
-          "description": "String (e.g. Write) to match values related to the hook event, e.g. tool names"
+          "description": "Optional filter to match specific tool names (e.g., 'Edit', 'Bash') or patterns. When specified, hooks only run for matching events"
         },
         "hooks": {
           "type": "array",
@@ -46,18 +47,18 @@
     "permissionRule": {
       "type": "string",
       "description": "Tool permission rule",
-      "pattern": "^((Bash|Edit|Glob|Grep|MultiEdit|NotebookEdit|NotebookRead|Read|SlashCommand|Task|TodoWrite|WebFetch|WebSearch|Write)\\(?|^mcp__)",
+      "pattern": "^((Bash|BashOutput|Edit|ExitPlanMode|Glob|Grep|KillShell|NotebookEdit|Read|SlashCommand|Task|TodoWrite|WebFetch|WebSearch|Write)\\(?|^mcp__)",
       "examples": [
-        "Bash(npm run lint)",
-        "Bash(npm run test:*)",
-        "Bash(git push:*)",
-        "Bash(curl:*)",
-        "Read(~/.zshrc)",
-        "Read(./.env)",
-        "Read(./secrets/**)",
+        "Bash(git commit:*)",
+        "Bash(npm run lint:*)",
+        "Edit(/src/**/*.ts)",
+        "mcp__github__search_repositories",
+        "Read(*.env)",
+        "Read(//Users/alice/secrets/**)",
+        "Read(~/Documents/*.pdf)",
+        "WebFetch",
         "WebFetch(domain:github.com)",
-        "Edit(~/projects/**)",
-        "mcp__github__search_repositories"
+        "Write(/tmp/**/*)"
       ]
     }
   },
@@ -73,6 +74,7 @@
     "apiKeyHelper": {
       "type": "string",
       "description": "Custom script path to generate an auth value",
+      "minLength": 1,
       "examples": ["/bin/generate_temp_api_key.sh"]
     },
     "cleanupPeriodDays": {
@@ -87,12 +89,18 @@
       "description": "Environment variables applied to every session",
       "additionalProperties": false,
       "patternProperties": {
-        "^[A-Z_]+$": {
+        "^[A-Z_][A-Z0-9_]*$": {
           "type": "string",
           "description": "Environment variable value"
         }
       },
-      "default": {}
+      "default": {},
+      "examples": [
+        {
+          "ANTHROPIC_MODEL": "claude-opus-4-1",
+          "ANTHROPIC_SMALL_FAST_MODEL": "claude-3-5-haiku-latest"
+        }
+      ]
     },
     "includeCoAuthoredBy": {
       "type": "boolean",
@@ -107,6 +115,14 @@
       "type": "object",
       "description": "Tool permissions",
       "additionalProperties": false,
+      "examples": [
+        {
+          "allow": ["Bash(git add:*)", "Write"],
+          "ask": ["Bash(gh pr create:*)", "Bash(git commit:*)"],
+          "deny": ["Read(*.env)", "Bash(rm:*)", "Bash(curl:*)"],
+          "defaultMode": "default"
+        }
+      ],
       "properties": {
         "allow": {
           "type": "array",
@@ -140,9 +156,11 @@
           "type": "array",
           "description": "Paths to additional directories Claude can access beyond the working directory",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "examples": [["//Users/alice/Documents", "~/projects"]]
         }
       }
     },
@@ -155,7 +173,8 @@
       "type": "array",
       "description": "List of allowed MCP servers from .mcp.json",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       },
       "examples": [["memory", "github"]]
     },
@@ -163,7 +182,8 @@
       "type": "array",
       "description": "List of denied MCP servers from .mcp.json",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       },
       "examples": [["filesystem"]]
     },
@@ -171,6 +191,22 @@
       "type": "object",
       "description": "Hooks configuration for executing commands at specific points in Claude Code's lifecycle",
       "additionalProperties": false,
+      "examples": [
+        {
+          "PostToolUse": [
+            {
+              "matcher": "Edit|Write",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "prettier --write",
+                  "timeout": 5
+                }
+              ]
+            }
+          ]
+        }
+      ],
       "properties": {
         "PreToolUse": {
           "type": "array",
@@ -229,9 +265,18 @@
       "type": "boolean",
       "description": "Disable all hooks"
     },
+    "spinnerTipsEnabled": {
+      "type": "boolean",
+      "description": "Whether to show tips in the spinner"
+    },
+    "alwaysThinkingEnabled": {
+      "type": "boolean",
+      "description": "Whether extended thinking is always enabled (default: false)"
+    },
     "statusLine": {
       "type": "object",
       "description": "Custom status line configuration",
+      "additionalProperties": false,
       "properties": {
         "type": {
           "type": "string",
@@ -239,7 +284,8 @@
         },
         "command": {
           "type": "string",
-          "description": "Shell command to execute to generate the status line"
+          "description": "Shell command to execute to generate the status line",
+          "minLength": 1
         },
         "padding": {
           "type": "number",
@@ -252,21 +298,26 @@
     "outputStyle": {
       "type": "string",
       "description": "The output style to use. Can be 'default', 'explanatory', 'learning', or a custom style name.",
+      "minLength": 1,
       "examples": ["default", "explanatory", "learning"]
     },
     "forceLoginOrgUUID": {
       "type": "string",
+      "format": "uuid",
       "description": "Force login with a specific organization UUID",
+      "minLength": 1,
       "examples": ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
     },
     "awsAuthRefresh": {
       "type": "string",
       "description": "Command to refresh AWS credentials.",
+      "minLength": 1,
       "examples": ["aws sso login --profile myprofile"]
     },
     "awsCredentialExport": {
       "type": "string",
       "description": "Command to export AWS credentials as JSON.",
+      "minLength": 1,
       "examples": ["/bin/generate_aws_grant.sh"]
     }
   }
