@@ -1,5 +1,6 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/kode-ci-build-1.0.0.json",
   "additionalProperties": false,
   "definitions": {
     "env": {
@@ -153,6 +154,36 @@
             }
           },
           "additionalProperties": false
+        },
+        "schedule": {
+          "type": "object",
+          "description": "스케줄에 의한 조건",
+          "required": ["cron", "branches"],
+          "properties": {
+            "cron": {
+              "type": "string",
+              "description": "cron 표현식. unix 표현식과 quartz 표현식 사용가능"
+            },
+            "branches": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "스케줄 빌드의 branch 조건",
+              "minItems": 1
+            },
+            "zone": {
+              "type": "string",
+              "default": ["Asia/Seoul"],
+              "description": "스케줄 빌드 zone"
+            },
+            "build-if-changed": {
+              "type": "boolean",
+              "default": true,
+              "description": "변경된 파일이 있을때만 빌드"
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -219,6 +250,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
+            "required": ["key", "path"],
             "properties": {
               "key": {
                 "type": "string",
@@ -228,6 +260,16 @@
               "path": {
                 "type": "string",
                 "description": "캐시할 파일 혹은 디렉토리 경로"
+              },
+              "upload": {
+                "type": "boolean",
+                "description": "캐시 업로드 여부",
+                "default": true
+              },
+              "download": {
+                "type": "boolean",
+                "description": "캐시 다운로드 여부",
+                "default": true
               }
             }
           }
@@ -249,14 +291,32 @@
           "description": "빌드 후처리기 설정",
           "additionalProperties": true,
           "properties": {
-            "app-center-release": {
-              "$ref": "#/definitions/app-center-release"
-            },
             "app-center-releases": {
               "$ref": "#/definitions/app-center-releases"
             },
             "git-ops": {
               "$ref": "#/definitions/git-ops"
+            }
+          }
+        },
+        "html-reports": {
+          "type": "array",
+          "description": "html report 설정. path 경로의 html 파일을 업로드",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": ["name", "path"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "report 이름",
+                "pattern": "[a-zA-Z0-9_-]+"
+              },
+              "path": {
+                "type": "string",
+                "description": "report 경로. html 확장자만 지정 가능"
+              }
             }
           }
         }
@@ -323,7 +383,7 @@
           "default": [],
           "items": {
             "type": "string",
-            "enum": ["docker", "mobil-keystore"]
+            "const": "docker"
           }
         },
         "platform": {
@@ -354,40 +414,13 @@
         }
       }
     },
-    "app-center-release": {
-      "type": "object",
-      "description": "artifact로 지정된 .apk/.ipa 파일을 appcenter로 릴리즈",
-      "required": ["app-id", "release-group-tag"],
-      "additionalProperties": true,
-      "properties": {
-        "app-id": {
-          "type": "string",
-          "description": "App ID",
-          "pattern": "[a-zA-Z0-9_-]+"
-        },
-        "release-group-tag": {
-          "type": "string",
-          "description": "릴리즈 그룹에 대한 Tag 지정",
-          "pattern": "[a-zA-Z0-9_-]+"
-        },
-        "testers": {
-          "type": "array",
-          "description": "테스터 지정(@<user>, @@<group>, corp@@<corpcode>)",
-          "items": {
-            "type": "string",
-            "description": "@<user>, @@<group>, corp@@<corpcode>",
-            "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$"
-          }
-        }
-      }
-    },
     "app-center-releases": {
       "type": "array",
       "description": "artifact로 지정된 .apk/.ipa 파일을 appcenter로 릴리즈",
       "items": {
         "type": "object",
         "description": "appcenter release 설정",
-        "required": ["app-id", "release-group-tags"],
+        "required": ["app-id"],
         "additionalProperties": false,
         "properties": {
           "app-id": {
@@ -395,22 +428,13 @@
             "description": "App ID",
             "pattern": "[a-zA-Z0-9_-]+"
           },
-          "release-group-tags": {
+          "tags": {
             "type": "array",
             "description": "릴리즈 그룹에 대한 Tag들을 지정",
             "items": {
               "type": "string",
               "description": "릴리즈 그룹에 대한 Tag 값",
               "pattern": "[a-zA-Z0-9_-]+"
-            }
-          },
-          "testers": {
-            "type": "array",
-            "description": "테스터 지정(@<user>, @@<group>, corp@@<corpcode>)",
-            "items": {
-              "type": "string",
-              "description": "@<user>, @@<group>, corp@@<corpcode>",
-              "pattern": "^(@[.a-zA-Z0-9_-]+|@@[.a-zA-Z0-9_-]+|corp@@[.a-zA-Z0-9_-]+)$"
             }
           }
         }
@@ -463,7 +487,6 @@
       }
     }
   },
-  "id": "https://json.schemastore.org/kode-ci-build-1.0.0.json",
   "properties": {
     "on": {
       "$ref": "#/definitions/build-condition",
@@ -486,5 +509,6 @@
   },
   "required": ["jobs"],
   "title": "KoDE/CI Build Spec",
-  "type": "object"
+  "type": "object",
+  "description": "KoDE/CI 빌드 스펙에 사용되는 yaml의 스키마를 정의"
 }

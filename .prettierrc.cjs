@@ -1,7 +1,10 @@
 /** @type {import('prettier').Config} */
 module.exports = {
   // pre-commit.ci fails without `require.resolve()`.
-  plugins: [require.resolve('prettier-plugin-sort-json')],
+  plugins: [
+    require.resolve('prettier-plugin-sort-json'),
+    require.resolve('prettier-plugin-toml'),
+  ],
   semi: false,
   singleQuote: true,
   trailingComma: 'all',
@@ -11,6 +14,12 @@ module.exports = {
     '/^\\d+/': 'none',
   }),
   overrides: [
+    {
+      files: '*.jsonc',
+      options: {
+        trailingComma: 'none',
+      },
+    },
     {
       files: 'src/api/json/catalog.json',
       options: {
@@ -23,13 +32,14 @@ module.exports = {
           fileMatch: null,
           url: null,
           versions: null,
+          // Set to "none" to prevent lexical sorting of version strings.
           '/^[^\\d+]/': 'none',
           '/^\\d+/': 'none',
         }),
       },
     },
     {
-      files: 'src/schema-validation.json',
+      files: 'src/schema-validation.jsonc',
       options: {
         jsonRecursiveSort: true,
         jsonSortOrder: JSON.stringify({
@@ -43,8 +53,11 @@ module.exports = {
           skiptest: null,
           catalogEntryNoLintNameOrDescription: null,
           options: null,
-          '/^[^\\d+]/': 'lexical',
-          '/^\\d+/': 'numeric',
+          externalSchema: null,
+          unknownKeywords: null,
+          unknownFormat: null,
+          '/^[^\\d+]/': null,
+          '/^\\d+/': null,
         }),
       },
     },
@@ -73,9 +86,22 @@ module.exports = {
           if: null,
           then: null,
           else: null,
-          '/^[^\\d+]/': 'none',
-          '/^\\d+/': 'none',
         }),
+      },
+    },
+    {
+      files: 'src/test/bun-lock/bun.lock.json',
+      options: {
+        jsonRecursiveSort: false,
+        jsonSortOrder: JSON.stringify({
+          '.': 'none',
+          '*': 'none',
+          lockfileVersion: 'none',
+          workspaces: 'none',
+          '/^\\$.*/': null,
+        }),
+        bracketSameLine: true,
+        printWidth: 100000000000,
       },
     },
   ],

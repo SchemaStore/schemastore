@@ -6,10 +6,22 @@
       "enum": ["none", "prepend", "append"],
       "default": "none",
       "description": "How to inherit the parent's value."
-    }
+    },
+    "enable": {
+      "enum": [
+        "cpython-experimental-riscv64",
+        "cpython-freethreading",
+        "cpython-prerelease",
+        "graalpy",
+        "pyodide-prerelease",
+        "pypy",
+        "pypy-eol"
+      ]
+    },
+    "description": "A Python version or flavor to enable."
   },
   "additionalProperties": false,
-  "description": "cibuildwheel's toml file, generated with ./bin/generate_schema.py --schemastore from cibuildwheel.",
+  "description": "cibuildwheel's settings. Generated with ./bin/generate_schema.py --schemastore from cibuildwheel.",
   "type": "object",
   "properties": {
     "archs": {
@@ -90,7 +102,7 @@
     },
     "build-frontend": {
       "default": "default",
-      "description": "Set the tool to use to build, either \"pip\" (default for now), \"build\", or \"build[uv]\"",
+      "description": "Set the tool to use to build, either \"build\" (default), \"build[uv]\", or \"pip\"",
       "oneOf": [
         {
           "enum": ["pip", "build", "build[uv]", "default"]
@@ -200,8 +212,55 @@
     "dependency-versions": {
       "default": "pinned",
       "description": "Specify how cibuildwheel controls the versions of the tools it uses",
-      "type": "string",
+      "oneOf": [
+        {
+          "enum": ["pinned", "latest"]
+        },
+        {
+          "type": "string",
+          "description": "Path to a file containing dependency versions, or inline package specifications, starting with \"packages:\"",
+          "not": {
+            "enum": ["pinned", "latest"]
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "packages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
       "title": "CIBW_DEPENDENCY_VERSIONS"
+    },
+    "enable": {
+      "description": "Enable or disable certain builds.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/enable"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/enable"
+          }
+        }
+      ],
+      "title": "CIBW_ENABLE"
     },
     "environment": {
       "description": "Set environment variables needed during the build.",
@@ -236,16 +295,15 @@
       ],
       "title": "CIBW_ENVIRONMENT_PASS"
     },
-    "free-threaded-support": {
-      "type": "boolean",
-      "default": false,
-      "description": "The project supports free-threaded builds of Python (PEP703)",
-      "title": "CIBW_FREE_THREADED_SUPPORT"
-    },
     "manylinux-aarch64-image": {
       "type": "string",
       "description": "Specify alternative manylinux / musllinux container images",
       "title": "CIBW_MANYLINUX_AARCH64_IMAGE"
+    },
+    "manylinux-armv7l-image": {
+      "type": "string",
+      "description": "Specify alternative manylinux / musllinux container images",
+      "title": "CIBW_MANYLINUX_ARMV7L_IMAGE"
     },
     "manylinux-i686-image": {
       "type": "string",
@@ -272,6 +330,11 @@
       "description": "Specify alternative manylinux / musllinux container images",
       "title": "CIBW_MANYLINUX_PYPY_X86_64_IMAGE"
     },
+    "manylinux-riscv64-image": {
+      "type": "string",
+      "description": "Specify alternative manylinux / musllinux container images",
+      "title": "CIBW_MANYLINUX_RISCV64_IMAGE"
+    },
     "manylinux-s390x-image": {
       "type": "string",
       "description": "Specify alternative manylinux / musllinux container images",
@@ -287,6 +350,11 @@
       "description": "Specify alternative manylinux / musllinux container images",
       "title": "CIBW_MUSLLINUX_AARCH64_IMAGE"
     },
+    "musllinux-armv7l-image": {
+      "type": "string",
+      "description": "Specify alternative manylinux / musllinux container images",
+      "title": "CIBW_MUSLLINUX_ARMV7L_IMAGE"
+    },
     "musllinux-i686-image": {
       "type": "string",
       "description": "Specify alternative manylinux / musllinux container images",
@@ -297,6 +365,11 @@
       "description": "Specify alternative manylinux / musllinux container images",
       "title": "CIBW_MUSLLINUX_PPC64LE_IMAGE"
     },
+    "musllinux-riscv64-image": {
+      "type": "string",
+      "description": "Specify alternative manylinux / musllinux container images",
+      "title": "CIBW_MUSLLINUX_RISCV64_IMAGE"
+    },
     "musllinux-s390x-image": {
       "type": "string",
       "description": "Specify alternative manylinux / musllinux container images",
@@ -306,6 +379,26 @@
       "type": "string",
       "description": "Specify alternative manylinux / musllinux container images",
       "title": "CIBW_MUSLLINUX_X86_64_IMAGE"
+    },
+    "xbuild-tools": {
+      "description": "Binaries on the path that should be included in an isolated cross-build environment",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "title": "CIBW_XBUILD_TOOLS"
+    },
+    "pyodide-version": {
+      "type": "string",
+      "description": "Specify the version of Pyodide to use",
+      "title": "CIBW_PYODIDE_VERSION"
     },
     "repair-wheel-command": {
       "description": "Execute a shell command to repair each built wheel.",
@@ -367,6 +460,36 @@
       ],
       "title": "CIBW_TEST_EXTRAS"
     },
+    "test-sources": {
+      "description": "Test files that are required by the test environment",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "title": "CIBW_TEST_SOURCES"
+    },
+    "test-groups": {
+      "description": "Install extra groups when testing",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "title": "CIBW_TEST_GROUPS"
+    },
     "test-requires": {
       "description": "Install Python dependencies before running the tests",
       "oneOf": [
@@ -396,6 +519,24 @@
         }
       ],
       "title": "CIBW_TEST_SKIP"
+    },
+    "test-environment": {
+      "description": "Set environment variables for the test environment",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            ".+": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "title": "CIBW_TEST_ENVIRONMENT"
     },
     "overrides": {
       "type": "array",
@@ -429,6 +570,9 @@
               "before-build": {
                 "$ref": "#/$defs/inherit"
               },
+              "xbuild-tools": {
+                "$ref": "#/$defs/inherit"
+              },
               "before-test": {
                 "$ref": "#/$defs/inherit"
               },
@@ -453,7 +597,13 @@
               "test-extras": {
                 "$ref": "#/$defs/inherit"
               },
+              "test-sources": {
+                "$ref": "#/$defs/inherit"
+              },
               "test-requires": {
+                "$ref": "#/$defs/inherit"
+              },
+              "test-environment": {
                 "$ref": "#/$defs/inherit"
               }
             }
@@ -491,6 +641,9 @@
           "manylinux-aarch64-image": {
             "$ref": "#/properties/manylinux-aarch64-image"
           },
+          "manylinux-armv7l-image": {
+            "$ref": "#/properties/manylinux-armv7l-image"
+          },
           "manylinux-i686-image": {
             "$ref": "#/properties/manylinux-i686-image"
           },
@@ -506,6 +659,9 @@
           "manylinux-pypy_x86_64-image": {
             "$ref": "#/properties/manylinux-pypy_x86_64-image"
           },
+          "manylinux-riscv64-image": {
+            "$ref": "#/properties/manylinux-riscv64-image"
+          },
           "manylinux-s390x-image": {
             "$ref": "#/properties/manylinux-s390x-image"
           },
@@ -515,17 +671,29 @@
           "musllinux-aarch64-image": {
             "$ref": "#/properties/musllinux-aarch64-image"
           },
+          "musllinux-armv7l-image": {
+            "$ref": "#/properties/musllinux-armv7l-image"
+          },
           "musllinux-i686-image": {
             "$ref": "#/properties/musllinux-i686-image"
           },
           "musllinux-ppc64le-image": {
             "$ref": "#/properties/musllinux-ppc64le-image"
           },
+          "musllinux-riscv64-image": {
+            "$ref": "#/properties/musllinux-riscv64-image"
+          },
           "musllinux-s390x-image": {
             "$ref": "#/properties/musllinux-s390x-image"
           },
           "musllinux-x86_64-image": {
             "$ref": "#/properties/musllinux-x86_64-image"
+          },
+          "xbuild-tools": {
+            "$ref": "#/properties/xbuild-tools"
+          },
+          "pyodide-version": {
+            "$ref": "#/properties/pyodide-version"
           },
           "repair-wheel-command": {
             "$ref": "#/properties/repair-wheel-command"
@@ -536,8 +704,17 @@
           "test-extras": {
             "$ref": "#/properties/test-extras"
           },
+          "test-sources": {
+            "$ref": "#/properties/test-sources"
+          },
+          "test-groups": {
+            "$ref": "#/properties/test-groups"
+          },
           "test-requires": {
             "$ref": "#/properties/test-requires"
+          },
+          "test-environment": {
+            "$ref": "#/properties/test-environment"
           }
         }
       }
@@ -579,6 +756,9 @@
         "manylinux-aarch64-image": {
           "$ref": "#/properties/manylinux-aarch64-image"
         },
+        "manylinux-armv7l-image": {
+          "$ref": "#/properties/manylinux-armv7l-image"
+        },
         "manylinux-i686-image": {
           "$ref": "#/properties/manylinux-i686-image"
         },
@@ -594,6 +774,9 @@
         "manylinux-pypy_x86_64-image": {
           "$ref": "#/properties/manylinux-pypy_x86_64-image"
         },
+        "manylinux-riscv64-image": {
+          "$ref": "#/properties/manylinux-riscv64-image"
+        },
         "manylinux-s390x-image": {
           "$ref": "#/properties/manylinux-s390x-image"
         },
@@ -603,17 +786,29 @@
         "musllinux-aarch64-image": {
           "$ref": "#/properties/musllinux-aarch64-image"
         },
+        "musllinux-armv7l-image": {
+          "$ref": "#/properties/musllinux-armv7l-image"
+        },
         "musllinux-i686-image": {
           "$ref": "#/properties/musllinux-i686-image"
         },
         "musllinux-ppc64le-image": {
           "$ref": "#/properties/musllinux-ppc64le-image"
         },
+        "musllinux-riscv64-image": {
+          "$ref": "#/properties/musllinux-riscv64-image"
+        },
         "musllinux-s390x-image": {
           "$ref": "#/properties/musllinux-s390x-image"
         },
         "musllinux-x86_64-image": {
           "$ref": "#/properties/musllinux-x86_64-image"
+        },
+        "xbuild-tools": {
+          "$ref": "#/properties/xbuild-tools"
+        },
+        "pyodide-version": {
+          "$ref": "#/properties/pyodide-version"
         },
         "repair-wheel-command": {
           "description": "Execute a shell command to repair each built wheel.",
@@ -637,8 +832,17 @@
         "test-extras": {
           "$ref": "#/properties/test-extras"
         },
+        "test-sources": {
+          "$ref": "#/properties/test-sources"
+        },
+        "test-groups": {
+          "$ref": "#/properties/test-groups"
+        },
         "test-requires": {
           "$ref": "#/properties/test-requires"
+        },
+        "test-environment": {
+          "$ref": "#/properties/test-environment"
         }
       }
     },
@@ -673,6 +877,12 @@
         "environment": {
           "$ref": "#/properties/environment"
         },
+        "xbuild-tools": {
+          "$ref": "#/properties/xbuild-tools"
+        },
+        "pyodide-version": {
+          "$ref": "#/properties/pyodide-version"
+        },
         "repair-wheel-command": {
           "$ref": "#/properties/repair-wheel-command"
         },
@@ -682,8 +892,17 @@
         "test-extras": {
           "$ref": "#/properties/test-extras"
         },
+        "test-sources": {
+          "$ref": "#/properties/test-sources"
+        },
+        "test-groups": {
+          "$ref": "#/properties/test-groups"
+        },
         "test-requires": {
           "$ref": "#/properties/test-requires"
+        },
+        "test-environment": {
+          "$ref": "#/properties/test-environment"
         }
       }
     },
@@ -718,6 +937,12 @@
         "environment": {
           "$ref": "#/properties/environment"
         },
+        "xbuild-tools": {
+          "$ref": "#/properties/xbuild-tools"
+        },
+        "pyodide-version": {
+          "$ref": "#/properties/pyodide-version"
+        },
         "repair-wheel-command": {
           "description": "Execute a shell command to repair each built wheel.",
           "oneOf": [
@@ -740,8 +965,17 @@
         "test-extras": {
           "$ref": "#/properties/test-extras"
         },
+        "test-sources": {
+          "$ref": "#/properties/test-sources"
+        },
+        "test-groups": {
+          "$ref": "#/properties/test-groups"
+        },
         "test-requires": {
           "$ref": "#/properties/test-requires"
+        },
+        "test-environment": {
+          "$ref": "#/properties/test-environment"
         }
       }
     },
@@ -776,6 +1010,12 @@
         "environment": {
           "$ref": "#/properties/environment"
         },
+        "xbuild-tools": {
+          "$ref": "#/properties/xbuild-tools"
+        },
+        "pyodide-version": {
+          "$ref": "#/properties/pyodide-version"
+        },
         "repair-wheel-command": {
           "$ref": "#/properties/repair-wheel-command"
         },
@@ -785,8 +1025,137 @@
         "test-extras": {
           "$ref": "#/properties/test-extras"
         },
+        "test-sources": {
+          "$ref": "#/properties/test-sources"
+        },
+        "test-groups": {
+          "$ref": "#/properties/test-groups"
+        },
         "test-requires": {
           "$ref": "#/properties/test-requires"
+        },
+        "test-environment": {
+          "$ref": "#/properties/test-environment"
+        }
+      }
+    },
+    "android": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "archs": {
+          "$ref": "#/properties/archs"
+        },
+        "before-all": {
+          "$ref": "#/properties/before-all"
+        },
+        "before-build": {
+          "$ref": "#/properties/before-build"
+        },
+        "before-test": {
+          "$ref": "#/properties/before-test"
+        },
+        "build-frontend": {
+          "$ref": "#/properties/build-frontend"
+        },
+        "build-verbosity": {
+          "$ref": "#/properties/build-verbosity"
+        },
+        "config-settings": {
+          "$ref": "#/properties/config-settings"
+        },
+        "dependency-versions": {
+          "$ref": "#/properties/dependency-versions"
+        },
+        "environment": {
+          "$ref": "#/properties/environment"
+        },
+        "xbuild-tools": {
+          "$ref": "#/properties/xbuild-tools"
+        },
+        "pyodide-version": {
+          "$ref": "#/properties/pyodide-version"
+        },
+        "repair-wheel-command": {
+          "$ref": "#/properties/repair-wheel-command"
+        },
+        "test-command": {
+          "$ref": "#/properties/test-command"
+        },
+        "test-extras": {
+          "$ref": "#/properties/test-extras"
+        },
+        "test-sources": {
+          "$ref": "#/properties/test-sources"
+        },
+        "test-groups": {
+          "$ref": "#/properties/test-groups"
+        },
+        "test-requires": {
+          "$ref": "#/properties/test-requires"
+        },
+        "test-environment": {
+          "$ref": "#/properties/test-environment"
+        }
+      }
+    },
+    "ios": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "archs": {
+          "$ref": "#/properties/archs"
+        },
+        "before-all": {
+          "$ref": "#/properties/before-all"
+        },
+        "before-build": {
+          "$ref": "#/properties/before-build"
+        },
+        "before-test": {
+          "$ref": "#/properties/before-test"
+        },
+        "build-frontend": {
+          "$ref": "#/properties/build-frontend"
+        },
+        "build-verbosity": {
+          "$ref": "#/properties/build-verbosity"
+        },
+        "config-settings": {
+          "$ref": "#/properties/config-settings"
+        },
+        "dependency-versions": {
+          "$ref": "#/properties/dependency-versions"
+        },
+        "environment": {
+          "$ref": "#/properties/environment"
+        },
+        "xbuild-tools": {
+          "$ref": "#/properties/xbuild-tools"
+        },
+        "pyodide-version": {
+          "$ref": "#/properties/pyodide-version"
+        },
+        "repair-wheel-command": {
+          "$ref": "#/properties/repair-wheel-command"
+        },
+        "test-command": {
+          "$ref": "#/properties/test-command"
+        },
+        "test-extras": {
+          "$ref": "#/properties/test-extras"
+        },
+        "test-sources": {
+          "$ref": "#/properties/test-sources"
+        },
+        "test-groups": {
+          "$ref": "#/properties/test-groups"
+        },
+        "test-requires": {
+          "$ref": "#/properties/test-requires"
+        },
+        "test-environment": {
+          "$ref": "#/properties/test-environment"
         }
       }
     }

@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../../schemas/json/bxci.schema-3.x.json
+
+project:
+  type: npm
+
+config:
+  jenkins_runtime:
+    docker:
+      image: remote-host.com/image-name:tag
+
+  build:
+    clean_workspace_after_run: false
+    commit_time_threshold: 2h
+    static_analysis:
+      enabled: false
+      exclusions: '**/one, **/two/**/*.html'
+      branch_analysis: false
+      branch_pattern: '^master$|^release/.+$|^feature/.+$'
+      image: illin7215.corp.amdocs.com:5001/britebill/maven:3.6.3-openjdk-11-ubi8
+
+  branch:
+    disable_validation: true
+
+services:
+  - Elasticsearch
+  - Mysql
+  - Mssql
+
+environment:
+  my_env_var: value
+  ANOTHER_VAR: value
+  __CFBundleIdentifier: some value
+
+jenkinsEnvironment:
+  - SOME_VALID_VALUE
+
+archive:
+  - some-file.txt
+  - target/*.jar
+
+stages:
+  my stage:
+    steps:
+      - echo first
+  another:
+    steps:
+      - npm run lint
+  Another step:
+    when:
+      branch: '^master$'
+    steps:
+      - echo last
+
+output:
+  package:
+    publish:
+      - channel: stable
+        branch: '^master$|^release/.+$'
+        registry: https://host.com/package-repo/stable
+        params: --tag latest
+
+      - channel: dev
+        branch: '^(feature|bugfix)/.+$'
+        registry: SOME_ENV_VARIABLE
+
+      - channel: stable-mvn
+        branch: '^master$|^release/.+$'
+        maven_releases_repo: 'maven-bx-releases'
+        credentials: NEXUS_CREDS
+
+      - channel: snapshot
+        branch: '^feature/.+$'
+        maven_snapshots_repo: 'maven-bx-snapshots'
+        credentials: NEXUS_CREDS
+
+  docker:
+    images:
+      - name: my-image
+        dockerfile: path/to/Dockerfile
+        context: path/to
+        args:
+          - key: arg1
+            value: value1
+          - key: arg2
+            env: envvar
+      - name: my-image
+        context: path/to
+        args:
+          - key: arg1
+            value: value1
+          - key: arg2
+            env: envvar
+      - name: my-image
+        dockerfile: path/to/Dockerfile
+        args:
+          - key: arg1
+            value: value1
+          - key: arg2
+            env: envvar
+    publish:
+      - channel: stable
+        branch: '^master$|^release/.+$'
+        registry: https://some-docker-registry.com:5008
+        credentials: MY_SECRET
+      - channel: dev
+        branch: '^(feature|bugfix)/.+$'
+        registry: https://some-docker-registry.com:5031
+        credentials: MY_SECRET
+    multiArch:
+      enabled: true
+      platforms:
+        - linux/amd64
+        - linux/arm64
+        - linux/arm/v7
+
+  helm:
+    charts:
+      - path: k8s/project-name
+        updates:
+          - file: Chart.yaml
+            properties:
+              - key: version
+                value: asdf
+          - file: values.yaml
+            properties:
+              - key: image.tag
+                env: SOME_VALID_VALUE
+    publish:
+      - channel: stable
+        branch: '^master$|^release/.+$'
+        repository: https://host.com/helm-repo/stable
+        credentials: MY_SECRET
+      - channel: dev
+        branch: '^(feature|bugfix)/.+$'
+        repository: https://host.com/helm-repo/snapshot
+        credentials: MY_SECRET

@@ -4,7 +4,6 @@
   "additionalProperties": false,
   "definitions": {
     "timezone": {
-      "$id": "timezone",
       "type": "string",
       "enum": [
         "Africa/Abidjan",
@@ -648,24 +647,31 @@
     },
     "package-ecosystem-values": {
       "enum": [
+        "bun",
         "bundler",
         "cargo",
         "composer",
         "devcontainers",
         "docker",
+        "docker-compose",
+        "dotnet-sdk",
         "elm",
         "gitsubmodule",
         "github-actions",
         "gomod",
         "gradle",
+        "helm",
         "maven",
         "mix",
         "npm",
         "nuget",
         "pip",
         "pub",
+        "rust-toolchain",
         "swift",
-        "terraform"
+        "terraform",
+        "uv",
+        "vcpkg"
       ]
     },
     "schedule-day": {
@@ -682,10 +688,19 @@
     },
     "schedule-interval": {
       "type": "string",
-      "enum": ["daily", "weekly", "monthly"]
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "semiannually",
+        "yearly",
+        "cron"
+      ]
     },
     "update": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "allow": {
           "description": "Customize which updates are allowed",
@@ -745,6 +760,49 @@
           ],
           "additionalProperties": false
         },
+        "cooldown": {
+          "description": "Defines a cooldown period for dependency updates, allowing updates to be delayed for a configurable number of days. This feature enables users to customize how often Dependabot generates new version updates, offering greater control over update frequency.",
+          "type": "object",
+          "properties": {
+            "default-days": {
+              "description": "Default cooldown period for dependencies without specific rules (optional).",
+              "type": "integer",
+              "minimum": 0
+            },
+            "semver-major-days": {
+              "description": "Cooldown period for major version updates (optional, applies only to package managers supporting SemVer).",
+              "type": "integer",
+              "minimum": 0
+            },
+            "semver-minor-days": {
+              "description": "Cooldown period for minor version updates (optional, applies only to package managers supporting SemVer).",
+              "type": "integer",
+              "minimum": 0
+            },
+            "semver-patch-days": {
+              "description": "Cooldown period for patch version updates (optional, applies only to package managers supporting SemVer).",
+              "type": "integer",
+              "minimum": 0
+            },
+            "include": {
+              "description": "List of dependencies to apply cooldown (up to 150 items). Supports wildcards (`*`).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 150
+            },
+            "exclude": {
+              "description": "List of dependencies excluded from cooldown (up to 150 items). Supports wildcards (`*`).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 150
+            }
+          },
+          "additionalProperties": false
+        },
         "directories": {
           "description": "Locations of package manifests",
           "type": "array",
@@ -759,6 +817,15 @@
           "description": "Location of package manifests",
           "type": "string",
           "default": "/"
+        },
+        "exclude-paths": {
+          "description": "List of file paths to exclude from dependency updates",
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
         },
         "groups": {
           "description": "Configure groups for dependencies. Each 'groups' property is arbitrary will appear in pull request titles and branch names. For example, the code snippet '{\"groups\": {\"NPM dependencies\": {\"patterns\": [\"*\"]}}}' sets the group name to 'NPM dependencies'.",
@@ -810,6 +877,7 @@
             "anyOf": [
               { "required": ["dependency-type"] },
               { "required": ["patterns"] },
+              { "required": ["exclude-patterns"] },
               { "required": ["update-types"] }
             ],
             "additionalProperties": false
@@ -921,16 +989,6 @@
             }
           ]
         },
-        "reviewers": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "Specify individual reviewers or teams of reviewers for all pull requests raised for a package manager. You must use the full team name, including the organization, as if you were @mentioning the team.",
-          "minItems": 1,
-          "uniqueItems": true
-        },
         "schedule": {
           "description": "Schedule preferences",
           "type": "object",
@@ -950,9 +1008,30 @@
             "timezone": {
               "$ref": "#/definitions/timezone",
               "description": "The time zone identifier must be from the Time Zone database maintained by IANA"
+            },
+            "cronjob": {
+              "type": "string",
+              "description": "Specify a valid cron expression for updates"
             }
           },
-          "required": ["interval"]
+          "allOf": [
+            {
+              "$comment": "If interval type is 'cron', enforce 'cronjob' property.",
+              "if": {
+                "properties": {
+                  "interval": {
+                    "const": "cron"
+                  }
+                }
+              },
+              "then": {
+                "required": ["interval", "cronjob"]
+              },
+              "else": {
+                "required": ["interval"]
+              }
+            }
+          ]
         },
         "target-branch": {
           "description": "Specify a different branch for manifest files and for pull requests.",
@@ -992,6 +1071,7 @@
             "type": {
               "description": "Identifies the type of registry.",
               "enum": [
+                "cargo-registry",
                 "composer-repository",
                 "docker-registry",
                 "git",
@@ -1000,6 +1080,7 @@
                 "maven-repository",
                 "npm-registry",
                 "nuget-feed",
+                "pub-repository",
                 "python-index",
                 "rubygems-server",
                 "terraform-registry"

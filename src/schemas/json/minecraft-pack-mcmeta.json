@@ -2,46 +2,164 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/minecraft-pack-mcmeta.json",
   "additionalProperties": false,
-  "description": "Minecraft Resource/Data Pack Metadata\nhttps://minecraft.wiki/w/Resource_pack\nhttps://minecraft.wiki/w/Data_pack",
+  "description": "Minecraft Resource/Data Pack Metadata\nhttps://minecraft.wiki/w/Pack.mcmeta#Format",
+  "definitions": {
+    "packFormat": {
+      "description": "https://minecraft.wiki/w/Pack_format",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 81
+    },
+    "packFormatRange": {
+      "anyOf": [
+        {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/definitions/packFormat"
+          }
+        },
+        {
+          "$ref": "#/definitions/packFormat"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "min_inclusive": {
+              "$ref": "#/definitions/packFormat"
+            },
+            "max_inclusive": {
+              "$ref": "#/definitions/packFormat"
+            }
+          },
+          "additionalProperties": false,
+          "required": ["min_inclusive", "max_inclusive"]
+        }
+      ]
+    },
+    "resourceLocation": {
+      "description": "An identifier of a game object\nhttps://minecraft.wiki/w/Resource_location",
+      "type": "string",
+      "pattern": "(?:([a-z0-9_\\-.]+:)?|:)[a-z0-9_\\-./]+"
+    }
+  },
   "properties": {
     "pack": {
-      "title": "pack options",
-      "description": "Options for the current pack\nhttps://minecraft.wiki/w/Data_pack#Contents",
+      "description": "Holds the pack information.",
       "type": "object",
       "properties": {
         "description": {
           "title": "description",
-          "description": "A description for the current pack\nhttps://minecraft.wiki/w/Data_pack#Contents"
+          "description": "A text component that appears when hovering over the pack's name in the list given by the `/datapack list` command, or when viewing the pack in the Create World screen.",
+          "type": "string"
         },
         "pack_format": {
-          "description": "A version for the current pack\nhttps://minecraft.wiki/w/Data_pack#Contents",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 48,
-          "default": 4
+          "$ref": "#/definitions/packFormat",
+          "description": "Determines the version(s) of Minecraft that this pack is compatible with."
+        },
+        "supported_formats": {
+          "$ref": "#/definitions/packFormatRange",
+          "description": "Describes a range for pack formats that this pack supports. The range has to include the value of `pack.pack_format`."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["description", "pack_format"]
+    },
+    "features": {
+      "description": "Section for selecting experimental features.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "List of enabled feature flags.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/resourceLocation",
+            "description": "Resource location of a feature flag."
+          }
+        }
+      },
+      "additionalProperties": true,
+      "required": ["enabled"]
+    },
+    "filter": {
+      "description": "Section for filtering out files from packs applied below this one. Any file that matches one of the blocked patterns is treated as if it was not present in the pack at all.",
+      "type": "object",
+      "properties": {
+        "block": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "namespace": {
+                "description": "A regular expression for the namespace of files to be filtered out. If unspecified, it applies to every namespace.",
+                "type": "string",
+                "format": "regex",
+                "default": "[a-z0-9_\\-.]+"
+              },
+              "path": {
+                "description": "A regular expression for the paths of files to be filtered out. If unspecified, it applies to every file.",
+                "type": "string",
+                "format": "regex",
+                "default": "[a-z0-9_\\-./]+"
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
     },
-    "filter": {
-      "title": "filter options",
-      "description": "Filter options for the current pack\nhttps://minecraft.wiki/w/Data_pack",
+    "overlays": {
+      "description": "Section for specifying the overlays, which are sub-packs applied over the \"normal\" contents of a pack. Their directories have their own assets and data directories, and are placed in the pack's root directory.",
+      "type": "object",
+      "properties": {
+        "entries": {
+          "description": "List of overlays. The order is important, as the first in the list is applied first.",
+          "type": "array",
+          "items": {
+            "description": "An overlay.",
+            "type": "object",
+            "properties": {
+              "formats": {
+                "$ref": "#/definitions/packFormatRange",
+                "description": "A range of pack formats when this overlay should be active."
+              },
+              "directory": {
+                "description": "The directory to overlay for the respective versions.",
+                "type": "string",
+                "pattern": "[a-z0-9_-]+"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["formats", "directory"]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": ["entries"]
+    },
+    "language": {
+      "description": "Contains additional languages to add to the language menu. Only present in resource packs.",
       "type": "object",
       "additionalProperties": {
-        "title": "pattern",
-        "description": "A pattern for the current pack\nhttps://minecraft.wiki/w/Data_pack",
         "type": "object",
         "properties": {
-          "namespace": {
-            "description": "A namespace regular expression for the current pack\nhttps://minecraft.wiki/w/Data_pack",
+          "name": {
+            "description": "The full name of the language",
             "type": "string"
           },
-          "path": {
-            "description": "A path regular expression for the current pack\nhttps://minecraft.wiki/w/Data_pack",
+          "region": {
+            "description": "The country or region name",
             "type": "string"
+          },
+          "bidirectional": {
+            "description": "If true, the language reads right to left.",
+            "type": "boolean"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "required": ["name", "region"]
       }
     },
     "fusion": {
@@ -49,6 +167,6 @@
       "$ref": "https://json.schemastore.org/partial-fusion-pack-metadata.json#/definitions/fusion-properties"
     }
   },
-  "title": "pack metadata",
-  "type": "object"
+  "type": "object",
+  "required": ["pack"]
 }

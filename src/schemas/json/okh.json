@@ -1,0 +1,990 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://w3id.org/oseg/schema/okh.schema.json",
+  "$comment": "NOTE: The properties 'ui-hidden' and 'ui-recommended' used in this schema, are non-standardized, and currently unused. They could be used to create a form, and are here for consistency with <https://git.iostud.io/makernet/iop-cdb/-/blob/dev/server/assets/okh.okhdf>.",
+  "$defs": {
+    "agent": {
+      "description": "A person or organization",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/person"
+        },
+        {
+          "$ref": "#/$defs/organization"
+        }
+      ]
+    },
+    "auxiliary": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "relative or absolute path to files that are neither source files nor their exports, but still useful in the repository (e.g. KiCAD library files);\\\nmultiple inputs possible (with one entry each)",
+      "examples": ["lib/lib1.lib", ".mdlrc", ["lib/lib1.lib", ".mdlrc"]]
+    },
+    "bom": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "URL or repo-relative path to the bill of materials",
+      "examples": ["sBoM.csv", "BOM.csv", "bom.csv"]
+    },
+    "cpcId": {
+      "$comment": "Get a CPC-ID from here <https://worldwide.espacenet.com/classification>",
+      "examples": [
+        "A01B33/00",
+        "A41G",
+        "A01",
+        "A",
+        "B23K",
+        "B25J9/026",
+        "B62K",
+        "B63C",
+        "D03D 35/00",
+        "D03D 5/00",
+        "D06B",
+        "F16M 11/2078",
+        "F16M11/2078",
+        "G01N",
+        "G05B",
+        "G06C 7/02",
+        "H01H",
+        "H01Q",
+        "H02J",
+        "H02J 1/00",
+        "H04",
+        "H04W",
+        "H05K",
+        "Y02P",
+        "H02J 1/00",
+        "H02J 1/12",
+        "H02J 1/123",
+        "H02J 1/1234",
+        "H02J 1/12345",
+        "H02J 1/123456",
+        ["D03D 35/00", "D03D 5/00"]
+      ],
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-HY][0-9]{2}[A-HJ-NP-Z]( ?[12]?[0-9]{1,3}[/][0-9]{2,6})?$"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-HY][0-9]{2}[A-HJ-NP-Z]( ?[12]?[0-9]{1,3}[/][0-9]{2,6})?$"
+          }
+        }
+      ]
+    },
+    "date": {
+      "examples": ["2000-04-06", "0001-0-0", "1984-10-1"],
+      "type": "string",
+      "format": "date"
+    },
+    "doi": {
+      "examples": [
+        "https://doi.org/10.1080/10509585.2015.1092083",
+        "10.1080/10509585.2015.1092083",
+        "doi: 10.1080/10509585.2015.1092083",
+        "DOI: 10.1080/10509585.2015.1092083"
+      ],
+      "type": "string",
+      "pattern": "^(doi: |DOI: |https://doi.org/)?10\\.\\d{4,9}\\/[-._;()/:a-zA-Z0-9]+$"
+    },
+    "doiOrWebUrl": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/doi"
+        },
+        {
+          "$ref": "#/$defs/webUrl"
+        }
+      ]
+    },
+    "doiOrWebUrlMulti": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/doiOrWebUrl"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/doiOrWebUrl"
+          }
+        }
+      ]
+    },
+    "email": {
+      "examples": [
+        "jane.doe@email.com",
+        "john.doe@email.com",
+        "ester.something@good.org"
+      ],
+      "type": "string",
+      "format": "email"
+    },
+    "export": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "relative or absolute path to export file (e.g. STEP export of 3D model or PDF export of drawing);\\\nmultiple inputs possible (with one entry each)",
+      "examples": [
+        "3D-parts/assembly.stp",
+        "public/user-manual.pdf",
+        ["3D-parts/assembly.stp", "public/user-manual.pdf"]
+      ]
+    },
+    "lang-text": {
+      "description": "a text and the language it is written in",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "language"],
+      "properties": {
+        "text": {
+          "description": "the text content",
+          "type": "string"
+        },
+        "language": {
+          "$ref": "#/$defs/language",
+          "description": "The BCP 47 language tag the content is written in"
+        }
+      }
+    },
+    "image": {
+      "$comment": "A single image, either as a simple link (relative path or URL) or as a complex image object",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/relPathOrWebUrl"
+        },
+        {
+          "$ref": "#/$defs/imageObject"
+        }
+      ]
+    },
+    "imageMulti": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/image"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/image"
+          }
+        }
+      ]
+    },
+    "imageObject": {
+      "description": "a single image reference (project relative path or absolute URL), optionally with additional meta-data",
+      "type": "object",
+      "additionalProperties": false,
+      "examples": [
+        {
+          "location": "res/media/img/logo.svg",
+          "depicts": "This OSH projects logo"
+        },
+        {
+          "location": "res/media/img/liquid-flow.svg",
+          "depicts": "A diagram depicting the flow of the different liquids through the machine in an abstract manner"
+        },
+        {
+          "location": "res/assets/media/img/photo-white-bg.png",
+          "depicts": "A photo of the finished hardware, taken with a white background."
+        },
+        {
+          "location": "https://image-hoster-xzy.net/accounts/our-user/our-project/our-image.png",
+          "depicts": "Community supplied photo of the underbelly of our machine"
+        },
+        {
+          "location": "res/assets/media/img/photo-white-bg.png",
+          "depicts": {
+            "text": "A photo of the finished hardware, taken with a white background.",
+            "language": "en"
+          }
+        },
+        {
+          "location": "res/assets/media/img/photo-white-bg.png",
+          "depicts": [
+            {
+              "text": "A photo of the finished hardware, taken with a white background.",
+              "language": "en"
+            },
+            {
+              "text": "Ein Foto der fertigen Maschiene, aufgenommen vor einem weissen Hintergrund.",
+              "language": "de"
+            }
+          ]
+        }
+      ],
+      "required": ["location"],
+      "properties": {
+        "location": {
+          "$ref": "#/$defs/relPathOrWebUrl",
+          "description": "Project relative path or absolute URL linking to the image file"
+        },
+        "depicts": {
+          "description": "Human oriented description of what is visible in the image.\nThis matters for example:\n- for visually impaired or blind people\n- in case the image is for some reason not available\n- to put as a caption next to the image",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/lang-text"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/lang-text"
+              }
+            }
+          ]
+        },
+        "slots": {
+          "description": "Denotes the slot the image fills within the subject it belongs to.\nYou may also think of it as the 'role' the image plays for its parent.\nThe available slots are predefined,\nsee the [OKH image slots](http://w3id.org/oseg/ont/okhimg#slots);\nthere you will also read about the ability to define custom ones,\nthough you might also consider proposing a new common tag\n[in an issue](https://github.com/iop-alliance/OpenKnowHow/issues/new).\nAn image can fill multiple slots,\nbut each slot can be filled at most once.\nThis is useful for things like the projects icon,\nor the left-side view of the 3D model.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "oneOf": [
+              {
+                "pattern": "^c_[0-9a-z._-]+$"
+              },
+              {
+                "enum": [
+                  "icon-main",
+                  "icon-main-bw",
+                  "logo",
+                  "logo-bw",
+                  "model-3d",
+                  "model-from-back",
+                  "model-from-below",
+                  "model-from-front",
+                  "model-from-left",
+                  "model-from-right",
+                  "model-from-above",
+                  "model-main",
+                  "organization-logo",
+                  "organization-logo-bw",
+                  "photo-packaging",
+                  "photo-thing-main",
+                  "social",
+                  "symbol"
+                ]
+              }
+            ]
+          }
+        },
+        "tags": {
+          "description": "Links to a tag fit to describe the image.\nThe available tags are predefined,\nsee the [OKH image tags](http://w3id.org/oseg/ont/okhimg#tags);\nthere you will also read about the ability to define custom ones,\nthough you might also consider proposing a new common tag\n[in an issue](https://github.com/iop-alliance/OpenKnowHow/issues/new).\nAn image can have multiple tags\nand each tag can be used by multiple images\neven within a single project.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "oneOf": [
+              {
+                "pattern": "^c_[0-9a-z._-]+$"
+              },
+              {
+                "enum": [
+                  "art",
+                  "assembly",
+                  "bw",
+                  "color",
+                  "diagram",
+                  "drawing",
+                  "gray",
+                  "icon",
+                  "logo",
+                  "model",
+                  "photo",
+                  "screenshot"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "language": {
+      "$comment": "autocomplete",
+      "description": "Language as a BCP 47 language tag",
+      "examples": ["en", "de", "es", "zh"],
+      "type": "string",
+      "pattern": "^(((en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)|(art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|zh-min|zh-min-nan|zh-xiang))|((([A-Za-z]{2,3}(-([A-Za-z]{3}(-[A-Za-z]{3}){0,2}))?)|[A-Za-z]{4}|[A-Za-z]{5,8})(-([A-Za-z]{4}))?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*(-([0-9A-WY-Za-wy-z](-[A-Za-z0-9]{2,8})+))*(-(x(-[A-Za-z0-9]{1,8})+))?)|(x(-[A-Za-z0-9]{1,8})+))$"
+    },
+    "languageMulti": {
+      "description": "IETF BCP 47 language tag(s)",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        {
+          "$ref": "#/$defs/language"
+        }
+      ]
+    },
+    "mass": {
+      "description": "Mass of the part in g (grams).",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "name": {
+      "description": "working title of the OSH Module or Part",
+      "type": "string"
+    },
+    "organization": {
+      "description": "An organization such as a school, NGO, corporation, club, etc.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "$ref": "#/$defs/email",
+          "description": "E-Mail of the organization"
+        },
+        "name": {
+          "description": "Name of the organization",
+          "type": "string"
+        },
+        "url": {
+          "$ref": "#/$defs/webUrl",
+          "description": "Home-page of the organization"
+        }
+      }
+    },
+    "organizationMulti": {
+      "examples": [
+        "Free Software Foundation",
+        "Open Source Initiative",
+        "Open Source Hardware Association",
+        "Open Source Ecology",
+        "Open Source Ecology Germany",
+        ["Free Software Foundation", "Open Source Initiative"],
+        {
+          "name": "Free Software Foundation",
+          "url": "https://www.fsf.org"
+        },
+        [
+          {
+            "name": "Free Software Foundation",
+            "url": "https://www.fsf.org"
+          },
+          {
+            "name": "Open Source Ecology Germany",
+            "url": "https://ose-germany.de"
+          }
+        ]
+      ],
+      "anyOf": [
+        {
+          "$ref": "#/$defs/stringMulti"
+        },
+        {
+          "$ref": "#/$defs/organization"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/organization"
+          }
+        }
+      ]
+    },
+    "outerDimensions": {
+      "description": "Outer dimensions of the OSH module or part in mm (millimeters), which completely encompass the product.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "depth", "height"],
+      "properties": {
+        "depth": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "part": {
+      "description": "a physical component of an open source hardware module, for which technical documentation (design files etc.) is available under a free/open license",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "oneOf": [
+        {
+          "required": ["source"],
+          "properties": {
+            "source": {}
+          }
+        },
+        {
+          "required": ["export"],
+          "properties": {
+            "export": {}
+          }
+        }
+      ],
+      "properties": {
+        "auxiliary": {
+          "$ref": "#/$defs/auxiliary"
+        },
+        "export": {
+          "$ref": "#/$defs/export"
+        },
+        "image": {
+          "$ref": "#/$defs/imageMulti"
+        },
+        "mass": {
+          "$ref": "#/$defs/mass"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "outer-dimensions": {
+          "$ref": "#/$defs/outerDimensions"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "tsdc": {
+          "$ref": "#/$defs/tsdc"
+        }
+      }
+    },
+    "person": {
+      "description": "A person (alive, dead, undead, or fictional)",
+      "type": "object",
+      "properties": {
+        "email": {
+          "$ref": "#/$defs/email",
+          "description": "E-Mail of the person"
+        },
+        "name": {
+          "description": "Full name of the person",
+          "type": "string"
+        },
+        "url": {
+          "$ref": "#/$defs/webUrl",
+          "description": "Home-page of the person"
+        }
+      }
+    },
+    "rdfNamespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace"],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "examples": [
+            "http://w3id.org/my-org/projects/proj-x#",
+            "http://w3id.org/my-comp/projects/proj-x#"
+          ]
+        },
+        "prefix": {
+          "type": "string",
+          "examples": ["prjx", "myorg-prjx", "mycomp-prjx"]
+        }
+      }
+    },
+    "relPath": {
+      "$comment": "A relative file-path to a dir or file below the root - as much as one can check for that with a regex",
+      "type": "string",
+      "not": {
+        "anyOf": [
+          {
+            "$comment": "no protocol",
+            "pattern": "^[a-z]*:"
+          },
+          {
+            "$comment": "no URL-absolute path without protocol",
+            "pattern": "^//"
+          },
+          {
+            "$comment": "no parent-dir-references",
+            "pattern": "(?:.*/)?\\.\\.(?:/.*)?"
+          }
+        ]
+      }
+    },
+    "relPathOrWebUrl": {
+      "type": "string",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/webUrl"
+        },
+        {
+          "$ref": "#/$defs/relPath"
+        }
+      ]
+    },
+    "relPathOrWebUrlMulti": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/relPathOrWebUrl"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relPathOrWebUrl"
+          }
+        }
+      ]
+    },
+    "software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release"],
+      "properties": {
+        "installation-guide": {
+          "$ref": "#/$defs/relPathOrWebUrl",
+          "description": "unambiguous reference to the installation guide for the corresponding software release",
+          "examples": [
+            "https://github.com/arduino/ArduinoCore-mbed/blob/a2c06d768f5ebb6821ae6505b2032ee58f4ef70d/README.md"
+          ]
+        },
+        "release": {
+          "$ref": "#/$defs/relPathOrWebUrl",
+          "description": "unambiguous reference to the software release used for this version of the OSH module",
+          "examples": [
+            "https://github.com/arduino/ArduinoCore-mbed/releases/tag/1.3.2"
+          ]
+        }
+      }
+    },
+    "source": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "relative or absolute path to source file (e.g. native CAD file);\\\nmultiple inputs possible (with one entry each)",
+      "examples": [
+        "3D-parts/assembly.asm",
+        "pcb/main.pro",
+        "pcb/main.kicad_pcb",
+        "cad/part-x/model.fcstd",
+        ["pcb/main.kicad_pcb", "cad/part-x/model.fcstd"]
+      ]
+    },
+    "spdxLicenseExpression": {
+      "$comment": "TODO We would have to define this in an extra schema, generated -> do it in the SPDX-Identifiers-generator repo! -> NOPE -> already exists! see https://github.com/spdx/spdx-spec/issues/484#issuecomment-720817111    .. sounds like it needs to be improved, though -> .. ahh nope, it does not solve our issue, but checks SPDX documents for validity",
+      "description": "A valid SPDX license expression",
+      "type": "string"
+    },
+    "stringMulti": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "tsdc": {
+      "$comment": "autocomplete",
+      "$ref": "#/$defs/stringMulti",
+      "description": "identifier of the applying Technology-specific Documentation Criteria (TsDC) according to DIN SPEC 3105-1 - get it from: <https://w3id.org/oseg/ont/tsdc/core> - multiple inputs possible (with one entry each)",
+      "examples": [
+        "ASM",
+        "MEC",
+        "CIR",
+        "PCB",
+        "WEL",
+        "3DP",
+        "LAS",
+        "CNC",
+        ["ASM", "MEC", "CIR"]
+      ]
+    },
+    "webUrl": {
+      "$comment": "A full web URL, meaning an URL with the schema HTTP or HTTPS",
+      "type": "string",
+      "pattern": "^https?://",
+      "format": "uri"
+    },
+    "webUrlMulti": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/webUrl"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/webUrl"
+          }
+        }
+      ]
+    }
+  },
+  "title": "Manifest",
+  "description": "This is a JSON-Schema which can validate an 'okh.toml' file, which holds an Open Source Hardware (OSH) projects Open Know-How (OKH) meta-data.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": ["tsdc"],
+        "properties": {
+          "tsdc": {
+            "type": "array",
+            "contains": {
+              "const": "3DP"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "material": {
+            "type": "string"
+          },
+          "printing-process": {
+            "enum": ["FDM", "SLA", "SLS", "MJF", "DMLS"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["tsdc"],
+        "properties": {
+          "tsdc": {
+            "type": "array",
+            "contains": {
+              "const": "PCB"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "component-sides": {
+            "type": "number"
+          },
+          "2d-size-mm": {
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "required": ["okhv", "name", "repo", "license", "licensor", "function"],
+  "properties": {
+    "$schema": {
+      "description": "Link to OKH JSON-Schema",
+      "type": "string",
+      "enum": [
+        "https://json.schemastore.org/okh.schema.json",
+        "https://w3id.org/oseg/schema/okh.schema.json"
+      ]
+    },
+    "attestation": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "reference to one or multiple valid attestation(s) that the documentation is complete and fully qualifies as open source hardware;\\\nissuing conformity assessment bodies according to DIN SPEC 3105-2:\\\n- [Open Hardware Observatory](https://en.oho.wiki/wiki/Request_certification_for_your_project)\\\n- [Open Source Ecology Germany](https://gitlab.opensourceecology.de/verein/projekte/cab/CAB)\\\n- [OSHWA certification programme](https://certification.oshwa.org/)"
+    },
+    "auxiliary": {
+      "$ref": "#/$defs/auxiliary"
+    },
+    "bom": {
+      "$ref": "#/$defs/bom"
+    },
+    "contribution-guide": {
+      "$ref": "#/$defs/relPathOrWebUrl",
+      "description": "repo-relative path to the contribution guide",
+      "examples": ["CONTRIBUTING.md", "CONTRIB.md", "CONTRIBUTING", "CONTRIB"]
+    },
+    "cpc-patent-class": {
+      "$ref": "#/$defs/cpcId",
+      "description": "patent class identifier of the Cooperative Patent Classification that describes best the field of technology of the OSH module.\\\nGet it from here: <https://worldwide.espacenet.com/classification>"
+    },
+    "documentation-language": {
+      "$ref": "#/$defs/languageMulti",
+      "description": "IETF BCP 47 language tag(s) for the language(s) in which the documentation is written"
+    },
+    "documentation-readiness-level": {
+      "description": "ODRL-ID representing the development stage of the documentation; get it from: <https://w3id.org/oseg/ont/otrl>",
+      "default": "ODRL-1",
+      "oneOf": [
+        {
+          "title": "Documentation process commenced",
+          "description": "Published information under free open source license",
+          "const": "ODRL-1"
+        },
+        {
+          "title": "Collaborative documentation in progress",
+          "description": "Provision of documentation files and in editable formats enabling collaboration development",
+          "const": "ODRL-2"
+        },
+        {
+          "title": "Full documentation published",
+          "description": "Complete documentation as per DIN SPEC 3105-1",
+          "const": "ODRL-3"
+        },
+        {
+          "title": "Full documentation published & audited",
+          "description": "Public evidence of documentation maturity",
+          "const": "ODRL-3*"
+        },
+        {
+          "title": "Full documentation for product qualification",
+          "description": "Product qualification documents published enabling decentralized commercial distribution",
+          "const": "ODRL-4"
+        }
+      ]
+    },
+    "export": {
+      "$ref": "#/$defs/export"
+    },
+    "forkOf": {
+      "$ref": "#/$defs/webUrl"
+    },
+    "function": {
+      "description": "functional description, e.g. what it actually does, what problem it solves, for whom, under which conditions etc.\\\nSo if you wish that someone finds & uses your OSH specifically e.g. for COVID-19-crisis response, include relevant keywords in this field",
+      "examples": [
+        "A fully programmable, impeccably built, open source, split mechanical keyboard designed for extreme productivity and ergonomics.",
+        "A Handibot tool is a new kind of portable, digitally-controlled power tool for cutting, drilling, carving, and many other machining operations - the first Universal Digital Power Tool (UDPT) - or just, a Smart Tool. If you're familiar with industrial CNC (computer numerically controlled) equipment, think of the Handibot tool as a portable version of CNC. ",
+        "A tandem bicycle, with practically the same size, weight, and cost of a standard bicycle.",
+        "CARLA is a resistant bicycle trailer, which can be coupled with any regular bike and can transport easily 150 kg load. CARLA distinguishes itself for the outstanding agility and a very small turning circle. CARLA bicycle trailer is very well in tune with e-bikes for example, with a mid-motor.",
+        "FarmBot Genesis is top-of-the-line FarmBot model designed with the most features and flexibility. It is suitable for growing food with the highest level of precision, running complex experiments, and capable of being easily modified and extended to do more.",
+        "Flipper Zero is a multi tool device for geeks with a curious personality of a cyber-dolphin who really loves to hack. It can interact with digital systems in real life and grow while you are hacking. The idea of Flipper Zero is to combine all the phreaking hardware tools you'd need for hacking on the go.",
+        "GEK Gasifier comes as an assemble-yourself kit that provides stand-alone wood gas for a variety of end uses.",
+        "Inkplate 6 is a powerful, Wi-Fi enabled ESP32 based six-inch e-paper display - recycled from a Kindle e-reader.",
+        "KORUZA innovates the design of a free-space optical communication system reusing mass produced Small Form-factor Pluggable (SFP) electro-optical transceivers, combining the latest advances in low-cost 3D printing using the Fused Deposition Modelling (F DM) method with bare-minimum custom electronics design.",
+        "LittleRP is an Open Source Resin 3D Printer ",
+        "mechanical setup for the COSI Measure",
+        "MNT Reform is the radical, ultimate open hardware laptop, designed and assembled in Berlin.",
+        "OpenEVSE supplies open source charging station hardware and software solutions to manufactures and individuals. ",
+        "OpenROV is a DIY telerobotics community centered around underwater exploration & adventure.",
+        "Opentrons makes robots for biologists. The robots automate experiments that would otherwise be done by hand, allowing our users to spend more time pursuing answers to the 21st century's most important questions, and less time pipetting.",
+        "The AXIOM Beta is an open source, open hardware, professional-grade digital film camera made by apertus°. It is designed to be modular e.g. interchangeable sensor front end etc. and supports recording at 4K resolution.",
+        "The Corne is a 40% split mechanical USB general purpose keyboard. It is made up of two halves with 3x6 column staggered keys and 3 thumb keys. It has full RGB back-lighting, and is fully programmable using the popular Open Source QMK firmware. The basic design principles are, to have a minimal, ergonomically arranged set of keys that are all reachable by moving a finger by at most a distance of one key in diagonal.",
+        "The Corne keyboard is a split keyboard with 3x6 column staggered keys and 3 thumb keys, based on Helix. Crkbd stands for Corne Keyboard.",
+        "The Electric Eel Wheel is an affordable electric spinning wheel that is revolutionizing the fiber world!  The uptake is controlled with a unique scotch tension design and the yarn flows through a clever flyer assembly. It is an extremely light and portable design.",
+        "The goal of GliaX-Faceshield is to create a low cost, high quality, reusable face shield that can be quickly deployed.",
+        "The Lasersaur is a beautiful laser cutter with an outstanding price-performance ratio. We designed it to fill the need of makers, designers, architects and researchers who want a safe and highly-capable machine. Unlike others it's open source and comes fully loaded with knowledge to run, maintain, and modify.",
+        "The robot having functional characteristics of animal such as Run, Walk, Crawl, Walk and run in different heights and take push ups operated autonomously and via android app.",
+        "This charge controller is a so-called maximum power point tracker (MPPT), which automatically adapts its input voltage to the connected solar panel to extracts as much power as possible. The MPPT function can only be achieved using a DC/DC converter, which is the core part of the charge controller PCB. It can be recognized by the large inductor and the large electrolytic input and output filter capacitors."
+      ],
+      "type": "string"
+    },
+    "image": {
+      "$ref": "#/$defs/imageMulti"
+    },
+    "license": {
+      "$comment": "NOTE: When no SPDX key is found by the crawler, metadata might not be indexed on the server until the alternative license has been whitelisted by maintainers. At OKH, we need to make sure that all results indexed by our own server instance are actually open source.",
+      "$ref": "#/$defs/spdxLicenseExpression",
+      "description": "An SPDX license _expression\n(see: <https://spdx.github.io/spdx-spec/v2-draft/SPDX-license-expressions/>),\nusually a single SPDX license ID\n(see complete list: <https://spdx.org/licenses/>),\nor a combination of those,\ncombined with AND or OR.\nIf your license is not SPDX registered (yet),\nuse a custom string prefixed with 'LicenseRef-',\nfor example 'LicenseRef-MyVeryOwnLicense-1.3';\nplease use the 'SPDX identifier' from\n<https://scancode-licensedb.aboutcode.org/>,\nif your license is there but not SPDX registered.\nUse 'LicenseRef-NOASSERTION' if no license is specified,\n'LicenseRef-NONE' if no license is specified\n(which usually means: all rights reserved),\nor 'LicenseRef-AllRightsReserved' or similar\nfor projects clearly indicating that they are proprietary.",
+      "examples": [
+        "GPL-3.0-or-later",
+        "AGPL-3.0-or-later",
+        "GPL-3.0-only",
+        "AGPL-3.0-only",
+        "0BSD",
+        "CC0-1.0",
+        "CC-BY-SA-4.0",
+        "CC-BY-4.0",
+        "Unlicense",
+        "LicenseRef-NOASSERTION",
+        "LicenseRef-NONE",
+        "LicenseRef-AllRightsReserved",
+        "LicenseRef-RandomNonSpdxRegisteredLicense",
+        "LicenseRef-MyVeryOwnLicense"
+      ]
+    },
+    "licensor": {
+      "description": "organization/individual behind the hardware design (holder of intellectual property)",
+      "examples": [
+        "John Doe <john.doe@email.com>",
+        "Jane Doe (FSF) <jane.doe@email.com>",
+        "Michael Mueller <mm@email.com>",
+        "Jinz Jixxer (OSI) <jj@email.com>",
+        "Pru Ner (GNU) <abc@email.com>",
+        [
+          "John Doe <john.doe@email.com>",
+          "Jane Doe (FSF) <jane.doe@email.com>"
+        ],
+        {
+          "email": "john.doe@email.com",
+          "name": "John Doe"
+        },
+        {
+          "email": "jane.doe@email.com",
+          "memberOf": "FSF",
+          "name": "Jane Doe"
+        },
+        [
+          {
+            "email": "john.doe@email.com",
+            "name": "John Doe"
+          },
+          {
+            "email": "jane.doe@email.com",
+            "memberOf": "FSF",
+            "name": "Jane Doe"
+          }
+        ]
+      ],
+      "anyOf": [
+        {
+          "$ref": "#/$defs/stringMulti"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/agent"
+          }
+        },
+        {
+          "$ref": "#/$defs/agent"
+        }
+      ]
+    },
+    "manufacturing-instructions": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "URL or repo-relative path to manufacturing instructions; multiple inputs possible (with one entry each)",
+      "examples": ["Documentation/Assembly_Guide/AssemblyGuide.md"]
+    },
+    "mass": {
+      "$ref": "#/$defs/mass"
+    },
+    "name": {
+      "$ref": "#/$defs/name",
+      "description": "Working title of the OSH component"
+    },
+    "okhv": {
+      "$comment": "ui-hidden",
+      "description": "version of OKH specification the OSH projects metadata follows (different version → different data fields in this file). In the past this was 'OKH-LOSHv1.0' for a long time; now it should be a minor version release of the OKH spec, e.g. '2.4'.",
+      "enum": ["OKH-LOSHv1.0", "2.3", "2.4"]
+    },
+    "organization": {
+      "$ref": "#/$defs/organizationMulti",
+      "description": "organization of the licensor or that represents (some of) the contributors of to project"
+    },
+    "outer-dimensions": {
+      "$ref": "#/$defs/outerDimensions"
+    },
+    "part": {
+      "description": "physical component(s) of this open source hardware module, for which technical documentation (design files etc.) is available under a free/open license",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/part"
+      }
+    },
+    "publication": {
+      "$ref": "#/$defs/doiOrWebUrlMulti",
+      "description": "The DOI(s) or web URL(s) of one or multiple associated publication(s)"
+    },
+    "rdf": {
+      "$ref": "#/$defs/rdfNamespace",
+      "description": "absolute HTTP IRI (ending int '/' or '#') representing the RDF namespace of the triples generated from the manifest, and optionally the name of the prefix"
+    },
+    "readme": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "repo-relative path (or absolute HTTP(S) URL) to to the corresponding ReadMe, which is the (human) entry-point into (the sources of) an OSH project",
+      "examples": [
+        "README.md",
+        "README.txt",
+        "README",
+        "README-JP.md",
+        "README-JP",
+        ["README-EN.md", "README-JP.md"]
+      ]
+    },
+    "release": {
+      "$ref": "#/$defs/relPathOrWebUrl",
+      "description": "URL or repo local path to the release package of this version of the OSH module"
+    },
+    "repo": {
+      "$ref": "#/$defs/webUrl",
+      "description": "URL to the (human browsable) place where development happens;\ntypically a (git) repository or Wiki page.\nFollowing this link, people should be able to contribute to the development:\nreporting issues, suggesting changes, connecting to the team etc."
+    },
+    "software": {
+      "description": "associated software package(s) used to operate this piece of open source hardware",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/software"
+      }
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "standard-compliance": {
+      "$ref": "#/$defs/stringMulti",
+      "description": "document-number of the official standard the OSH module complies;\\\nmultiple inputs possible (with one entry each)",
+      "examples": [
+        "DIN SPEC 3105",
+        "DIN EN 1335",
+        "ISO 1337",
+        ["DIN SPEC 3105", "ISO 1337"]
+      ]
+    },
+    "technology-readiness-level": {
+      "description": "OTRL-ID representing the development stage of the OSH module; get it from: <https://w3id.org/oseg/ont/otrl>",
+      "default": "OTRL-1",
+      "oneOf": [
+        {
+          "title": "Ideation",
+          "description": "Product idea; needs are identified and initial specifications are defined",
+          "const": "OTRL-1"
+        },
+        {
+          "title": "Conception",
+          "description": "Mature product concept has been formulated",
+          "const": "OTRL-2"
+        },
+        {
+          "title": "Development",
+          "description": "Product model is developed",
+          "const": "OTRL-3"
+        },
+        {
+          "title": "Prototyping and testing",
+          "description": "Full functional prototype is built and tested",
+          "const": "OTRL-4"
+        },
+        {
+          "title": "Manufacturing development",
+          "description": "Fairly reliable processes identified and characterized",
+          "const": "OTRL-5"
+        },
+        {
+          "title": "Product qualification",
+          "description": "Certificate marking conformity assessment or comparable",
+          "const": "OTRL-6"
+        }
+      ]
+    },
+    "tsdc": {
+      "$ref": "#/$defs/tsdc"
+    },
+    "user-manual": {
+      "$ref": "#/$defs/relPathOrWebUrlMulti",
+      "description": "URL or repo-relative path to user manual",
+      "examples": ["Documentation/User_Guide/UserGuide.md"]
+    },
+    "version": {
+      "description": "version of this Module, preferably following the [semantic versioning-scheme v2.0.0](https://semver.org/#semantic-versioning-200)",
+      "examples": [
+        "2.3.4",
+        "1.0.0-alpha",
+        "1.0.0-alpha.1",
+        "1.0.0-alpha.beta",
+        "1.0.0-beta",
+        "1.0.0-beta.2",
+        "1.0.0-beta.11",
+        "1.0.0-rc.1",
+        "1.0.0",
+        "0.0.1-24-g6a8a3a7",
+        "v0.3.1",
+        "6a8a3a7",
+        "baf0e65d8d93e1b64e883dfd2ffc5b838a22ca25"
+      ],
+      "type": "string"
+    }
+  }
+}
