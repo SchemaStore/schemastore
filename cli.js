@@ -504,7 +504,10 @@ async function ajvFactory(
     'x-taplo-info',
     'x-tombi-toml-version',
     'x-tombi-array-values-order',
+    'x-tombi-array-values-order-by',
     'x-tombi-table-keys-order',
+    'x-tombi-string-formats',
+    'x-tombi-additional-key-label',
     'x-intellij-language-injection',
     'x-intellij-html-description',
     'x-intellij-enum-metadata',
@@ -1152,11 +1155,6 @@ async function taskBuildWebsite() {
 			<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
 		</div>
 	</header>
-	<nav>
-		<ul class="container">
-			<li><a href="/json/">JSON</a></li>
-		</ul>
-	</nav>
 
 	<div role="main" id="main" class="container">
 		${body}
