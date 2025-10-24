@@ -3,6 +3,14 @@
   "$id": "https://json.schemastore.org/metricshub.json",
   "type": "object",
   "definitions": {
+    "sequential": {
+      "type": "boolean",
+      "description": "Sequential mode. This forces all network calls to be ordered in a sequential order."
+    },
+    "enableSelfMonitoring": {
+      "description": "Enables or disables self monitoring signals. E.g. job duration metrics.",
+      "type": "boolean"
+    },
     "duration": {
       "oneOf": [
         {
@@ -67,9 +75,11 @@
               }
             }
           },
+          "enableSelfMonitoring": {
+            "$ref": "#/definitions/enableSelfMonitoring"
+          },
           "sequential": {
-            "type": "boolean",
-            "description": "Sequential mode. This forces all network calls to be ordered in a sequential order."
+            "$ref": "#/definitions/sequential"
           },
           "resolveHostnameToFqdn": {
             "$ref": "#/definitions/resolveHostnameToFqdn"
@@ -266,8 +276,16 @@
                   },
                   "authType": {
                     "type": "string",
-                    "enum": ["NO_AUTH", "MD5", "SHA"],
-                    "description": "Sets the SNMPv3 authentication type. (MD5, SHA or NO_AUTH)."
+                    "enum": [
+                      "NO_AUTH",
+                      "MD5",
+                      "SHA",
+                      "SHA256",
+                      "SHA512",
+                      "SHA224",
+                      "SHA384"
+                    ],
+                    "description": "Sets the SNMPv3 authentication type. (MD5, SHA, SHA256, SHA512, SHA384, SHA224 or NO_AUTH)."
                   },
                   "privacy": {
                     "type": "string",
@@ -467,6 +485,36 @@
                     "description": "The name of the database instance to connect to on the server."
                   }
                 }
+              },
+              "jmx": {
+                "type": "object",
+                "description": "Configures the JMX protocol to access the host using Java Management Extensions (JMX). Used for monitoring Java applications via MBean access.",
+                "properties": {
+                  "hostname": {
+                    "$ref": "#/definitions/hostname",
+                    "description": "Specifies the target host for the JMX connection."
+                  },
+                  "port": {
+                    "type": "integer",
+                    "description": "Sets the JMX port number used to perform the connection (Default: 1099).",
+                    "default": 1099,
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Username used to authenticate the JMX connection (optional)."
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Password used to authenticate the JMX connection (optional)."
+                  },
+                  "timeout": {
+                    "$ref": "#/definitions/duration",
+                    "description": "Specifies how long until the JMX connection attempt times out (Default: 30s).",
+                    "default": "30s"
+                  }
+                }
               }
             }
           },
@@ -501,7 +549,7 @@
             "additionalProperties": false
           },
           "connectors": {
-            "description": "Sets the Connector(s) to use or exclude, as well as connector tags to be matched.",
+            "description": "Defines the list of connectors to include, exclude, or force. Each entry is a connector ID or a tag with an optional prefix to control behavior.\n\nPrefixes:\n- (none)  Add the connector by its ID for automatic detection.\n- `#`       Include all connectors that have the specified tag.\n- `!#`      Exclude all connectors that have the specified tag.\n- `+`       Force-enable the specified connector (included even if not auto-detected).\n- `!`       Exclude the specified connector by its ID.\n\nExamples:\n- `mysql`        Include the connector with ID mysql.\n- `#database`    Include all connectors tagged database.\n- `!#beta`       Exclude all connectors tagged beta.\n- `+aws`         Force-enable the aws connector.\n- `!gcp`         Exclude the gcp connector.",
             "type": "array",
             "items": {
               "type": "string"
@@ -515,11 +563,12 @@
               "properties": {
                 "discovery": {
                   "type": "object",
-                  "description": "Discovery Monitor",
+                  "description": "Discovery monitoring job",
                   "properties": {
                     "sources": {
                       "$ref": "#/definitions/sources"
                     },
+                    "metrics": { "$ref": "#/definitions/metrics" },
                     "mapping": {
                       "type": "object",
                       "description": "Discovery Mapping",
@@ -558,11 +607,12 @@
                 },
                 "collect": {
                   "type": "object",
-                  "description": "Collect Monitor",
+                  "description": "Collect monitoring job",
                   "properties": {
                     "sources": {
                       "$ref": "#/definitions/sources"
                     },
+                    "metrics": { "$ref": "#/definitions/metrics" },
                     "keys": {
                       "type": "array",
                       "items": {
@@ -615,11 +665,12 @@
                 },
                 "simple": {
                   "type": "object",
-                  "description": "Discovery Monitor",
+                  "description": "Simple monitoring job",
                   "properties": {
                     "sources": {
                       "$ref": "#/definitions/sources"
                     },
+                    "metrics": { "$ref": "#/definitions/metrics" },
                     "mapping": {
                       "type": "object",
                       "description": "Discovery Mapping",
@@ -708,6 +759,42 @@
         }
       }
     },
+    "metrics": {
+      "type": "object",
+      "description": "OpenTelemetry Metrics Collected",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": ["Gauge", "Counter", "UpDownCounter"],
+                "default": "Gauge"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "stateSet": {
+                    "type": "array"
+                  },
+                  "output": {
+                    "type": "string",
+                    "enum": ["Gauge", "Counter", "UpDownCounter"]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
     "sources": {
       "type": "object",
       "description": "Contains Sources",
@@ -776,7 +863,7 @@
             "properties": {
               "type": {
                 "type": "string",
-                "const": "osCommand"
+                "const": "commandLine"
               },
               "forceSerialization": {
                 "type": "boolean"
@@ -789,11 +876,11 @@
               },
               "commandLine": {
                 "type": "string",
-                "description": "Command Line"
+                "description": "The Command Line to Execute"
               },
               "timeout": {
                 "type": ["number", "string"],
-                "description": "OS Command Timeout"
+                "description": "The Command Line Timeout"
               },
               "executeLocally": {
                 "type": "boolean",
@@ -815,7 +902,7 @@
                 "type": "integer",
                 "description": "End At Line Number"
               },
-              "separator": {
+              "separators": {
                 "type": "string",
                 "description": "Column Separator"
               },
@@ -1084,6 +1171,74 @@
               "query": {
                 "type": "string",
                 "description": "SQL Query"
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "jawk"
+              },
+              "forceSerialization": {
+                "type": "boolean"
+              },
+              "computes": {
+                "$ref": "#/definitions/computes"
+              },
+              "executeForEachEntryOf": {
+                "$ref": "#/definitions/executeForEachEntryOf"
+              },
+              "script": {
+                "type": "string",
+                "description": "The JAWK script to be executed for the computation task."
+              },
+              "input": {
+                "type": "string",
+                "description": "The input on which to execute the JAWK task."
+              },
+              "separators": {
+                "type": "string",
+                "description": "The separators parameter for the JAWK task."
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "jmx"
+              },
+              "forceSerialization": {
+                "type": "boolean"
+              },
+              "computes": {
+                "$ref": "#/definitions/computes"
+              },
+              "executeForEachEntryOf": {
+                "$ref": "#/definitions/executeForEachEntryOf"
+              },
+              "objectName": {
+                "type": "string",
+                "description": "The ObjectName pattern to query (JMX MBean name)."
+              },
+              "attributes": {
+                "type": "array",
+                "description": "The list of attributes to fetch from the MBean.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "keyProperties": {
+                "type": "array",
+                "description": "Optional list of key property names (e.g., 'scope', 'name') to include as extra columns.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "key": {
+                "type": "string",
+                "description": "Defines the key column name to uniquely identify each metric row."
               }
             }
           }
@@ -1374,6 +1529,66 @@
                 "description": "Properties To Capture"
               }
             }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "encode"
+              },
+              "column": {
+                "type": "integer",
+                "description": "The column index used for the Encode computation."
+              },
+              "encoding": {
+                "type": "string",
+                "description": "The encoding algorithm or format to apply (e.g., base64, sha256, hex)."
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "decode"
+              },
+              "column": {
+                "type": "integer",
+                "description": "The column index used for the Decode computation."
+              },
+              "encoding": {
+                "type": "string",
+                "description": "The encoding algorithm or format to reverse (e.g., base64, hex)."
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "excludeMatchingLines"
+              },
+              "column": {
+                "type": "integer",
+                "description": "The column from which to extract values for matching."
+              },
+              "regExp": {
+                "type": "string",
+                "description": "The regular expression pattern to match against the column values."
+              },
+              "valueList": {
+                "type": "string",
+                "description": "The list of values to match against the column values."
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "keepColumns"
+              },
+              "columnNumbers": {
+                "type": "string",
+                "description": "The column numbers to be kept in the KeepColumns computation (comma-separated list)."
+              }
+            }
           }
         ]
       }
@@ -1415,8 +1630,15 @@
       "default": "5m"
     },
     "hostname": {
-      "type": "string",
-      "description": "The hostname to which the query is sent."
+      "description": "The hostname to which the query is sent.",
+      "oneOf": [
+        {
+          "type": "array"
+        },
+        {
+          "type": "string"
+        }
+      ]
     },
     "retryIntervals": {
       "type": "array",
@@ -1466,9 +1688,11 @@
         }
       }
     },
+    "enableSelfMonitoring": {
+      "$ref": "#/definitions/enableSelfMonitoring"
+    },
     "sequential": {
-      "type": "boolean",
-      "description": "Sequential mode. This forces all network calls to be ordered in a sequential order."
+      "$ref": "#/definitions/sequential"
     },
     "resolveHostnameToFqdn": {
       "$ref": "#/definitions/resolveHostnameToFqdn"
@@ -1512,59 +1736,152 @@
       "type": "object",
       "description": "Internal OpenTelemetry SDK configuration",
       "properties": {
-        "otel.exporter.otlp.logs.protocol": {
+        "otel.exporter.otlp.metrics.endpoint": {
           "type": "string",
-          "description": "Property used to configure the transport protocol to use on OTLP log requests",
-          "enum": ["grpc", "http/protobuf"]
+          "default": "http://localhost:4317 (gRPC) / http://localhost:4318/v1/metrics (HTTP/Protobuf)",
+          "description": "The OTLP metrics endpoint URL. Must be an http or https URL, depending on whether TLS is used."
         },
         "otel.exporter.otlp.metrics.protocol": {
           "type": "string",
-          "description": "Property used to configure the transport protocol to use on OTLP metric requests",
-          "enum": ["grpc", "http/protobuf"]
-        },
-        "otel.exporter.otlp.logs.endpoint": {
-          "type": "string",
-          "description": "Property used to configure the OTLP logs endpoint to connect to. Must be a URL with a scheme of either http or https based on the use of TLS"
-        },
-        "otel.exporter.otlp.endpoint": {
-          "type": "string",
-          "description": "Property used to configure the OTLP traces, metrics, and logs endpoint to connect to"
-        },
-        "otel.exporter.otlp.certificate": {
-          "type": "string",
-          "description": "Property used to configure the path to the file containing trusted certificates"
-        },
-        "otel.exporter.otlp.metrics.endpoint": {
-          "type": "string",
-          "description": "Property used to configure the OTLP metrics endpoint to connect to"
+          "default": "grpc",
+          "description": "Transport protocol for OTLP metric requests. Possible values: grpc, http/protobuf."
         },
         "otel.exporter.otlp.metrics.certificate": {
           "type": "string",
-          "description": "Property used to configure the path to the file containing trusted certificates to use when verifying an OTLP metric server's TLS credentials"
+          "default": "Uses the host platform's trusted root certificates",
+          "description": "Path to a PEM-formatted file containing trusted certificates for verifying the OTLP server TLS credentials."
         },
-        "otel.exporter.otlp.protocol": {
+        "otel.exporter.otlp.metrics.headers": {
           "type": "string",
-          "description": "The transport protocol to use on OTLP trace, metric, and log requests",
-          "enum": ["grpc", "http/protobuf"]
+          "default": "Not set",
+          "description": "Custom headers to send with OTLP metric requests, typically for authentication."
         },
-        "otel.exporter.otlp.logs.certificate": {
+        "otel.exporter.otlp.metrics.timeout": {
           "type": "string",
-          "description": "Property used to configure the path to the file containing trusted certificates to use when verifying an OTLP log server's TLS credentials"
+          "default": "10",
+          "description": "Timeout for OTLP metric requests (in seconds)."
         },
-        "otel.logs.exporter": {
-          "type": "string",
-          "description": "Property used to configure the OpenTelemetry exporter for logs"
+        "otel.exporter.otlp.metrics.pool.size": {
+          "type": "integer",
+          "default": 20,
+          "description": "Exporter pool size. Determines how many metric export operations can run in parallel."
         },
-        "otel.metrics.exporter": {
-          "type": "string",
-          "description": "Property used to configure the OpenTelemetry exporter for metrics",
-          "const": "otlp"
+        "otel.exporter.otlp.metrics.append_resource_attributes": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, all resource attributes will be added as attributes on each exported metric."
         }
       },
       "additionalProperties": {
         "type": "string",
         "description": "Property from https://github.com/open-telemetry/opentelemetry-java/tree/main/sdk-extensions/autoconfigure"
       }
+    },
+    "web": {
+      "type": "object",
+      "description": "Web configuration loaded by default. Represents key-value pairs used for web-related settings.",
+      "properties": {
+        "server.port": {
+          "type": "string",
+          "default": "31888",
+          "description": "Server port number."
+        },
+        "spring.main.banner-mode": {
+          "type": "string",
+          "default": "off",
+          "description": "Spring application banner mode (supported values: console, log, off)."
+        },
+        "spring.ai.mcp.server.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the MCP server."
+        },
+        "spring.ai.mcp.server.stdio": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable communication over STDIO."
+        },
+        "spring.ai.mcp.server.name": {
+          "type": "string",
+          "default": "metricshub-mcp-server",
+          "description": "MCP server name."
+        },
+        "spring.ai.mcp.server.resource-change-notification": {
+          "type": "boolean",
+          "default": true,
+          "description": "Notify on resource changes."
+        },
+        "spring.ai.mcp.server.tool-change-notification": {
+          "type": "boolean",
+          "default": true,
+          "description": "Notify on tool changes."
+        },
+        "spring.ai.mcp.server.prompt-change-notification": {
+          "type": "boolean",
+          "default": true,
+          "description": "Notify on prompt changes."
+        },
+        "spring.ai.mcp.server.sse-endpoint": {
+          "type": "string",
+          "default": "/sse",
+          "description": "SSE endpoint for server events."
+        },
+        "spring.ai.mcp.server.sse-message-endpoint": {
+          "type": "string",
+          "default": "/mcp/message",
+          "description": "SSE endpoint for messages."
+        },
+        "spring.ai.mcp.server.type": {
+          "type": "string",
+          "default": "sync",
+          "description": "MCP server type (sync or async)."
+        },
+        "spring.ai.mcp.server.capabilities.completion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable completion capability."
+        },
+        "spring.ai.mcp.server.capabilities.prompt": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable prompt capability."
+        },
+        "spring.ai.mcp.server.capabilities.resource": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable resource capability."
+        },
+        "spring.ai.mcp.server.capabilities.tool": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable tool capability."
+        },
+        "spring.ai.mcp.server.request-timeout": {
+          "$ref": "#/definitions/duration",
+          "default": "5m",
+          "description": "Request timeout duration."
+        },
+        "jwt.short_expire": {
+          "type": "integer",
+          "default": 3600,
+          "description": "JSON Web Token short expire value (jwt)."
+        },
+        "jwt.long_expire": {
+          "type": "integer",
+          "default": 86400,
+          "description": "JSON Web Token long expire value (refresh)."
+        },
+        "jwt.secret": {
+          "type": "string",
+          "default": "",
+          "description": "Secret key used for signing JWT tokens."
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "description": "Web configuration key-value pair."
+      },
+      "default": {}
     },
     "attributes": {
       "type": "object",
@@ -1619,9 +1936,11 @@
               }
             }
           },
+          "enableSelfMonitoring": {
+            "$ref": "#/definitions/enableSelfMonitoring"
+          },
           "sequential": {
-            "type": "boolean",
-            "description": "Sequential mode. This forces all network calls to be ordered in a sequential order."
+            "$ref": "#/definitions/sequential"
           },
           "resolveHostnameToFqdn": {
             "$ref": "#/definitions/resolveHostnameToFqdn"
