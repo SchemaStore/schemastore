@@ -1,0 +1,202 @@
+# yaml-language-server: $schema=../../schemas/json/prometheus-alertmanager.json
+
+global:
+  smtp_from: 'alertmanager@example.com'
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_hello: 'alertmanager.local'
+  smtp_auth_username: 'user'
+  smtp_auth_password: 'password'
+  smtp_auth_password_file: '/etc/alertmanager/smtp_password'
+  smtp_auth_identity: 'identity'
+  smtp_auth_secret: 'secret'
+  smtp_require_tls: true
+  smtp_tls_config:
+    ca_file: '/etc/ssl/certs/ca.pem'
+    cert_file: '/etc/ssl/certs/cert.pem'
+    key_file: '/etc/ssl/private/key.pem'
+    server_name: 'smtp.example.com'
+    insecure_skip_verify: false
+    min_version: 'TLS12'
+    max_version: 'TLS13'
+  slack_api_url: 'https://hooks.slack.com/services/XXX/YYY/ZZZ'
+  slack_api_url_file: '/etc/alertmanager/slack_url'
+  telegram_api_url: 'https://api.telegram.org'
+  jira_api_url: 'https://jira.example.com/rest/api/2/'
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+  opsgenie_api_key: 'opsgenie-key'
+  opsgenie_api_key_file: '/etc/alertmanager/opsgenie.key'
+  opsgenie_api_url: 'https://api.opsgenie.com/'
+  victorops_api_key: 'victorops-key'
+  victorops_api_key_file: '/etc/alertmanager/victorops.key'
+  victorops_api_url: 'https://alert.victorops.com/integrations/generic/20131114/alert/'
+  rocketchat_api_url: 'https://chat.example.com'
+  rocketchat_token: 'rocketchat-token'
+  rocketchat_token_file: '/etc/alertmanager/rocketchat.token'
+  rocketchat_token_id: 'rocketchat-id'
+  rocketchat_token_id_file: '/etc/alertmanager/rocketchat.id'
+  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+  wechat_api_secret: 'wechat-secret'
+  wechat_api_corp_id: 'wechat-corp-id'
+  webex_api_url: 'https://webexapis.com/v1/messages'
+  http_config:
+    basic_auth:
+      username: 'apiuser'
+      password_file: '/etc/alertmanager/http_password'
+    authorization:
+      type: 'Bearer'
+      credentials_file: '/etc/alertmanager/token'
+    oauth2:
+      client_id: 'client-id'
+      client_secret_file: '/etc/alertmanager/oauth_secret'
+      scopes: ['scope1', 'scope2']
+      token_url: 'https://auth.example.com/token'
+      endpoint_params:
+        audience: 'alertmanager'
+      tls_config:
+        ca_file: '/etc/ssl/certs/oauth_ca.pem'
+    proxy_url: 'http://proxy.example.com:8080'
+    no_proxy: 'localhost,127.0.0.1'
+    proxy_from_environment: true
+    proxy_connect_header:
+      Proxy-Authorization: ['Basic abc123']
+    follow_redirects: true
+    tls_config:
+      ca_file: '/etc/ssl/certs/ca.pem'
+      cert_file: '/etc/ssl/certs/cert.pem'
+      key_file: '/etc/ssl/private/key.pem'
+      server_name: 'api.example.com'
+      insecure_skip_verify: false
+      min_version: 'TLS12'
+      max_version: 'TLS13'
+    http_headers:
+      X-Custom-Header:
+        values: ['CustomValue1']
+        secrets: ['SecretHeaderValue']
+        files: ['/etc/alertmanager/headers/custom_header.txt']
+  resolve_timeout: 5m
+
+templates:
+  - 'templates/*.tmpl'
+
+route:
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'instance']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  matchers:
+    - severity="critical"
+    - team=~"devops|infra"
+  continue: true
+  mute_time_intervals: ['offhours']
+  active_time_intervals: ['workhours']
+  routes:
+    - receiver: 'slack-receiver'
+      matchers:
+        - team="devops"
+      group_by: ['team']
+      continue: false
+    - receiver: 'email-receiver'
+      matchers:
+        - service=~"mysql|cassandra"
+      mute_time_intervals: ['weekends']
+      continue: true
+
+receivers:
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'admin@example.com'
+        send_resolved: true
+        headers:
+          Subject: 'Alertmanager Notification'
+    slack_configs:
+      - channel: '#alerts'
+        send_resolved: true
+    telegram_configs:
+      - bot_token: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11'
+        chat_id: 987654321
+        send_resolved: true
+    webhook_configs:
+      - url: 'https://hooks.example.com/alert'
+        send_resolved: true
+    discord_configs:
+      - webhook_url: 'https://discord.com/api/webhooks/xxx/yyy'
+        send_resolved: true
+    jira_configs:
+      - api_url: 'https://jira.example.com/rest/api/2/'
+        project: 'MON'
+        issue_type: 'Bug'
+        send_resolved: true
+    opsgenie_configs:
+      - api_key: 'opsgenie-api-key'
+        send_resolved: true
+    pagerduty_configs:
+      - routing_key: 'pagerduty-routing-key'
+        send_resolved: true
+    victorops_configs:
+      - api_key: 'victorops-api-key'
+        routing_key: 'team-routing'
+        send_resolved: true
+    pushover_configs:
+      - user_key: 'user-key'
+        token: 'app-token'
+        send_resolved: true
+    rocketchat_configs:
+      - api_url: 'https://chat.example.com'
+        token: 'rocketchat-token'
+        token_id: 'rocketchat-token-id'
+        channel: '#alerts'
+        send_resolved: true
+    wechat_configs:
+      - corp_id: 'corp-id'
+        api_secret: 'secret'
+        agent_id: '1000002'
+        to_user: '@all'
+        send_resolved: true
+    webex_configs:
+      - room_id: 'room-id'
+        message: 'Alert: {{ .CommonLabels.alertname }}'
+        send_resolved: true
+    sns_configs:
+      - topic_arn: 'arn:aws:sns:us-east-1:123456789012:MyTopic'
+        sigv4:
+          region: 'us-east-1'
+        send_resolved: true
+    msteams_configs:
+      - webhook_url: 'https://outlook.office.com/webhook/xxx/IncomingWebhook/yyy'
+        send_resolved: true
+    msteamsv2_configs:
+      - webhook_url: 'https://outlook.office.com/webhook/xxx/IncomingWebhook/yyy'
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal: ['alertname', 'instance']
+  - source_matchers:
+      - service="frontend"
+    target_matchers:
+      - service="backend"
+    equal: ['team']
+
+time_intervals:
+  - name: 'workhours'
+    time_intervals:
+      - weekdays: ['monday:friday']
+        times:
+          - start_time: '09:00'
+            end_time: '17:00'
+        location: 'Europe/Amsterdam'
+  - name: 'offhours'
+    time_intervals:
+      - weekdays: ['saturday', 'sunday']
+        times:
+          - start_time: '00:00'
+            end_time: '24:00'
+        location: 'Europe/Amsterdam'
+  - name: 'weekends'
+    time_intervals:
+      - weekdays: ['saturday', 'sunday']
+        location: 'UTC'

@@ -7,7 +7,7 @@
   "type": "object",
   "definitions": {
     "dependency": {
-      "$comment": "https://json.schemastore.org/package.json",
+      "$comment": "https://www.schemastore.org/package.json",
       "description": "Dependencies are specified with a simple hash of package name to version range.\nThe version range is a string which has one or more space-separated descriptors.\nDependencies can also be identified with a tarball or git URL.\n",
       "type": "object",
       "minProperties": 1,
@@ -18,7 +18,42 @@
       },
       "additionalProperties": {
         "type": "string",
-        "minLength": 3
+        "minLength": 1
+      }
+    },
+    "devDependency": {
+      "description": "Specifies dependencies that are required for the development and testing of the project. These dependencies are not needed in the production environment.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "optionalDependency": {
+      "description": "Specifies dependencies that are optional for your project. These dependencies are attempted to be installed during the npm install process, but if they fail to install, the installation process will not fail.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "peerDependency": {
+      "description": "Specifies dependencies that are required by the package but are expected to be provided by the consumer of the package.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "peerDependencyMeta": {
+      "description": "When a user installs your package, warnings are emitted if packages specified in \"peerDependencies\" are not already installed. The \"peerDependenciesMeta\" field serves to provide more information on how your peer dependencies are utilized. Most commonly, it allows peer dependencies to be marked as optional. Metadata for this field is specified with a simple hash of the package name to a metadata object.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "optional": {
+            "description": "Specifies that this peer dependency is optional and should not be installed automatically.",
+            "type": "boolean"
+          }
+        }
       }
     },
     "catalog": {
@@ -32,7 +67,6 @@
     "packages": {
       "description": "Workspace package paths. Glob patterns are supported",
       "type": "array",
-      "minItems": 1,
       "uniqueItems": true,
       "items": {
         "type": "string"
@@ -42,18 +76,722 @@
       "$comment": "https://pnpm.io/catalogs",
       "$ref": "#/definitions/dependency",
       "description": "Define dependency version ranges as reusable constants,\nfor later reference in package.json files.\nThis (singular) field creates a catalog named default.\n",
-      "type": "object",
+      "type": ["object", "null"],
       "minProperties": 1
     },
     "catalogs": {
       "description": "Define arbitrarily named catalogs",
-      "type": "object",
+      "type": ["object", "null"],
       "minProperties": 1,
       "additionalProperties": {
         "$ref": "#/definitions/catalog"
       }
+    },
+    "catalogMode": {
+      "description": "Controlling if and how dependencies are added to the default catalog",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["strict", "prefer", "manual"]
+        }
+      ]
+    },
+    "cleanupUnusedCatalogs": {
+      "description": "When set to `true`, pnpm will remove unused catalog entries during installation.",
+      "type": "boolean"
+    },
+    "onlyBuiltDependencies": {
+      "description": "A list of package names that are allowed to be executed during installation.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overrides": {
+      "description": "Used to override any dependency in the dependency graph.",
+      "type": "object"
+    },
+    "packageExtensions": {
+      "description": "Used to extend the existing package definitions with additional information.",
+      "type": "object",
+      "patternProperties": {
+        "^.+$": {
+          "type": "object",
+          "properties": {
+            "dependencies": {
+              "$ref": "#/definitions/dependency"
+            },
+            "optionalDependencies": {
+              "$ref": "#/definitions/optionalDependency"
+            },
+            "peerDependencies": {
+              "$ref": "#/definitions/peerDependency"
+            },
+            "peerDependenciesMeta": {
+              "$ref": "#/definitions/peerDependencyMeta"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "peerDependencyRules": {
+      "type": "object",
+      "properties": {
+        "ignoreMissing": {
+          "description": "pnpm will not print warnings about missing peer dependencies from this list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedVersions": {
+          "description": "Unmet peer dependency warnings will not be printed for peer dependencies of the specified range.",
+          "type": "object"
+        },
+        "allowAny": {
+          "description": "Any peer dependency matching the pattern will be resolved from any version, regardless of the range specified in \"peerDependencies\".",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "neverBuiltDependencies": {
+      "description": "A list of dependencies to run builds for.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dangerouslyAllowAllBuilds": {
+      "description": "If set to true, all build scripts (e.g. preinstall, install, postinstall) from dependencies will run automatically, without requiring approval.",
+      "type": "boolean"
+    },
+    "onlyBuiltDependenciesFile": {
+      "description": "Specifies a JSON file that lists the only packages permitted to run installation scripts during the pnpm install process.",
+      "type": "string"
+    },
+    "ignoredBuiltDependencies": {
+      "description": "A list of package names that should not be built during installation.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowedDeprecatedVersions": {
+      "description": "A list of deprecated versions that the warnings are suppressed.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "patchedDependencies": {
+      "description": "A list of dependencies that are patched.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "allowUnusedPatches": {
+      "description": "When true, installation won't fail if some of the patches from the \"patchedDependencies\" field were not applied. (Previously named \"allowNonAppliedPatches\")",
+      "type": "boolean"
+    },
+    "allowNonAppliedPatches": {
+      "description": "When true, installation won't fail if some of the patches from the \"patchedDependencies\" field were not applied.",
+      "type": "boolean"
+    },
+    "ignorePatchFailures": {
+      "description": "Default is undefined. Errors out when a patch with an exact version or version range fails. Ignores failures from name-only patches. When true, prints a warning instead of failing when any patch cannot be applied. When false, errors out for any patch failure.",
+      "type": "boolean"
+    },
+    "updateConfig": {
+      "type": "object",
+      "properties": {
+        "ignoreDependencies": {
+          "description": "A list of packages that should be ignored when running \"pnpm outdated\" or \"pnpm update --latest\".",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "configDependencies": {
+      "type": "object",
+      "description": "Config dependencies allow you to share and centralize configuration files, settings, and hooks across multiple projects. They are installed before all regular dependencies ('dependencies', 'devDependencies', 'optionalDependencies'), making them ideal for setting up custom hooks, patches, and catalog entries."
+    },
+    "auditConfig": {
+      "type": "object",
+      "properties": {
+        "ignoreCves": {
+          "description": "A list of CVE IDs that will be ignored by \"pnpm audit\".",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CVE-\\d{4}-\\d{4,7}$"
+          }
+        },
+        "ignoreGhsas": {
+          "description": "A list of GHSA Codes that will be ignored by \"pnpm audit\".",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "requiredScripts": {
+      "description": "A list of scripts that must exist in each project.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "supportedArchitectures": {
+      "description": "Specifies architectures for which you'd like to install optional dependencies, even if they don't match the architecture of the system running the install.",
+      "type": "object",
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cpu": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "libc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ignoredOptionalDependencies": {
+      "description": "A list of optional dependencies that the install should be skipped.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "executionEnv": {
+      "type": "object",
+      "properties": {
+        "nodeVersion": {
+          "description": "Specifies which exact Node.js version should be used for the project's runtime.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "hoist": {
+      "description": "When true, all dependencies are hoisted to node_modules/.pnpm/node_modules.",
+      "type": "boolean"
+    },
+    "hoistWorkspacePackages": {
+      "description": "When true, packages from the workspaces are symlinked to either <workspace_root>/node_modules/.pnpm/node_modules or to <workspace_root>/node_modules depending on other hoisting settings (hoistPattern and publicHoistPattern).",
+      "type": "boolean"
+    },
+    "hoistPattern": {
+      "description": "Tells pnpm which packages should be hoisted to node_modules/.pnpm/node_modules",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "publicHoistPattern": {
+      "description": "Unlike hoistPattern, which hoists dependencies to a hidden modules directory inside the virtual store, publicHoistPattern hoists dependencies matching the pattern to the root modules directory.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "shamefullyHoist": {
+      "description": "By default, pnpm creates a semistrict node_modules, meaning dependencies have access to undeclared dependencies but modules outside of node_modules do not.",
+      "type": "boolean"
+    },
+    "modulesDir": {
+      "description": "The directory in which dependencies will be installed (instead of node_modules).",
+      "type": "string"
+    },
+    "nodeLinker": {
+      "description": "Defines what linker should be used for installing Node packages.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["isolated", "hoisted", "pnp"]
+        }
+      ]
+    },
+    "symlink": {
+      "description": "When symlink is set to false, pnpm creates a virtual store directory without any symlinks. It is a useful setting together with nodeLinker=pnp.",
+      "type": "boolean"
+    },
+    "enableModulesDir": {
+      "description": "When false, pnpm will not write any files to the modules directory (node_modules).",
+      "type": "boolean"
+    },
+    "virtualStoreDir": {
+      "description": "The directory with links to the store.",
+      "type": "string"
+    },
+    "virtualStoreDirMaxLength": {
+      "description": "Sets the maximum allowed length of directory names inside the virtual store directory (node_modules/.pnpm).",
+      "type": "number"
+    },
+    "packageImportMethod": {
+      "description": "Controls the way packages are imported from the store (if you want to disable symlinks inside node_modules, then you need to change the nodeLinker setting, not this one).",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["auto", "hardlink", "copy", "clone", "clone-or-copy"]
+        }
+      ]
+    },
+    "modulesCacheMaxAge": {
+      "description": "The time in minutes after which orphan packages from the modules directory should be removed.",
+      "type": "number"
+    },
+    "dlxCacheMaxAge": {
+      "description": "The time in minutes after which dlx cache expires.",
+      "type": "number"
+    },
+    "storeDir": {
+      "description": "The location where all the packages are saved on the disk.",
+      "type": "string"
+    },
+    "verifyStoreIntegrity": {
+      "description": "By default, if a file in the store has been modified, the content of this file is checked before linking it to a project's node_modules. ",
+      "type": "boolean"
+    },
+    "strictStorePkgContentCheck": {
+      "description": "Some registries allow the exact same content to be published under different package names and/or versions. ",
+      "type": "boolean"
+    },
+    "enableGlobalVirtualStore": {
+      "description": "When enabled, node_modules contains only symlinks to a central virtual store, rather than to node_modules/.pnpm.",
+      "type": "boolean"
+    },
+    "lockfile": {
+      "description": "When set to false, pnpm won't read or generate a pnpm-lock.yaml file.",
+      "type": "boolean"
+    },
+    "preferFrozenLockfile": {
+      "description": "When set to true and the available pnpm-lock.yaml satisfies the package.json dependencies directive, a headless installation is performed.",
+      "type": "boolean"
+    },
+    "lockfileIncludeTarballUrl": {
+      "description": "Add the full URL to the package's tarball to every entry in pnpm-lock.yaml.",
+      "type": "boolean"
+    },
+    "gitBranchLockfile": {
+      "description": "When set to true, the generated lockfile name after installation will be named based on the current branch name to completely avoid merge conflicts.",
+      "type": "boolean"
+    },
+    "mergeGitBranchLockfilesBranchPattern": {
+      "description": "This configuration matches the current branch name to determine whether to merge all git branch lockfile files. ",
+      "type": ["array", "null"]
+    },
+    "peersSuffixMaxLength": {
+      "description": "Max length of the peer IDs suffix added to dependency keys in the lockfile. If the suffix is longer, it is replaced with a hash.",
+      "type": "number"
+    },
+    "registry": {
+      "description": "The base URL of the npm package registry (trailing slash included).",
+      "type": "string"
+    },
+    "ca": {
+      "description": "The Certificate Authority signing certificate that is trusted for SSL connections to the registry.",
+      "type": "string"
+    },
+    "cafile": {
+      "description": "A path to a file containing one or multiple Certificate Authority signing certificates.",
+      "type": "string"
+    },
+    "cert": {
+      "description": "A client certificate to pass when accessing the registry.",
+      "type": "string"
+    },
+    "key": {
+      "description": "A client key to pass when accessing the registry.",
+      "type": "string"
+    },
+    "gitShallowHosts": {
+      "description": "When fetching dependencies that are Git repositories, if the host is listed in this setting, pnpm will use shallow cloning to fetch only the needed commit, not all the history.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "httpsProxy": {
+      "description": "A proxy to use for outgoing HTTPS requests. If the HTTPS_PROXY, https_proxy, HTTP_PROXY or http_proxy environment variables are set, their values will be used instead.",
+      "type": "string"
+    },
+    "proxy": {
+      "description": "A proxy to use for outgoing http requests. If the HTTP_PROXY or http_proxy environment variables are set, proxy settings will be honored by the underlying request library.",
+      "type": "string"
+    },
+    "localAddress": {
+      "description": "The IP address of the local interface to use when making connections to the npm registry.",
+      "type": "string"
+    },
+    "maxsockets": {
+      "description": "The maximum number of connections to use per origin (protocol/host/port combination).",
+      "type": "number"
+    },
+    "noproxy": {
+      "description": "A comma-separated string of domain extensions that a proxy should not be used for.",
+      "type": "string"
+    },
+    "strictSsl": {
+      "description": "Whether or not to do SSL key validation when making requests to the registry via HTTPS.",
+      "type": "boolean"
+    },
+    "networkConcurrency": {
+      "description": "Controls the maximum number of HTTP(S) requests to process simultaneously.",
+      "type": "number"
+    },
+    "fetchRetries": {
+      "description": "How many times to retry if pnpm fails to fetch from the registry.",
+      "type": "number"
+    },
+    "fetchRetryFactor": {
+      "description": "The exponential factor for retry backoff.",
+      "type": "number"
+    },
+    "fetchRetryMintimeout": {
+      "description": "The minimum (base) timeout for retrying requests.",
+      "type": "number"
+    },
+    "fetchRetryMaxtimeout": {
+      "description": "The maximum fallback timeout to ensure the retry factor does not make requests too long.",
+      "type": "number"
+    },
+    "fetchTimeout": {
+      "description": "The maximum amount of time to wait for HTTP requests to complete.",
+      "type": "number"
+    },
+    "autoInstallPeers": {
+      "description": "When true, any missing non-optional peer dependencies are automatically installed.",
+      "type": "boolean"
+    },
+    "dedupePeerDependents": {
+      "description": "When this setting is set to true, packages with peer dependencies will be deduplicated after peers resolution.",
+      "type": "boolean"
+    },
+    "strictPeerDependencies": {
+      "description": "If this is enabled, commands will fail if there is a missing or invalid peer dependency in the tree.",
+      "type": "boolean"
+    },
+    "resolvePeersFromWorkspaceRoot": {
+      "description": "When enabled, dependencies of the root workspace project are used to resolve peer dependencies of any projects in the workspace.",
+      "type": "boolean"
+    },
+    "color": {
+      "description": "Controls colors in the output.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["always", "auto", "never"]
+        }
+      ]
+    },
+    "loglevel": {
+      "description": "Any logs at or higher than the given level will be shown. ",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"]
+        }
+      ]
+    },
+    "useBetaCli": {
+      "description": "Experimental option that enables beta features of the CLI.",
+      "type": "boolean"
+    },
+    "recursiveInstall": {
+      "description": "If this is enabled, the primary behaviour of pnpm install becomes that of pnpm install -r, meaning the install is performed on all workspace or subdirectory packages.",
+      "type": "boolean"
+    },
+    "engineStrict": {
+      "description": "If this is enabled, pnpm will not install any package that claims to not be compatible with the current Node version.",
+      "type": "boolean"
+    },
+    "npmPath": {
+      "description": "The location of the npm binary that pnpm uses for some actions, like publishing.",
+      "type": "string"
+    },
+    "packageManagerStrict": {
+      "description": "If this setting is disabled, pnpm will not fail if a different package manager is specified in the packageManager field of package.json. When enabled, only the package name is checked (since pnpm v9.2.0), so you can still run any version of pnpm regardless of the version specified in the packageManager field.",
+      "type": "boolean"
+    },
+    "packageManagerStrictVersion": {
+      "description": "When enabled, pnpm will fail if its version doesn't exactly match the version specified in the packageManager field of package.json.",
+      "type": "boolean"
+    },
+    "managePackageManagerVersions": {
+      "description": "When enabled, pnpm will automatically download and run the version of pnpm specified in the packageManager field of package.json.",
+      "type": "boolean"
+    },
+    "ignoreScripts": {
+      "description": "Do not execute any scripts defined in the project package.json and its dependencies.",
+      "type": "boolean"
+    },
+    "ignoreDepScripts": {
+      "description": "Do not execute any scripts of the installed packages. Scripts of the projects are executed.",
+      "type": "boolean"
+    },
+    "childConcurrency": {
+      "description": "The maximum number of child processes to allocate simultaneously to build node_modules.",
+      "type": "number"
+    },
+    "sideEffectsCache": {
+      "description": "Use and cache the results of (pre/post)install hooks.",
+      "type": "boolean"
+    },
+    "sideEffectsCacheReadonly": {
+      "description": "Only use the side effects cache if present, do not create it for new packages.",
+      "type": "boolean"
+    },
+    "unsafePerm": {
+      "description": "Set to true to enable UID/GID switching when running package scripts. If set explicitly to false, then installing as a non-root user will fail.",
+      "type": "boolean"
+    },
+    "nodeOptions": {
+      "description": "Options to pass through to Node.js via the NODE_OPTIONS environment variable.",
+      "type": "string"
+    },
+    "verifyDepsBeforeRun": {
+      "description": "This setting allows the checking of the state of dependencies before running scripts.",
+      "oneOf": [
+        {
+          "type": ["string", "boolean"],
+          "enum": ["install", "warn", "error", "prompt", false]
+        }
+      ]
+    },
+    "strictDepBuilds": {
+      "description": "When strictDepBuilds is enabled, the installation will exit with a non-zero exit code if any dependencies have unreviewed build scripts (aka postinstall scripts).",
+      "type": "boolean"
+    },
+    "useNodeVersion": {
+      "description": "Specifies which exact Node.js version should be used for the project's runtime.",
+      "type": "string"
+    },
+    "nodeVersion": {
+      "description": "The Node.js version to use when checking a package's engines setting.",
+      "type": "string"
+    },
+    "linkWorkspacePackages": {
+      "description": "If this is enabled, locally available packages are linked to node_modules instead of being downloaded from the registry.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string",
+          "enum": ["deep"]
+        }
+      ]
+    },
+    "injectWorkspacePackages": {
+      "description": "Enables hard-linking of all local workspace dependencies instead of symlinking them.",
+      "type": "boolean"
+    },
+    "syncInjectedDepsAfterScripts": {
+      "description": "Injected workspace dependencies are collections of hardlinks, which don't add or remove the files when their sources change.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "preferWorkspacePackages": {
+      "description": "If this is enabled, local packages from the workspace are preferred over packages from the registry, even if there is a newer version of the package in the registry.",
+      "type": "boolean"
+    },
+    "sharedWorkspaceLockfile": {
+      "description": "If this is enabled, pnpm creates a single pnpm-lock.yaml file in the root of the workspace.",
+      "type": "boolean"
+    },
+    "saveWorkspaceProtocol": {
+      "description": "This setting controls how dependencies that are linked from the workspace are added to package.json.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string",
+          "enum": ["rolling"]
+        }
+      ]
+    },
+    "includeWorkspaceRoot": {
+      "description": "When executing commands recursively in a workspace, execute them on the root workspace project as well.",
+      "type": "boolean"
+    },
+    "ignoreWorkspaceCycles": {
+      "description": "When set to true, no workspace cycle warnings will be printed.",
+      "type": "boolean"
+    },
+    "ignoreWorkspaceRootCheck": {
+      "description": "Adding a new dependency to the root workspace package fails, unless the --ignore-workspace-root-check or -w flag is used.",
+      "type": "boolean"
+    },
+    "disallowWorkspaceCycles": {
+      "description": "When set to true, installation will fail if the workspace has cycles.",
+      "type": "boolean"
+    },
+    "forceLegacyDeploy": {
+      "description": "By default, pnpm deploy will try creating a dedicated lockfile from a shared lockfile for deployment. If this setting is set to true, the legacy deploy behavior will be used.",
+      "type": "boolean"
+    },
+    "savePrefix": {
+      "description": "Configure how versions of packages installed to a package.json file get prefixed.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["^", "~", ""]
+        }
+      ]
+    },
+    "tag": {
+      "description": "If you pnpm add a package and you don't provide a specific version, then it will install the package at the version registered under the tag from this setting.",
+      "type": "string"
+    },
+    "globalDir": {
+      "description": "Specify a custom directory to store global packages.",
+      "type": "string"
+    },
+    "globalBinDir": {
+      "description": "Allows to set the target directory for the bin files of globally installed packages.",
+      "type": "string"
+    },
+    "stateDir": {
+      "description": "The location where all the packages are saved on the disk.",
+      "type": "string"
+    },
+    "cacheDir": {
+      "description": "The location of the cache (package metadata and dlx).",
+      "type": "string"
+    },
+    "useStderr": {
+      "description": "When true, all the output is written to stderr.",
+      "type": "boolean"
+    },
+    "updateNotifier": {
+      "description": "When true, pnpm will check for updates to the installed packages and notify the user.",
+      "type": "boolean"
+    },
+    "preferSymlinkedExecutables": {
+      "description": "Create symlinks to executables in node_modules/.bin instead of command shims. This setting is ignored on Windows, where only command shims work.",
+      "type": "boolean"
+    },
+    "ignoreCompatibilityDb": {
+      "description": "During installation the dependencies of some packages are automatically patched. If you want to disable this, set this config to false.",
+      "type": "boolean"
+    },
+    "resolutionMode": {
+      "description": "Determines how pnpm resolves dependencies, See https://pnpm.io/settings#resolutionmode",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["highest", "time-based", "lowest-direct"]
+        }
+      ]
+    },
+    "registrySupportsTimeField": {
+      "description": "Set this to true if the registry that you are using returns the \"time\" field in the abbreviated metadata.",
+      "type": "boolean"
+    },
+    "extendNodePath": {
+      "description": "When false, the NODE_PATH environment variable is not set in the command shims.",
+      "type": "boolean"
+    },
+    "deployAllFiles": {
+      "description": "When deploying a package or installing a local package, all files of the package are copied.",
+      "type": "boolean"
+    },
+    "dedupeDirectDeps": {
+      "description": "When set to true, dependencies that are already symlinked to the root node_modules directory of the workspace will not be symlinked to subproject node_modules directories.",
+      "type": "boolean"
+    },
+    "dedupeInjectedDeps": {
+      "description": "When this setting is enabled, dependencies that are injected will be symlinked from the workspace whenever possible.",
+      "type": "boolean"
+    },
+    "optimisticRepeatInstall": {
+      "description": "When enabled, a fast check will be performed before proceeding to installation. This way a repeat install or an install on a project with everything up-to-date becomes a lot faster.",
+      "type": "boolean"
+    },
+    "gitChecks": {
+      "description": "Check if current branch is your publish branch, clean, and up-to-date with remote.",
+      "type": "boolean"
+    },
+    "publishBranch": {
+      "description": "The primary branch of the repository which is used for publishing the latest changes.",
+      "type": "string"
+    },
+    "pnpmfile": {
+      "description": "The location of the local pnpmfile.",
+      "type": "string"
+    },
+    "globalPnpmfile": {
+      "description": "The location of a global pnpmfile. A global pnpmfile is used by all projects during installation.",
+      "type": "string"
+    },
+    "ignorePnpmfile": {
+      "description": ".pnpmfile.cjs will be ignored. Useful together with --ignore-scripts when you want to make sure that no script gets executed during install.",
+      "type": "boolean"
+    },
+    "patchesDir": {
+      "description": "The generated patch file will be saved to this directory.",
+      "type": "string"
+    },
+    "enablePrePostScripts": {
+      "description": "When true, pnpm will run any pre/post scripts automatically.",
+      "type": "boolean"
+    },
+    "scriptShell": {
+      "description": "The shell to use for scripts run with the pnpm run command.",
+      "type": "string"
+    },
+    "shellEmulator": {
+      "description": "When true, pnpm will use a JavaScript implementation of a bash-like shell to execute scripts.",
+      "type": "boolean"
+    },
+    "saveExact": {
+      "description": "Saved dependencies will be configured with an exact version rather than using pnpm's default semver range operator.",
+      "type": "boolean"
+    },
+    "minimumReleaseAge": {
+      "description": "minimumReleaseAge defines the minimum number of minutes that must pass after a version is published before pnpm will install it. This applies to all dependencies, including transitive ones.",
+      "type": "number"
+    },
+    "minimumReleaseAgeExclude": {
+      "description": "If you set `minimumReleaseAge` but need certain dependencies to always install the newest version immediately, you can list them under `minimumReleaseAgeExclude`. The exclusion works by `package name` and applies to all versions of that package.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "preferOffline": {
+      "description": "Bypass staleness checks for cached data. Missing data will still be requested from the server.",
+      "type": "boolean"
     }
   },
-  "additionalProperties": false,
-  "required": ["packages"]
+  "additionalProperties": false
 }

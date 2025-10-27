@@ -1,0 +1,324 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/claude-code-settings.json",
+  "$defs": {
+    "hookCommand": {
+      "type": "object",
+      "description": "Hook command configuration",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of hook implementation",
+          "const": "command"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Optional timeout in seconds for this specific command",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "hookMatcher": {
+      "type": "object",
+      "description": "Hook matcher configuration with multiple hooks",
+      "additionalProperties": false,
+      "required": ["hooks"],
+      "properties": {
+        "matcher": {
+          "type": "string",
+          "description": "Optional pattern to match tool names, case-sensitive (only applicable for PreToolUse and PostToolUse)"
+        },
+        "hooks": {
+          "type": "array",
+          "description": "Array of hooks to execute",
+          "items": {
+            "$ref": "#/$defs/hookCommand"
+          }
+        }
+      }
+    },
+    "permissionRule": {
+      "type": "string",
+      "description": "Tool permission rule",
+      "pattern": "^((Bash|BashOutput|Edit|ExitPlanMode|Glob|Grep|KillShell|NotebookEdit|Read|SlashCommand|Task|TodoWrite|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "examples": [
+        "Bash(git commit:*)",
+        "Bash(npm run lint:*)",
+        "Edit(/src/**/*.ts)",
+        "mcp__github__search_repositories",
+        "Read(*.env)",
+        "Read(//Users/alice/secrets/**)",
+        "Read(~/Documents/*.pdf)",
+        "WebFetch",
+        "WebFetch(domain:github.com)",
+        "Read(//tmp/**/*)"
+      ]
+    }
+  },
+  "description": "Configuration file for Claude Code CLI settings",
+  "allowTrailingCommas": true,
+  "additionalProperties": true,
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The schema for the settings.json file"
+    },
+    "apiKeyHelper": {
+      "type": "string",
+      "description": "Custom script path to generate an auth value",
+      "minLength": 1,
+      "examples": ["/bin/generate_temp_api_key.sh"]
+    },
+    "cleanupPeriodDays": {
+      "type": "integer",
+      "description": "How long to locally retain chat transcripts (in days)",
+      "default": 30,
+      "minimum": 0,
+      "examples": [20, 30, 60]
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment variables applied to every session",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Z_][A-Z0-9_]*$": {
+          "type": "string",
+          "description": "Environment variable value"
+        }
+      },
+      "default": {},
+      "examples": [
+        {
+          "ANTHROPIC_MODEL": "claude-opus-4-1",
+          "ANTHROPIC_SMALL_FAST_MODEL": "claude-3-5-haiku-latest"
+        }
+      ]
+    },
+    "includeCoAuthoredBy": {
+      "type": "boolean",
+      "description": "Include 'co-authored-by Claude' byline in git commits and pull requests",
+      "default": true
+    },
+    "model": {
+      "type": "string",
+      "description": "Deprecated: use env.ANTHROPIC_MODEL and env.ANTHROPIC_SMALL_FAST_MODEL instead. Either \"sonnet\", \"opus\", or a specific Claude model ID (see https://docs.anthropic.com/en/docs/about-claude/models/overview)"
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Tool permissions",
+      "additionalProperties": false,
+      "examples": [
+        {
+          "allow": ["Bash(git add:*)"],
+          "ask": ["Bash(gh pr create:*)", "Bash(git commit:*)"],
+          "deny": ["Read(*.env)", "Bash(rm:*)", "Bash(curl:*)"],
+          "defaultMode": "default"
+        }
+      ],
+      "properties": {
+        "allow": {
+          "type": "array",
+          "description": "List of allowed tool permission rules",
+          "items": { "$ref": "#/$defs/permissionRule" },
+          "uniqueItems": true
+        },
+        "ask": {
+          "type": "array",
+          "description": "List of ask tool permission rules",
+          "items": { "$ref": "#/$defs/permissionRule" },
+          "uniqueItems": true
+        },
+        "deny": {
+          "type": "array",
+          "description": "List of denied tool permission rules",
+          "items": { "$ref": "#/$defs/permissionRule" },
+          "uniqueItems": true
+        },
+        "defaultMode": {
+          "type": "string",
+          "description": "Default permission mode for tool execution",
+          "enum": ["acceptEdits", "bypassPermissions", "default", "plan"]
+        },
+        "disableBypassPermissionsMode": {
+          "type": "string",
+          "description": "Disable bypass permissions mode",
+          "const": "disable"
+        },
+        "additionalDirectories": {
+          "type": "array",
+          "description": "Paths to additional directories Claude can access beyond the working directory",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "examples": [["//Users/alice/Documents", "~/projects"]]
+        }
+      }
+    },
+    "enableAllProjectMcpServers": {
+      "type": "boolean",
+      "description": "Whether to automatically approve all MCP servers in the project",
+      "examples": [true]
+    },
+    "enabledMcpjsonServers": {
+      "type": "array",
+      "description": "List of allowed MCP servers from .mcp.json",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "examples": [["memory", "github"]]
+    },
+    "disabledMcpjsonServers": {
+      "type": "array",
+      "description": "List of denied MCP servers from .mcp.json",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "examples": [["filesystem"]]
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Hooks configuration for executing commands at specific points in Claude Code's lifecycle",
+      "additionalProperties": false,
+      "examples": [
+        {
+          "PostToolUse": [
+            {
+              "matcher": "Edit|Write",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "prettier --write",
+                  "timeout": 5
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "PreToolUse": {
+          "type": "array",
+          "description": "Hooks that run before tool calls",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "PostToolUse": {
+          "type": "array",
+          "description": "Hooks that run after tool completion",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "Notification": {
+          "type": "array",
+          "description": "Hooks that trigger on notifications",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "UserPromptSubmit": {
+          "type": "array",
+          "description": "Hooks that run when a user submits a prompt",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "Stop": {
+          "type": "array",
+          "description": "Hooks that run when agents finish responding",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "SubagentStop": {
+          "type": "array",
+          "description": "Hooks that run when subagents finish responding",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "PreCompact": {
+          "type": "array",
+          "description": "Hooks that run before the context is compacted",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "SessionStart": {
+          "type": "array",
+          "description": "Hooks that run when a new session starts",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        },
+        "SessionEnd": {
+          "type": "array",
+          "description": "Hooks that run when a session ends",
+          "items": { "$ref": "#/$defs/hookMatcher" }
+        }
+      }
+    },
+    "forceLoginMethod": {
+      "type": "string",
+      "description": "Force a specific login method, and skip the login method selection screen",
+      "enum": ["claudeai", "console"],
+      "examples": ["claudeai"]
+    },
+    "disableAllHooks": {
+      "type": "boolean",
+      "description": "Disable all hooks"
+    },
+    "spinnerTipsEnabled": {
+      "type": "boolean",
+      "description": "Whether to show tips in the spinner"
+    },
+    "alwaysThinkingEnabled": {
+      "type": "boolean",
+      "description": "Whether extended thinking is always enabled (default: false)"
+    },
+    "statusLine": {
+      "type": "object",
+      "description": "Custom status line configuration",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "command"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute to generate the status line",
+          "minLength": 1
+        },
+        "padding": {
+          "type": "number",
+          "description": "Optional padding for the status line"
+        }
+      },
+      "required": ["type", "command"],
+      "examples": [{ "type": "command", "command": "~/.claude/statusline.sh" }]
+    },
+    "outputStyle": {
+      "type": "string",
+      "description": "The output style to use (case-sensitive). Can be 'default', 'Explanatory', 'Learning', or a custom style name.",
+      "minLength": 1,
+      "examples": ["default", "Explanatory", "Learning"]
+    },
+    "forceLoginOrgUUID": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Force login with a specific organization UUID",
+      "minLength": 1,
+      "examples": ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
+    },
+    "awsAuthRefresh": {
+      "type": "string",
+      "description": "Command to refresh AWS credentials.",
+      "minLength": 1,
+      "examples": ["aws sso login --profile myprofile"]
+    },
+    "awsCredentialExport": {
+      "type": "string",
+      "description": "Command to export AWS credentials as JSON.",
+      "minLength": 1,
+      "examples": ["/bin/generate_aws_grant.sh"]
+    }
+  }
+}

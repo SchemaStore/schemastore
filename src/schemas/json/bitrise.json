@@ -48,7 +48,7 @@
     "BitriseDataModel": {
       "anyOf": [
         { "required": ["format_version"] },
-        { "required": ["includes"] }
+        { "required": ["include"] }
       ],
       "properties": {
         "format_version": {
@@ -134,7 +134,13 @@
           },
           "type": "object"
         },
-        "includes": {
+        "tools": {
+          "$ref": "#/definitions/ToolsModel"
+        },
+        "tool_config": {
+          "$ref": "#/definitions/ToolConfigModel"
+        },
+        "include": {
           "items": {
             "$ref": "#/definitions/IncludeItemModel"
           },
@@ -286,6 +292,9 @@
             }
           },
           "type": "object"
+        },
+        "priority": {
+          "$ref": "#/definitions/PriorityModel"
         }
       },
       "additionalProperties": false,
@@ -308,6 +317,15 @@
         },
         "run_if": {
           "$ref": "#/definitions/GraphPipelineWorkflowRunIfModel"
+        },
+        "parallel": {
+          "oneOf": [{ "type": "integer" }, { "type": "string" }]
+        },
+        "uses": {
+          "type": "string"
+        },
+        "inputs": {
+          "$ref": "#/definitions/EnvModel"
         }
       },
       "additionalProperties": false,
@@ -456,6 +474,37 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "ToolsModel": {
+      "description": "Mapping of tool IDs to versions to set up. Version syntax supports exact versions (e.g. '1.2.3'), partial matches to the latest release (e.g. '22:latest'), partial matches to installed versions (e.g. '1.2:installed'), as well as the special aliases 'latest' and 'installed' to select the highest respective version.",
+      "patternProperties": {
+        ".*": {
+          "type": "string",
+          "description": "Tool version to set up. Version syntax supports exact versions (e.g. '1.2.3'), partial matches to the latest release (e.g. '22:latest'), partial matches to installed versions (e.g. '1.2:installed'), as well as the special aliases 'latest' and 'installed' to select the highest respective version."
+        }
+      },
+      "type": "object"
+    },
+    "ToolConfigModel": {
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Tool provider to use for setup. Defaults to 'asdf' if not specified.",
+          "enum": ["asdf", "mise"]
+        },
+        "extra_plugins": {
+          "description": "Additional tool plugins beyond Bitrise's vetted and tested integrations for common tools. Maps tool IDs to asdf plugin repository URLs.",
+          "patternProperties": {
+            ".*": {
+              "type": "string",
+              "format": "uri",
+              "description": "URL to the plugin source repository (git clone URL)"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "TriggersModel": {
       "properties": {
         "enabled": {
@@ -483,10 +532,41 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "PushTriggerMapItemModelCommitsCondition": {
+      "oneOf": [
+        {
+          "required": ["pattern"],
+          "properties": {
+            "pattern": {
+              "type": "string"
+            },
+            "last_commit": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "required": ["regex"],
+          "properties": {
+            "regex": {
+              "type": "string"
+            },
+            "last_commit": {
+              "type": "boolean"
+            }
+          }
+        }
+      ],
+      "additionalProperties": false,
+      "type": "object"
+    },
     "PushTriggerModel": {
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "priority": {
+          "$ref": "#/definitions/PriorityModel"
         },
         "branch": {
           "oneOf": [
@@ -496,13 +576,13 @@
         },
         "commit_message": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/PushTriggerMapItemModelCommitsCondition" },
             { "type": "string" }
           ]
         },
         "changed_files": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/PushTriggerMapItemModelCommitsCondition" },
             { "type": "string" }
           ]
         }
@@ -514,6 +594,9 @@
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "priority": {
+          "$ref": "#/definitions/PriorityModel"
         },
         "draft_enabled": {
           "type": "boolean"
@@ -562,6 +645,9 @@
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "priority": {
+          "$ref": "#/definitions/PriorityModel"
         },
         "name": {
           "oneOf": [
@@ -701,10 +787,11 @@
         "steps": {
           "items": {
             "patternProperties": {
-              ".*": {
+              "^(?!bundle::)(?!with$).*": {
                 "$ref": "#/definitions/StepModel"
               }
             },
+            "additionalProperties": false,
             "type": "object"
           },
           "type": "array"
@@ -763,13 +850,20 @@
               "^with$": {
                 "$ref": "#/definitions/WithModel"
               },
-              ".*": {
+              "^(?!bundle::)(?!with$).*": {
                 "$ref": "#/definitions/StepModel"
               }
             },
+            "additionalProperties": false,
             "type": "object"
           },
           "type": "array"
+        },
+        "priority": {
+          "$ref": "#/definitions/PriorityModel"
+        },
+        "tools": {
+          "$ref": "#/definitions/ToolsModel"
         },
         "meta": {
           "patternProperties": {
@@ -785,16 +879,32 @@
     },
     "StepBundleModel": {
       "properties": {
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
         "envs": {
+          "$ref": "#/definitions/EnvModel"
+        },
+        "inputs": {
           "$ref": "#/definitions/EnvModel"
         },
         "steps": {
           "items": {
             "patternProperties": {
-              ".*": {
+              "^bundle::.+": {
+                "$ref": "#/definitions/StepBundleOverrideModel"
+              },
+              "^(?!bundle::)(?!with$).*": {
                 "$ref": "#/definitions/StepModel"
               }
             },
+            "additionalProperties": false,
             "type": "object"
           },
           "type": "array"
@@ -805,7 +915,19 @@
     },
     "StepBundleOverrideModel": {
       "properties": {
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
         "envs": {
+          "$ref": "#/definitions/EnvModel"
+        },
+        "inputs": {
           "$ref": "#/definitions/EnvModel"
         }
       },
@@ -834,6 +956,11 @@
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "PriorityModel": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": -100
     }
   }
 }

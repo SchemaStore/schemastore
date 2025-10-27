@@ -12,6 +12,7 @@
     - [Undocumented Features](#undocumented-features)
     - [Deprecated Features](#deprecated-features)
     - [API Compatibility](#api-compatibility)
+    - [Documenting Enums](#documenting-enums)
   - [Language Server Features](#language-server-features)
     - [Non-standard Properties](#non-standard-properties)
   - [Using the `CODEOWNERS` file](#using-the-codeowners-file)
@@ -20,9 +21,11 @@
   - [Ajv non-strict mode](#ajv-non-strict-mode)
   - [SchemaSafe](#schemasafe)
 - [About `catalog.json`](#about-catalogjson)
+  - [Avoiding Generic `fileMatch` patterns](#avoid-generic-filematch-patterns)
 - [Compatible Language Servers and Tools](#compatible-language-servers-and-tools)
   - [`redhat-developer/yaml-language-server`](#redhat-developeryaml-language-server)
   - [`tamasfe/taplo`](#tamasfetaplo)
+  - [`tombi-toml/tombi`](#tombi-toml-tombi)
   - [`Microsoft/vscode-json-languageservice`](#microsoftvscode-json-languageservice)
   - [Other](#other)
 - [Troubleshooting](#troubleshooting)
@@ -58,13 +61,13 @@ There are various ways you can contribute:
   - Add positive/negative tests
   - Refactor to pass under strict mode
 
-Most people want to add a new schema. For steps on how to do this, read the [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository) section below.
+Most people want to add a new schema. For steps on how to do this, read the [How to add a JSON Schema that's hosted in this repository](#how-to-add-a-json-schema-thats-hosted-in-this-repository) section below. Find instructions for other tasks under the [How To](#how-to) section.
 
 If you want to contribute, but not sure what needs fixing, see the [help wanted](https://github.com/SchemaStore/schemastore/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22help+wanted%22) and [good first issue](https://github.com/SchemaStore/schemastore/issues?q=is%3Aopen+label%3A%22good+first+issue%22+sort%3Aupdated-desc) labels on GitHub.
 
 ## Overview
 
-Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs use this field to know which files the schema should be used for (in autocompletion).
+Schema files are located in `src/schemas/json`. Each schema file has a corresponding entry in the [Schema Catalog](src/api/json/catalog.json). Each catalog entry has a `fileMatch` field. IDEs and language servers use this field to know which files the schema should be used for (in autocompletion).
 
 Some schema files have associated positive and negative tests, located at `src/test` and `src/negative_test`, respectively. These tests may be in JSON, YAML, or TOML format.
 
@@ -88,51 +91,52 @@ The goal of JSON Schemas in this repository is to correctly validate schemas tha
 
 ### Best practices
 
-✔️ **Use** the most recent JSON Schema version (specified by `$schema`) that's widely supported by editors and IDEs. Currently, the best supported version is `draft-07`. Later versions of JSON Schema are not recommended for use in SchemaStore until editor/IDE support improves for those versions.
-
-✔️ **Use** [`base.json`][base] schema for `draft-07` and [`base-04.json`][base-04] for `draft-04` with some common types for all schemas.
-
-There is an [unofficial draft-07][draft-07-unofficial-strict] schema that uses JSON Schema to validate your JSON Schema. It checks that:
-
-- `type`, `title`, `description` properties are required
-- There are no empty arrays. For instance, it's impossible to write less than 2 sub-schemas for `allOf`
-- `type` can't be an array, which is intentional, `anyOf`/`oneOf` should be used in this case
-- It links to [understanding-json-schema](https://json-schema.org/understanding-json-schema/index.html) for each hint/check
-
-To check your schema against that schema, use `node cli.js check-strict --schema-name=<schemaName.json>`.
+- We recommend using the `draft-07` JSON schema version. Later versions of JSON Schema are not yet recommended for use in SchemaStore until IDE and language support improves for those versions.
 
 ❌ **Don't forget** add test files.
 
-- Always be consistent across your schema: order properties and describe in the same style.
-- Always use `description`, `type`, `additionalProperties`.
-  - Always set `additionalProperties` to `false` unless documentation permits
-    additional properties explicitly. That tool the JSON schema is created for
-    can be changed in the future to allow wrong extra properties.
-- Don't end `title`/`description` values with colon.
-- Always omit leading articles for `title`-s and trailing punctuation to make
-  expected object values look more like types in programming languages. Also
-  start `title`-s with a lowercase letter and try use nouns for titles instead of sentences.
-- Always add documentation url to descriptions when available in the following
-  format: `<description>\n<url>` like `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`.
+### Useful Conventions
+
+- Consider using documentation URLs in `"description"` to improve UX. Most schemas use the format `<description>\n<url>`. For example: `"Whether to ignore a theme configuration for the current site\nhttps://jekyllrb.com/docs/configuration/options/#global-configuration"`
+- When writing `description`, avoid phrases like "there are three possibilities" and "valid values are" in favor of adding the constraints to the schema directly.
+- If you choose to use `title`, we recommend formatting it so that object values look like types in programming languages. This includes:
+  - Omitting leading articles and trailing punctuation
+  - Beginning it with a lowercase letter
+  - Using nouns instead of sentences
 
 [base]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base.json
 [base-04]: https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/base-04.json
-[draft-07-unofficial-strict]: https://json.schemastore.org/metaschema-draft-07-unofficial-strict.json
 
 #### Avoiding Overconstraint
+
+##### Complexity
 
 Sometimes, constraints do more harm than good. For example, [cron strings](http://pubs.opengroup.org/onlinepubs/7908799/xcu/crontab.html) validation regexes. In general, do not add a constraint if:
 
 - false positives are likely (due to their complexity or abundance of implementations)
 - its error message is too confusing or not helpful
 
-So, do not add regex patterns for any of the following:
+So, we recommend avoiding regex patterns for:
 
 - cron regexes
 - string-embedded DSLs
 - SSH URLs, HTTPS URLs, and other complex URIs
 
-In addition, be wary when adding exhaustive support to enum-type fields. Often, when applications expand support (thus expanding the set of allowable enums), the schema will become invalid.
+##### Enums
+
+Be wary when adding exhaustive support to enum-type fields (without a `"type": "string"` fallback). Keep in mind:
+
+- New enum values that are supported by a new tool version (and not yet added to SchemaStore) should _not_ error
+- The schema may be extended by a tool that you have no knowledge of
+
+##### Properties
+
+Do not blindly add `"additionalProperties": false`. Keep in mind that:
+
+- New properties that are supported by a new tool version (and not yet added to SchemaStore) should _not_ error
+- The schema may be extended by a tool that you have no knowledge of
+
+It is recognized that stricter checking may be desired, as in the case of checking for typos. In that case, check to see if your validator has an option for stronger checks. For example, [Tombi](https://tombi-toml.github.io/tombi) enables a [strict mode](https://tombi-toml.github.io/tombi/docs/json-schema#strict-mode) by default.
 
 #### Undocumented Features
 
@@ -191,7 +195,7 @@ Note that JSON Schema draft `2019-09` adds support for a `deprecated` field:
 }
 ```
 
-While this would be the best option, most schemas in this repository are `draft-07`. As a result, _Editors and IDEs may not use it_.
+While this would be the best option, most schemas in this repository are `draft-07`. As a result, _IDEs and language servers may not use it_.
 
 #### API Compatibility
 
@@ -220,6 +224,49 @@ validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel
 This means that renames in subschema paths is a potentially a breaking change. However, it needs to be possible to refactor internal schema structures.
 
 It is okay when refactoring the subschema to a location under `$defs` or `definitions`. Otherwise, use your best judgement. If a rename is necessary, it is recommended to keep the old path and `$ref` to the new location, if possible.
+
+#### Documenting Enums
+
+There are several ways to document enums. It is recommended to use [this solution](https://github.com/json-schema-org/json-schema-spec/issues/57#issuecomment-247861695):
+
+```json
+{
+  "oneOf": [
+    { "const": "foo", "description": "Description foo" },
+    { "const": "bar", "description": "Description bar" }
+  ]
+}
+```
+
+It is also possible to use `x-intellij-enum-metadata`:
+
+```json
+{
+  "enum": ["foo", "bar"],
+  "x-intellij-enum-metadata": {
+    "foo": {
+      "description": "Description foo"
+    },
+    "bar": {
+      "description": "Description bar"
+    }
+  }
+}
+```
+
+Or, `enumDescriptions`:
+
+```json
+{
+  "enum": ["foo", "bar"]
+  "enumDescriptions": [
+    "Description foo",
+    "Description bar"
+  ]
+}
+```
+
+The latter two approaches are not recommended because they use editor-specific, non-standard properties. See [Non-standard Properties](#non-standard-properties) for details.
 
 ### Language Server Features
 
@@ -251,6 +298,14 @@ Used by: `vscode-json-languageservice`.
 
 Used by: `vscode-json-languageservice`.
 
+**`enumDescriptions`**
+
+Used by: `vscode-json-languageservice`. See [Documenting Enums](#documenting-enums) for details.
+
+**`markdownEnumDescriptions`**
+
+Used by: `vscode-json-languageservice`. See [Documenting Enums](#documenting-enums) for details.
+
 **`x-taplo`**
 
 Used by: `tamasfe/taplo`.
@@ -258,6 +313,30 @@ Used by: `tamasfe/taplo`.
 **`x-taplo-info`**
 
 Used by: `tamasfe/taplo`.
+
+**`x-tombi-toml-version`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-toml-version) for details.
+
+**`x-tombi-array-values-order`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-array-values-order) for details.
+
+**`x-tombi-array-values-order-by`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-array-values-order-by) for details.
+
+**`x-tombi-table-keys-order`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-table-keys-order) for details.
+
+**`x-tombi-string-formats`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-string-formats) for details.
+
+**`x-tombi-additional-key-label`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-additional-key-label) for details.
 
 **`x-intellij-language-injection`**
 
@@ -269,7 +348,7 @@ Used by Intellij.
 
 **`x-intellij-enum-metadata`**
 
-Used by Intellij.
+Used by Intellij. See [Documenting Enums](#documenting-enums) for details.
 
 ### Using the `CODEOWNERS` file
 
@@ -306,11 +385,12 @@ To actually run the validation checks, see [How to validate a JSON Schema](#how-
 
 ## About `catalog.json`
 
-The `catalog.json` file is generally used by editors and extensions to determine which schemas apply to what files. Specifically:
+The `catalog.json` file is generally used by IDEs and language servers to determine which schemas apply to what files. Specifically:
 
 - VSCode ignores this file [see issue](https://github.com/microsoft/vscode/issues/26289)
 - [RedHat's YAML language server](#redhat-developeryaml-language-server) uses this file ([see configuration](https://github.com/redhat-developer/vscode-yaml/blob/41e0be736f2d07cdf7489e1c1c591b35b990e096/package.json#L176))
 - [Taplo TOML language server](#tamasfetaplo) uses this file (see [this](https://github.com/tamasfe/taplo/blob/2e01e8cca235aae3d3f6d4415c06fd52e1523934/editors/vscode/package.json#L240) and [this](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml))
+- [Tombi: TOML language server](#tombi-tomltombi) uses this file (see [this](https://tombi-toml.github.io/tombi/docs/configuration))
 
 Sometimes, `catalog.json` is interpreted differently:
 
@@ -319,6 +399,32 @@ Sometimes, `catalog.json` is interpreted differently:
   - See the [schemastore issue](https://github.com/SchemaStore/schemastore/pull/3982) issue for more info
 
 And, generally, if a software supports multiple formats, stick with configuration file formats like JSON and avoid JavaScript. See [this](https://github.com/SchemaStore/schemastore/pull/3989) issue.
+
+### Avoid Generic `fileMatch` Patterns
+
+When adding glob patterns to `fileMatch` so language servers can auto-apply schemas, avoid adding generic patterns. For example, [Hugo](https://gohugo.io) used to use `config.toml`:
+
+```jsonc
+{
+  "name": "Hugo",
+  "description": "Hugo static site generator config file",
+  "fileMatch": ["config.toml"], // Avoid generic patterns.
+  "url": "https://json.schemastore.org/hugo.json",
+}
+```
+
+This would not be accepted because the file detection would have too many false positives, conflicting with other frameworks and personal configurations. There are several ways to fix this:
+
+- Modify the tool to read from a more specific file (Hugo [now reads](https://github.com/gohugoio/hugo/issues/8979) from `hugo.toml` as well)
+- Omit `fileMatch` or set it to an empty array (which still allows the user to manually select it)
+- Prepend a directory name to the pattern (e.g. `"**/micro/runtime/syntax/*.yaml"`)
+
+### Use Simple `fileMatch` Patterns
+
+Glob implementations vary in their support of various pattern constructs.
+Lean towards keeping it simple rather than concise.
+
+For example, `{...}` alternations and some extended glob constructs can be written as multiple "simple" patterns instead.
 
 ## Compatible Language Servers and Tools
 
@@ -330,6 +436,11 @@ And, generally, if a software supports multiple formats, stick with configuratio
 
 - Used by VSCode's [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
 - More information [here](https://taplo.tamasfe.dev/configuration/developing-schemas.html)
+
+### [`tombi-toml/tombi`](https://github.com/tombi-toml/tombi)
+
+- Used by VSCode's [Tombi extension](https://marketplace.visualstudio.com/items?itemName=tombi-toml.tombi)
+- More information [here](https://tombi-toml.github.io/tombi)
 
 ### [`Microsoft/vscode-json-languageservice`](https://github.com/Microsoft/vscode-json-languageservice)
 
@@ -381,15 +492,14 @@ To fix this, run the formatter manually:
 npm run prettier:fix
 ```
 
-Note this will also format the following files:
+To run Prettier on specific files, run:
 
-```sh
-$ git status --short
-M src/test/prettierrc/.prettierrc.yml
-M src/test/prettierrc/prettierrc.json
+```console
+# Run on a schema file
+./node_modules/.bin/prettier --config .prettierrc.cjs --ignore-path .gitignore --write src/schemas/json/<schemaName.json>
+# Run on test files
+./node_modules/.bin/prettier --config .prettierrc.cjs --ignore-path .gitignore --write src/test/<schemaName>/
 ```
-
-_Do not_ add those two files; pre-commit.ci seems to have issue with them. (Undo modifications to those files by unstaging them and running `git restore -- 'src/test/prettierrc/*'`)
 
 ## How-to
 
@@ -536,6 +646,7 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 - In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
 - Within [schema-validation.jsonc](./src/schema-validation.jsonc), in `"options": []`, add an entry:
   `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
+  - Note that all transitive schemas must be specified in `externalSchema`
 
 ### How to add a `$ref` to a JSON Schema that's self-hosted
 
