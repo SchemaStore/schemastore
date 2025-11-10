@@ -322,6 +322,10 @@ Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/
 
 Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-array-values-order) for details.
 
+**`x-tombi-array-values-order-by`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-array-values-order-by) for details.
+
 **`x-tombi-table-keys-order`**
 
 Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-table-keys-order) for details.
@@ -329,6 +333,10 @@ Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/
 **`x-tombi-string-formats`**
 
 Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-string-formats) for details.
+
+**`x-tombi-additional-key-label`**
+
+Used by: `tombi-toml/tombi`. See [this](https://tombi-toml.github.io/tombi/docs/json-schema#x-tombi-additional-key-label) for details.
 
 **`x-intellij-language-injection`**
 
