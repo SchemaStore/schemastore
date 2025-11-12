@@ -3,26 +3,41 @@
   "$id": "https://json.schemastore.org/partial-pytest.json",
   "description": "JSON schema for pytest configuration options under `[tool.pytest]` in `pyproject.toml`.",
   "type": "object",
-  "properties": {
-    "ini_options": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/IniOptions"
-        },
-        {
-          "$ref": "#/definitions/IniOptionsAsyncio"
-        }
-      ],
-      "title": "Bridge Configuration Options for `pytest.ini` File",
-      "description": "The `ini_options` table is used as a bridge between the existing `pytest.ini` configuration system and future configuration formats. `pytest.ini` takes precedence over `[tool.pytest.ini_options]` in `pyproject.toml`."
-    }
-  },
-  "additionalProperties": false,
   "x-tombi-table-keys-order": "schema",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/LegacyConfig"
+    },
+    {
+      "$ref": "#/definitions/Config"
+    }
+  ],
   "definitions": {
-    "IniOptions": {
-      "$comment": "additionalProperties is true because the schema is merged with other schemas",
+    "LegacyConfig": {
+      "description": "Legacy configuration using ini_options table (pytest <9)",
       "type": "object",
+      "deprecated": true,
+      "properties": {
+        "ini_options": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/IniOptionsPytest"
+            },
+            {
+              "$ref": "#/definitions/IniOptionsAsyncio"
+            }
+          ],
+          "title": "Bridge Configuration Options for `pytest.ini` File",
+          "description": "The `ini_options` table is used as a bridge between the existing `pytest.ini` configuration system and future configuration formats. `pytest.ini` takes precedence over `[tool.pytest.ini_options]` in `pyproject.toml`."
+        }
+      },
+      "required": ["ini_options"],
+      "additionalProperties": false,
+      "x-tombi-table-keys-order": "schema"
+    },
+    "IniOptionsPytest": {
+      "type": "object",
+      "deprecated": true,
       "properties": {
         "addopts": {
           "oneOf": [
@@ -36,18 +51,25 @@
               "type": "string"
             }
           ],
-          "description": "Extra command line options to be added by default.",
+          "description": "Add the specified OPTS to the set of command line arguments as if they had been specified by the user.",
           "x-tombi-array-values-order": "ascending"
         },
         "cache_dir": {
           "type": "string",
-          "description": "Sets directory for cache plugin. Can include environment variables.",
+          "description": "Sets the directory where the cache plugin's content is stored.",
           "default": ".pytest_cache"
         },
+        "collect_imported_tests": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Settings this to false will make pytest collect classes/functions from test files _only_ if they are defined in that file (as opposed to imported there).",
+          "default": "true"
+        },
         "consider_namespace_packages": {
-          "type": "boolean",
-          "description": "Controls whether pytest attempts to identify namespace packages.",
-          "default": false
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Controls if pytest should attempt to identify namespace packages when collecting Python modules.",
+          "default": "false"
         },
         "console_output_style": {
           "type": "string",
@@ -55,14 +77,21 @@
             "classic",
             "progress",
             "progress-even-when-capture-no",
-            "count"
+            "count",
+            "times"
           ],
           "description": "Sets console output style during test execution.",
           "default": "progress"
         },
+        "disable_test_id_escaping_and_forfeit_all_rights_to_community_support": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "pytest by default escapes any non-ascii characters used in unicode strings for the parametrization because it has several downsides. If however you would like to use unicode strings in parametrization and see them in the terminal as is (non-escaped), use this option in your configuration file",
+          "default": "false"
+        },
         "doctest_encoding": {
           "type": "string",
-          "description": "Sets default encoding for doctest files."
+          "description": "Default encoding to use to decode text files with docstrings."
         },
         "doctest_optionflags": {
           "oneOf": [
@@ -76,18 +105,31 @@
               "type": "string"
             }
           ],
-          "description": "Specifies doctest flag names from the `doctest` module.",
+          "description": "One or more doctest flag names from the standard doctest module.",
           "x-tombi-array-values-order": "ascending"
         },
         "empty_parameter_set_mark": {
           "type": "string",
           "enum": ["skip", "xfail", "fail_at_collect"],
-          "description": "Defines behavior for empty parameter sets in parameterization.",
+          "description": "Allows to pick the action for empty parametersets in parameterization.",
           "default": "skip"
         },
+        "enable_assertion_pass_hook": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Enables the pytest_assertion_pass hook. Make sure to delete any previously generated .pyc cache files.",
+          "default": "false"
+        },
+        "faulthandler_exit_on_timeout": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Exit the pytest process after the per-test timeout is reached by passing exit=True to the faulthandler.dump_traceback_later() function. This is particularly useful to avoid wasting CI resources for test suites that are prone to putting the main Python interpreter into a deadlock state.",
+          "default": "false"
+        },
         "faulthandler_timeout": {
-          "type": "integer",
-          "description": "Sets timeout in seconds for dumping the traceback of all threads if a test takes too long."
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Dumps the tracebacks of all threads if a test takes longer than X seconds to run (including fixture setup and teardown). Implemented using the faulthandler.dump_traceback_later() function, so all caveats there apply."
         },
         "filterwarnings": {
           "oneOf": [
@@ -101,97 +143,101 @@
               "type": "string"
             }
           ],
-          "description": "Sets action to take for matching warnings. Each item is a warning specification string.",
+          "description": "Sets a list of filters and actions that should be taken for matched warnings. By default all warnings emitted during the test session will be displayed in a summary at the end of the test session.",
           "x-tombi-array-values-order": "ascending"
         },
         "junit_duration_report": {
           "type": "string",
           "enum": ["total", "call"],
-          "description": "Sets how to record test durations in JUnit XML report.",
+          "description": "Configures how durations are recorded into the JUnit XML report:",
           "default": "total"
         },
         "junit_family": {
           "type": "string",
           "enum": ["legacy", "xunit1", "xunit2"],
-          "description": "Sets format of generated JUnit XML files.",
+          "description": "Configures the format of the generated JUnit XML file.",
           "default": "xunit2"
+        },
+        "junit_log_passing_tests": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "If junit_logging is enabled, configures if the captured output should be written to the JUnit XML file for passing tests.",
+          "default": "true"
         },
         "junit_logging": {
           "type": "string",
           "enum": ["no", "log", "system-out", "system-err", "out-err", "all"],
-          "description": "Controls whether captured output is written to JUnit XML file.",
+          "description": "Configures if captured output should be written to the JUnit XML file.",
           "default": "no"
-        },
-        "junit_log_passing_tests": {
-          "type": "boolean",
-          "description": "If `junit_logging` is not 'no', controls whether to include output of passing tests.",
-          "default": true
         },
         "junit_suite_name": {
           "type": "string",
-          "description": "Sets name of root test suite in JUnit XML report."
+          "description": "To set the name of the root test suite xml item, you can configure the junit_suite_name option in your config file."
         },
         "log_auto_indent": {
-          "description": "Allows selective auto-indentation of multiline log messages. Can be true, false, positive integer, 'On', or 'Off'.",
+          "description": "Allow selective auto-indentation of multiline log messages.",
           "oneOf": [
             {
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "type": "integer",
-              "minimum": 0
+              "type": "string",
+              "enum": ["true", "false", "On", "Off"]
             },
             {
               "type": "string",
-              "enum": ["On", "Off"]
+              "pattern": "^[0-9]+$"
             }
           ]
         },
         "log_cli": {
-          "type": "boolean",
-          "description": "Enables log display during test run (live logging).",
-          "default": false
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Enable log display during test run (also known as \"live logging\").",
+          "default": "false"
         },
         "log_cli_date_format": {
           "type": "string",
-          "description": "Sets date format for live logging using `time.strftime()` format."
+          "description": "Sets a time.strftime()-compatible string that will be used when formatting dates for live logging."
         },
         "log_cli_format": {
           "type": "string",
-          "description": "Sets message format for live logging using `logging` format."
+          "description": "Sets a logging-compatible string used to format live logging messages."
         },
         "log_cli_level": {
           "$ref": "#/definitions/LogLevel",
-          "description": "Sets minimum log level for live logging. Can be level name or integer value."
+          "description": "Sets the minimum log message level that should be captured for live logging. The integer value or the names of the levels can be used."
         },
         "log_date_format": {
           "type": "string",
-          "description": "Sets date format for captured logging using `time.strftime()` format."
+          "description": "Sets a time.strftime()-compatible string that will be used when formatting dates for logging capture."
         },
         "log_file": {
           "type": "string",
-          "description": "Sets file path to write log messages to."
+          "description": "Sets a file name relative to the current working directory where log messages should be written to, in addition to the other logging facilities that are active."
         },
         "log_file_date_format": {
           "type": "string",
-          "description": "Sets date format for log file using `time.strftime()` format."
+          "description": "Sets a time.strftime()-compatible string that will be used when formatting dates for the logging file."
         },
         "log_file_format": {
           "type": "string",
-          "description": "Sets message format for log file using `logging` format."
+          "description": "Sets a logging-compatible string used to format logging messages redirected to the logging file."
         },
         "log_file_level": {
           "$ref": "#/definitions/LogLevel",
-          "description": "Sets minimum log level for log file. Can be level name or integer value."
+          "description": "Sets the minimum log message level that should be captured for the logging file. The integer value or the names of the levels can be used."
+        },
+        "log_file_mode": {
+          "type": "string",
+          "enum": ["a", "w"],
+          "description": "Sets the mode that the logging file is opened with. The options are 'w' to recreate the file (the default) or 'a' to append to the file.",
+          "default": "a"
         },
         "log_format": {
           "type": "string",
-          "description": "Sets message format for captured logging using `logging` format."
+          "description": "Sets a logging-compatible string used to format captured logging messages."
         },
         "log_level": {
           "$ref": "#/definitions/LogLevel",
-          "description": "Sets minimum log level for captured logging. Can be level name or integer value."
+          "description": "Sets the minimum log message level that should be captured for logging capture. The integer value or the names of the levels can be used."
         },
         "markers": {
           "oneOf": [
@@ -205,12 +251,12 @@
               "type": "string"
             }
           ],
-          "description": "Allows registering additional markers for test functions.",
+          "description": "When the strict_markers configuration option is set, only known markers - defined in code by core pytest or some plugin - are allowed. You can list additional markers in this setting to add them to the whitelist, in which case you probably want to set strict_markers to true to avoid future regressions.",
           "x-tombi-array-values-order": "ascending"
         },
         "minversion": {
           "type": "string",
-          "description": "Specifies minimum required pytest version."
+          "description": "Specifies a minimal pytest version required for running tests."
         },
         "norecursedirs": {
           "oneOf": [
@@ -224,7 +270,8 @@
               "type": "string"
             }
           ],
-          "description": "Sets base name patterns for directories to be skipped during test discovery. Uses fnmatch-style matching. Replaces default patterns.",
+          "default": "*.egg .* _darcs build CVS dist node_modules venv {arch}",
+          "description": "Set the directory basename patterns to avoid when recursing for test discovery. The individual (fnmatch-style) patterns are applied to the basename of a directory to decide if to recurse into it.",
           "x-tombi-array-values-order": "ascending"
         },
         "python_classes": {
@@ -239,7 +286,7 @@
               "type": "string"
             }
           ],
-          "description": "Specifies name prefixes or glob patterns for identifying test classes.",
+          "description": "One or more name prefixes or glob-style patterns determining which classes are considered for test collection. Search for multiple glob patterns by adding a space between patterns. By default, pytest will consider any class prefixed with Test as a test collection.",
           "x-tombi-array-values-order": "ascending"
         },
         "python_files": {
@@ -254,7 +301,7 @@
               "type": "string"
             }
           ],
-          "description": "Specifies glob patterns for identifying Python test module files.",
+          "description": "One or more Glob-style file patterns determining which python files are considered as test modules.",
           "default": ["test_*.py", "*_test.py"],
           "x-tombi-array-values-order": "ascending"
         },
@@ -270,7 +317,7 @@
               "type": "string"
             }
           ],
-          "description": "Specifies name prefixes or glob patterns for identifying test functions and methods.",
+          "description": "One or more name prefixes or glob-patterns determining which test functions and methods are considered tests. Search for multiple glob patterns by adding a space between patterns. By default, pytest will consider any function prefixed with test as a test.",
           "default": ["test_*"],
           "x-tombi-array-values-order": "ascending"
         },
@@ -286,7 +333,7 @@
               "type": "string"
             }
           ],
-          "description": "Sets list of directories to be added to the Python search path. Paths are relative to root directory.",
+          "description": "Sets list of directories that should be added to the python search path. Directories will be added to the head of sys.path. Similar to the PYTHONPATH environment variable, the directories will be included in where Python will look for imported modules. Paths are relative to the rootdir directory.",
           "x-tombi-array-values-order": "ascending"
         },
         "required_plugins": {
@@ -301,8 +348,38 @@
               "type": "string"
             }
           ],
-          "description": "Space-separated list of plugins required to run pytest. Can include version specifiers.",
+          "description": "A list of plugins that must be present for pytest to run. Plugins can be listed with or without version specifiers directly following their name.",
           "x-tombi-array-values-order": "ascending"
+        },
+        "strict": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "If set to true, enable 'strict mode', which enables a number of other strict options.",
+          "default": "false"
+        },
+        "strict_config": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "If set to true, any warnings encountered while parsing the pytest section of the configuration file will raise errors.",
+          "default": "false"
+        },
+        "strict_markers": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "If set to true, markers not registered in the markers section of the configuration file will raise errors.",
+          "default": "false"
+        },
+        "strict_parametrization_ids": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "If set to true, pytest emits an error if it detects non-unique parameter set IDs. If not set (the default), pytest automatically handles this by adding 0, 1, … to duplicate IDs, making them unique.",
+          "default": "false"
+        },
+        "strict_xfail": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "If set to true, tests marked with @pytest.mark.xfail that actually succeed will by default fail the test suite.",
+          "default": "false"
         },
         "testpaths": {
           "oneOf": [
@@ -316,19 +393,32 @@
               "type": "string"
             }
           ],
-          "description": "Sets directories to search for tests when no specific paths are given on the command line. Paths are relative to root directory. Shell-style wildcards can be used.",
+          "description": "Sets list of directories that should be searched for tests when no specific directories, files or test ids are given in the command line when executing pytest from the rootdir directory. File system paths may use shell-style wildcards, including the recursive ** pattern. Useful when all project tests are in a known location to speed up test collection and to avoid picking up undesired tests by accident.",
           "x-tombi-array-values-order": "ascending"
         },
         "tmp_path_retention_count": {
-          "type": "integer",
-          "description": "Number of sessions to retain `tmp_path` directories for.",
-          "default": 3
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "How many sessions should we keep the tmp_path directories, according to tmp_path_retention_policy.",
+          "default": "3"
         },
         "tmp_path_retention_policy": {
           "type": "string",
           "enum": ["all", "failed", "none"],
-          "description": "Controls which `tmp_path` directories to retain based on test outcome.",
+          "description": "Controls which directories created by the tmp_path fixture are kept around, based on test outcome.",
           "default": "all"
+        },
+        "truncation_limit_chars": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Controls maximum number of characters to truncate assertion message contents. Setting value to 0 disables the character limit for truncation.",
+          "default": "640"
+        },
+        "truncation_limit_lines": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Controls maximum number of linesto truncate assertion message contents. Setting value to 0 disables the lines limit for truncation.",
+          "default": "8"
         },
         "usefixtures": {
           "oneOf": [
@@ -342,39 +432,54 @@
               "type": "string"
             }
           ],
-          "description": "List of fixtures that will be applied to all test functions.",
+          "description": "List of fixtures that will be applied to all test functions; this is semantically the same to apply the @pytest.mark.usefixtures marker to all test functions.",
           "x-tombi-array-values-order": "ascending"
         },
         "verbosity_assertions": {
           "oneOf": [
             {
-              "type": "integer",
-              "minimum": 0
+              "type": "string",
+              "pattern": "^[0-9]+$"
             },
             {
               "type": "string",
               "enum": ["auto"]
             }
           ],
-          "description": "Sets verbosity specific to assertion-related output. Can be integer or 'auto'."
+          "description": "Set a verbosity level specifically for assertion related output, overriding the application wide level."
+        },
+        "verbosity_subtests": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            {
+              "type": "string",
+              "enum": ["auto"]
+            }
+          ],
+          "description": "Set the verbosity level specifically for passed subtests. A value of 1 or higher will show output for passed subtests (failed subtests are always reported). Passed subtests output can be suppressed with the value 0, which overwrites the -v command-line option."
         },
         "verbosity_test_cases": {
           "oneOf": [
             {
-              "type": "integer",
-              "minimum": 0
+              "type": "string",
+              "pattern": "^[0-9]+$"
             },
             {
               "type": "string",
               "enum": ["auto"]
             }
           ],
-          "description": "Sets verbosity specific to test case execution output. Can be integer or 'auto'."
+          "description": "Set a verbosity level specifically for test case execution related output, overriding the application wide level."
         },
         "xfail_strict": {
-          "type": "boolean",
-          "description": "If true, test suite will fail if a test marked with `@pytest.mark.xfail` unexpectedly passes.",
-          "default": false
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "DEPRECATED. Alias for strict_xfail. If true, test suite will fail if a test marked with `@pytest.mark.xfail` unexpectedly passes.",
+          "deprecated": true,
+          "default": "false"
         }
       },
       "additionalProperties": true,
@@ -384,6 +489,7 @@
       "$comment": "additionalProperties is true because the schema is merged with other schemas",
       "description": "Configuration options for pytest-asyncio.\nhttps://pytest-asyncio.readthedocs.io/en/latest/reference/configuration.html",
       "type": "object",
+      "deprecated": true,
       "properties": {
         "asyncio_default_fixture_loop_scope": {
           "$ref": "#/definitions/AsyncioScope",
@@ -395,6 +501,12 @@
           "type": "string",
           "description": "Default event loop scope of asynchronous tests. When this configuration option is unset, it default to function scope",
           "default": "function"
+        },
+        "asyncio_debug": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Enables asyncio debug mode for the default event loop used by asynchronous tests and fixtures.",
+          "default": "false"
         },
         "asyncio_mode": {
           "type": "string",
@@ -436,6 +548,426 @@
           "enum": ["FATAL", "WARN"]
         }
       ]
+    },
+    "Config": {
+      "description": "Direct key configuration with proper TOML types (pytest >=9)\nhttps://docs.pytest.org/en/stable/reference/reference.html#configuration-options",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConfigOptionsPytest"
+        },
+        {
+          "$ref": "#/definitions/ConfigOptionsAsyncio"
+        }
+      ],
+      "properties": {
+        "ini_options": {
+          "not": {}
+        }
+      },
+      "additionalProperties": true,
+      "x-tombi-table-keys-order": "schema"
+    },
+    "ConfigOptionsPytest": {
+      "type": "object",
+      "properties": {
+        "addopts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Add the specified OPTS to the set of command line arguments as if they had been specified by the user.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "cache_dir": {
+          "type": "string",
+          "description": "Sets the directory where the cache plugin’s content is stored.",
+          "default": ".pytest_cache"
+        },
+        "collect_imported_tests": {
+          "type": "boolean",
+          "description": "Settings this to false will make pytest collect classes/functions from test files _only_ if they are defined in that file (as opposed to imported there).",
+          "default": true
+        },
+        "consider_namespace_packages": {
+          "type": "boolean",
+          "description": "Controls if pytest should attempt to identify namespace packages when collecting Python modules.",
+          "default": false
+        },
+        "console_output_style": {
+          "type": "string",
+          "enum": [
+            "classic",
+            "progress",
+            "progress-even-when-capture-no",
+            "count",
+            "times"
+          ],
+          "description": "Sets console output style during test execution.",
+          "default": "progress"
+        },
+        "disable_test_id_escaping_and_forfeit_all_rights_to_community_support": {
+          "type": "boolean",
+          "description": "pytest by default escapes any non-ascii characters used in unicode strings for the parametrization because it has several downsides. If however you would like to use unicode strings in parametrization and see them in the terminal as is (non-escaped), use this option in your configuration file",
+          "default": false
+        },
+        "doctest_encoding": {
+          "type": "string",
+          "description": "Default encoding to use to decode text files with docstrings."
+        },
+        "doctest_optionflags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "One or more doctest flag names from the standard doctest module.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "empty_parameter_set_mark": {
+          "type": "string",
+          "enum": ["skip", "xfail", "fail_at_collect"],
+          "description": "Allows to pick the action for empty parametersets in parameterization.",
+          "default": "skip"
+        },
+        "enable_assertion_pass_hook": {
+          "type": "boolean",
+          "description": "Enables the pytest_assertion_pass hook. Make sure to delete any previously generated .pyc cache files.",
+          "default": false
+        },
+        "faulthandler_exit_on_timeout": {
+          "type": "boolean",
+          "description": "Exit the pytest process after the per-test timeout is reached by passing exit=True to the faulthandler.dump_traceback_later() function. This is particularly useful to avoid wasting CI resources for test suites that are prone to putting the main Python interpreter into a deadlock state.",
+          "default": false
+        },
+        "faulthandler_timeout": {
+          "type": "integer",
+          "description": "Dumps the tracebacks of all threads if a test takes longer than X seconds to run (including fixture setup and teardown). Implemented using the faulthandler.dump_traceback_later() function, so all caveats there apply."
+        },
+        "filterwarnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Sets a list of filters and actions that should be taken for matched warnings. By default all warnings emitted during the test session will be displayed in a summary at the end of the test session.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "junit_duration_report": {
+          "type": "string",
+          "enum": ["total", "call"],
+          "description": "Configures how durations are recorded into the JUnit XML report:",
+          "default": "total"
+        },
+        "junit_family": {
+          "type": "string",
+          "enum": ["legacy", "xunit1", "xunit2"],
+          "description": "Configures the format of the generated JUnit XML file.",
+          "default": "xunit2"
+        },
+        "junit_log_passing_tests": {
+          "type": "boolean",
+          "description": "If junit_logging is enabled, configures if the captured output should be written to the JUnit XML file for passing tests.",
+          "default": true
+        },
+        "junit_logging": {
+          "type": "string",
+          "enum": ["no", "log", "system-out", "system-err", "out-err", "all"],
+          "description": "Configures if captured output should be written to the JUnit XML file.",
+          "default": "no"
+        },
+        "junit_suite_name": {
+          "type": "string",
+          "description": "To set the name of the root test suite xml item, you can configure the junit_suite_name option in your config file."
+        },
+        "log_auto_indent": {
+          "description": "Allow selective auto-indentation of multiline log messages.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "enum": ["On", "Off"]
+            }
+          ]
+        },
+        "log_cli": {
+          "type": "boolean",
+          "description": "Enable log display during test run (also known as “live logging”).",
+          "default": false
+        },
+        "log_cli_date_format": {
+          "type": "string",
+          "description": "Sets a time.strftime()-compatible string that will be used when formatting dates for live logging."
+        },
+        "log_cli_format": {
+          "type": "string",
+          "description": "Sets a logging-compatible string used to format live logging messages."
+        },
+        "log_cli_level": {
+          "$ref": "#/definitions/LogLevel",
+          "description": "Sets the minimum log message level that should be captured for live logging. The integer value or the names of the levels can be used."
+        },
+        "log_date_format": {
+          "type": "string",
+          "description": "Sets a time.strftime()-compatible string that will be used when formatting dates for logging capture."
+        },
+        "log_file": {
+          "type": "string",
+          "description": "Sets a file name relative to the current working directory where log messages should be written to, in addition to the other logging facilities that are active."
+        },
+        "log_file_date_format": {
+          "type": "string",
+          "description": "Sets a time.strftime()-compatible string that will be used when formatting dates for the logging file."
+        },
+        "log_file_format": {
+          "type": "string",
+          "description": "Sets a logging-compatible string used to format logging messages redirected to the logging file."
+        },
+        "log_file_level": {
+          "$ref": "#/definitions/LogLevel",
+          "description": "Sets the minimum log message level that should be captured for the logging file. The integer value or the names of the levels can be used."
+        },
+        "log_file_mode": {
+          "type": "string",
+          "enum": ["a", "w"],
+          "description": "Sets the mode that the logging file is opened with. The options are 'w' to recreate the file (the default) or 'a' to append to the file.",
+          "default": "a"
+        },
+        "log_format": {
+          "type": "string",
+          "description": "Sets a logging-compatible string used to format captured logging messages."
+        },
+        "log_level": {
+          "$ref": "#/definitions/LogLevel",
+          "description": "Sets the minimum log message level that should be captured for logging capture. The integer value or the names of the levels can be used."
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "When the strict_markers configuration option is set, only known markers - defined in code by core pytest or some plugin - are allowed. You can list additional markers in this setting to add them to the whitelist, in which case you probably want to set strict_markers to true to avoid future regressions.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "minversion": {
+          "type": "string",
+          "description": "Specifies a minimal pytest version required for running tests."
+        },
+        "norecursedirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "*.egg",
+            ".*",
+            "_darcs",
+            "build",
+            "CVS",
+            "dist",
+            "node_modules",
+            "venv",
+            "{arch}"
+          ],
+          "description": "Set the directory basename patterns to avoid when recursing for test discovery. The individual (fnmatch-style) patterns are applied to the basename of a directory to decide if to recurse into it.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "python_classes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "One or more name prefixes or glob-style patterns determining which classes are considered for test collection. Search for multiple glob patterns by adding a space between patterns. By default, pytest will consider any class prefixed with Test as a test collection.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "python_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "One or more Glob-style file patterns determining which python files are considered as test modules.",
+          "default": ["test_*.py", "*_test.py"],
+          "x-tombi-array-values-order": "ascending"
+        },
+        "python_functions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "One or more name prefixes or glob-patterns determining which test functions and methods are considered tests. Search for multiple glob patterns by adding a space between patterns. By default, pytest will consider any function prefixed with test as a test.",
+          "default": ["test_*"],
+          "x-tombi-array-values-order": "ascending"
+        },
+        "pythonpath": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Sets list of directories that should be added to the python search path. Directories will be added to the head of sys.path. Similar to the PYTHONPATH environment variable, the directories will be included in where Python will look for imported modules. Paths are relative to the rootdir directory.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "required_plugins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of plugins that must be present for pytest to run. Plugins can be listed with or without version specifiers directly following their name.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "If set to true, enable 'strict mode', which enables a number of other strict options.",
+          "default": false
+        },
+        "strict_config": {
+          "type": "boolean",
+          "description": "If set to true, any warnings encountered while parsing the pytest section of the configuration file will raise errors.",
+          "default": false
+        },
+        "strict_markers": {
+          "type": "boolean",
+          "description": "If set to true, markers not registered in the markers section of the configuration file will raise errors.",
+          "default": false
+        },
+        "strict_parametrization_ids": {
+          "type": "boolean",
+          "description": "If set to true, pytest emits an error if it detects non-unique parameter set IDs. If not set (the default), pytest automatically handles this by adding 0, 1, … to duplicate IDs, making them unique.",
+          "default": false
+        },
+        "strict_xfail": {
+          "type": "boolean",
+          "description": "If set to true, tests marked with @pytest.mark.xfail that actually succeed will by default fail the test suite.",
+          "default": false
+        },
+        "testpaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Sets list of directories that should be searched for tests when no specific directories, files or test ids are given in the command line when executing pytest from the rootdir directory. File system paths may use shell-style wildcards, including the recursive ** pattern. Useful when all project tests are in a known location to speed up test collection and to avoid picking up undesired tests by accident.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "tmp_path_retention_count": {
+          "type": "integer",
+          "description": "How many sessions should we keep the tmp_path directories, according to tmp_path_retention_policy.",
+          "default": 3
+        },
+        "tmp_path_retention_policy": {
+          "type": "string",
+          "enum": ["all", "failed", "none"],
+          "description": "Controls which directories created by the tmp_path fixture are kept around, based on test outcome.",
+          "default": "all"
+        },
+        "truncation_limit_chars": {
+          "type": "integer",
+          "description": "Controls maximum number of characters to truncate assertion message contents. Setting value to 0 disables the character limit for truncation.",
+          "default": 640
+        },
+        "truncation_limit_lines": {
+          "type": "integer",
+          "description": "Controls maximum number of linesto truncate assertion message contents. Setting value to 0 disables the lines limit for truncation.",
+          "default": 8
+        },
+        "usefixtures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of fixtures that will be applied to all test functions; this is semantically the same to apply the @pytest.mark.usefixtures marker to all test functions.",
+          "x-tombi-array-values-order": "ascending"
+        },
+        "verbosity_assertions": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "enum": ["auto"]
+            }
+          ],
+          "description": "Set a verbosity level specifically for assertion related output, overriding the application wide level."
+        },
+        "verbosity_subtests": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "enum": ["auto"]
+            }
+          ],
+          "description": "Set the verbosity level specifically for passed subtests. A value of 1 or higher will show output for passed subtests (failed subtests are always reported). Passed subtests output can be suppressed with the value 0, which overwrites the -v command-line option."
+        },
+        "verbosity_test_cases": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "enum": ["auto"]
+            }
+          ],
+          "description": "Set a verbosity level specifically for test case execution related output, overriding the application wide level."
+        },
+        "xfail_strict": {
+          "type": "boolean",
+          "description": "DEPRECATED. Alias for strict_xfail. If true, test suite will fail if a test marked with `@pytest.mark.xfail` unexpectedly passes.",
+          "deprecated": true,
+          "default": false
+        }
+      },
+      "additionalProperties": true,
+      "x-tombi-table-keys-order": "schema"
+    },
+    "ConfigOptionsAsyncio": {
+      "description": "Configuration options for pytest-asyncio.\nhttps://pytest-asyncio.readthedocs.io/en/latest/reference/configuration.html",
+      "type": "object",
+      "properties": {
+        "asyncio_default_fixture_loop_scope": {
+          "$ref": "#/definitions/AsyncioScope",
+          "type": "string",
+          "description": "Default event loop scope of asynchronous fixtures. When this configuration option is unset, it defaults to the fixture scope. In future versions of pytest-asyncio, the value will default to function when unset"
+        },
+        "asyncio_default_test_loop_scope": {
+          "$ref": "#/definitions/AsyncioScope",
+          "type": "string",
+          "description": "Default event loop scope of asynchronous tests. When this configuration option is unset, it default to function scope",
+          "default": "function"
+        },
+        "asyncio_debug": {
+          "type": "boolean",
+          "description": "Enables asyncio debug mode for the default event loop used by asynchronous tests and fixtures.",
+          "default": false
+        },
+        "asyncio_mode": {
+          "type": "string",
+          "oneOf": [
+            {
+              "const": "auto",
+              "description": "Automatically handling all async functions by the plugin"
+            },
+            {
+              "const": "strict",
+              "description": "Auto processing disabling (useful if different async frameworks should be tested together, e.g. both pytest-asyncio and pytest-trio are used in the same project"
+            }
+          ],
+          "description": "Sets the asyncio mode for pytest-asyncio.",
+          "default": "strict"
+        }
+      },
+      "additionalProperties": true,
+      "x-tombi-table-keys-order": "schema"
     }
   }
 }
