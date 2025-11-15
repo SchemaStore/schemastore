@@ -1,735 +1,786 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://json.schemastore.org/yamllint.json",
+
   "$comment": "https://yamllint.readthedocs.io/en/stable/configuration.html",
-  "$ref": "#/definitions/ignore",
-  "definitions": {
-    "toggle": {
-      "type": "string",
-      "enum": ["enable", "disable"]
-    },
-    "ignore": {
+
+  "$ref": "#/$defs/ignorable",
+  "$defs": {
+    "ignorable": {
+      "type": "object",
       "properties": {
         "ignore": {
-          "title": "Ignore",
-          "description": "Ignore files, so that the linter doesn't process them.",
-          "type": "string"
+          "type": ["string", "array"],
+          "items": { "type": "string" }
+        },
+        "ignore-from-file": {
+          "type": ["string", "array"],
+          "items": { "type": "string" }
         }
+      },
+      "not": {
+        "required": ["ignore", "ignore-from-file"]
       }
     },
-    "allRules": {
-      "$ref": "#/definitions/ignore",
+    "rule": {
+      "$ref": "#/$defs/ignorable",
+      "type": "object",
       "properties": {
         "level": {
-          "title": "Level",
-          "type": "string",
-          "default": "warning"
+          "enum": ["error", "warning"],
+          "default": "error"
         }
       }
+    },
+    "toggle": {
+      "oneOf": [{ "enum": ["enable", "disable"] }, { "type": "boolean" }]
     }
   },
-  "description": "yamllint uses a set of rules to check source files for problems.",
-  "id": "https://json.schemastore.org/yamllint.json",
+
+  "title": "yamllint",
+  "description": "yamllint uses a set of rules to check YAML source files for problems.",
+  "type": "object",
   "properties": {
     "extends": {
-      "title": "Extends",
-      "type": "string"
+      "description": "When writing a custom configuration file, you don’t need to redefine every rule. Just extend the default configuration (or any already-existing configuration file).",
+      "type": "string",
+      "default": "default",
+      "examples": ["default", "relaxed"]
     },
     "yaml-files": {
-      "title": "YAML Files",
+      "description": "To configure what yamllint should consider as YAML files when listing directories, set yaml-files configuration option.",
       "type": "array",
-      "items": {
-        "title": "YAML File",
-        "type": "string"
-      },
+      "items": { "type": "string" },
       "default": ["*.yaml", "*.yml", ".yamllint"]
     },
     "locale": {
-      "title": "Locale",
       "description": "This is passed to Python's locale.setlocale.",
-      "type": "string"
+      "type": "string",
+      "examples": ["en_US.UTF-8"]
     },
     "rules": {
+      "description": "When linting a document with yamllint, a series of rules are checked against. A configuration file can be used to enable or disable these rules, to set their level (error or warning), but also to tweak their options.",
+      "type": "object",
       "properties": {
+        "anchors": {
+          "description": "Use this rule to report duplicated anchors and aliases referencing undeclared anchors.",
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
+            {
+              "$ref": "#/$defs/rule",
+              "properties": {
+                "forbid-undeclared-aliases": {
+                  "title": "Forbid Undeclared Aliases",
+                  "description": "Set forbid-undeclared-aliases to true to avoid aliases that reference an anchor that hasn't been declared (either not declared at all, or declared later in the document).",
+                  "type": "boolean",
+                  "default": true
+                },
+                "forbid-duplicated-anchors": {
+                  "title": "Forbid Duplicated Anchors",
+                  "description": "Set forbid-duplicated-anchors to true to avoid duplications of a same anchor.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "forbid-unused-anchors": {
+                  "title": "Forbid Unused Anchors",
+                  "description": "Set forbid-unused-anchors to true to avoid anchors being declared but not used anywhere in the YAML document via alias.",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "unevaluatedProperties": false
+            }
+          ]
+        },
         "braces": {
           "title": "Braces",
           "description": "Use this rule to control the use of flow mappings or number of spaces inside braces ({ and }).",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "forbid": {
                   "title": "Forbid",
-                  "description": "Used to forbid the use of flow mappings which are denoted by surrounding braces ({ and }).",
-                  "anyOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "string",
-                      "enum": ["non-empty"]
-                    }
-                  ],
-                  "default": false
+                  "description": "forbid is used to forbid the use of flow mappings which are denoted by surrounding braces ({ and }). Use true to forbid the use of flow mappings completely. Use non-empty to forbid the use of all flow mappings except for empty ones.",
+                  "default": false,
+                  "oneOf": [{ "type": "boolean" }, { "const": "non-empty" }]
                 },
                 "min-spaces-inside": {
                   "title": "Minimum Spaces Inside",
-                  "description": "Defines the minimal number of spaces required inside braces.",
+                  "description": "min-spaces-inside defines the minimal number of spaces required inside braces.",
                   "type": "number",
-                  "default": 0
+                  "default": 0,
+                  "minimum": 0
                 },
                 "max-spaces-inside": {
-                  "title": "Max Spaces Inside",
-                  "description": "Defines the maximal number of spaces allowed inside braces.",
+                  "title": "Maximum Spaces Inside",
+                  "description": "max-spaces-inside defines the maximal number of spaces allowed inside braces.",
                   "type": "number",
-                  "default": 0
+                  "default": 0,
+                  "minimum": 0
                 },
                 "min-spaces-inside-empty": {
                   "title": "Minimum Spaces Inside Empty",
-                  "description": "Defines the minimal number of spaces required inside empty braces.",
+                  "description": "min-spaces-inside-empty defines the minimal number of spaces required inside empty braces. (use -1 to default to the value for min-spaces-inside)",
                   "type": "number",
-                  "default": -1
+                  "default": -1,
+                  "minimum": -1
                 },
                 "max-spaces-inside-empty": {
-                  "title": "Max Spaces Inside Empty",
-                  "description": "Defines the maximal number of spaces allowed inside empty braces.",
+                  "title": "Maximum Spaces Inside Empty",
+                  "description": "max-spaces-inside-empty defines the maximal number of spaces allowed inside empty braces. (use -1 to default to the value for max-spaces-inside)",
                   "type": "number",
-                  "default": -1
+                  "default": -1,
+                  "minimum": -1
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "brackets": {
           "title": "Brackets",
           "description": "Use this rule to control the use of flow sequences or the number of spaces inside brackets ([ and ]).",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "forbid": {
                   "title": "Forbid",
-                  "description": "Used to forbid the use of flow sequences which are denoted by surrounding brackets ([ and ]).",
-                  "anyOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "string",
-                      "enum": ["non-empty"]
-                    }
-                  ],
-                  "default": false
+                  "description": "forbid is used to forbid the use of flow sequences which are denoted by surrounding brackets ([ and ]). Use true to forbid the use of flow sequences completely. Use non-empty to forbid the use of all flow sequences except for empty ones.",
+                  "default": false,
+                  "oneOf": [{ "type": "boolean" }, { "const": "non-empty" }]
                 },
                 "min-spaces-inside": {
                   "title": "Minimum Spaces Inside",
-                  "description": "Defines the minimal number of spaces required inside brackets.",
+                  "description": "min-spaces-inside defines the minimal number of spaces required inside brackets.",
                   "type": "number",
-                  "default": 0
+                  "default": 0,
+                  "minimum": 0
                 },
                 "max-spaces-inside": {
-                  "title": "Max Spaces Inside",
-                  "description": "Defines the maximal number of spaces allowed inside brackets.",
+                  "title": "Maximum Spaces Inside",
+                  "description": "max-spaces-inside defines the maximal number of spaces allowed inside brackets.",
                   "type": "number",
-                  "default": 0
+                  "default": 0,
+                  "minimum": 0
                 },
                 "min-spaces-inside-empty": {
                   "title": "Minimum Spaces Inside Empty",
-                  "description": "Defines the minimal number of spaces required inside empty brackets.",
+                  "description": "min-spaces-inside-empty defines the minimal number of spaces required inside empty brackets. (use -1 to default to the value for min-spaces-inside)",
                   "type": "number",
-                  "default": -1
+                  "default": -1,
+                  "minimum": -1
                 },
                 "max-spaces-inside-empty": {
-                  "title": "Max Spaces Inside Empty",
-                  "description": "Defines the maximal number of spaces allowed inside empty brackets.",
+                  "title": "Maximum Spaces Inside Empty",
+                  "description": "max-spaces-inside-empty defines the maximal number of spaces allowed inside empty brackets. (use -1 to default to the value for max-spaces-inside)",
                   "type": "number",
-                  "default": -1
+                  "default": -1,
+                  "minimum": -1
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "colons": {
           "title": "Colons",
           "description": "Use this rule to control the number of spaces before and after colons (:).",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "max-spaces-before": {
-                  "title": "Max Spaces Before",
-                  "description": "Defines the maximal number of spaces allowed before colons (use -1 to disable).",
+                  "title": "Maximum Spaces Before",
+                  "description": "max-spaces-before defines the maximal number of spaces allowed before colons (use -1 to disable).",
                   "type": "number",
+                  "minimum": -1,
                   "default": 0
                 },
                 "max-spaces-after": {
-                  "title": "Max Spaces After",
-                  "description": "Defines the maximal number of spaces allowed after colons (use -1 to disable).",
+                  "title": "Maximum Spaces After",
+                  "description": "max-spaces-after defines the maximal number of spaces allowed after colons (use -1 to disable).",
                   "type": "number",
-                  "default": 1
+                  "minimum": -1,
+                  "default": 0
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "commas": {
           "title": "Commas",
           "description": "Use this rule to control the number of spaces before and after commas (,).",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "max-spaces-before": {
-                  "title": "Max Spaces Before",
-                  "description": "Defines the maximal number of spaces allowed before commas (use -1 to disable).",
+                  "title": "Maximum Spaces Before",
+                  "description": "max-spaces-before defines the maximal number of spaces allowed before commas (use -1 to disable).",
                   "type": "number",
+                  "minimum": -1,
                   "default": 0
                 },
                 "min-spaces-after": {
                   "title": "Minimum Spaces After",
-                  "description": "Defines the minimal number of spaces required after commas.",
+                  "description": "min-spaces-after defines the minimal number of spaces required after commas.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 1
                 },
                 "max-spaces-after": {
-                  "title": "Max Spaces After",
-                  "description": "Defines the maximal number of spaces allowed after commas (use -1 to disable).",
+                  "title": "Maximum Spaces After",
+                  "description": "max-spaces-after defines the maximal number of spaces allowed after commas (use -1 to disable).",
                   "type": "number",
+                  "minimum": -1,
                   "default": 1
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "comments": {
           "title": "Comments",
           "description": "Use this rule to control the position and formatting of comments.",
-          "anyOf": [
+          "default": {
+            "level": "warning"
+          },
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "require-starting-space": {
                   "title": "Require Starting Space",
-                  "description": "Require a space character right after the #.",
+                  "description": "Use require-starting-space to require a space character right after the #. Set to true to enable, false to disable.",
                   "type": "boolean",
                   "default": true
                 },
                 "ignore-shebangs": {
                   "title": "Ignore Shebangs",
-                  "description": "Ignore a shebang at the beginning of the file when require-starting-space is set.",
+                  "description": "Use ignore-shebangs to ignore a shebang at the beginning of the file when require-starting-space is set.",
                   "type": "boolean",
                   "default": true
                 },
                 "min-spaces-from-content": {
-                  "title": "Minimum Spaces from Content",
-                  "description": "Used to visually separate inline comments from content.",
+                  "title": "Minimum Spaces From Content",
+                  "description": "min-spaces-from-content is used to visually separate inline comments from content. It defines the minimal required number of spaces between a comment and its preceding content.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 2
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": {
-            "level": "warning"
-          }
+          ]
         },
         "comments-indentation": {
           "title": "Comments Indentation",
           "description": "Use this rule to force comments to be indented like content.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object"
-            }
-          ],
           "default": {
             "level": "warning"
-          }
+          },
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
+            {
+              "$ref": "#/$defs/rule",
+              "unevaluatedProperties": false
+            }
+          ]
         },
         "document-end": {
           "title": "Document End",
           "description": "Use this rule to require or forbid the use of document end marker (...).",
-          "anyOf": [
+          "default": "disable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "present": {
                   "title": "Present",
-                  "description": "True when the document end marker is required, or to false when it is forbidden.",
+                  "description": "Set present to true when the document end marker is required, or to false when it is forbidden.",
                   "type": "boolean",
                   "default": true
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "disable"
+          ]
         },
         "document-start": {
           "title": "Document Start",
           "description": "Use this rule to require or forbid the use of document start marker (---).",
-          "anyOf": [
+          "default": {
+            "level": "warning"
+          },
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "present": {
                   "title": "Present",
-                  "description": "True when the document start marker is required, or to false when it is forbidden.",
+                  "description": "Set present to true when the document start marker is required, or to false when it is forbidden.",
                   "type": "boolean",
                   "default": true
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": {
-            "level": "warning"
-          }
+          ]
         },
         "empty-lines": {
           "title": "Empty Lines",
           "description": "Use this rule to set a maximal number of allowed consecutive blank lines.",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "max": {
-                  "title": "Max",
-                  "description": "Defines the maximal number of empty lines allowed in the document.",
+                  "title": "Maximum",
+                  "description": "max defines the maximal number of empty lines allowed in the document.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 2
                 },
                 "max-start": {
-                  "title": "Max Start",
-                  "description": "Defines the maximal number of empty lines allowed at the beginning of the file.",
+                  "title": "Maximum Start",
+                  "description": "max-start defines the maximal number of empty lines allowed at the beginning of the file. This option takes precedence over max.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 0
                 },
                 "max-end": {
-                  "title": "Max End",
-                  "description": "",
+                  "title": "Maximum End",
+                  "description": "max-end defines the maximal number of empty lines allowed at the end of the file. This option takes precedence over max.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 0
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "empty-values": {
           "title": "Empty Values",
           "description": "Use this rule to prevent nodes with empty content, that implicitly result in null values.",
-          "anyOf": [
+          "default": "disable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "forbid-in-block-mappings": {
                   "title": "Forbid in Block Mappings",
-                  "description": "Prevent empty values in block mappings.",
+                  "description": "Use forbid-in-block-mappings to prevent empty values in block mappings.",
                   "type": "boolean",
                   "default": true
                 },
                 "forbid-in-flow-mappings": {
                   "title": "Forbid in Flow Mappings",
-                  "description": "Prevent empty values in flow mappings.",
+                  "description": "Use forbid-in-flow-mappings to prevent empty values in flow mappings.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "forbid-in-block-sequences": {
+                  "title": "Forbid in Block Sequences",
+                  "description": "Use forbid-in-block-sequences to prevent empty values in block sequences.",
                   "type": "boolean",
                   "default": true
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "disable"
+          ]
+        },
+        "float-values": {
+          "title": "Float Values",
+          "description": "Use this rule to limit the permitted values for floating-point numbers. YAML permits three classes of float expressions: approximation to real numbers, positive and negative infinity and \"not a number\".",
+          "default": "disable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
+            {
+              "$ref": "#/$defs/rule",
+              "properties": {
+                "require-numeral-before-decimal": {
+                  "title": "Require Numeral Before Decimal",
+                  "description": "Use require-numeral-before-decimal to require floats to start with a numeral (ex 0.0 instead of .0).",
+                  "type": "boolean",
+                  "default": false
+                },
+                "forbid-scientific-notation": {
+                  "title": "Forbid Scientific Notation",
+                  "description": "Use forbid-scientific-notation to forbid scientific notation.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "forbid-nan": {
+                  "title": "Forbid NaN",
+                  "description": "Use forbid-nan to forbid NaN (not a number) values.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "forbid-inf": {
+                  "title": "Forbid Inf",
+                  "description": "Use forbid-inf to forbid infinite values.",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "unevaluatedProperties": false
+            }
+          ]
         },
         "hyphens": {
           "title": "Hyphens",
           "description": "Use this rule to control the number of spaces after hyphens (-).",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "max-spaces-after": {
-                  "title": "Max Spaces After",
-                  "description": "Defines the maximal number of spaces allowed after hyphens.",
+                  "title": "Maximum Spaces After",
+                  "description": "max-spaces-after defines the maximal number of spaces allowed after hyphens.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 1
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "indentation": {
           "title": "Indentation",
           "description": "Use this rule to control the indentation.",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "spaces": {
                   "title": "Spaces",
-                  "description": "Defines the indentation width, in spaces.",
-                  "anyOf": [
+                  "description": "spaces defines the indentation width, in spaces. Set either to an integer (e.g. 2 or 4, representing the number of spaces in an indentation level) or to consistent to allow any number, as long as it remains the same within the file.",
+                  "default": "consistent",
+                  "oneOf": [
                     {
-                      "type": "number"
+                      "type": "number",
+                      "minimum": 1,
+                      "examples": [2, 4]
                     },
                     {
-                      "type": "string",
-                      "enum": ["consistent"]
+                      "description": "consistent allows any number of spaces, as long as it remains the same within the file.",
+                      "const": "consistent"
                     }
-                  ],
-                  "default": "consistent"
+                  ]
                 },
                 "indent-sequences": {
                   "title": "Indent Sequences",
-                  "description": "Defines whether block sequences should be indented or not (when in a mapping, this indentation is not mandatory – some people perceive the - as part of the indentation).",
-                  "anyOf": [
+                  "description": "indent-sequences defines whether block sequences should be indented or not (when in a mapping, this indentation is not mandatory - some people perceive the - as part of the indentation). Possible values: true, false, whatever and consistent.",
+                  "default": true,
+                  "oneOf": [
+                    { "type": "boolean" },
                     {
-                      "type": "boolean"
+                      "description": "consistent requires either all block sequences to be indented, or none to be.",
+                      "const": "consistent"
                     },
                     {
-                      "type": "string",
-                      "enum": ["whatever", "consistent"]
+                      "description": "whatever means either indenting or not indenting individual block sequences is OK.",
+                      "const": "whatever"
                     }
-                  ],
-                  "default": true
+                  ]
                 },
                 "check-multi-line-strings": {
-                  "title": "Check Multi Line Strings",
-                  "description": "Defines whether to lint indentation in multi-line strings.",
+                  "title": "Check Multi-Line Strings",
+                  "description": "check-multi-line-strings defines whether to lint indentation in multi-line strings. Set to true to enable, false to disable.",
                   "type": "boolean",
                   "default": false
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "key-duplicates": {
           "title": "Key Duplicates",
           "description": "Use this rule to prevent multiple entries with the same key in mappings.",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object"
+              "$ref": "#/$defs/rule",
+              "properties": {
+                "forbid-duplicated-merge-keys": {
+                  "title": "Forbid Duplicated Merge Keys",
+                  "description": "Use forbid-duplicated-merge-keys to forbid the usage of multiple merge keys <<.",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "key-ordering": {
           "title": "Key Ordering",
-          "description": "Use this rule to enforce alphabetical ordering of keys in mappings.",
-          "anyOf": [
+          "description": "Use this rule to enforce alphabetical ordering of keys in mappings. The sorting order uses the Unicode code point number as a default. As a result, the ordering is case-sensitive and not accent-friendly (see examples below). This can be changed by setting the global locale option. This allows one to sort case and accents properly.",
+          "default": "disable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object"
+              "$ref": "#/$defs/rule",
+              "properties": {
+                "ignored-keys": {
+                  "title": "Ignored Keys",
+                  "description": "ignored-keys is a list of PCRE regexes to ignore some keys while checking order, if they match any regex.",
+                  "type": "array",
+                  "items": {
+                    "description": "PCRE regex to ignore some keys while checking order.",
+                    "type": "string",
+                    "format": "regex"
+                  },
+                  "default": []
+                }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "disable"
+          ]
         },
         "line-length": {
           "title": "Line Length",
           "description": "Use this rule to set a limit to lines length.",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "max": {
-                  "title": "Max",
-                  "description": "Defines the maximal (inclusive) length of lines.",
+                  "title": "Maximum",
+                  "description": "max defines the maximal (inclusive) length of lines.",
                   "type": "number",
+                  "minimum": 0,
                   "default": 80
                 },
                 "allow-non-breakable-words": {
                   "title": "Allow Non-Breakable Words",
-                  "description": "Used to allow non breakable words (without spaces inside) to overflow the limit.",
+                  "description": "allow-non-breakable-words is used to allow non breakable words (without spaces inside) to overflow the limit. This is useful for long URLs, for instance. Use true to allow, false to forbid.",
                   "type": "boolean",
                   "default": true
                 },
                 "allow-non-breakable-inline-mappings": {
                   "title": "Allow Non-Breakable Inline Mappings",
-                  "description": "Implies allow-non-breakable-words and extends it to also allow non-breakable words in inline mappings.",
+                  "description": "allow-non-breakable-inline-mappings implies allow-non-breakable-words and extends it to also allow non-breakable words in inline mappings.",
                   "type": "boolean",
-                  "default": true
+                  "default": false
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "new-line-at-end-of-file": {
-          "title": "New Line at End of File",
-          "description": "Use this rule to require a new line character (\n) at the end of files.",
-          "anyOf": [
+          "title": "New Line At End Of File",
+          "description": "Use this rule to require a new line character (\\n) at the end of files.\n\nThe POSIX standard requires the last line to end with a new line character. All UNIX tools expect a new line at the end of files. Most text editors use this convention too.",
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object"
+              "$ref": "#/$defs/rule",
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "new-lines": {
           "title": "New Lines",
           "description": "Use this rule to force the type of new line characters.",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "type": {
                   "title": "Type",
-                  "description": "Unix to use UNIX-typed new line characters (\n), or dos to use DOS-typed new line characters (\r\n).",
-                  "type": "string",
+                  "description": "Set type to unix to enforce UNIX-typed new line characters (\\n), set type to dos to enforce DOS-typed new line characters (\\r\\n), or set type to platform to infer the type from the system running yamllint (\\n on POSIX / UNIX / Linux / Mac OS systems or \\r\\n on DOS / Windows systems).",
                   "enum": ["unix", "dos", "platform"],
                   "default": "unix"
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "octal-values": {
           "title": "Octal Values",
-          "description": "Use this rule to prevent values with octal numbers.",
-          "anyOf": [
+          "description": "Use this rule to prevent values with octal numbers. In YAML, numbers that start with 0 are interpreted as octal, but this is not always wanted. For instance 010 is the city code of Beijing, and should not be converted to 8.",
+          "default": "disable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "forbid-implicit-octal": {
                   "title": "Forbid Implicit Octal",
-                  "description": "Prevent numbers starting with 0.",
+                  "description": "Use forbid-implicit-octal to prevent numbers starting with 0.",
                   "type": "boolean",
                   "default": true
                 },
                 "forbid-explicit-octal": {
                   "title": "Forbid Explicit Octal",
-                  "description": "Prevent numbers starting with 0o.",
+                  "description": "Use forbid-explicit-octal to prevent numbers starting with 0o.",
                   "type": "boolean",
-                  "default": true
+                  "default": false
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "disable"
+          ]
         },
         "quoted-strings": {
           "title": "Quoted Strings",
-          "description": "Use this rule to forbid any string values that are not quoted, or to prevent quoted strings without needing it.",
-          "anyOf": [
+          "description": "Use this rule to forbid any string values that are not quoted, or to prevent quoted strings without needing it. You can also enforce the type of the quote used.",
+          "default": "disable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "quote-type": {
                   "title": "Quote Type",
-                  "description": "Defines allowed quotes.",
-                  "type": "string",
+                  "description": "quote-type defines allowed quotes: single, double or any (default).",
                   "enum": ["single", "double", "any"],
                   "default": "any"
                 },
                 "required": {
                   "title": "Required",
-                  "description": "Defines whether using quotes in string values is required.",
-                  "anyOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "string",
-                      "enum": ["only-when-needed"]
-                    }
-                  ],
-                  "default": true
+                  "description": "required defines whether using quotes in string values is required (true, default) or not (false), or only allowed when really needed (only-when-needed).",
+                  "default": true,
+                  "oneOf": [
+                    { "type": "boolean" },
+                    { "const": "only-when-needed" }
+                  ]
                 },
-                "extra-required": {
-                  "title": "Extra Required",
-                  "description": "List of PCRE regexes to force string values to be quoted, if they match any regex.",
-                  "type": "array",
-                  "items": {
-                    "title": "Pattern",
-                    "type": "string"
-                  },
-                  "default": []
+                "allow-quoted-quotes": {
+                  "title": "Allow Quoted Quotes",
+                  "description": "allow-quoted-quotes allows (true) using disallowed quotes for strings with allowed quotes inside. Default false.",
+                  "type": "boolean",
+                  "default": false
                 },
-                "extra-allowed": {
-                  "title": "Extra Allowed",
-                  "description": "List of PCRE regexes to allow quoted string values, even if required: only-when-needed is set.",
-                  "type": "array",
-                  "items": {
-                    "title": "Pattern",
-                    "type": "string"
-                  },
-                  "default": []
+                "check-keys": {
+                  "title": "Check Keys",
+                  "description": "check-keys defines whether to apply the rules to keys in mappings. By default, quoted-strings rules apply only to values. Set this option to true to apply the rules to keys as well.",
+                  "type": "boolean",
+                  "default": false
                 }
-              }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "required": {
+                        "anyOf": [
+                          { "const": false },
+                          { "const": "only-when-needed" }
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "extra-required": {
+                        "title": "Extra Required",
+                        "description": "extra-required is a list of PCRE regexes to force string values to be quoted, if they match any regex. This option can only be used with required: false and required: only-when-needed.",
+                        "type": "array",
+                        "items": {
+                          "description": "PCRE regex to force string values to be quoted.",
+                          "type": "string",
+                          "format": "regex"
+                        },
+                        "default": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "required": {
+                        "const": "only-when-needed"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "extra-allowed": {
+                        "title": "Extra Allowed",
+                        "description": "extra-allowed is a list of PCRE regexes to allow quoted string values, even if required: only-when-needed is set.",
+                        "type": "array",
+                        "items": {
+                          "description": "PCRE regex to allow quoted string values, even if required: only-when-needed is set.",
+                          "type": "string",
+                          "format": "regex"
+                        },
+                        "default": []
+                      }
+                    }
+                  }
+                }
+              ],
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "disable"
+          ]
         },
         "trailing-spaces": {
-          "title": "Tailing Spaces",
+          "title": "Trailing Spaces",
           "description": "Use this rule to forbid trailing spaces at the end of lines.",
-          "anyOf": [
+          "default": "enable",
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object"
+              "$ref": "#/$defs/rule",
+              "unevaluatedProperties": false
             }
-          ],
-          "default": "enable"
+          ]
         },
         "truthy": {
           "title": "Truthy",
-          "description": "Use this rule to forbid non-explictly typed truthy values other than allowed ones (by default: true and false), for example YES or off.",
-          "anyOf": [
+          "description": "Use this rule to forbid non-explicitly typed truthy values other than allowed ones (by default: true and false), for example YES or off.\n\nThis can be useful to prevent surprises from YAML parsers transforming [yes, FALSE, Off] into [true, false, false] or {y: 1, yes: 2, on: 3, true: 4, True: 5} into {y: 1, true: 5}.\n\nDepending on the YAML specification version used by the YAML document, the list of truthy values can differ. In YAML 1.2, only capitalized / uppercased combinations of true and false are considered truthy, whereas in YAML 1.1 combinations of yes, no, on and off are too. To make the YAML specification version explicit in a YAML document, a %YAML 1.2 directive can be used (see example below).",
+          "default": {
+            "level": "warning"
+          },
+          "oneOf": [
+            { "$ref": "#/$defs/toggle" },
             {
-              "$ref": "#/definitions/toggle"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/allRules",
-              "type": "object",
+              "$ref": "#/$defs/rule",
               "properties": {
                 "allowed-values": {
                   "title": "Allowed Values",
-                  "description": "Defines the list of truthy values which will be ignored during linting.",
+                  "description": "allowed-values defines the list of truthy values which will be ignored during linting.",
                   "type": "array",
                   "items": {
-                    "type": "string",
+                    "title": "Allowed Value",
+                    "description": "A truthy value which will be ignored (allowed) during linting.",
                     "enum": [
                       "TRUE",
                       "True",
@@ -751,24 +802,23 @@
                       "off"
                     ]
                   },
+                  "uniqueItems": true,
                   "default": ["true", "false"]
                 },
                 "check-keys": {
                   "title": "Check Keys",
-                  "description": "Disables verification for keys in mappings.",
+                  "description": "check-keys disables verification for keys in mappings. By default, truthy rule applies to both keys and values. Set this option to false to prevent this.",
                   "type": "boolean",
                   "default": true
                 }
-              }
+              },
+              "unevaluatedProperties": false
             }
-          ],
-          "default": {
-            "level": "warning"
-          }
+          ]
         }
-      }
+      },
+      "unevaluatedProperties": false
     }
   },
-  "title": "yamllint",
-  "type": "object"
+  "unevaluatedProperties": false
 }
