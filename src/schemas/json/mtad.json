@@ -90,6 +90,10 @@
           "$ref": "#/definitions/module-parameters-domains",
           "description": "The domains on which the application will be available later. The resulting application routes will be the Cartesian product of the domains and hosts. That is, a separate route for each host is constructed on each domain."
         },
+        "enable-parallel-service-bindings": {
+          "description": "Enables or disables the parallel binding or unbinding of services during deployment. If disabled, the services are bound and unbound sequentially in the order provided in the deployment descriptor.",
+          "type": "boolean"
+        },
         "enable-ssh": {
           "description": "Enables use of SSH within an application. Supported for the Diego container runtime environment only.",
           "type": "boolean"
@@ -136,6 +140,10 @@
           "$ref": "#/definitions/module-parameters-hosts",
           "description": "The hostnames or subdomain where the idle application will be available during blue-green deploy."
         },
+        "idle-routes": {
+          "$ref": "#/definitions/module-parameters-idle-routes",
+          "description": "Valid for a blue-green deployment when a new application version is started on temporary routes. Specify this parameter if you want to use other routes for the application."
+        },
         "instances": {
           "description": "The number of application instances that will be started during the deployment.",
           "type": "number",
@@ -161,9 +169,29 @@
           "description": "Start/do not start the application during deployment. This parameter setting overrides the command-line option --no-start. If you explicitly set the no-start to false for the module foo in the example provided, then the module foo is started on deployment, even if you also specify the command-line option --no-start with the cf deploy command.",
           "type": "boolean"
         },
+        "readiness-health-check-http-endpoint": {
+          "description": "The endpoint called to determine if the app is ready. The parameter can be applied if the readiness-health-check-http-endpoint parameter is set to http. The controller will make a GET request to this endpoint, and the application will be considered healthy if the response is 200 OK.",
+          "type": "string"
+        },
+        "readiness-health-check-interval": {
+          "description": "The amount of time in seconds between individual readiness health check requests",
+          "type": "number"
+        },
+        "readiness-health-check-invocation-timeout": {
+          "description": "The timeout in seconds for individual readiness health check requests. The parameter can be used for the http and port health check types.",
+          "type": "number"
+        },
+        "readiness-health-check-type": {
+          "$ref": "#/definitions/module-paramters-heealth-check-type",
+          "description": "The type of health check to be performed on the module: http, port, or process"
+        },
         "restart-on-env-change": {
           "$ref": "#/definitions/module-parameters-restart-on-env-change",
           "description": "Specifies whether an application should be restarted if an environment variable has been changed in one of the following categories: vcap-application, vcap-services, user-provided. If you set these parameters to false, the changes in environment are not consumable by a running instances of the application. If your application depends on the latest environment, it might become outdated."
+        },
+        "route-path": {
+          "description": "The context 'route-path' which is part of the application default URI. Context path routing is routing based not only on domain names (host header) but also the path specified in the URL",
+          "type": "string"
         },
         "routes": {
           "$ref": "#/definitions/module-parameters-routes",
@@ -248,11 +276,26 @@
         "type": "string"
       }
     },
+    "module-paramters-heealth-check-type": {
+      "type": "string",
+      "enum": ["http", "port", "process"]
+    },
     "module-parameters-hosts": {
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "module-parameters-idle-routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "idle-route": { "type": "string" }
+        },
+        "required": ["idle-route"]
+      },
+      "description": "List of idle-route objects for the module"
     },
     "module-parameters-routes": {
       "type": "array",
@@ -343,6 +386,7 @@
     "module-parameters-restart-on-env-change": {
       "type": "array",
       "items": {
+        "type": "object",
         "properties": {
           "vcap-application": {
             "description": "Restart on vcap-application env change",
@@ -403,6 +447,14 @@
         "binding-name": {
           "description": "Provide a binding name for the association between an application and a service instance.",
           "type": "string"
+        },
+        "delete-service-key-after-deployment": {
+          "description": "If this parameter is set to true, the service keys used during the content deployment are deleted once the deployment is completed. The parameter is valid only for modules with direct content deployment.",
+          "type": "boolean"
+        },
+        "env-var-name": {
+          "description": "Used when consuming an existing service key. Specifies the name of the environment variable that will contain the service key's credentials.",
+          "type": "string"
         }
       }
     },
@@ -448,6 +500,10 @@
           "items": {
             "$ref": "#/definitions/resource-configuration-target"
           }
+        },
+        "use-live-routes": {
+          "description": "Valid for blue-green deployment. Specify this parameter if you want to provide the routes specified in the descriptor.",
+          "type": "boolean"
         }
       }
     },
@@ -758,6 +814,27 @@
           "description": "Defines the disk space that is available to the Cloud Foundry task."
         }
       }
+    },
+    "apply-namespace-values": {
+      "type": "object",
+      "properties": {
+        "app-names": {
+          "description": "Apply namespace to application names.",
+          "type": "boolean"
+        },
+        "service-names": {
+          "description": "Apply namespace to service names.",
+          "type": "boolean"
+        },
+        "app-routes": {
+          "description": "Apply namespace to application routes.",
+          "type": "boolean"
+        },
+        "as-suffix": {
+          "description": "Apply namespace as suffix.",
+          "type": "boolean"
+        }
+    }
     }
   },
   "description": "MTA deployment descriptor schema v3.3. Contains Cloud Foundry specific types and parameters.",
@@ -792,7 +869,40 @@
     },
     "parameters": {
       "description": "Global parameters related to the MTA application.",
-      "type": "object"
+      "type": "object",
+        "properties": {
+          "apply-namespace": {
+            "description": "Apply namespace to application names, service names and application routes.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/apply-namespace-values"
+            }
+          },
+          "apps-stage-timeout": {
+            "description": "Defines how long, in seconds, your application can take during staging before the MTA operation times out.",
+            "type": "number"
+          },
+          "apps-start-timeout": {
+            "description": "Defines how long, in seconds, your application can take to start before the MTA operation times out.",
+            "type": "number"
+          },
+          "apps-task-execution-timeout": {
+            "description": "Defines how long, in seconds, your application can take to execute a task before the MTA operation times out",
+            "type": "number"
+          },
+          "apps-upload-timeout": {
+            "description": "Defines how long, in seconds, you can upload your application binary before the MTA operation times out.",
+            "type": "number"
+          },
+          "enable-parallel-deployments": {
+            "description": "Defines if parallel deployment of modules is enabled. When enabled, modules without explicitly set deployed-after parameter are deployed in parallel. ",
+            "type": "boolean"
+          },
+          "keep-existing-routes": {
+            "description": "Indicates if the existing routes of all applications within that MTA should be kept.",
+            "type": "boolean"
+          }
+        }
     },
     "parameters-metadata": {
       "$ref": "#/definitions/properties-metadata",
