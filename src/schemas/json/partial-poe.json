@@ -7,32 +7,7 @@
   "title": "Poe the Poet configuration",
   "description": "Poe the Poet is a task runner and build tool that uses simple configuration to define project tasks. It can work as a standalone tool or as a plugin for Poetry.",
   "definitions": {
-    "cmd_task": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/common_task"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "cmd": {
-              "title": "Command to execute",
-              "description": "Executes a single command as a subprocess without a shell. Supports glob patterns for file matching, parameter expansion, and pattern matching. Environment variable templating is also supported within the command.",
-              "examples": [
-                "rm -rf ./**/*.pyc",
-                "echo '.*' # prevents glob expansion",
-                "echo \\.* # also prevents glob expansion",
-                "echo Hello ${USER}",
-                "echo Hello \\${USER} # escapes the variable for literal dollar sign"
-              ],
-              "type": "string"
-            }
-          },
-          "required": ["cmd"]
-        }
-      ]
-    },
-    "common_task": {
+    "standard_options": {
       "properties": {
         "args": {
           "anyOf": [
@@ -43,7 +18,7 @@
                     "type": "string"
                   },
                   {
-                    "$ref": "#/definitions/common_task/properties/args/definitions/args"
+                    "$ref": "#/definitions/standard_options/properties/args/definitions/args"
                   }
                 ]
               },
@@ -51,7 +26,7 @@
             },
             {
               "additionalProperties": {
-                "$ref": "#/definitions/common_task/properties/args/definitions/args"
+                "$ref": "#/definitions/standard_options/properties/args/definitions/args"
               },
               "type": "object"
             }
@@ -114,12 +89,6 @@
           },
           "description": "Define CLI options, positional arguments, or flags that this task should accept."
         },
-        "capture_stdout": {
-          "description": "Redirects the task output to a file with the given path. Supports environment variable interpolation.",
-          "examples": ["output.log", "${POE_PWD}/output.txt"],
-          "pattern": "^(?:\\$\\{[^\\}]+\\}/)?.+$",
-          "type": "string"
-        },
         "cwd": {
           "description": "Specify the current working directory that this task should run with. This can be a relative path from the project root or an absolute path, and environment variables can be used in the format ${VAR_NAME}.",
           "minLength": 1,
@@ -135,53 +104,14 @@
           "type": "array"
         },
         "env": {
-          "additionalProperties": false,
-          "patternProperties": {
-            "^.+$": {
-              "description": "The value to be set for the environment variable.",
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "default": {
-                      "description": "A default value for an environment variable that will be used only if the variable is not already set.",
-                      "type": "string"
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          "type": "object"
+          "$ref": "#/definitions/env_option"
         },
         "envfile": {
-          "description": "Provide one or more env files to be loaded before running this task. If an array is provided, files will be loaded in the given order.",
-          "oneOf": [
-            {
-              "description": "The name or relative path to a single env file.",
-              "type": "string"
-            },
-            {
-              "description": "An array of names or relative paths to env files which will be loaded in the given order.",
-              "items": {
-                "description": "The name or relative path to an env file.",
-                "type": "string"
-              },
-              "type": "array"
-            }
-          ]
+          "$ref": "#/definitions/envfile_option"
         },
         "help": {
           "description": "Help text to be displayed next to the task name in the documentation when poe is run without specifying a task.",
-          "anyOf": [{ "type": "string" }, { "type": "null" }]
-        },
-        "use_exec": {
-          "description": "Specify that this task should be executed in the same process, instead of as a subprocess. Note: This feature has limitations, such as not being compatible with tasks that are referenced by other tasks and not working on Windows.",
-          "examples": [true, false],
-          "type": "boolean"
+          "type": "string"
         },
         "uses": {
           "additionalProperties": {
@@ -190,14 +120,147 @@
           },
           "description": "Allows this task to use the output of other tasks which are executed first. The values are references to the names of the tasks, and the keys are environment variables by which the results of those tasks will be accessible in this task.",
           "type": "object"
+        },
+        "executor": {
+          "$ref": "#/definitions/executor_option"
+        },
+        "verbosity": {
+          "default": 0,
+          "description": "Specify the verbosity level for this task, from -2 (least verbose) to 2 (most verbose), overriding the project level verbosity setting, which defaults to 0.",
+          "maximum": 2,
+          "minimum": -2,
+          "type": "integer"
         }
       },
       "type": "object"
     },
+    "capture_stdout_option": {
+      "properties": {
+        "capture_stdout": {
+          "description": "Redirects the task output to a file with the given path. Supports environment variable interpolation.",
+          "examples": ["output.log", "${POE_PWD}/output.txt"],
+          "pattern": "^(?:\\$\\{[^\\}]+\\}/)?.+$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "use_exec_option": {
+      "properties": {
+        "use_exec": {
+          "description": "Specify that this task should be executed in the same process, instead of as a subprocess. Note: This feature has limitations, such as not being compatible with tasks that are referenced by other tasks and not working on Windows.",
+          "examples": [true, false],
+          "type": "boolean"
+        }
+      },
+      "if": {
+        "properties": { "use_exec": { "const": true } },
+        "required": ["use_exec"]
+      },
+      "then": { "not": { "required": ["capture_stdout"] } },
+      "type": "object"
+    },
+    "env_option": {
+      "additionalProperties": false,
+      "patternProperties": {
+        "^.+$": {
+          "description": "A map of environment variables to be set for this task.",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "default": {
+                  "description": "A default value for an environment variable that will be used only if the variable is not already set.",
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "envfile_option": {
+      "description": "Provide one or more env files to be loaded before running this task. If an array is provided, files will be loaded in the given order.",
+      "oneOf": [
+        {
+          "description": "The name or relative path to a single env file.",
+          "type": "string"
+        },
+        {
+          "description": "An array of names or relative paths to env files which will be loaded in the given order.",
+          "items": {
+            "description": "The name or relative path to an env file.",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "executor_option": {
+      "additionalProperties": false,
+      "description": "Configure the executor type for running tasks. Can be 'auto', 'poetry', 'virtualenv', or 'simple', with 'auto' being the default.",
+      "properties": {
+        "location": {
+          "description": "Specifies the location of the virtualenv relative to the parent directory. Relevant when 'type' is set to 'virtualenv'.",
+          "type": "string"
+        },
+        "type": {
+          "default": "auto",
+          "description": "Specifies the executor type. 'auto' uses the most appropriate executor, 'poetry' uses the poetry environment, 'uv' uses `uv run` to run tasks, 'virtualenv' specifies a virtual environment, and 'simple' runs tasks without any specific environment setup.",
+          "enum": ["auto", "poetry", "uv", "virtualenv", "simple"],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "cmd_task": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "$ref": "#/definitions/capture_stdout_option"
+        },
+        {
+          "$ref": "#/definitions/use_exec_option"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "empty_glob": {
+              "default": "pass",
+              "description": "Determines how to handle glob patterns with no matches. The default is 'pass', which causes unmatched patterns to be passed through to the command (just like in bash). Setting it to 'null' will replace an unmatched pattern with nothing, and setting it to 'fail' will cause the task to fail with an error if there are no matches.",
+              "enum": ["pass", "null", "fail"]
+            },
+            "cmd": {
+              "title": "Command to execute",
+              "description": "Executes a single command as a subprocess without a shell. Supports glob patterns for file matching, parameter expansion, and pattern matching. Environment variable templating is also supported within the command.",
+              "examples": [
+                "rm -rf ./**/*.pyc",
+                "echo '.*' # prevents glob expansion",
+                "echo \\.* # also prevents glob expansion",
+                "echo Hello ${USER}",
+                "echo Hello \\${USER} # escapes the variable for literal dollar sign"
+              ],
+              "type": "string"
+            }
+          },
+          "required": ["cmd"]
+        }
+      ]
+    },
     "expr_task": {
       "allOf": [
         {
-          "$ref": "#/definitions/common_task"
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "$ref": "#/definitions/capture_stdout_option"
+        },
+        {
+          "$ref": "#/definitions/use_exec_option"
         },
         {
           "type": "object",
@@ -225,7 +288,10 @@
     "ref_task": {
       "allOf": [
         {
-          "$ref": "#/definitions/common_task"
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "$ref": "#/definitions/capture_stdout_option"
         },
         {
           "type": "object",
@@ -242,7 +308,13 @@
     "script_task": {
       "allOf": [
         {
-          "$ref": "#/definitions/common_task"
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "$ref": "#/definitions/capture_stdout_option"
+        },
+        {
+          "$ref": "#/definitions/use_exec_option"
         },
         {
           "type": "object",
@@ -269,7 +341,7 @@
     "sequence_task": {
       "allOf": [
         {
-          "$ref": "#/definitions/common_task"
+          "$ref": "#/definitions/standard_options"
         },
         {
           "type": "object",
@@ -300,10 +372,62 @@
         }
       ]
     },
+    "parallel_task": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "default_item_type": {
+              "default": "ref",
+              "description": "Change the default item type that strings in the sequence are interpreted as.",
+              "type": "string"
+            },
+            "ignore_fail": {
+              "description": "If true then the failure (or non-zero return value) of one task in the parallel group does not abort the execution.",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "enum": ["return_zero", "return_non_zero"],
+                  "type": "string"
+                }
+              ]
+            },
+            "prefix": {
+              "default": "{name}",
+              "description": "Set the prefix applied to each line of output from subtasks. By default this is the task name.",
+              "type": "string"
+            },
+            "prefix_max": {
+              "default": 16,
+              "description": "Set the maximum width of the prefix. Longer prefixes will be truncated.",
+              "type": "integer"
+            },
+            "prefix_template": {
+              "default": "{color_start}{prefix}{color_end} |",
+              "description": "Specifies a template for how the prefix is applied after truncating it to the prefix_max length.",
+              "type": "string"
+            },
+            "parallel": {
+              "$ref": "#/definitions/tasks_array",
+              "description": "A subtask is defined by an array of tasks or command names to be run multiple tasks concurrently. Each subtask can be a command name, a command, script, reference to another task, or another sequence."
+            }
+          },
+          "required": ["parallel"]
+        }
+      ]
+    },
     "shell_task": {
       "allOf": [
         {
-          "$ref": "#/definitions/common_task"
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "$ref": "#/definitions/capture_stdout_option"
         },
         {
           "type": "object",
@@ -346,7 +470,10 @@
     "switch_task": {
       "allOf": [
         {
-          "$ref": "#/definitions/common_task"
+          "$ref": "#/definitions/standard_options"
+        },
+        {
+          "$ref": "#/definitions/capture_stdout_option"
         },
         {
           "type": "object",
@@ -408,6 +535,9 @@
           "$ref": "#/definitions/sequence_task"
         },
         {
+          "$ref": "#/definitions/parallel_task"
+        },
+        {
           "$ref": "#/definitions/expr_task"
         },
         {
@@ -444,59 +574,13 @@
       "type": "string"
     },
     "env": {
-      "additionalProperties": false,
-      "description": "Define environment variables to be exposed to all tasks. Supports POSIX variable interpolation and setting default values with a '.default' suffix.",
-      "patternProperties": {
-        "^.+$": {
-          "description": "A POSIX string that may include environment variable interpolations.",
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "default": {
-                  "description": "A default value for an environment variable that will be used only if the variable is not already set.",
-                  "type": "string"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "type": "object"
+      "$ref": "#/definitions/env_option"
     },
     "envfile": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      ],
-      "description": "Link to one or more files defining environment variables to be exposed to all tasks."
+      "$ref": "#/definitions/envfile_option"
     },
     "executor": {
-      "additionalProperties": false,
-      "description": "Configure the executor type for running tasks. Can be 'auto', 'poetry', 'virtualenv', or 'simple', with 'auto' being the default.",
-      "properties": {
-        "location": {
-          "description": "Specifies the location of the virtualenv relative to the parent directory. Relevant when 'type' is set to 'virtualenv'.",
-          "type": "string"
-        },
-        "type": {
-          "default": "auto",
-          "description": "Specifies the executor type. 'auto' uses the most appropriate executor, 'poetry' uses the poetry environment, 'uv' uses `uv run` to run tasks, 'virtualenv' specifies a virtual environment, and 'simple' runs tasks without any specific environment setup.",
-          "enum": ["auto", "poetry", "uv", "virtualenv", "simple"],
-          "type": "string"
-        }
-      },
-      "type": "object"
+      "$ref": "#/definitions/executor_option"
     },
     "include": {
       "anyOf": [
@@ -505,7 +589,15 @@
         },
         {
           "items": {
-            "type": "string"
+            "oneOf": [
+              { "type": "string" },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ]
           },
           "type": "array"
         },
@@ -517,6 +609,34 @@
         }
       ],
       "description": "Specify one or more other toml or json files to load tasks from."
+    },
+    "include_script": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      ],
+      "description": "Load dynamically generated tasks from one or more python functions."
     },
     "poetry_command": {
       "description": "Change the name of the task poe registers with poetry when used as a plugin.",
