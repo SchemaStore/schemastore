@@ -67,6 +67,15 @@
                   "description": "Indicates if the argument is positional.",
                   "type": "boolean"
                 },
+                "choices": {
+                  "description": "Constrain the accepted values for an argument to a fixed set.",
+                  "oneOf": [
+                    { "items": { "type": "string" } },
+                    { "items": { "type": "integer" } },
+                    { "items": { "type": "number" } }
+                  ],
+                  "type": "array"
+                },
                 "required": {
                   "description": "Indicates if the argument is required.",
                   "type": "boolean"
@@ -160,6 +169,27 @@
       "then": { "not": { "required": ["capture_stdout"] } },
       "type": "object"
     },
+    "ignore_fail_exec_option": {
+      "description": "Return exit code 0 even if the task fails, or specify a list of task exit codes to ignore.",
+      "examples": [true],
+      "oneOf": [
+        { "type": "array", "items": { "type": "integer" } },
+        { "type": "boolean" }
+      ]
+    },
+    "ignore_fail_tasks_option": {
+      "description": "If set, the sequence will continue running even if one of the tasks fails.",
+      "examples": [true, "return_zero", "return_non_zero"],
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "enum": ["return_zero", "return_non_zero"],
+          "type": "string"
+        }
+      ]
+    },
     "env_option": {
       "additionalProperties": false,
       "patternProperties": {
@@ -185,35 +215,160 @@
       "description": "Provide one or more env files to be loaded before running this task. If an array is provided, files will be loaded in the given order.",
       "oneOf": [
         {
-          "description": "The name or relative path to a single env file.",
-          "type": "string"
+          "$ref": "#/definitions/envfile_option/definitions/envfile"
         },
         {
-          "description": "An array of names or relative paths to env files which will be loaded in the given order.",
-          "items": {
-            "description": "The name or relative path to an env file.",
-            "type": "string"
+          "properties": {
+            "expected": {
+              "$ref": "#/definitions/envfile_option/definitions/envfile",
+              "description": "Provide one or more env files to be loaded before running this task. Emit a warning if any specified envfile is missing."
+            },
+            "optional": {
+              "$ref": "#/definitions/envfile_option/definitions/envfile",
+              "description": "Provide one or more env files to be loaded before running this task. Do not emit a warning even if a specified envfile is missing."
+            }
           },
-          "type": "array"
+          "type": "object"
         }
-      ]
+      ],
+      "definitions": {
+        "envfile": {
+          "oneOf": [
+            {
+              "description": "The name or relative path to a single env file.",
+              "type": "string"
+            },
+            {
+              "description": "An array of names or relative paths to env files which will be loaded in the given order.",
+              "items": {
+                "description": "The name or relative path to an env file.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        }
+      }
     },
     "executor_option": {
-      "additionalProperties": false,
       "description": "Configure the executor type for running tasks. Can be 'auto', 'poetry', 'virtualenv', or 'simple', with 'auto' being the default.",
-      "properties": {
-        "location": {
-          "description": "Specifies the location of the virtualenv relative to the parent directory. Relevant when 'type' is set to 'virtualenv'.",
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "$ref": "#/definitions/executor_option/definitions/type"
+            }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "extra": {
+                  "description": "Include optional dependencies from the specified extra name.",
+                  "oneOf": [
+                    { "type": "string" },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "group": {
+                  "description": "Include dependencies from the specified dependency group.",
+                  "oneOf": [
+                    { "type": "string" },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "no-group": {
+                  "description": "Disable the specified dependency group.",
+                  "oneOf": [
+                    { "type": "string" },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "with": {
+                  "description": "Run with the given packages installed.",
+                  "oneOf": [
+                    { "type": "string" },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "isolated": {
+                  "description": "Run the command in an isolated virtual environment.",
+                  "type": "boolean"
+                },
+                "no-sync": {
+                  "description": "Avoid syncing the virtual environment.",
+                  "type": "boolean"
+                },
+                "locked": {
+                  "description": "Run without updating the uv.lock file.",
+                  "type": "boolean"
+                },
+                "frozen": {
+                  "description": "Run without updating the uv.lock file.",
+                  "type": "boolean"
+                },
+                "no-project": {
+                  "description": "Avoid discovering the project or workspace.",
+                  "type": "boolean"
+                },
+                "python": {
+                  "description": "The Python interpreter to use for the run environment.",
+                  "type": "string"
+                },
+                "type": {
+                  "const": "uv",
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "properties": {
+                "location": {
+                  "description": "Specifies the location of the virtualenv relative to the parent directory. Relevant when 'type' is set to 'virtualenv'.",
+                  "type": "string"
+                },
+                "type": {
+                  "const": "virtualenv",
+                  "type": "string"
+                }
+              }
+            },
+            {}
+          ],
+          "required": ["type"],
+          "type": "object"
         },
+        {
+          "$ref": "#/definitions/executor_option/definitions/type"
+        }
+      ],
+      "definitions": {
         "type": {
           "default": "auto",
           "description": "Specifies the executor type. 'auto' uses the most appropriate executor, 'poetry' uses the poetry environment, 'uv' uses `uv run` to run tasks, 'virtualenv' specifies a virtual environment, and 'simple' runs tasks without any specific environment setup.",
           "enum": ["auto", "poetry", "uv", "virtualenv", "simple"],
           "type": "string"
         }
-      },
-      "type": "object"
+      }
     },
     "cmd_task": {
       "allOf": [
@@ -233,6 +388,9 @@
               "default": "pass",
               "description": "Determines how to handle glob patterns with no matches. The default is 'pass', which causes unmatched patterns to be passed through to the command (just like in bash). Setting it to 'null' will replace an unmatched pattern with nothing, and setting it to 'fail' will cause the task to fail with an error if there are no matches.",
               "enum": ["pass", "null", "fail"]
+            },
+            "ignore_fail": {
+              "$ref": "#/definitions/ignore_fail_exec_option"
             },
             "cmd": {
               "title": "Command to execute",
@@ -273,6 +431,9 @@
               "description": "A Python expression to be evaluated. Can include environment variables and arguments.",
               "type": "string"
             },
+            "ignore_fail": {
+              "$ref": "#/definitions/ignore_fail_exec_option"
+            },
             "imports": {
               "description": "A list of Python modules to be imported for use in the expression.",
               "items": {
@@ -296,10 +457,27 @@
         {
           "type": "object",
           "properties": {
+            "ignore_fail": {
+              "description": "If true the failure of the referenced task will be ignored and the ref task will return exit code 0.",
+              "examples": [true],
+              "oneOf": [
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
             "ref": {
               "description": "A reference to another task by name, with optional additional arguments appended.",
               "type": "string"
             }
+          },
+          "not": {
+            "properties": {
+              "executor": {
+                "not": false
+              }
+            },
+            "required": ["executor"]
           },
           "required": ["ref"]
         }
@@ -319,6 +497,9 @@
         {
           "type": "object",
           "properties": {
+            "ignore_fail": {
+              "$ref": "#/definitions/ignore_fail_exec_option"
+            },
             "print_result": {
               "default": false,
               "description": "If true then the return value of the Python callable will be output to stdout, unless it is None.",
@@ -352,16 +533,7 @@
               "type": "string"
             },
             "ignore_fail": {
-              "description": "If set, the sequence will continue running even if one of the tasks fails.",
-              "oneOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "enum": ["return_zero", "return_non_zero"],
-                  "type": "string"
-                }
-              ]
+              "$ref": "#/definitions/ignore_fail_tasks_option"
             },
             "sequence": {
               "$ref": "#/definitions/tasks_array",
@@ -386,16 +558,7 @@
               "type": "string"
             },
             "ignore_fail": {
-              "description": "If true then the failure (or non-zero return value) of one task in the parallel group does not abort the execution.",
-              "oneOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "enum": ["return_zero", "return_non_zero"],
-                  "type": "string"
-                }
-              ]
+              "$ref": "#/definitions/ignore_fail_tasks_option"
             },
             "prefix": {
               "default": "{name}",
@@ -432,6 +595,9 @@
         {
           "type": "object",
           "properties": {
+            "ignore_fail": {
+              "$ref": "#/definitions/ignore_fail_exec_option"
+            },
             "interpreter": {
               "description": "Specify the shell interpreter that this task should execute with, or a list of interpreters in order of preference.",
               "examples": [
