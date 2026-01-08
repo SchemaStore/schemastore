@@ -1,0 +1,139 @@
+# $schema: ./openhab-5.1.json
+
+version: 1
+
+# All the sections below are optional and may appear in any order
+
+tags:
+  Equipment_Curtain:
+    label: Curtain
+
+  Location_Indoor_Room_HomeCinemaRoom:
+    label: Home Cinema Room
+    description: The room containing my home cinema system
+    synonyms:
+      - Home theater room
+      - TV room
+      - Movie room
+
+things:
+  lgwebos:WebOSTV:3aab9eea-953b-4272-bdbd-f0cd0ecf4a46:
+    config:
+      host: 192.168.2.119
+      key: 6ef1dff6c7c936c8dc5056fc85ea3aef
+      macAddress: 3c:cd:93:c2:20:e0
+  mqtt:broker:mosquitto:
+    isBridge: true
+    config:
+      host: 192.168.1.1
+      lwtMessage: offline
+      lwtTopic: openhab/status
+      lwtQos: 1
+      birthMessage: online
+      birthTopic: openhab/status
+      shutdownMessage: offline
+      shutdownTopic: openhab/status
+      enableDiscovery: false
+
+  mqtt:topic:bedroom1-switch:
+    bridge: mqtt:broker:mosquitto
+    label: Bed Room1 Switch
+    config:
+      availabilityTopic: bedroom1-switch/status
+      payloadAvailable: online
+      payloadNotAvailable: offline
+    channels:
+      switch1:
+        type: switch
+        config:
+          stateTopic: bedroom1-switch/switch/switch1/state
+          commandTopic: bedroom1-switch/switch/switch1/command
+      button1:
+        type: string
+        config:
+          stateTopic: bedroom1-switch/button1
+          postCommand: true
+      statusled:
+        type: switch
+        config:
+          stateTopic: bedroom1-switch/light/status_led/state
+          commandTopic: bedroom1-switch/light/status_led/command
+          transformationPattern:
+            - JSONPATH:$.state
+          formatBeforePublish: '{"state": "%s"}' # This needs to be quoted to be parsed as a string
+                                                 # because YAML interprets {} as a map object
+
+  # Example to configure a built-in channel
+  astro:sun:home:
+    config:
+      geolocation: 52.5200066,13.4049540,100
+      interval: 60
+    channels:
+      rise#event:
+        type: rangeEvent
+        config:
+          offset: -30
+
+items:
+  minimum_item:
+    type: String
+
+  TV_Power:
+    type: Switch
+    label: TV Power
+    icon: television
+    autoupdate: false
+    channel: lgwebos:WebOSTV:3aab9eea-953b-4272-bdbd-f0cd0ecf4a46:power
+
+  TV_Volume:
+    type: Dimmer
+    label: Volume # Label must not contain a format pattern
+    format: "%d" # Values starting with a percent sign must be quoted
+    channel: lgwebos:WebOSTV:3aab9eea-953b-4272-bdbd-f0cd0ecf4a46:volume
+
+  lBedroom1:
+    type: Group
+    label: Bedroom 1
+    tags:
+      - Bedroom
+
+  BedRoom1_WallSwitch:
+    type: Group
+    label: Bedroom1 Light Wall Switch
+    groups:
+      - lBedroom1
+    tags:
+      - WallSwitch
+
+  BedRoom1_Light_Switch:
+    type: Switch
+    label: Bedroom1 Light Switch
+    icon: switch
+    format: '%s'
+    groups:
+      - BedRoom1_WallSwitch
+    tags:
+      - Switch
+    channel: mqtt:topic:bedroom1-switch:switch1 # short form
+
+  BedRoom1_Light_Button:
+    type: String
+    label: Bedroom1 Light Button Action
+    groups:
+      - BedRoom1_WallSwitch
+    channels: # long form
+      mqtt:topic:bedroom1-switch:button1: { } # No config
+
+  BedRoom1_WallSwitch_StatusLED:
+    type: Switch
+    groups:
+      - BedRoom1_WallSwitch
+    channels:
+      mqtt:topic:bedroom1-switch:statusled:
+        # The configuration of this item-channel link is defined below
+        profile: transform:MAP
+        function: "|open=ON;closed=OFF" # | is a YAML special character, so enclose it in quotes.
+
+    metadata:
+      expire:
+        value: 3s
