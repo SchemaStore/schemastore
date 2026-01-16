@@ -31,6 +31,44 @@ otelCollector:
   workingDir: /opt/metricshub/otel
   disabled: false
 
+# Web server configuration
+web:
+  tls:
+    enabled: true
+    keystore:
+      path: classpath:m8b-keystore.p12
+      password: NOPWD
+      key-password: customKeyPassword
+      key-alias: custom-alias
+  ai:
+    openai:
+      tool-output:
+        max-tool-output-bytes: 10485760
+        safety-delta-bytes: 2097152
+        base-temp-dir: ${java.io.tmpdir}/metricshub/ai
+      api-key: sk-1234567890abcdef
+      model: gpt-5.2
+      reasoning:
+        enabled: true
+        effort: MEDIUM
+        summary: AUTO
+
+# Additional web configuration examples (commented out to show different options)
+# web:
+#   tls:
+#     enabled: false  # Disable TLS, use HTTP
+#   ai:
+#     openai:
+#       tool-output:
+#         max-tool-output-bytes: 20971520  # 20MB
+#         safety-delta-bytes: 4194304  # 4MB
+#         base-temp-dir: /tmp/custom-ai-dir
+#       model: gpt-4
+#       reasoning:
+#         enabled: false
+#         effort: HIGH
+#         summary: DETAILED
+
 # Enable compression for state set metrics
 stateSetCompression: suppressZeros
 
@@ -532,3 +570,50 @@ resourceGroups:
             type: mysql
             port: 3306
             database: mydatabase
+
+      #═══════════════════════════════════════════════════
+      # Windows Event Log Source Configuration
+      #═══════════════════════════════════════════════════
+
+      windows-server:
+        attributes:
+          host.name: windows-server
+          host.type: windows
+        protocols:
+          wmi:
+            timeout: 120s
+        monitors:
+          windowsEventLog:
+            collect:
+              sources:
+                systemEvents:
+                  type: eventLog
+                  logName: System
+                  eventIds: [ '1001', '1002', '6008' ] # Event IDs to filter (optional)
+                  sources: [ 'Microsoft-Windows-Kernel-General', 'EventLog' ] # Event sources to filter (optional)
+                  levels: [ error, warning, 1, 2 ] # Event levels to filter
+                  maxEventsPerPoll: 100 # Maximum number of events to retrieve per poll
+                applicationEvents:
+                  type: eventLog
+                  logName: Application
+                  eventIds:
+                    - '1001'
+                    - '1002'
+                    - '6008'
+                  sources:
+                    - 'Microsoft-Windows-Kernel-General'
+                    - 'EventLog'
+                  levels:
+                    - information
+                    - warning
+                    - error
+                  maxEventsPerPoll: 50
+                securityAudit:
+                  type: eventLog
+                  logName: Security
+                  levels: [ audit_success, audit_failure ] # Event levels to filter (optional) (default: all)
+                  maxEventsPerPoll: -1 # Maximum number of events to retrieve per poll (optional) (default: 50)
+              mapping:
+                source: ${source::monitors.windowsEventLog.collect.sources.systemEvents}
+                metrics:
+                  windows.event.count: $1
