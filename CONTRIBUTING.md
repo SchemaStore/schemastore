@@ -695,7 +695,7 @@ Often, it is useful to extract a subschema into its own file. This can make it e
 A subschema should be extracted to its own file based on the following rules:
 
 - If a schema represents an existing project that could be its own file, then simply use that file for the "subschema". In other places, `$ref` that file where appropriate.
-  - For example, [mypy](https://mypy-lang.org) reads configuration from both `mypy.ini` and `pyproject.toml`'s `tool.mypy` key. Because `mypy.ini` is its own file, then name the schema `mypy.json` like you usually would.
+  - For example, [hatch](https://hatch.pypa.io/latest/) reads configuration from both `hatch.toml` and `pyproject.toml`'s `tool.hatch` key. Because `hatch.toml` is its own file, then name the schema `hatch.json` like you usually would.
   - Same with [Prettier](https://prettier.io). It reads from `.prettierrc.json` (among other files) and `package.json`'s `prettier` key.
 - If the schema cannot be its own file, then extracting the subschema may be an improvement
   - For example, [Poetry](https://python-poetry.org) reads configuration _only_ from `pyproject.toml`'s `tool.poetry` key. Because the Poetry subschema is relatively complex and a large project, it has been extracted to its own file, `partial-poetry.json`.
