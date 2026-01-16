@@ -58,6 +58,49 @@
         }
       }
     },
+    "metrics": {
+      "type": "object",
+      "description": "Metric definitions describing the collected OpenTelemetry metrics and their metadata (unit, description, and type).",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "description": "The measurement unit of the metric (e.g., 'Cel', 's', 'By'). Default is an empty string."
+          },
+          "description": {
+            "type": "string",
+            "description": "A human-readable explanation of what the metric measures and its context."
+          },
+          "type": {
+            "description": "Defines the metric type being collected. Can be a simple string type (Gauge, Counter, UpDownCounter) or an object with state set mapping.",
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": ["Gauge", "Counter", "UpDownCounter"],
+                "default": "Gauge",
+                "description": "A simple metric type. • 'Gauge' measures a value at a point in time. • 'Counter' represents a monotonically increasing value. • 'UpDownCounter' can both increase and decrease over time."
+              },
+              {
+                "type": "object",
+                "description": "A metric type definition that allows state set mapping.",
+                "properties": {
+                  "stateSet": {
+                    "type": "array",
+                    "description": "A list defining the possible states that this metric can represent (e.g., ['ok', 'degraded', 'failed']). Typically used when the metric indicates a binary value (0 or 1) corresponding to each defined state."
+                  },
+                  "output": {
+                    "type": "string",
+                    "enum": ["Gauge", "Counter", "UpDownCounter"],
+                    "description": "Specifies the output metric type when 'stateSet' is defined. Determines how the resulting metric will be emitted in OpenTelemetry."
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
     "sources": {
       "type": "object",
       "description": "Contains Sources",
@@ -418,6 +461,99 @@
                 "description": "SQL Query"
               }
             }
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "awk"
+              },
+              "forceSerialization": {
+                "type": "boolean"
+              },
+              "computes": {
+                "$ref": "#/definitions/computes"
+              },
+              "executeForEachEntryOf": {
+                "$ref": "#/definitions/executeForEachEntryOf"
+              },
+              "script": {
+                "type": "string",
+                "description": "Awk script name or inline definition"
+              },
+              "exclude": {
+                "type": "string",
+                "description": "Exclude lines matching this regular expression"
+              },
+              "keep": {
+                "type": "string",
+                "description": "Keep only lines matching this regular expression"
+              },
+              "separator": {
+                "type": "string",
+                "description": "Column separator"
+              },
+              "selectColumns": {
+                "type": "string",
+                "description": "Columns selected from the result"
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "internalDbQuery"
+              },
+              "forceSerialization": {
+                "type": "boolean"
+              },
+              "computes": {
+                "$ref": "#/definitions/computes"
+              },
+              "query": {
+                "type": "string",
+                "description": "Internal database query to execute"
+              },
+              "parameters": {
+                "type": "array",
+                "description": "Optional query parameters",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "jmx"
+              },
+              "forceSerialization": {
+                "type": "boolean"
+              },
+              "computes": {
+                "$ref": "#/definitions/computes"
+              },
+              "executeForEachEntryOf": {
+                "$ref": "#/definitions/executeForEachEntryOf"
+              },
+              "objectName": {
+                "type": "string",
+                "description": "JMX ObjectName pattern identifying the MBean"
+              },
+              "attributes": {
+                "type": "array",
+                "description": "List of MBean attributes to query",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "resultContent": {
+                "$ref": "#/definitions/resultContent"
+              }
+            }
           }
         ]
       }
@@ -718,49 +854,43 @@
                 "description": "Properties To Capture"
               }
             }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "encode"
+              },
+              "column": {
+                "type": "integer",
+                "description": "The column index used for the Encode computation."
+              },
+              "encoding": {
+                "type": "string",
+                "description": "The encoding algorithm or format to apply (base64 or url)."
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "decode"
+              },
+              "column": {
+                "type": "integer",
+                "description": "The column index used for the Decode computation."
+              },
+              "encoding": {
+                "type": "string",
+                "description": "The encoding algorithm or format to reverse (base64 or url)."
+              }
+            }
           }
         ]
       }
     }
   },
   "properties": {
-    "metrics": {
-      "type": "object",
-      "description": "OpenTelemetry Metrics Collected",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "unit": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "type": {
-            "oneOf": [
-              {
-                "type": "string",
-                "enum": ["Gauge", "Counter", "UpDownCounter"],
-                "default": "Gauge"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "stateSet": {
-                    "type": "array"
-                  },
-                  "output": {
-                    "type": "string",
-                    "enum": ["Gauge", "Counter", "UpDownCounter"],
-                    "default": "UpDownCounter"
-                  }
-                }
-              }
-            ]
-          }
-        }
-      }
-    },
+    "metrics": { "$ref": "#/definitions/metrics" },
     "constants": {
       "type": "object",
       "description": "Declared Connector Constants",
@@ -775,8 +905,31 @@
         "type": "string"
       }
     },
-    "pre": {
+    "beforeAll": {
       "$ref": "#/definitions/sources"
+    },
+    "afterAll": {
+      "$ref": "#/definitions/sources"
+    },
+    "beforeAllSourceDep": {
+      "type": "array",
+      "description": "List of beforeAll source dependencies specified as sets of source names.",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "afterAllSourceDep": {
+      "type": "array",
+      "description": "List of afterAll source dependencies specified as sets of source names.",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
     "monitors": {
       "type": "object",
@@ -788,7 +941,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -800,6 +953,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -888,11 +1042,12 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -974,7 +1129,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -986,6 +1141,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -1054,7 +1210,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1066,6 +1222,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1136,7 +1293,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1148,6 +1305,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1236,7 +1394,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1248,6 +1406,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -1312,7 +1471,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1324,6 +1483,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1366,7 +1526,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1378,6 +1538,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1458,7 +1619,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1470,6 +1631,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -1550,7 +1712,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1562,6 +1724,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1648,7 +1811,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1660,6 +1823,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1752,11 +1916,12 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -1824,7 +1989,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1836,6 +2001,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -1936,7 +2102,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -1948,6 +2114,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -2026,7 +2193,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2038,6 +2205,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -2114,7 +2282,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2126,6 +2294,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -2206,11 +2375,12 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -2303,7 +2473,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2315,6 +2485,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -2383,7 +2554,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2395,6 +2566,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -2543,7 +2715,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2555,6 +2727,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -2655,7 +2828,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2667,6 +2840,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -2771,7 +2945,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2783,6 +2957,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -2935,7 +3110,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -2947,6 +3122,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3021,7 +3197,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3033,6 +3209,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -3097,7 +3274,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3109,6 +3286,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3189,11 +3367,12 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3269,7 +3448,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3281,6 +3460,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -3349,7 +3529,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3361,6 +3541,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3453,7 +3634,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3465,6 +3646,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3545,7 +3727,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3557,6 +3739,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -3629,7 +3812,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3641,6 +3824,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3741,11 +3925,12 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -3841,7 +4026,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3853,6 +4038,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -3921,7 +4107,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -3933,6 +4119,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4069,7 +4256,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4081,6 +4268,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4175,7 +4363,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4187,6 +4375,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -4283,7 +4472,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4295,6 +4484,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4395,7 +4585,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4407,6 +4597,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4487,7 +4678,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4499,6 +4690,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -4575,7 +4767,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4587,6 +4779,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4703,7 +4896,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4715,6 +4908,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4791,7 +4985,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4803,6 +4997,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -4899,7 +5094,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4911,6 +5106,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -4987,7 +5183,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -4999,6 +5195,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5063,7 +5260,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5075,6 +5272,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -5143,7 +5341,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5155,6 +5353,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5251,7 +5450,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5263,6 +5462,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5347,7 +5547,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5359,6 +5559,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -5427,7 +5628,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5439,6 +5640,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5539,7 +5741,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5551,6 +5753,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5631,7 +5834,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5643,6 +5846,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -5719,7 +5923,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5731,6 +5935,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5811,7 +6016,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5823,6 +6028,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -5895,7 +6101,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5907,6 +6113,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -5971,7 +6178,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -5983,6 +6190,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -6059,7 +6267,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -6071,6 +6279,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -6133,7 +6342,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -6145,6 +6354,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -6213,7 +6423,7 @@
           "properties": {
             "simple": {
               "type": "object",
-              "description": "Simple Monitor",
+              "description": "Simple monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -6225,6 +6435,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -6305,7 +6516,7 @@
             },
             "discovery": {
               "type": "object",
-              "description": "Discovery Monitor",
+              "description": "Discovery monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -6317,6 +6528,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "mapping": {
                   "type": "object",
                   "description": "Discovery Mapping",
@@ -6389,7 +6601,7 @@
             },
             "collect": {
               "type": "object",
-              "description": "Collect Monitor",
+              "description": "Collect monitoring job",
               "properties": {
                 "executionOrder": {
                   "type": "array",
@@ -6401,6 +6613,7 @@
                 "sources": {
                   "$ref": "#/definitions/sources"
                 },
+                "metrics": { "$ref": "#/definitions/metrics" },
                 "keys": {
                   "type": "array",
                   "items": {
@@ -6465,7 +6678,7 @@
         "properties": {
           "discovery": {
             "type": "object",
-            "description": "Discovery Monitor",
+            "description": "Discovery monitoring job",
             "properties": {
               "executionOrder": {
                 "type": "array",
@@ -6477,6 +6690,7 @@
               "sources": {
                 "$ref": "#/definitions/sources"
               },
+              "metrics": { "$ref": "#/definitions/metrics" },
               "mapping": {
                 "type": "object",
                 "description": "Discovery Mapping",
@@ -6519,7 +6733,7 @@
           },
           "collect": {
             "type": "object",
-            "description": "Collect Monitor",
+            "description": "Collect monitoring job",
             "properties": {
               "executionOrder": {
                 "type": "array",
@@ -6531,6 +6745,7 @@
               "sources": {
                 "$ref": "#/definitions/sources"
               },
+              "metrics": { "$ref": "#/definitions/metrics" },
               "keys": {
                 "type": "array",
                 "items": {
@@ -6585,7 +6800,7 @@
           },
           "simple": {
             "type": "object",
-            "description": "Simple Monitor",
+            "description": "Simple monitoring job",
             "properties": {
               "executionOrder": {
                 "type": "array",
@@ -6597,6 +6812,7 @@
               "sources": {
                 "$ref": "#/definitions/sources"
               },
+              "metrics": { "$ref": "#/definitions/metrics" },
               "mapping": {
                 "type": "object",
                 "description": "Discovery Mapping",
@@ -6689,6 +6905,23 @@
         "information": {
           "type": "string",
           "description": "Connector Short Description"
+        },
+        "variables": {
+          "type": "object",
+          "description": "Connector default variables defined on the Connector Template.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Description of the connector variable."
+              },
+              "defaultValue": {
+                "type": "string",
+                "description": "Default value of the connector variable."
+              }
+            }
+          }
         },
         "detection": {
           "type": "object",
@@ -6970,8 +7203,73 @@
                         "description": "Custom Error Message"
                       }
                     }
+                  },
+                  {
+                    "properties": {
+                      "type": {
+                        "const": "sql",
+                        "description": "Criteria Type"
+                      },
+                      "forceSerialization": {
+                        "type": "boolean"
+                      },
+                      "database": {
+                        "type": "string",
+                        "description": "Optional database name to connect to"
+                      },
+                      "query": {
+                        "type": "string",
+                        "description": "SQL query",
+                        "minLength": 1
+                      },
+                      "expectedResult": {
+                        "type": "string",
+                        "description": "Valid Result (regexp or literal, engine-defined)"
+                      },
+                      "errorMessage": {
+                        "type": "string",
+                        "description": "Custom Error Message"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "type": {
+                        "const": "jmx",
+                        "description": "Criteria Type"
+                      },
+                      "forceSerialization": {
+                        "type": "boolean"
+                      },
+                      "objectName": {
+                        "type": "string",
+                        "description": "JMX ObjectName pattern",
+                        "minLength": 1
+                      },
+                      "attributes": {
+                        "type": "array",
+                        "description": "Attributes to fetch from the MBean",
+                        "items": { "type": "string" },
+                        "minItems": 1
+                      },
+                      "expectedResult": {
+                        "type": "string",
+                        "description": "Valid Result (regexp over fetched attribute values)"
+                      },
+                      "errorMessage": {
+                        "type": "string",
+                        "description": "Custom Error Message"
+                      }
+                    }
                   }
                 ]
+              }
+            },
+            "tags": {
+              "type": "array",
+              "description": "Connector tags List (e.g. Hardware, Storage, System)",
+              "items": {
+                "type": "string"
               }
             }
           }
