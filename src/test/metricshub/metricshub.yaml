@@ -55,6 +55,43 @@ sequential: false
 # Self monitoring flag
 enableSelfMonitoring: false
 
+# Web server configuration
+web:
+  server.port: '31888'
+  spring.main.banner-mode: 'off'
+  spring.ai.mcp.server.enabled: true
+  spring.ai.mcp.server.stdio: false
+  spring.ai.mcp.server.name: 'metricshub-mcp-server'
+  spring.ai.mcp.server.resource-change-notification: true
+  spring.ai.mcp.server.tool-change-notification: true
+  spring.ai.mcp.server.prompt-change-notification: true
+  spring.ai.mcp.server.sse-endpoint: '/sse'
+  spring.ai.mcp.server.sse-message-endpoint: '/mcp/message'
+  spring.ai.mcp.server.type: 'sync'
+  spring.ai.mcp.server.capabilities.completion: true
+  spring.ai.mcp.server.capabilities.prompt: true
+  spring.ai.mcp.server.capabilities.resource: true
+  spring.ai.mcp.server.capabilities.tool: true
+  spring.ai.mcp.server.request-timeout: '5m'
+  jwt.short_expire: 3600
+  jwt.long_expire: 86400
+  jwt.secret: ''
+  # TLS configuration
+  tls.enabled: true
+  tls.keystore.path: classpath:m8b-keystore.p12
+  tls.keystore.password: NOPWD
+  tls.keystore.key-password: customKeyPassword
+  tls.keystore.key-alias: custom-alias
+  # AI configuration
+  ai.openai.tool-output.max-tool-output-bytes: 10485760
+  ai.openai.tool-output.safety-delta-bytes: 2097152
+  ai.openai.tool-output.base-temp-dir: ${java.io.tmpdir}/metricshub/ai
+  ai.openai.api-key: sk-1234567890abcdef
+  ai.openai.model: gpt-5.2
+  ai.openai.reasoning.enabled: true
+  ai.openai.reasoning.effort: MEDIUM
+  ai.openai.reasoning.summary: AUTO
+
 # Resource Groups configuration
 resourceGroups:
   # Resource Group identifier
@@ -156,6 +193,13 @@ resourceGroups:
         monitors:
           grafana:
             simple: # simple job. Creates monitors and collects associated metrics.
+              metrics:
+                grafana.db.state:
+                  description: Grafana DB state
+                  type:
+                    stateSet:
+                      - up
+                      - down
               sources:
                 grafanaHealth:
                   type: http
@@ -532,3 +576,50 @@ resourceGroups:
             type: mysql
             port: 3306
             database: mydatabase
+
+      #═══════════════════════════════════════════════════
+      # Windows Event Log Source Configuration
+      #═══════════════════════════════════════════════════
+
+      windows-server:
+        attributes:
+          host.name: windows-server
+          host.type: windows
+        protocols:
+          wmi:
+            timeout: 120s
+        monitors:
+          windowsEventLog:
+            collect:
+              sources:
+                systemEvents:
+                  type: eventLog
+                  logName: System
+                  eventIds: ['1001', '1002', '6008'] # Event IDs to filter (optional)
+                  sources: ['Microsoft-Windows-Kernel-General', 'EventLog'] # Event sources to filter (optional)
+                  levels: [error, warning, 1, 2] # Event levels to filter
+                  maxEventsPerPoll: 100 # Maximum number of events to retrieve per poll
+                applicationEvents:
+                  type: eventLog
+                  logName: Application
+                  eventIds:
+                    - '1001'
+                    - '1002'
+                    - '6008'
+                  sources:
+                    - 'Microsoft-Windows-Kernel-General'
+                    - 'EventLog'
+                  levels:
+                    - information
+                    - warning
+                    - error
+                  maxEventsPerPoll: 50
+                securityAudit:
+                  type: eventLog
+                  logName: Security
+                  levels: [audit_success, audit_failure] # Event levels to filter (optional) (default: all)
+                  maxEventsPerPoll: -1 # Maximum number of events to retrieve per poll (optional) (default: 50)
+              mapping:
+                source: ${source::monitors.windowsEventLog.collect.sources.systemEvents}
+                metrics:
+                  windows.event.count: $1

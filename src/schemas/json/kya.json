@@ -1,0 +1,954 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://w3id.org/kya/v1/schema",
+  "$defs": {
+    "uri": {
+      "title": "URI",
+      "description": "A URI value.",
+      "type": "string",
+      "format": "uri"
+    },
+    "did": {
+      "title": "Decentralized Identifier",
+      "description": "A DID string per the DID URI scheme.",
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:.*$"
+    },
+    "hex": {
+      "title": "Hex String",
+      "description": "A hex-encoded string.",
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]+$"
+    },
+    "sha256Hex": {
+      "title": "SHA-256 Hex Digest",
+      "description": "A 32-byte SHA-256 digest encoded as 64 hex characters.",
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "dateTime": {
+      "title": "Date-Time",
+      "description": "An RFC 3339 date-time string.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration": {
+      "title": "Duration",
+      "description": "A compact duration string (e.g., 30d, 12h, 60m).",
+      "type": "string",
+      "pattern": "^[0-9]+[smhdwy]$"
+    },
+    "verificationMethod": {
+      "title": "Verification Method",
+      "description": "A DID verification method entry (key material and controller).",
+      "type": "object",
+      "required": ["id", "type", "controller", "publicKeyMultibase"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uri" },
+        "type": { "type": "string", "minLength": 1 },
+        "controller": { "$ref": "#/$defs/did" },
+        "publicKeyMultibase": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "legal": {
+      "title": "Legal Metadata",
+      "description": "Legal terms reference and dispute resolution configuration.",
+      "type": "object",
+      "properties": {
+        "termsUri": { "$ref": "#/$defs/uri" },
+        "termsHash": { "$ref": "#/$defs/sha256Hex" },
+        "disputeResolution": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disputeResolutionPath" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "disputeResolutionPath": {
+      "title": "Dispute Resolution Path",
+      "description": "One dispute resolution mechanism, ordered by priority.",
+      "type": "object",
+      "properties": {
+        "priority": { "type": "integer", "minimum": 1 },
+        "mechanism": {
+          "type": "string",
+          "enum": [
+            "onChain",
+            "digitalLegalFiling",
+            "analogCourt",
+            "arbitrator",
+            "ai",
+            "aiHitl"
+          ]
+        },
+        "entity": {
+          "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "object" }]
+        },
+        "escalationPossible": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "operatingLimits": {
+      "title": "Operating Limits",
+      "description": "Limits expressed over rolling time windows (e.g., spend per period).",
+      "type": "object",
+      "properties": {
+        "periodSpendLimit": { "type": "integer", "minimum": 0 },
+        "periodDuration": { "$ref": "#/$defs/duration" }
+      },
+      "additionalProperties": true
+    },
+    "signingPolicy": {
+      "title": "Signing Policy",
+      "description": "Constraints describing signature thresholds by intent and conditions.",
+      "type": "object",
+      "required": ["defaultSignaturesRequired"],
+      "properties": {
+        "defaultSignaturesRequired": { "type": "integer", "minimum": 1 },
+        "constraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/signingConstraint" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "signingConstraint": {
+      "title": "Signing Constraint",
+      "description": "An intent-scoped signing rule and its signature requirement.",
+      "type": "object",
+      "required": ["intent", "requirement"],
+      "properties": {
+        "intent": { "type": "string", "minLength": 1 },
+        "condition": { "type": "object" },
+        "requirement": {
+          "type": "object",
+          "required": ["threshold", "signers"],
+          "properties": {
+            "threshold": { "type": "integer", "minimum": 1 },
+            "signers": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "deployment": {
+      "title": "Deployment",
+      "description": "Deployment policy and confidential compute (TEE) constraints.",
+      "type": "object",
+      "properties": {
+        "info": { "type": "string" },
+        "updatePolicy": {
+          "type": "string",
+          "enum": ["immutable", "signedRelease"]
+        },
+        "authoritativeSigner": { "$ref": "#/$defs/did" },
+        "tee": { "$ref": "#/$defs/tee" }
+      },
+      "required": ["tee"],
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": { "updatePolicy": { "const": "immutable" } },
+            "required": ["updatePolicy"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "tee": {
+                "type": "object",
+                "required": ["measurementHash"],
+                "properties": {
+                  "measurementHash": { "$ref": "#/$defs/hex" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": { "updatePolicy": { "const": "signedRelease" } },
+            "required": ["updatePolicy"]
+          },
+          "then": {
+            "type": "object",
+            "required": ["authoritativeSigner"],
+            "properties": {
+              "authoritativeSigner": { "$ref": "#/$defs/did" },
+              "tee": {
+                "type": "object",
+                "required": ["signerHash", "minimumSvn"],
+                "properties": {
+                  "signerHash": { "$ref": "#/$defs/hex" },
+                  "minimumSvn": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "tee": {
+      "title": "Trusted Execution Environment",
+      "description": "Confidential compute parameters used to bind an agent deployment to verifiable hardware attestation.",
+      "type": "object",
+      "required": ["framework"],
+      "properties": {
+        "hardwareLabel": { "type": "string" },
+        "framework": {
+          "type": "string",
+          "enum": ["sevSnp", "tdx", "sgx", "nitro"]
+        },
+        "measurementHash": { "$ref": "#/$defs/hex" },
+        "signerHash": { "$ref": "#/$defs/hex" },
+        "minimumSvn": { "type": "integer", "minimum": 0 },
+        "allowDebug": { "type": "boolean" },
+        "attestationUri": { "$ref": "#/$defs/uri" },
+        "bindingMechanism": {
+          "type": "string",
+          "enum": ["reportData", "pubkeyHash"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "governance": {
+      "title": "Governance",
+      "description": "Governance endpoints, validity interval, visibility, and oracle configuration.",
+      "type": "object",
+      "required": ["controlUri"],
+      "properties": {
+        "controlUri": { "$ref": "#/$defs/uri" },
+        "validFrom": { "$ref": "#/$defs/dateTime" },
+        "validUntil": { "$ref": "#/$defs/dateTime" },
+        "pulseInterval": { "type": "integer", "minimum": 1 },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "private", "permissioned"]
+        },
+        "statusUri": { "$ref": "#/$defs/uri" },
+        "telemetryUri": { "$ref": "#/$defs/uri" },
+        "oracles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/oracle" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "oracle": {
+      "title": "Oracle",
+      "description": "A governance oracle definition used for external inputs (e.g., prices, FX rates, attestations).",
+      "type": "object",
+      "required": ["id", "serviceEndpoint", "purpose"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "serviceEndpoint": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/uri" },
+          "uniqueItems": true
+        },
+        "providerDid": { "$ref": "#/$defs/did" },
+        "purpose": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "role": {
+          "type": "string",
+          "enum": ["primary", "backup", "validator"]
+        },
+        "safetyBounds": {
+          "title": "Oracle Safety Bounds",
+          "description": "Optional bounds for oracle freshness, deviation, and confidence.",
+          "type": "object",
+          "properties": {
+            "maxStaleness": { "type": "integer", "minimum": 0 },
+            "maxDeviation": { "type": "number", "minimum": 0 },
+            "slippageTolerance": { "type": "number", "minimum": 0 },
+            "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "treasuryItem": {
+      "title": "Treasury Item",
+      "description": "A treasury identifier and its intended operational usage.",
+      "type": "object",
+      "required": ["id", "assetHints", "networks", "usage"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uri" },
+        "assetHints": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "networks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "usage": {
+          "type": "string",
+          "enum": ["operational", "reserve", "escrow", "receivable"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "verifiableCredentialEntry": {
+      "title": "Verifiable Credential Entry",
+      "description": "Either an embedded VC payload or a referenced VC by digest.",
+      "oneOf": [
+        { "$ref": "#/$defs/embeddedVc" },
+        { "$ref": "#/$defs/referencedVc" }
+      ]
+    },
+    "embeddedVc": {
+      "title": "Embedded Verifiable Credential",
+      "description": "A VC embedded directly in the manifest.",
+      "type": "object",
+      "required": ["id", "type", "issuer", "credentialSubject", "proof"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uri" },
+        "type": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "contains": { "const": "VerifiableCredential" }
+        },
+        "issuer": { "$ref": "#/$defs/did" },
+        "validFrom": { "$ref": "#/$defs/dateTime" },
+        "issuanceDate": { "$ref": "#/$defs/dateTime" },
+        "validUntil": { "$ref": "#/$defs/dateTime" },
+        "credentialStatus": { "type": "object" },
+        "credentialSubject": {},
+        "challengeService": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/challengeService" }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidenceItem" }
+        },
+        "proof": {}
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["validFrom"],
+              "properties": { "validFrom": { "$ref": "#/$defs/dateTime" } }
+            },
+            {
+              "type": "object",
+              "required": ["issuanceDate"],
+              "properties": { "issuanceDate": { "$ref": "#/$defs/dateTime" } }
+            }
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["digestMultibase"],
+                "properties": { "digestMultibase": { "type": "string" } }
+              },
+              {
+                "type": "object",
+                "required": ["location"],
+                "properties": { "location": { "$ref": "#/$defs/uri" } }
+              }
+            ]
+          }
+        },
+        { "$ref": "#/$defs/vcPayloadDispatch" }
+      ],
+      "additionalProperties": true
+    },
+    "referencedVc": {
+      "title": "Referenced Verifiable Credential",
+      "description": "A VC referenced by digest (and optionally a retrievable location).",
+      "type": "object",
+      "required": ["id", "type", "issuer", "digestMultibase"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uri" },
+        "type": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "contains": { "const": "VerifiableCredential" }
+        },
+        "issuer": { "$ref": "#/$defs/did" },
+        "digestMultibase": { "type": "string", "minLength": 1 },
+        "location": { "$ref": "#/$defs/uri" }
+      },
+      "additionalProperties": true
+    },
+    "challengeService": {
+      "title": "Challenge Service",
+      "description": "A verifier challenge protocol or endpoint used to validate an embedded claim (e.g., ZK solvency).",
+      "type": "object",
+      "required": ["type", "method", "supportedQueries"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "challengeEndpoint": { "$ref": "#/$defs/uri" },
+        "method": {
+          "type": "string",
+          "enum": ["directQuery", "proverIntermediary"]
+        },
+        "supportedQueries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "verificationKeyMultibase": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": { "method": { "const": "proverIntermediary" } },
+            "required": ["method"]
+          },
+          "then": {
+            "type": "object",
+            "required": ["verificationKeyMultibase"],
+            "properties": {
+              "verificationKeyMultibase": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "evidenceItem": {
+      "title": "Evidence Item",
+      "description": "An evidence reference; if an id is present, a digest is required for integrity binding.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "$ref": "#/$defs/uri" },
+        "digestMultibase": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "$ref": "#/$defs/uri" } }
+          },
+          "then": {
+            "type": "object",
+            "required": ["digestMultibase"],
+            "properties": {
+              "digestMultibase": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "vcPayloadDispatch": {
+      "title": "VC Payload Dispatch",
+      "description": "Conditional typing rules mapping known VC types to credentialSubject shapes.",
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "array",
+                "items": { "type": "string" },
+                "anyOf": [
+                  { "contains": { "const": "SolvencyCredential" } },
+                  { "contains": { "const": "kya:SolvencyCredential" } }
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "credentialSubject": { "$ref": "#/$defs/solvencySubject" }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "array",
+                "items": { "type": "string" },
+                "anyOf": [
+                  { "contains": { "const": "InsuranceCredential" } },
+                  { "contains": { "const": "kya:InsuranceCredential" } }
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "credentialSubject": { "$ref": "#/$defs/insuranceSubject" }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "array",
+                "items": { "type": "string" },
+                "anyOf": [
+                  { "contains": { "const": "AuditCredential" } },
+                  { "contains": { "const": "kya:AuditCredential" } }
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "credentialSubject": { "$ref": "#/$defs/auditSubject" }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "array",
+                "items": { "type": "string" },
+                "anyOf": [
+                  { "contains": { "const": "LegalEntityCredential" } },
+                  { "contains": { "const": "kya:LegalEntityCredential" } }
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "credentialSubject": { "$ref": "#/$defs/legalEntitySubject" }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "array",
+                "items": { "type": "string" },
+                "anyOf": [
+                  { "contains": { "const": "LicenseCredential" } },
+                  { "contains": { "const": "kya:LicenseCredential" } }
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "credentialSubject": { "$ref": "#/$defs/licenseSubject" }
+            }
+          }
+        }
+      ]
+    },
+    "solvencySubject": {
+      "title": "Solvency Subject",
+      "description": "Credential subject shape for solvency assertions.",
+      "type": "object",
+      "required": ["accountType", "settlementScheme", "assets"],
+      "properties": {
+        "accountType": {
+          "type": "string",
+          "enum": ["custodial", "smartContract", "escrow", "wallet"]
+        },
+        "settlementScheme": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/assetBalance" }
+        },
+        "asOf": { "$ref": "#/$defs/dateTime" }
+      },
+      "additionalProperties": true
+    },
+    "assetBalance": {
+      "title": "Asset Balance",
+      "description": "An asset identifier and balance string.",
+      "type": "object",
+      "required": ["assetId"],
+      "properties": {
+        "assetId": { "type": "string", "minLength": 1 },
+        "balance": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "insuranceSubject": {
+      "title": "Insurance Subject",
+      "description": "Credential subject shape for insurance coverage assertions.",
+      "type": "object",
+      "required": ["policyNumber", "underwriter"],
+      "properties": {
+        "policyNumber": { "type": "string", "minLength": 1 },
+        "underwriter": {
+          "type": "object",
+          "required": ["id"],
+          "properties": {
+            "id": { "$ref": "#/$defs/uri" },
+            "name": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "coverageLimit": {
+          "type": "object",
+          "properties": {
+            "amount": { "type": "string" },
+            "currency": { "type": "string", "minLength": 3, "maxLength": 3 }
+          },
+          "additionalProperties": true
+        },
+        "coverageType": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "deductible": {
+          "type": "object",
+          "properties": {
+            "amount": { "type": "string" },
+            "currency": { "type": "string", "minLength": 3, "maxLength": 3 }
+          },
+          "additionalProperties": true
+        },
+        "claimsEndpoint": { "$ref": "#/$defs/uri" }
+      },
+      "additionalProperties": true
+    },
+    "auditSubject": {
+      "title": "Audit Subject",
+      "description": "Credential subject shape for audits; may be a single object or an array of objects.",
+      "oneOf": [
+        { "$ref": "#/$defs/auditSubjectObject" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/auditSubjectObject" }
+        }
+      ]
+    },
+    "auditSubjectObject": {
+      "title": "Audit Subject Object",
+      "description": "Audit data, including scope references and standards.",
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": { "$ref": "#/$defs/uri" },
+              "stateHash": { "$ref": "#/$defs/hex" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "auditStandards": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "findings": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "legalEntitySubject": {
+      "title": "Legal Entity Subject",
+      "description": "Credential subject shape for a legal entity assertion.",
+      "type": "object",
+      "properties": {
+        "legalName": { "type": "string" },
+        "jurisdiction": { "type": "string" },
+        "lei": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "officials": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/did" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "licenseSubject": {
+      "title": "License Subject",
+      "description": "Credential subject shape for license assertions.",
+      "type": "object",
+      "required": ["licenses"],
+      "properties": {
+        "licenses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/licenseRecord" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "licenseRecord": {
+      "title": "License Record",
+      "description": "A single license entry, including type and license number.",
+      "type": "object",
+      "required": ["licenseType", "licenseNumber"],
+      "properties": {
+        "licenseType": { "type": "string", "minLength": 1 },
+        "licenseNumber": { "type": "string", "minLength": 1 },
+        "grantingAuthority": { "$ref": "#/$defs/did" },
+        "permittedActivities": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "manifestProof": {
+      "title": "Manifest Proof",
+      "description": "A data integrity proof used to authorize capabilityInvocation for the manifest.",
+      "type": "object",
+      "required": ["type", "verificationMethod", "proofPurpose", "proofValue"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "cryptosuite": { "type": "string" },
+        "verificationMethod": { "$ref": "#/$defs/uri" },
+        "proofPurpose": { "const": "capabilityInvocation" },
+        "proofValue": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "title": "KYA Manifest",
+  "description": "Know Your Agent (KYA) Manifest for autonomous AI agents (identity, governance, and operational constraints).",
+  "type": "object",
+  "required": [
+    "@context",
+    "id",
+    "type",
+    "kyaVersion",
+    "agentId",
+    "verificationMethod",
+    "authentication",
+    "assertionMethod",
+    "capabilityInvocation",
+    "proof"
+  ],
+  "properties": {
+    "@context": {
+      "title": "JSON-LD Context",
+      "description": "JSON-LD contexts used to interpret terms. Must include the KYA context.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "format": "uri" },
+      "contains": { "const": "https://w3id.org/kya/v1" }
+    },
+    "id": {
+      "$ref": "#/$defs/uri",
+      "title": "Manifest Identifier",
+      "description": "A globally unique identifier for this manifest (URI)."
+    },
+    "type": {
+      "title": "Manifest Types",
+      "description": "JSON-LD types for the verifiable presentation. Must include VerifiablePresentation and KyaManifest.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string" },
+      "allOf": [
+        { "contains": { "const": "VerifiablePresentation" } },
+        { "contains": { "const": "KyaManifest" } }
+      ]
+    },
+    "kyaVersion": {
+      "title": "KYA Version",
+      "description": "The KYA specification version this manifest conforms to.",
+      "type": "string",
+      "minLength": 1
+    },
+    "agentId": {
+      "$ref": "#/$defs/did",
+      "title": "Agent DID",
+      "description": "The DID identifying the autonomous agent process governed by this manifest."
+    },
+    "name": {
+      "title": "Agent Name",
+      "description": "A short human-readable name for the agent.",
+      "type": "string"
+    },
+    "label": {
+      "title": "Agent Label",
+      "description": "A concise human-readable description of the agent’s purpose and constraints.",
+      "type": "string"
+    },
+    "governingAuthority": {
+      "title": "Governing Authority",
+      "description": "URIs (often DIDs or fragments) identifying authorities overseeing the agent’s operation.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/uri" },
+      "uniqueItems": true
+    },
+    "verificationMethod": {
+      "title": "Verification Methods",
+      "description": "Inventory of public keys (verification methods) used by the agent and its governance.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/verificationMethod" }
+    },
+    "authentication": {
+      "title": "Authentication Keys",
+      "description": "Verification method URIs authorized for authentication.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/uri" },
+      "uniqueItems": true
+    },
+    "assertionMethod": {
+      "title": "Assertion Keys",
+      "description": "Verification method URIs authorized to assert statements (e.g., sign agent actions).",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/uri" },
+      "uniqueItems": true
+    },
+    "capabilityInvocation": {
+      "title": "Governance Keys",
+      "description": "Verification method URIs authorized to invoke governance capabilities, including manifest updates.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/uri" },
+      "uniqueItems": true
+    },
+    "keyAgreement": {
+      "title": "Key Agreement Keys",
+      "description": "Verification method URIs used for key agreement (e.g., encrypted channels).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/uri" },
+      "uniqueItems": true
+    },
+    "minProofsRequired": {
+      "title": "Minimum Proofs Required",
+      "description": "Minimum number of valid governance proofs expected for the manifest (policy-level threshold).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "legal": {
+      "$ref": "#/$defs/legal",
+      "title": "Legal Terms",
+      "description": "Optional legal terms and dispute resolution metadata."
+    },
+    "permissionMode": {
+      "title": "Permission Mode",
+      "description": "Whether enforcement is strict (deny-by-default) or permissive (allow-by-default with exceptions).",
+      "type": "string",
+      "enum": ["strict", "permissive"]
+    },
+    "permittedDomains": {
+      "title": "Permitted Domains",
+      "description": "Hostnames or domains the agent is allowed to interact with.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "permittedRegions": {
+      "title": "Permitted Regions",
+      "description": "Region or jurisdiction codes in which operation is permitted (policy-defined).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "forbiddenRegions": {
+      "title": "Forbidden Regions",
+      "description": "Region or jurisdiction codes in which operation is forbidden (policy-defined).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "maxTransactionValue": {
+      "title": "Maximum Transaction Value",
+      "description": "Maximum permitted value for a single transaction (units defined by currency).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "currency": {
+      "title": "Currency",
+      "description": "ISO 4217 currency code associated with value-denominated limits.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "operatingLimits": {
+      "$ref": "#/$defs/operatingLimits",
+      "title": "Operating Limits",
+      "description": "Rate and spend-limiting constraints, such as rolling period spend caps."
+    },
+    "signingPolicy": {
+      "$ref": "#/$defs/signingPolicy",
+      "title": "Signing Policy",
+      "description": "Policy constraints defining when multi-signature or specific signers are required."
+    },
+    "deployment": {
+      "$ref": "#/$defs/deployment",
+      "title": "Deployment",
+      "description": "Optional deployment metadata, including update policy and confidential compute constraints."
+    },
+    "governance": {
+      "$ref": "#/$defs/governance",
+      "title": "Governance",
+      "description": "Optional governance endpoints, visibility, and oracle references."
+    },
+    "treasury": {
+      "title": "Treasury",
+      "description": "Optional treasury identifiers and usage classifications for operational funds or reserves.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/treasuryItem" }
+    },
+    "verifiableCredential": {
+      "title": "Verifiable Credentials",
+      "description": "Evidence credentials embedded or referenced by digest for verification workflows.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/verifiableCredentialEntry" }
+    },
+    "proof": {
+      "title": "Manifest Proofs",
+      "description": "Cryptographic proofs establishing integrity and authorized governance invocation.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/manifestProof" }
+    }
+  },
+  "additionalProperties": true
+}
