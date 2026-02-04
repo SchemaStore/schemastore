@@ -4,19 +4,24 @@
   "$defs": {
     "permissionRule": {
       "type": "string",
-      "description": "Tool permission rule",
-      "pattern": "^((Bash|BashOutput|Edit|ExitPlanMode|Glob|Grep|KillShell|NotebookEdit|Read|Skill|SlashCommand|Task|TodoWrite|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "description": "Tool permission rule. See https://code.claude.com/docs/en/settings#permission-rule-syntax",
+      "pattern": "^((Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|NotebookEdit|Read|Skill|Task|TodoWrite|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
       "examples": [
+        "Bash",
+        "Bash(npm run build)",
         "Bash(git commit:*)",
-        "Bash(npm run lint:*)",
+        "Bash(npm run:*)",
+        "Bash(ls*)",
+        "Bash(git * main)",
+        "Edit",
         "Edit(/src/**/*.ts)",
-        "mcp__github__search_repositories",
-        "Read(*.env)",
-        "Read(//Users/alice/secrets/**)",
+        "Read(./.env)",
+        "Read(./secrets/**)",
+        "Read(/Users/alice/secrets/**)",
         "Read(~/Documents/*.pdf)",
         "WebFetch",
-        "WebFetch(domain:github.com)",
-        "Read(//tmp/**/*)"
+        "WebFetch(domain:example.com)",
+        "mcp__github__search_repositories"
       ]
     },
     "hookCommand": {
@@ -89,7 +94,7 @@
       }
     }
   },
-  "description": "Configuration settings for Claude Code. Learn more: https://docs.claude.com/en/docs/claude-code/settings",
+  "description": "Configuration settings for Claude Code. Learn more: https://code.claude.com/docs/en/settings",
   "allowTrailingCommas": true,
   "additionalProperties": true,
   "type": "object",
@@ -103,6 +108,12 @@
       "description": "Path to a script that outputs authentication values",
       "examples": ["/bin/generate_temp_api_key.sh"],
       "minLength": 1
+    },
+    "autoUpdatesChannel": {
+      "type": "string",
+      "enum": ["stable", "latest"],
+      "description": "Release channel to follow for updates. Use \"stable\" for a version that is typically about one week old and skips versions with major regressions, or \"latest\" (default) for the most recent release",
+      "default": "latest"
     },
     "awsCredentialExport": {
       "type": "string",
@@ -141,9 +152,35 @@
         }
       }
     },
+    "attribution": {
+      "type": "object",
+      "description": "Customize attribution for git commits and pull requests. See https://code.claude.com/docs/en/settings#attribution-settings",
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": "string",
+          "description": "Attribution for git commits, including any trailers. Empty string hides commit attribution"
+        },
+        "pr": {
+          "type": "string",
+          "description": "Attribution for pull request descriptions. Empty string hides pull request attribution"
+        }
+      }
+    },
     "includeCoAuthoredBy": {
       "type": "boolean",
-      "description": "Whether to include Claude's co-authored by attribution in commits and PRs (defaults to true)",
+      "description": "DEPRECATED. Use 'attribution' instead. Whether to include the co-authored-by Claude byline in git commits and pull requests (default: true)",
+      "default": true
+    },
+    "plansDirectory": {
+      "type": "string",
+      "description": "Customize where plan files are stored. Path is relative to project root (default: ~/.claude/plans)",
+      "default": "~/.claude/plans",
+      "examples": ["./plans"]
+    },
+    "respectGitignore": {
+      "type": "boolean",
+      "description": "Control whether the @ file picker respects .gitignore patterns. When true (default), files matching .gitignore patterns are excluded from suggestions",
       "default": true
     },
     "permissions": {
@@ -195,7 +232,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Tool usage permissions configuration",
+      "description": "Tool usage permissions configuration. See https://code.claude.com/docs/en/iam#configuring-permissions",
       "examples": [
         {
           "allow": ["Bash(git add:*)"],
@@ -205,13 +242,18 @@
         }
       ]
     },
+    "language": {
+      "type": "string",
+      "description": "Preferred language for Claude's responses",
+      "examples": ["japanese", "spanish", "french"]
+    },
     "model": {
       "type": "string",
-      "description": "Override the default model used by Claude Code"
+      "description": "Override the default model used by Claude Code. See https://code.claude.com/docs/en/model-config"
     },
     "enableAllProjectMcpServers": {
       "type": "boolean",
-      "description": "Whether to automatically approve all MCP servers in the project",
+      "description": "Whether to automatically approve all MCP servers in the project. See https://code.claude.com/docs/en/mcp",
       "examples": [true]
     },
     "enabledMcpjsonServers": {
@@ -220,7 +262,7 @@
         "type": "string",
         "minLength": 1
       },
-      "description": "List of approved MCP servers from .mcp.json",
+      "description": "List of approved MCP servers from .mcp.json. See https://code.claude.com/docs/en/mcp",
       "examples": [["memory", "github"]]
     },
     "disabledMcpjsonServers": {
@@ -229,7 +271,7 @@
         "type": "string",
         "minLength": 1
       },
-      "description": "List of rejected MCP servers from .mcp.json",
+      "description": "List of rejected MCP servers from .mcp.json. See https://code.claude.com/docs/en/mcp",
       "examples": [["filesystem"]]
     },
     "allowedMcpServers": {
@@ -246,7 +288,7 @@
         "required": ["serverName"],
         "additionalProperties": false
       },
-      "description": "Enterprise allowlist of MCP servers that can be used. Applies to all scopes including enterprise servers from managed-mcp.json. If undefined, all servers are allowed. If empty array, no servers are allowed. Denylist takes precedence - if a server is on both lists, it is denied."
+      "description": "Enterprise allowlist of MCP servers that can be used. Applies to all scopes including enterprise servers from managed-mcp.json. If undefined, all servers are allowed. If empty array, no servers are allowed. Denylist takes precedence - if a server is on both lists, it is denied. See https://code.claude.com/docs/en/mcp#managed-mcp-configuration"
     },
     "deniedMcpServers": {
       "type": "array",
@@ -262,12 +304,12 @@
         "required": ["serverName"],
         "additionalProperties": false
       },
-      "description": "Enterprise denylist of MCP servers that are explicitly blocked. If a server is on the denylist, it will be blocked across all scopes including enterprise. Denylist takes precedence over allowlist - if a server is on both lists, it is denied."
+      "description": "Enterprise denylist of MCP servers that are explicitly blocked. If a server is on the denylist, it will be blocked across all scopes including enterprise. Denylist takes precedence over allowlist - if a server is on both lists, it is denied. See https://code.claude.com/docs/en/mcp#managed-mcp-configuration"
     },
     "hooks": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Custom commands to run before/after tool executions",
+      "description": "Custom commands to run before/after tool executions. See https://code.claude.com/docs/en/hooks",
       "examples": [
         {
           "PostToolUse": [
@@ -299,6 +341,20 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "PostToolUseFailure": {
+          "type": "array",
+          "description": "Hooks that run after a tool fails",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PermissionRequest": {
+          "type": "array",
+          "description": "Hooks that run when a permission dialog appears",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "Notification": {
           "type": "array",
           "description": "Hooks that trigger on notifications",
@@ -320,6 +376,13 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "SubagentStart": {
+          "type": "array",
+          "description": "Hooks that run when a subagent is spawned",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "SubagentStop": {
           "type": "array",
           "description": "Hooks that run when subagents finish responding",
@@ -330,6 +393,13 @@
         "PreCompact": {
           "type": "array",
           "description": "Hooks that run before the context is compacted",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "Setup": {
+          "type": "array",
+          "description": "Hooks that run during repository initialization (--init, --init-only) or maintenance (--maintenance)",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           }
@@ -354,6 +424,10 @@
       "type": "boolean",
       "description": "Disable all hooks and statusLine execution"
     },
+    "allowManagedHooksOnly": {
+      "type": "boolean",
+      "description": "(Managed settings only) Prevent loading of user, project, and plugin hooks. Only allows managed hooks and SDK hooks. See https://code.claude.com/docs/en/settings#hook-configuration"
+    },
     "statusLine": {
       "type": "object",
       "properties": {
@@ -370,11 +444,33 @@
       },
       "required": ["type", "command"],
       "additionalProperties": false,
-      "description": "Custom status line display configuration",
+      "description": "Custom status line display configuration. See https://code.claude.com/docs/en/statusline",
       "examples": [
         {
           "type": "command",
           "command": "~/.claude/statusline.sh"
+        }
+      ]
+    },
+    "fileSuggestion": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "command"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute for file suggestions"
+        }
+      },
+      "required": ["type", "command"],
+      "additionalProperties": false,
+      "description": "Configure a custom script for @ file autocomplete. See https://code.claude.com/docs/en/settings#file-suggestion-settings",
+      "examples": [
+        {
+          "type": "command",
+          "command": "~/.claude/file-suggestion.sh"
         }
       ]
     },
@@ -396,7 +492,7 @@
           }
         ]
       },
-      "description": "Enabled plugins using plugin-id@marketplace-id format. Example: { \"formatter@anthropic-tools\": true }. Also supports extended format with version constraints."
+      "description": "Enabled plugins using plugin-id@marketplace-id format. Example: { \"formatter@anthropic-tools\": true }. See https://code.claude.com/docs/en/plugins"
     },
     "extraKnownMarketplaces": {
       "type": "object",
@@ -524,7 +620,135 @@
         "required": ["source"],
         "additionalProperties": false
       },
-      "description": "Additional marketplaces to make available for this repository. Typically used in repository .claude/settings.json to ensure team members have required plugin sources."
+      "description": "Additional marketplaces to make available for this repository. Typically used in repository .claude/settings.json to ensure team members have required plugin sources. See https://code.claude.com/docs/en/plugin-marketplaces"
+    },
+    "strictKnownMarketplaces": {
+      "type": "array",
+      "description": "(Managed settings only) Allowlist of plugin marketplaces users can add. Undefined = no restrictions, empty array = lockdown. Uses exact matching for source specifications. See https://code.claude.com/docs/en/settings#strictknownmarketplaces",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "github"
+              },
+              "repo": {
+                "type": "string",
+                "description": "GitHub repository in owner/repo format"
+              },
+              "ref": {
+                "type": "string",
+                "description": "Git branch, tag, or SHA"
+              },
+              "path": {
+                "type": "string",
+                "description": "Subdirectory path"
+              }
+            },
+            "required": ["source", "repo"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "git"
+              },
+              "url": {
+                "type": "string",
+                "description": "Full git repository URL"
+              },
+              "ref": {
+                "type": "string",
+                "description": "Git branch, tag, or SHA"
+              },
+              "path": {
+                "type": "string",
+                "description": "Subdirectory path"
+              }
+            },
+            "required": ["source", "url"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "url"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Direct URL to marketplace.json"
+              },
+              "headers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "HTTP headers for authenticated access"
+              }
+            },
+            "required": ["source", "url"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "npm"
+              },
+              "package": {
+                "type": "string",
+                "description": "NPM package name (supports scoped packages)"
+              }
+            },
+            "required": ["source", "package"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "file"
+              },
+              "path": {
+                "type": "string",
+                "description": "Absolute path to marketplace.json file"
+              }
+            },
+            "required": ["source", "path"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "directory"
+              },
+              "path": {
+                "type": "string",
+                "description": "Absolute path to directory containing .claude-plugin/marketplace.json"
+              }
+            },
+            "required": ["source", "path"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "examples": [
+        [
+          { "source": "github", "repo": "acme-corp/approved-plugins" },
+          { "source": "npm", "package": "@acme-corp/compliance-plugins" }
+        ]
+      ]
     },
     "skippedMarketplaces": {
       "type": "array",
@@ -561,7 +785,7 @@
     },
     "outputStyle": {
       "type": "string",
-      "description": "Controls the output style for assistant responses",
+      "description": "Controls the output style for assistant responses. See https://code.claude.com/docs/en/output-styles",
       "examples": ["default", "Explanatory", "Learning"],
       "minLength": 1
     },
@@ -571,6 +795,7 @@
     },
     "sandbox": {
       "type": "object",
+      "description": "Sandbox execution configuration. See https://code.claude.com/docs/en/sandboxing",
       "properties": {
         "network": {
           "type": "object",
@@ -640,11 +865,22 @@
     },
     "spinnerTipsEnabled": {
       "type": "boolean",
-      "description": "Whether to show tips in the spinner"
+      "description": "Show tips in the spinner while Claude is working. Set to false to disable tips (default: true)",
+      "default": true
+    },
+    "terminalProgressBarEnabled": {
+      "type": "boolean",
+      "description": "Enable the terminal progress bar that shows progress in supported terminals like Windows Terminal and iTerm2 (default: true)",
+      "default": true
+    },
+    "showTurnDuration": {
+      "type": "boolean",
+      "description": "Show turn duration messages after responses (e.g., \"Cooked for 1m 6s\"). Set to false to hide these messages (default: true)",
+      "default": true
     },
     "alwaysThinkingEnabled": {
       "type": "boolean",
-      "description": "Whether extended thinking is always enabled (default: false)"
+      "description": "Enable extended thinking by default for all sessions. Typically configured via the /config command rather than editing directly. See https://code.claude.com/docs/en/common-workflows#use-extended-thinking-thinking-mode"
     },
     "companyAnnouncements": {
       "type": "array",
@@ -688,7 +924,7 @@
         },
         "additionalProperties": false
       },
-      "description": "Per-plugin configuration including MCP server user configs, keyed by plugin ID (plugin@marketplace format)"
+      "description": "Per-plugin configuration including MCP server user configs, keyed by plugin ID (plugin@marketplace format). See https://code.claude.com/docs/en/plugins"
     }
   },
   "title": "Claude Code Settings"
