@@ -5,7 +5,7 @@
     "permissionRule": {
       "type": "string",
       "description": "Tool permission rule. See https://code.claude.com/docs/en/settings#permission-rule-syntax",
-      "pattern": "^((Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|NotebookEdit|Read|Skill|Task|TodoWrite|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "pattern": "^((Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LS|MultiEdit|NotebookEdit|NotebookRead|Read|Skill|SlashCommand|Task|TodoWrite|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
       "examples": [
         "Bash",
         "Bash(npm run build)",
@@ -14,11 +14,13 @@
         "Bash(ls*)",
         "Bash(git * main)",
         "Edit",
+        "MultiEdit",
         "Edit(/src/**/*.ts)",
         "Read(./.env)",
         "Read(./secrets/**)",
         "Read(/Users/alice/secrets/**)",
         "Read(~/Documents/*.pdf)",
+        "SlashCommand(/clear)",
         "WebFetch",
         "WebFetch(domain:example.com)",
         "mcp__github__search_repositories"
@@ -46,6 +48,10 @@
               "type": "number",
               "description": "Optional timeout in seconds",
               "exclusiveMinimum": 0
+            },
+            "async": {
+              "type": "boolean",
+              "description": "Run this hook asynchronously without blocking Claude Code"
             }
           }
         },
@@ -69,6 +75,10 @@
               "type": "number",
               "description": "Optional timeout in seconds",
               "exclusiveMinimum": 0
+            },
+            "async": {
+              "type": "boolean",
+              "description": "Run this hook asynchronously without blocking Claude Code"
             }
           }
         }
@@ -522,6 +532,21 @@
                 "properties": {
                   "source": {
                     "type": "string",
+                    "const": "hostPattern"
+                  },
+                  "hostPattern": {
+                    "type": "string",
+                    "description": "Git host pattern to trust for repositories in source specifications"
+                  }
+                },
+                "required": ["source", "hostPattern"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
                     "const": "github"
                   },
                   "repo": {
@@ -627,6 +652,21 @@
       "description": "(Managed settings only) Allowlist of plugin marketplaces users can add. Undefined = no restrictions, empty array = lockdown. Uses exact matching for source specifications. See https://code.claude.com/docs/en/settings#strictknownmarketplaces",
       "items": {
         "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "hostPattern"
+              },
+              "hostPattern": {
+                "type": "string",
+                "description": "Git host pattern to trust for repositories in source specifications"
+              }
+            },
+            "required": ["source", "hostPattern"],
+            "additionalProperties": false
+          },
           {
             "type": "object",
             "properties": {
@@ -834,6 +874,26 @@
               "minimum": 1,
               "maximum": 65535,
               "description": "SOCKS proxy port to use for network filtering. If not specified, a proxy server will be started automatically"
+            },
+            "allowAllUnixSockets": {
+              "type": "boolean",
+              "description": "Allow all Unix domain socket connections. If true, this overrides allowUnixSockets"
+            },
+            "allowedDomains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Allowlist of network domains for sandboxed commands. Supports wildcard patterns like *.example.com"
+            },
+            "deniedDomains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Denylist of network domains for sandboxed commands. Supports wildcard patterns like *.example.com"
             }
           },
           "additionalProperties": false
@@ -873,6 +933,28 @@
           "description": "Enable sandboxed bash"
         }
       },
+      "additionalProperties": false
+    },
+    "spinnerVerbs": {
+      "type": "object",
+      "description": "Customize the verbs shown in spinner progress messages",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["append", "replace"],
+          "description": "How custom verbs should be combined with the default spinner verbs"
+        },
+        "verbs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "description": "Custom verbs used in spinner progress text"
+        }
+      },
+      "required": ["verbs"],
       "additionalProperties": false
     },
     "spinnerTipsEnabled": {
