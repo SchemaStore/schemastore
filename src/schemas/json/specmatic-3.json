@@ -1,0 +1,1823 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/specmatic.json",
+  "title": "Specmatic Configuration",
+  "description": "Configuration file for Specmatic, a contract-driven testing tool\nhttps://specmatic.io/documentation/",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [
+        3
+      ]
+    },
+    "systemUnderTest": {
+      "$ref": "#/$defs/TestRuntimeServiceDefinition"
+    },
+    "dependencies": {
+      "$ref": "#/$defs/DependenciesDefinition"
+    },
+    "proxies": {
+      "$ref": "#/$defs/ProxyDefinitionsArray"
+    },
+    "mcp": {
+      "$ref": "#/$defs/McpDefinition"
+    },
+    "specmatic": {
+      "$ref": "#/$defs/SpecmaticDefinition"
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SourceSchema"
+          }
+        },
+        "services": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/StaticServiceDefinition"
+          }
+        },
+        "runOptions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RunOptions"
+          }
+        },
+        "examples": {
+          "$ref": "#/$defs/ExamplesConfiguration"
+        },
+        "dictionaries": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DictionaryConfiguration"
+          }
+        },
+        "adapters": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/AdapterConfiguration"
+          }
+        },
+        "certificates": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/CertConfiguration"
+          }
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ConcreteSettings"
+              },
+              {
+                "$ref": "#/$defs/ModeSpecificSettings"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "SubstitutionExpression": {
+      "type": "string",
+      "pattern": "^\\$\\{[^}]+\\}$"
+    },
+    "GuardedSubstitutionString": {
+      "type": "string",
+      "allOf": [
+        {
+          "if": {
+            "pattern": "^\\$\\{"
+          },
+          "then": {
+            "$ref": "#/$defs/SubstitutionExpression"
+          }
+        }
+      ]
+    },
+    "SubstitutableString": {
+      "$ref": "#/$defs/GuardedSubstitutionString"
+    },
+    "SubstitutableStringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SubstitutableString"
+      }
+    },
+    "SubstitutableInteger": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "$ref": "#/$defs/GuardedSubstitutionString"
+        }
+      ]
+    },
+    "SubstitutableFloat": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/GuardedSubstitutionString"
+        }
+      ]
+    },
+    "SubstitutableBoolean": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/GuardedSubstitutionString"
+        }
+      ]
+    },
+    "SubstitutableStringOrArray": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        }
+      ]
+    },
+    "Reference": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "$ref": {
+          "type": "string",
+          "format": "uri-reference"
+        }
+      }
+    },
+    "DependenciesDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "services": {
+          "$ref": "#/$defs/RuntimeServiceDefinitionOrRefArray"
+        },
+        "data": {
+          "$ref": "#/$defs/DataDefinition"
+        },
+        "settings": {
+          "$ref": "#/$defs/MockSettingsOrRef"
+        }
+      }
+    },
+    "RuntimeServiceDefinitionOrRefArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "service"
+        ],
+        "properties": {
+          "service": {
+            "$ref": "#/$defs/MockRuntimeServiceDefinitionOrRef"
+          }
+        }
+      }
+    },
+    "MockRuntimeServiceDefinitionOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/MockRuntimeServiceDefinition"
+      }
+    },
+    "MockRuntimeServiceDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "definitions"
+          ],
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "definitions": {
+              "$ref": "#/$defs/SpecificationStaticDefinitionArray"
+            },
+            "runOptions": {
+              "$ref": "#/$defs/MockRunOptionsOrRef"
+            },
+            "data": {
+              "$ref": "#/$defs/DataDefinition"
+            },
+            "settings": {
+              "$ref": "#/$defs/MockSettingsOrRef"
+            }
+          }
+        }
+      }
+    },
+    "TestRuntimeServiceDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/TestServiceDefinitionOrRef"
+        }
+      }
+    },
+    "TestServiceDefinitionOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/TestRuntimeServiceDefinition"
+      }
+    },
+    "TestServiceDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "definitions": {
+          "$ref": "#/$defs/SpecificationStaticDefinitionArray"
+        },
+        "runOptions": {
+          "$ref": "#/$defs/TestRunOptionsOrRef"
+        },
+        "data": {
+          "$ref": "#/$defs/DataDefinition"
+        },
+        "settings": {
+          "$ref": "#/$defs/TestSettingsOrRef"
+        }
+      }
+    },
+    "DataDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "examples": {
+          "$ref": "#/$defs/ArrayExampleConfigurationOrRef"
+        },
+        "dictionary": {
+          "$ref": "#/$defs/DictionaryConfigurationOrRef"
+        },
+        "adapters": {
+          "$ref": "#/$defs/AdapterConfigurationOrRef"
+        }
+      }
+    },
+    "ProxyDefinitionsArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "proxy"
+        ],
+        "properties": {
+          "proxy": {
+            "$ref": "#/$defs/ProxyDefinition"
+          }
+        }
+      }
+    },
+    "ProxyDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "timeoutInMilliseconds": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "adapters": {
+          "$ref": "#/$defs/AdapterConfigurationOrRef"
+        },
+        "mock": {
+          "$ref": "#/$defs/SubstitutableStringOrArray"
+        },
+        "cert": {
+          "$ref": "#/$defs/CertConfigurationOrRef"
+        },
+        "recordingsDirectory": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "McpDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test": {
+          "$ref": "#/$defs/McpTestRunOptions"
+        }
+      }
+    },
+    "McpTestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "transportKind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "STREAMABLE_HTTP"
+              ]
+            },
+            {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          ]
+        },
+        "enableResiliencyTests": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "dictionaryFile": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "bearerToken": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "filterTools": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        },
+        "skipTools": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        }
+      }
+    },
+    "SpecmaticDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "license": {
+          "$ref": "#/$defs/LicenseDefinition"
+        },
+        "governance": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "report": {
+              "$ref": "#/$defs/ReportsDefinition"
+            },
+            "successCriteria": {
+              "$ref": "#/$defs/SuccessCriteriaDefinition"
+            }
+          }
+        },
+        "settings": {
+          "$ref": "#/$defs/ConcreteSettingsOrRef"
+        }
+      }
+    },
+    "LicenseDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "ReportsDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formats": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "html",
+                  "ctrf"
+                ]
+              }
+            },
+            {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          ]
+        },
+        "outputDirectory": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "SuccessCriteriaDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minCoveragePercentage": {
+          "$ref": "#/$defs/SubstitutableFloat"
+        },
+        "maxMissedOperationsInSpec": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "enforce": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        }
+      }
+    },
+    "StaticServiceDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "definitions": {
+          "$ref": "#/$defs/SpecificationStaticDefinitionArray"
+        }
+      }
+    },
+    "SpecificationStaticDefinitionArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "definition"
+        ],
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/SpecificationStaticDefinition"
+          }
+        }
+      }
+    },
+    "SpecificationStaticDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "specs"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/SourceSchemaOrRef"
+        },
+        "specs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpecificationSchema"
+          }
+        }
+      }
+    },
+    "SpecificationSchema": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SpecificationPath"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "spec": {
+              "$ref": "#/$defs/SpecificationObject"
+            }
+          }
+        }
+      ]
+    },
+    "SpecificationPath": {
+      "type": "string"
+    },
+    "SpecificationObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "urlPathPrefix": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "SourceSchemaOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/SourceSchema"
+      }
+    },
+    "SourceSchema": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/GitSourceSchema"
+        },
+        {
+          "$ref": "#/$defs/FileSystemSourceSchema"
+        }
+      ]
+    },
+    "GitSourceSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "git"
+      ],
+      "properties": {
+        "git": {
+          "$ref": "#/$defs/GitSourceOptions"
+        }
+      }
+    },
+    "GitSourceOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "branch": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "matchBranch": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "auth": {
+          "$ref": "#/$defs/GitSourceAuthentication"
+        }
+      }
+    },
+    "GitSourceAuthentication": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/GitSourceBearerFileAuthentication"
+        },
+        {
+          "$ref": "#/$defs/GitSourceBearerEnvAuthentication"
+        },
+        {
+          "$ref": "#/$defs/GitSourcePersonalAccessTokenAuthentication"
+        }
+      ]
+    },
+    "GitSourceBearerFileAuthentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bearerFile"
+      ],
+      "properties": {
+        "bearerFile": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "GitSourceBearerEnvAuthentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bearerEnvironmentVariable"
+      ],
+      "properties": {
+        "bearerEnvironmentVariable": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "GitSourcePersonalAccessTokenAuthentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "personalAccessToken"
+      ],
+      "properties": {
+        "personalAccessToken": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "FileSystemSourceSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filesystem"
+      ],
+      "properties": {
+        "filesystem": {
+          "$ref": "#/$defs/FileSystemSourceOptions"
+        }
+      }
+    },
+    "FileSystemSourceOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "RunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openapi": {
+          "$ref": "#/$defs/OpenApiRunOptions"
+        },
+        "wsdl": {
+          "$ref": "#/$defs/WsdlRunOptions"
+        },
+        "asyncapi": {
+          "$ref": "#/$defs/AsyncApiRunOptions"
+        },
+        "graphqlsdl": {
+          "$ref": "#/$defs/GraphQLSdlRunOptions"
+        },
+        "protobuf": {
+          "$ref": "#/$defs/ProtobufRunOptions"
+        }
+      }
+    },
+    "TestRunOptionsOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/TestRunOptions"
+      }
+    },
+    "TestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openapi": {
+          "$ref": "#/$defs/OpenApiTestRunOptions"
+        },
+        "wsdl": {
+          "$ref": "#/$defs/WsdlTestRunOptions"
+        },
+        "asyncapi": {
+          "$ref": "#/$defs/AsyncApiTestRunOptions"
+        },
+        "graphqlsdl": {
+          "$ref": "#/$defs/GraphqlSdlTestRunOptions"
+        },
+        "protobuf": {
+          "$ref": "#/$defs/ProtobufTestRunOptions"
+        }
+      }
+    },
+    "MockRunOptionsOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/MockRunOptions"
+      }
+    },
+    "MockRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openapi": {
+          "$ref": "#/$defs/OpenApiMockRunOptions"
+        },
+        "wsdl": {
+          "$ref": "#/$defs/WsdlMockRunOptions"
+        },
+        "asyncapi": {
+          "$ref": "#/$defs/AsyncApiMockRunOptions"
+        },
+        "graphqlsdl": {
+          "$ref": "#/$defs/GraphqlSdlMockRunOptions"
+        },
+        "protobuf": {
+          "$ref": "#/$defs/ProtobufMockRunOptions"
+        }
+      }
+    },
+    "OpenApiRunOptions": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "if": {
+        "properties": {
+          "type": {
+            "const": "test"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/OpenApiTestRunOptions"
+      },
+      "else": {
+        "$ref": "#/$defs/OpenApiMockRunOptions"
+      }
+    },
+    "AsyncApiRunOptions": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "if": {
+        "properties": {
+          "type": {
+            "const": "test"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/AsyncApiTestRunOptions"
+      },
+      "else": {
+        "$ref": "#/$defs/AsyncApiMockRunOptions"
+      }
+    },
+    "GraphQLSdlRunOptions": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "if": {
+        "properties": {
+          "type": {
+            "const": "test"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/GraphqlSdlTestRunOptions"
+      },
+      "else": {
+        "$ref": "#/$defs/GraphqlSdlMockRunOptions"
+      }
+    },
+    "ProtobufRunOptions": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "if": {
+        "properties": {
+          "type": {
+            "const": "test"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/ProtobufTestRunOptions"
+      },
+      "else": {
+        "$ref": "#/$defs/ProtobufMockRunOptions"
+      }
+    },
+    "WsdlRunOptions": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "if": {
+        "properties": {
+          "type": {
+            "const": "test"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/WsdlTestRunOptions"
+      },
+      "else": {
+        "$ref": "#/$defs/WsdlMockRunOptions"
+      }
+    },
+    "WsdlTestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "test"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "WsdlMockRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "mock"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "cert": {
+          "$ref": "#/$defs/CertConfigurationOrRef"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "AsyncApiTestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "test"
+        },
+        "replyTimeout": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "subscriberReadinessWaitTimeout": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "servers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AsyncApiServerDefinition"
+          }
+        },
+        "schemaRegistry": {
+          "$ref": "#/$defs/AsyncApiSchemaRegistry"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "AsyncApiServerDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host",
+        "protocol"
+      ],
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "protocol": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "adminCredentials": {
+          "$ref": "#/$defs/FreeFormObject"
+        },
+        "client": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "consumer": {
+              "$ref": "#/$defs/CertConfigurationOrRef"
+            },
+            "producer": {
+              "$ref": "#/$defs/CertConfigurationOrRef"
+            }
+          }
+        }
+      }
+    },
+    "AsyncApiMockRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "mock"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        },
+        "servers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AsyncApiServerDefinition"
+          }
+        },
+        "schemaRegistry": {
+          "$ref": "#/$defs/AsyncApiSchemaRegistry"
+        },
+        "inMemoryBroker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "$ref": "#/$defs/SubstitutableString"
+            },
+            "port": {
+              "$ref": "#/$defs/SubstitutableInteger"
+            },
+            "logDir": {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          }
+        }
+      }
+    },
+    "AsyncApiSchemaRegistry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CONFLUENT",
+                "DEFAULT"
+              ]
+            },
+            {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          ]
+        },
+        "url": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "username": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "password": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "GraphqlSdlTestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "test"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "GraphqlSdlMockRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "mock"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "ProtobufTestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "test"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "importPaths": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        },
+        "protocVersion": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "requestTimeout": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "ProtobufMockRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "mock"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "importPaths": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        },
+        "protocVersion": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "specs": {
+          "$ref": "#/$defs/SpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "OpenApiTestRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "test"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "filter": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "workflow": {
+          "$ref": "#/$defs/WorkflowConfiguration"
+        },
+        "swaggerUiBaseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "swaggerUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "actuatorUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "specs": {
+          "$ref": "#/$defs/OpenApiSpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "OpenApiMockRunOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "mock",
+            "stateful-mock"
+          ]
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "filter": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "logMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "ALL",
+                "REQUEST_RESPONSE"
+              ]
+            },
+            {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          ]
+        },
+        "logsDirPath": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "cert": {
+          "$ref": "#/$defs/CertConfigurationOrRef"
+        },
+        "specs": {
+          "$ref": "#/$defs/OpenApiSpecificationRuntimeDefinitionArray"
+        }
+      }
+    },
+    "OpenApiSpecificationRuntimeDefinitionArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "spec"
+        ],
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/OpenApiSpecificationRuntimeDefinition"
+          }
+        }
+      }
+    },
+    "SpecificationRuntimeDefinitionArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "spec"
+        ],
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/SpecificationRuntimeDefinition"
+          }
+        }
+      }
+    },
+    "FreeFormObject": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "object",
+          "array",
+          "null"
+        ]
+      }
+    },
+    "SpecificationRuntimeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "overlayFilePath": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "OpenApiSpecificationRuntimeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "host": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "baseUrl": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "overlayFilePath": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "securitySchemes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SecuritySchemeConfiguration"
+          }
+        }
+      }
+    },
+    "SecuritySchemeConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "token"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "oauth2",
+            "basicAuth",
+            "bearer",
+            "apiKey"
+          ]
+        },
+        "token": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "WorkflowConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ids": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "extract": {
+                "$ref": "#/$defs/SubstitutableString"
+              },
+              "use": {
+                "$ref": "#/$defs/SubstitutableString"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ExamplesConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "testExamples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BaseExampleConfigurationOrRef"
+          }
+        },
+        "mockExamples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BaseExampleConfigurationOrRef"
+          }
+        },
+        "commonExamples": {
+          "$ref": "#/$defs/BaseExampleConfiguration"
+        }
+      }
+    },
+    "ArrayExampleConfigurationOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/ArrayExampleConfiguration"
+      }
+    },
+    "ArrayExampleConfiguration": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/BaseExampleConfigurationOrRef"
+      }
+    },
+    "BaseExampleConfigurationOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/BaseExampleConfiguration"
+      }
+    },
+    "BaseExampleConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directories"
+      ],
+      "properties": {
+        "directories": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        }
+      }
+    },
+    "DictionaryConfigurationOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/DictionaryConfiguration"
+      }
+    },
+    "DictionaryConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "AdapterConfigurationOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/AdapterConfiguration"
+      }
+    },
+    "AdapterConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pre_specmatic_request_processor": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "post_specmatic_response_processor": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "pre_specmatic_response_processor": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "CertConfigurationOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/CertConfiguration"
+      }
+    },
+    "CertConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyStore"
+      ],
+      "properties": {
+        "keyStore": {
+          "$ref": "#/$defs/KeyStoreConfiguration"
+        },
+        "keyStorePassword": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "ConcreteSettingsOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/ConcreteSettings"
+      }
+    },
+    "ModeSpecificSettings": {
+      "type": "object",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "general"
+            ]
+          },
+          {
+            "required": [
+              "test"
+            ]
+          },
+          {
+            "required": [
+              "mock"
+            ]
+          },
+          {
+            "required": [
+              "proxy"
+            ]
+          },
+          {
+            "required": [
+              "backwardCompatibility"
+            ]
+          }
+        ]
+      },
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TestSettings"
+        },
+        {
+          "$ref": "#/$defs/MockSettings"
+        }
+      ]
+    },
+    "ConcreteSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "general": {
+          "$ref": "#/$defs/GeneralSettings"
+        },
+        "test": {
+          "$ref": "#/$defs/TestSettings"
+        },
+        "mock": {
+          "$ref": "#/$defs/MockSettings"
+        },
+        "proxy": {
+          "$ref": "#/$defs/ProxySettings"
+        },
+        "backwardCompatibility": {
+          "$ref": "#/$defs/BackwardCompatibilitySettings"
+        }
+      }
+    },
+    "KeyStoreConfiguration": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/KeyStoreFileConfiguration"
+        },
+        {
+          "$ref": "#/$defs/KeyStoreDirectoryConfiguration"
+        }
+      ]
+    },
+    "KeyStoreFileConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "password": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "alias": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "KeyStoreDirectoryConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directory"
+      ],
+      "properties": {
+        "directory": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "password": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "alias": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "BackwardCompatibilitySettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseBranch": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "targetPath": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "repoDirectory": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "strictMode": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        }
+      }
+    },
+    "ProxySettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recordRequests": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "ignoreHeaders": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        }
+      }
+    },
+    "MockSettingsOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/MockSettings"
+      }
+    },
+    "MockSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generative": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "delayInMilliseconds": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "startTimeoutInMilliseconds": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "hotReload": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "strictMode": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "lenientMode": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "gracefulRestartTimeoutInMilliseconds": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        }
+      }
+    },
+    "TestSettingsOrRef": {
+      "if": {
+        "type": "object",
+        "required": [
+          "$ref"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/Reference"
+      },
+      "else": {
+        "$ref": "#/$defs/TestSettings"
+      }
+    },
+    "TestSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaResiliencyTests": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "all",
+                "none",
+                "positiveOnly"
+              ]
+            },
+            {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          ]
+        },
+        "timeoutInMilliseconds": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "strictMode": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "lenientMode": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "parallelism": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "maxTestRequestCombinations": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        },
+        "junitReportDir": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "validateResponseValues": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "maxTestCount": {
+          "$ref": "#/$defs/SubstitutableInteger"
+        }
+      }
+    },
+    "GeneralSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disableTelemetry": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "ignoreInlineExamples": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "ignoreInlineExampleWarnings": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "prettyPrint": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "logging": {
+          "$ref": "#/$defs/LoggingSettings"
+        },
+        "featureFlags": {
+          "$ref": "#/$defs/FeatureFlags"
+        },
+        "specExamplesDirectoryTemplate": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "sharedExamplesDirectoryTemplate": {
+          "$ref": "#/$defs/SubstitutableStringArray"
+        }
+      }
+    },
+    "LoggingSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "DEBUG",
+                "INFO"
+              ]
+            },
+            {
+              "$ref": "#/$defs/SubstitutableString"
+            }
+          ]
+        },
+        "text": {
+          "$ref": "#/$defs/LogOutputSettings"
+        },
+        "json": {
+          "$ref": "#/$defs/LogOutputSettings"
+        }
+      }
+    },
+    "LogOutputSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {
+          "$ref": "#/$defs/SubstitutableString"
+        },
+        "console": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "logFilePrefix": {
+          "$ref": "#/$defs/SubstitutableString"
+        }
+      }
+    },
+    "FeatureFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fuzzyMatcherForPayloads": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "schemaExampleDefault": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        },
+        "escapeSoapAction": {
+          "$ref": "#/$defs/SubstitutableBoolean"
+        }
+      }
+    }
+  }
+}
