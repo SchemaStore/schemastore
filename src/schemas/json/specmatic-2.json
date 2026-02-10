@@ -133,93 +133,26 @@
           "required": []
         },
         "provides": {
-          "type": "array",
+          "type": ["array", "null"],
           "description": "List of specs provided for testing. Each entry can be a string or an object.",
           "items": {
             "oneOf": [
-              {
-                "type": "string",
-                "description": "Path to a spec file."
-              },
-              {
-                "type": "object",
-                "description": "Object describing provided specs and test configuration.",
-                "additionalProperties": false,
-                "properties": {
-                  "specs": {
-                    "type": "array",
-                    "items": { "type": "string" },
-                    "description": "List of spec file paths."
-                  },
-                  "baseUrl": {
-                    "type": "string",
-                    "description": "Test base URL."
-                  },
-                  "host": {
-                    "type": "string",
-                    "description": "Host for the test base URL."
-                  },
-                  "port": {
-                    "type": "integer",
-                    "description": "Port for the test base URL."
-                  },
-                  "resiliencyTests": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "description": "Resiliency test configuration.",
-                    "properties": {
-                      "enable": {
-                        "type": "string",
-                        "enum": ["all", "positiveOnly", "none"],
-                        "description": "Resiliency test suite to enable."
-                      }
-                    },
-                    "required": []
-                  }
-                },
-                "required": ["specs"]
-              }
+              { "$ref": "#/definitions/StringValue" },
+              { "$ref": "#/definitions/ObjectValueFullUrl" },
+              { "$ref": "#/definitions/ObjectValuePartialUrl" },
+              { "$ref": "#/definitions/ConfigValue" }
             ]
           }
         },
         "consumes": {
-          "type": "array",
+          "type": ["array", "null"],
           "description": "List of specs consumed for stubbing. Each entry can be a string or an object.",
           "items": {
             "oneOf": [
-              {
-                "type": "string",
-                "description": "Path to a spec file."
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "description": "Object describing consumed specs and stub configuration.",
-                "properties": {
-                  "specs": {
-                    "type": "array",
-                    "items": { "type": "string" },
-                    "description": "List of spec file paths."
-                  },
-                  "baseUrl": {
-                    "type": "string",
-                    "description": "Full base URL for the stub."
-                  },
-                  "host": {
-                    "type": "string",
-                    "description": "Host for the stub base URL."
-                  },
-                  "port": {
-                    "type": "integer",
-                    "description": "Port for the stub base URL."
-                  },
-                  "basePath": {
-                    "type": "string",
-                    "description": "Base path for the stub base URL."
-                  }
-                },
-                "required": ["specs"]
-              }
+              { "$ref": "#/definitions/StringValue" },
+              { "$ref": "#/definitions/ObjectValueFullUrl" },
+              { "$ref": "#/definitions/ObjectValuePartialUrl" },
+              { "$ref": "#/definitions/ConfigValue" }
             ]
           }
         }
@@ -479,6 +412,7 @@
         }
       }
     },
+
     "StubConfiguration": {
       "type": "object",
       "description": "Stub/mock server configuration",
@@ -570,6 +504,101 @@
           "description": "Query parameter key for field selection"
         }
       }
+    },
+
+    "SpecsArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+
+    "StringValue": {
+      "type": "string",
+      "description": "A single spec path."
+    },
+
+    "ObjectValueFullUrl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseUrl", "specs"],
+      "properties": {
+        "baseUrl": { "type": "string" },
+        "specs": { "$ref": "#/definitions/SpecsArray" },
+        "resiliencyTests": { "$ref": "#/definitions/ResiliencyTestsConfig" }
+      }
+    },
+
+    "ObjectValuePartialUrl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specs"],
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "type": "integer" },
+        "basePath": { "type": "string" },
+        "specs": { "$ref": "#/definitions/SpecsArray" },
+        "resiliencyTests": { "$ref": "#/definitions/ResiliencyTestsConfig" }
+      },
+      "anyOf": [
+        { "required": ["host"] },
+        { "required": ["port"] },
+        { "required": ["basePath"] }
+      ],
+      "not": {
+        "anyOf": [{ "required": ["baseUrl"] }]
+      }
+    },
+
+    "ConfigValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specs", "specType", "config"],
+      "properties": {
+        "specs": { "$ref": "#/definitions/SpecsArray" },
+        "specType": { "type": "string" },
+        "config": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "integer" },
+              { "type": "number" },
+              { "type": "boolean" },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ConfigValueScalarOrComposite"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/definitions/ConfigValueScalarOrComposite"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "ConfigValueScalarOrComposite": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "integer" },
+        { "type": "number" },
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ConfigValueScalarOrComposite" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ConfigValueScalarOrComposite"
+          }
+        }
+      ]
     }
   }
 }
