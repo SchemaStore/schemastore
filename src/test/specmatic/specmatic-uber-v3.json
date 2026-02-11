@@ -1,0 +1,453 @@
+{
+  "version": 3,
+  "systemUnderTest": {
+    "service": {
+      "$ref": "#/components/services/orderApiService",
+      "runOptions": {
+        "$ref": "#/components/runOptions/orderApiService"
+      },
+      "data": {
+        "examples": {
+          "$ref": "#/components/examples/testExamples"
+        },
+        "dictionary": {
+          "$ref": "#/components/dictionaries/globalDictionary"
+        },
+        "adapters": {
+          "$ref": "#/components/adapters/apiServiceHooks"
+        }
+      },
+      "settings": {
+        "$ref": "#/components/settings/myService"
+      }
+    }
+  },
+  "dependencies": {
+    "services": [
+      {
+        "service": {
+          "$ref": "#/components/services/userApiService",
+          "runOptions": {
+            "$ref": "#/components/runOptions/userApiService"
+          }
+        }
+      },
+      {
+        "service": {
+          "$ref": "#/components/services/productApiService",
+          "runOptions": {
+            "protobuf": {
+              "host": "localhost",
+              "port": 10000,
+              "importPaths": [
+                "./proto-imports"
+              ],
+              "protocVersion": "3.15.0"
+            }
+          },
+          "data": {
+            "examples": {
+              "$ref": "#/components/examples/mockExamples"
+            },
+            "dictionary": {
+              "$ref": "#/components/dictionaries/productServiceDictionary"
+            },
+            "adapters": {
+              "$ref": "#/components/adapters/productServiceHooks"
+            }
+          },
+          "settings": {
+            "$ref": "#/components/settings/userApiMock"
+          }
+        }
+      }
+    ],
+    "data": {
+      "examples": {
+        "$ref": "#/components/examples/mockExamples"
+      },
+      "dictionary": {
+        "$ref": "#/components/dictionaries/globalDictionary"
+      },
+      "adapters": {
+        "$ref": "#/components/adapters/apiServiceHooks"
+      }
+    },
+    "settings": {
+      "$ref": "#/components/settings/allMocks"
+    }
+  },
+  "proxies": [
+    {
+      "proxy": {
+        "target": "https://www.example.com/api",
+        "baseUrl": "http://localhost:8888",
+        "timeoutInMilliseconds": 15000,
+        "adapters": {
+          "$ref": "#/components/adapters/apiServiceHooks"
+        },
+        "mock": [
+          "specifications/proxy-api.yaml"
+        ],
+        "cert": {
+          "$ref": "#/components/certificates/serverCert"
+        },
+        "recordingsDirectory": "./proxy-recordings/example"
+      }
+    },
+    {
+      "proxy": {
+        "target": "https://www.foo-bar.com/api",
+        "baseUrl": "http://localhost:9999",
+        "adapters": {
+          "$ref": "#/components/adapters/apiServiceHooks"
+        },
+        "recordingsDirectory": "./proxy-recordings/foo-bar"
+      }
+    }
+  ],
+  "mcp": {
+    "test": {
+      "baseUrl": "http://localhost:9100",
+      "transportKind": "STREAMABLE_HTTP",
+      "enableResiliencyTests": true,
+      "dictionaryFile": "./mcp-dictionary.json",
+      "bearerToken": "mcp-bearer-token",
+      "filterTools": [
+        "tool.alpha",
+        "tool.beta"
+      ],
+      "skipTools": [
+        "tool.gamma"
+      ]
+    }
+  },
+  "specmatic": {
+    "license": {
+      "path": "${LICENCE:~/.home/specmatic-license.txt}"
+    },
+    "governance": {
+      "report": {
+        "formats": "${REPORT_FORMAT:[html, ctrf]}",
+        "outputDirectory": "${REPORT_OUTPUT_DIR:./build/reports/specmatic}"
+      },
+      "successCriteria": {
+        "minCoveragePercentage": "${MIN_COVERAGE:80}",
+        "maxMissedOperationsInSpec": "${MAX_MISSED_OPS:5}",
+        "enforce": "${ENFORCE_GOVERNANCE_CRITERIA:true}"
+      }
+    },
+    "settings": {
+      "$ref": "#/components/settings/myGlobal"
+    }
+  },
+  "components": {
+    "sources": {
+      "specsRepo": {
+        "git": {
+          "url": "https://github.com/example/specs-repo.git",
+          "branch": "main",
+          "matchBranch": true,
+          "auth": {
+            "bearerFile": "bearer.txt"
+          }
+        }
+      },
+      "localSpecs": {
+        "filesystem": {
+          "directory": "./local-specs"
+        }
+      }
+    },
+    "services": {
+      "orderApiService": {
+        "description": "Order API Service",
+        "definitions": [
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/specsRepo"
+              },
+              "specs": [
+                {
+                  "spec": {
+                    "id": "orderAPIServiceSpec",
+                    "path": "api_specs/oas/order-api-oas.yaml",
+                    "urlPathPrefix": "/v1/http/orders"
+                  }
+                },
+                {
+                  "spec": {
+                    "path": "api_specs/proto/order-api-grpc.proto"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/localSpecs"
+              },
+              "specs": [
+                {
+                  "spec": {
+                    "path": "wsdl/soap.wsdl"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "userApiService": {
+        "definitions": [
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/specsRepo"
+              },
+              "specs": [
+                "api_specs/oas/user-api-oas.yaml",
+                "api_specs/async/user-api-asyncapi.yaml"
+              ]
+            }
+          }
+        ]
+      },
+      "productApiService": {
+        "definitions": [
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/specsRepo"
+              },
+              "specs": [
+                "api_specs/proto/product-api.proto"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "runOptions": {
+      "orderApiService": {
+        "openapi": {
+          "type": "test",
+          "baseUrl": "${ORDER_API_SERVICE_BASE_URL:http://localhost:8080}",
+          "workflow": {
+            "ids": {
+              "createUser": {
+                "extract": "$.userId"
+              },
+              "*": {
+                "use": "$.globalId"
+              }
+            }
+          },
+          "swaggerUrl": "http://localhost:8080/v3/api-docs",
+          "actuatorUrl": "http://localhost:8080/actuator",
+          "specs": [
+            {
+              "spec": {
+                "id": "orderAPIServiceSpec",
+                "overlayFilePath": "./overlays/order-service-overlay.yaml",
+                "securitySchemes": {
+                  "oauthScheme": {
+                    "type": "oauth2",
+                    "token": "${OAUTH2_TOKEN:default_token_value}"
+                  },
+                  "basicScheme": {
+                    "type": "basicAuth",
+                    "token": "${BASIC_AUTH_USER:default_user}:${BASIC_AUTH_PWD:default_pwd}"
+                  },
+                  "bearerScheme": {
+                    "type": "bearer",
+                    "token": "${BEARER_TOKEN:default_bearer_token}"
+                  },
+                  "apiKeyScheme": {
+                    "type": "apiKey",
+                    "token": "${API_KEY:default_API_key_value}"
+                  }
+                }
+              }
+            },
+            {
+              "spec": {
+                "id": "userAPIServiceSpec",
+                "overlayFilePath": "./overlays/user-service-overlay.yaml"
+              }
+            }
+          ]
+        }
+      },
+      "userApiService": {
+        "openapi": {
+          "type": "stateful-mock",
+          "baseUrl": "${USER_API_SERVICE_BASE_URL:http://localhost:9000}",
+          "cert": {
+            "$ref": "#/components/certificates/serverCert"
+          },
+          "logsDirPath": "./vs-logs",
+          "logMode": "REQUEST_RESPONSE",
+          "filter": "PATH=\"/order\" && METHOD=\"POST\"",
+          "specs": [
+            {
+              "spec": {
+                "id": "userAPIServiceSpec",
+                "securitySchemes": {
+                  "bearerScheme": {
+                    "type": "bearer",
+                    "token": "${USER_API_BEARER_TOKEN:default_user_bearer_token}"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "asyncapi": {
+          "type": "mock",
+          "inMemoryBroker": {
+            "host": "localhost",
+            "port": 9092
+          },
+          "servers": [
+            {
+              "host": "localhost:9092",
+              "protocol": "kafka"
+            }
+          ]
+        }
+      }
+    },
+    "examples": {
+      "testExamples": [
+        {
+          "directories": [
+            "./test-examples",
+            "./test-examples",
+            "./test-data"
+          ]
+        },
+        {
+          "$ref": "#/components/examples/commonExamples"
+        }
+      ],
+      "mockExamples": [
+        {
+          "directories": [
+            "./mock-examples",
+            "./mock-data"
+          ]
+        },
+        {
+          "$ref": "#/components/examples/commonExamples"
+        }
+      ],
+      "commonExamples": {
+        "directories": [
+          "./common-examples-for-my-service",
+          "./common-examples-for-all-service"
+        ]
+      }
+    },
+    "dictionaries": {
+      "globalDictionary": {
+        "path": "./dictionaries/global-dictionary.yaml"
+      },
+      "productServiceDictionary": {
+        "path": "./stub-dictionary.json"
+      }
+    },
+    "adapters": {
+      "apiServiceHooks": {
+        "pre_specmatic_request_processor": "./hooks/decode_request_from_consumer.sh",
+        "post_specmatic_response_processor": "./hooks/encode_response_to_consumer.sh",
+        "pre_specmatic_response_processor": "./hooks/decode_response_from_provider.sh"
+      },
+      "productServiceHooks": {
+        "pre_specmatic_request_processor": "./hooks/decode_request_from_consumer.sh",
+        "pre_specmatic_response_processor": "./hooks/decode_response_from_provider.sh"
+      }
+    },
+    "certificates": {
+      "serverCert": {
+        "keyStore": {
+          "file": "./certs/proxy-keystore.jks",
+          "password": "changeit",
+          "alias": "specmatic_server"
+        },
+        "keyStorePassword": "changeit"
+      }
+    },
+    "settings": {
+      "myGlobal": {
+        "general": {
+          "disableTelemetry": false,
+          "ignoreInlineExamples": false,
+          "ignoreInlineExampleWarnings": false,
+          "prettyPrint": true,
+          "logging": {
+            "level": "INFO",
+            "text": {
+              "directory": "./logs/text",
+              "console": true,
+              "logFilePrefix": "specmatic"
+            },
+            "json": {
+              "directory": "./logs/json",
+              "console": false,
+              "logFilePrefix": "specmatic"
+            }
+          },
+          "featureFlags": {
+            "fuzzyMatcherForPayloads": false,
+            "schemaExampleDefault": true,
+            "escapeSoapAction": false
+          }
+        },
+        "test": {
+          "schemaResiliencyTests": "all",
+          "timeoutInMilliseconds": 120000,
+          "strictMode": true,
+          "parallelism": "4",
+          "maxTestRequestCombinations": 100,
+          "junitReportDir": "./build/test-results/specmatic"
+        },
+        "mock": {
+          "generative": true,
+          "delayInMilliseconds": 250,
+          "startTimeoutInMilliseconds": 30000,
+          "hotReload": true,
+          "strictMode": false,
+          "gracefulRestartTimeoutInMilliseconds": 10000
+        },
+        "backwardCompatibility": {
+          "baseBranch": "main",
+          "targetPath": "specifications",
+          "repoDirectory": "../specs",
+          "strictMode": true
+        },
+        "proxy": {
+          "recordRequests": true,
+          "ignoreHeaders": [
+            "Authorization",
+            "Cookie"
+          ]
+        }
+      },
+      "myService": {
+        "timeoutInMilliseconds": 45000,
+        "schemaResiliencyTests": "none"
+      },
+      "allMocks": {
+        "delayInMilliseconds": 100,
+        "strictMode": false
+      },
+      "userApiMock": {
+        "delayInMilliseconds": 50,
+        "strictMode": true
+      }
+    }
+  }
+}
