@@ -5,22 +5,25 @@
     "permissionRule": {
       "type": "string",
       "description": "Tool permission rule. See https://code.claude.com/docs/en/settings#permission-rule-syntax",
-      "pattern": "^((Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LS|LSP|MultiEdit|NotebookEdit|NotebookRead|Read|Skill|SlashCommand|Task|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$"
+      "pattern": "^((Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LS|LSP|MultiEdit|NotebookEdit|NotebookRead|Read|Skill|Task|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
       "examples": [
         "Bash",
         "Bash(npm run build)",
-        "Bash(git commit:*)",
-        "Bash(npm run:*)",
+        "Bash(git commit *)",
+        "Bash(npm run *)",
         "Bash(ls*)",
         "Bash(git * main)",
         "Edit",
+        "MultiEdit",
         "Edit(/src/**/*.ts)",
         "Read(./.env)",
         "Read(./secrets/**)",
-        "Read(/Users/alice/secrets/**)",
+        "Read(//Users/alice/secrets/**)",
         "Read(~/Documents/*.pdf)",
+        "Task(Explore)",
         "WebFetch",
         "WebFetch(domain:example.com)",
+        "mcp__puppeteer",
         "mcp__github__search_repositories"
       ]
     },
@@ -46,12 +49,16 @@
               "type": "number",
               "description": "Optional timeout in seconds",
               "exclusiveMinimum": 0
+            },
+            "async": {
+              "type": "boolean",
+              "description": "Run this hook asynchronously without blocking Claude Code"
             }
           }
         },
         {
           "type": "object",
-          "description": "LLM prompt hook",
+          "description": "LLM prompt hook. See https://code.claude.com/docs/en/hooks#prompt-based-hooks",
           "additionalProperties": false,
           "required": ["type", "prompt"],
           "properties": {
@@ -65,9 +72,40 @@
               "description": "Prompt to evaluate with LLM. Use $ARGUMENTS placeholder for hook input JSON.",
               "minLength": 1
             },
+            "model": {
+              "type": "string",
+              "description": "Model to use for evaluation. Defaults to a fast model"
+            },
             "timeout": {
               "type": "number",
-              "description": "Optional timeout in seconds",
+              "description": "Optional timeout in seconds (default: 30)",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Agent hook with multi-turn tool access for verification. See https://code.claude.com/docs/en/hooks#agent-based-hooks",
+          "additionalProperties": false,
+          "required": ["type", "prompt"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "agent"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Prompt describing what to verify. Use $ARGUMENTS placeholder for hook input JSON.",
+              "minLength": 1
+            },
+            "model": {
+              "type": "string",
+              "description": "Model to use for evaluation. Defaults to a fast model"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 60)",
               "exclusiveMinimum": 0
             }
           }
@@ -212,8 +250,15 @@
         },
         "defaultMode": {
           "type": "string",
-          "enum": ["acceptEdits", "bypassPermissions", "default", "plan"],
-          "description": "Default permission mode when Claude Code needs access"
+          "enum": [
+            "acceptEdits",
+            "bypassPermissions",
+            "default",
+            "delegate",
+            "dontAsk",
+            "plan"
+          ],
+          "description": "Default permission mode.\n\"default\": prompts on first use.\n\"acceptEdits\": auto-accepts file edits.\n\"plan\": read-only, no modifications.\n\"delegate\": coordination-only for agent team leads (agent teams are experimental; enable via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).\n\"dontAsk\": auto-denies unless pre-approved via permissions.\n\"bypassPermissions\": skips all prompts (use only in isolated environments).\nSee https://code.claude.com/docs/en/permissions"
         },
         "disableBypassPermissionsMode": {
           "type": "string",
@@ -232,7 +277,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Tool usage permissions configuration. See https://code.claude.com/docs/en/iam#configuring-permissions",
+      "description": "Tool usage permissions configuration. See https://code.claude.com/docs/en/permissions and https://code.claude.com/docs/en/settings#permission-settings",
       "examples": [
         {
           "allow": ["Bash(git add:*)"],
@@ -250,6 +295,12 @@
     "model": {
       "type": "string",
       "description": "Override the default model used by Claude Code. See https://code.claude.com/docs/en/model-config"
+    },
+    "effortLevel": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Control Opus 4.6 adaptive reasoning effort. Lower effort is faster and cheaper for straightforward tasks, higher effort provides deeper reasoning. See https://code.claude.com/docs/en/model-config#adjust-effort-level",
+      "default": "high"
     },
     "enableAllProjectMcpServers": {
       "type": "boolean",
@@ -397,9 +448,23 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "TeammateIdle": {
+          "type": "array",
+          "description": "Hooks that run when an agent team teammate is about to go idle. Exit code 2 sends feedback and keeps the teammate working. Does not support matchers. Agent teams are experimental. See https://code.claude.com/docs/en/hooks#teammateidle",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "TaskCompleted": {
+          "type": "array",
+          "description": "Hooks that run when a task is being marked as completed. Exit code 2 prevents completion and sends feedback. Does not support matchers. See https://code.claude.com/docs/en/hooks#taskcompleted",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "Setup": {
           "type": "array",
-          "description": "Hooks that run during repository initialization (--init, --init-only) or maintenance (--maintenance)",
+          "description": "UNDOCUMENTED. Hooks that run during repository initialization (--init, --init-only) or maintenance (--maintenance)",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           }
@@ -427,6 +492,10 @@
     "allowManagedHooksOnly": {
       "type": "boolean",
       "description": "(Managed settings only) Prevent loading of user, project, and plugin hooks. Only allows managed hooks and SDK hooks. See https://code.claude.com/docs/en/settings#hook-configuration"
+    },
+    "allowManagedPermissionRulesOnly": {
+      "type": "boolean",
+      "description": "(Managed settings only) Prevent user and project settings from defining allow, ask, or deny permission rules. Only rules in managed settings apply. See https://code.claude.com/docs/en/settings"
     },
     "statusLine": {
       "type": "object",
@@ -515,6 +584,21 @@
                   }
                 },
                 "required": ["source", "url"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "const": "hostPattern"
+                  },
+                  "hostPattern": {
+                    "type": "string",
+                    "description": "Git host pattern to trust for repositories in source specifications"
+                  }
+                },
+                "required": ["source", "hostPattern"],
                 "additionalProperties": false
               },
               {
@@ -627,6 +711,21 @@
       "description": "(Managed settings only) Allowlist of plugin marketplaces users can add. Undefined = no restrictions, empty array = lockdown. Uses exact matching for source specifications. See https://code.claude.com/docs/en/settings#strictknownmarketplaces",
       "items": {
         "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "hostPattern"
+              },
+              "hostPattern": {
+                "type": "string",
+                "description": "Git host pattern to trust for repositories in source specifications"
+              }
+            },
+            "required": ["source", "hostPattern"],
+            "additionalProperties": false
+          },
           {
             "type": "object",
             "properties": {
@@ -822,6 +921,26 @@
               "minimum": 1,
               "maximum": 65535,
               "description": "SOCKS proxy port to use for network filtering. If not specified, a proxy server will be started automatically"
+            },
+            "allowAllUnixSockets": {
+              "type": "boolean",
+              "description": "Allow all Unix domain socket connections. If true, this overrides allowUnixSockets"
+            },
+            "allowedDomains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Allowlist of network domains for sandboxed commands. Supports wildcard patterns like *.example.com"
+            },
+            "deniedDomains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Denylist of network domains for sandboxed commands. Supports wildcard patterns like *.example.com"
             }
           },
           "additionalProperties": false
@@ -863,6 +982,28 @@
       },
       "additionalProperties": false
     },
+    "spinnerVerbs": {
+      "type": "object",
+      "description": "Customize the verbs shown in spinner progress messages",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["append", "replace"],
+          "description": "How custom verbs should be combined with the default spinner verbs"
+        },
+        "verbs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "description": "Custom verbs used in spinner progress text"
+        }
+      },
+      "required": ["verbs"],
+      "additionalProperties": false
+    },
     "spinnerTipsEnabled": {
       "type": "boolean",
       "description": "Show tips in the spinner while Claude is working. Set to false to disable tips (default: true)",
@@ -878,6 +1019,11 @@
       "description": "Show turn duration messages after responses (e.g., \"Cooked for 1m 6s\"). Set to false to hide these messages (default: true)",
       "default": true
     },
+    "prefersReducedMotion": {
+      "type": "boolean",
+      "description": "Reduce or disable UI animations (spinners, shimmer, flash effects) for accessibility",
+      "default": false
+    },
     "alwaysThinkingEnabled": {
       "type": "boolean",
       "description": "Enable extended thinking by default for all sessions. Typically configured via the /config command rather than editing directly. See https://code.claude.com/docs/en/common-workflows#use-extended-thinking-thinking-mode"
@@ -889,6 +1035,12 @@
         "minLength": 1
       },
       "description": "Company announcements to display at startup (one will be randomly selected if multiple are provided)"
+    },
+    "teammateMode": {
+      "type": "string",
+      "enum": ["auto", "in-process", "tmux"],
+      "description": "How agent team teammates display: \"auto\" picks split panes in tmux or iTerm2, in-process otherwise. Agent teams are experimental and disabled by default. Enable them by adding CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to your settings.json or environment. See https://code.claude.com/docs/en/agent-teams",
+      "default": "auto"
     },
     "pluginConfigs": {
       "type": "object",
