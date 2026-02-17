@@ -11,6 +11,8 @@
       "default": {
         "enable": [],
         "disable": [],
+        "extend-enable": [],
+        "extend-disable": [],
         "exclude": [],
         "include": [],
         "respect-gitignore": true,
@@ -40,6 +42,21 @@
         "$ref": "#/definitions/MarkdownFlavor"
       },
       "default": {}
+    },
+    "code-block-tools": {
+      "$ref": "#/definitions/CodeBlockToolsConfig",
+      "description": "Code block tools configuration for per-language linting and formatting\nusing external tools like ruff, prettier, shellcheck, etc.",
+      "default": {
+        "enabled": false,
+        "normalize-language": "linguist",
+        "on-error": "fail",
+        "on-missing-language-definition": "ignore",
+        "on-missing-tool-binary": "ignore",
+        "timeout": 30000,
+        "languages": {},
+        "language-aliases": {},
+        "tools": {}
+      }
     }
   },
   "additionalProperties": {
@@ -60,6 +77,22 @@
         },
         "disable": {
           "description": "Disabled rules",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "extend-enable": {
+          "description": "Additional rules to enable on top of the base set (additive across config levels)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "extend-disable": {
+          "description": "Additional rules to disable on top of the base set (additive across config levels)",
           "type": "array",
           "items": {
             "type": "string"
@@ -93,8 +126,29 @@
           "default": 80
         },
         "output-format": {
-          "description": "Output format for linting results (e.g., \"text\", \"json\", \"pylint\", etc.)",
-          "type": ["string", "null"]
+          "description": "Output format for linting results",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "text",
+                "full",
+                "concise",
+                "grouped",
+                "json",
+                "json-lines",
+                "github",
+                "gitlab",
+                "pylint",
+                "azure",
+                "sarif",
+                "junit"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "fixable": {
           "description": "Rules that are allowed to be fixed when --fix is used\nIf specified, only these rules will be fixed",
@@ -118,7 +172,7 @@
           "default": "standard"
         },
         "force-exclude": {
-          "description": "[DEPRECATED] Whether to enforce exclude patterns for explicitly passed paths.\nThis option is deprecated as of v0.0.156 and has no effect.\nExclude patterns are now always respected, even for explicitly provided files.\nThis prevents duplication between rumdl config and tool configs like pre-commit.",
+          "description": "\\[DEPRECATED\\] Whether to enforce exclude patterns for explicitly passed paths.\nThis option is deprecated as of v0.0.156 and has no effect.\nExclude patterns are now always respected, even for explicitly provided files.\nThis prevents duplication between rumdl config and tool configs like pre-commit.",
           "type": "boolean",
           "deprecated": true,
           "default": false
@@ -140,7 +194,7 @@
       "minimum": 0
     },
     "MarkdownFlavor": {
-      "description": "Markdown flavor/dialect. Accepts: standard, gfm, mkdocs, mdx, quarto, obsidian. Aliases: commonmark/github map to standard, qmd/rmd/rmarkdown map to quarto.",
+      "description": "Markdown flavor/dialect. Accepts: standard, gfm, mkdocs, mdx, quarto, obsidian, kramdown. Aliases: commonmark/github map to standard, qmd/rmd/rmarkdown map to quarto, jekyll maps to kramdown.",
       "type": "string",
       "enum": [
         "standard",
@@ -153,8 +207,200 @@
         "qmd",
         "rmd",
         "rmarkdown",
-        "obsidian"
+        "obsidian",
+        "kramdown",
+        "jekyll"
       ]
+    },
+    "CodeBlockToolsConfig": {
+      "description": "Master configuration for code block tools.\n\nThis is disabled by default for safety - users must explicitly enable it.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Master switch (default: false)",
+          "type": "boolean",
+          "default": false
+        },
+        "normalize-language": {
+          "$ref": "#/definitions/NormalizeLanguage",
+          "description": "Language normalization strategy",
+          "default": "linguist"
+        },
+        "on-error": {
+          "$ref": "#/definitions/OnError",
+          "description": "Global error handling strategy",
+          "default": "fail"
+        },
+        "on-missing-language-definition": {
+          "$ref": "#/definitions/OnMissing",
+          "description": "Behavior when a code block language has no tools configured for the current mode\n(e.g., no lint tools for `rumdl check`, no format tools for `rumdl check --fix`)",
+          "default": "ignore"
+        },
+        "on-missing-tool-binary": {
+          "$ref": "#/definitions/OnMissing",
+          "description": "Behavior when a configured tool's binary cannot be found (e.g., not in PATH)",
+          "default": "ignore"
+        },
+        "timeout": {
+          "description": "Timeout per tool execution in milliseconds (default: 30000)",
+          "type": "integer",
+          "minimum": 0,
+          "default": 30000
+        },
+        "languages": {
+          "description": "Per-language tool configuration",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LanguageToolConfig"
+          },
+          "default": {}
+        },
+        "language-aliases": {
+          "description": "User-defined language aliases (override built-in resolution)\nExample: { \"py\": \"python\", \"bash\": \"shell\" }",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "tools": {
+          "description": "Custom tool definitions (override built-ins)",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ToolDefinition"
+          },
+          "default": {}
+        }
+      }
+    },
+    "NormalizeLanguage": {
+      "description": "Language normalization strategy.",
+      "oneOf": [
+        {
+          "description": "Resolve language aliases using GitHub Linguist data (e.g., \"py\" -> \"python\")",
+          "type": "string",
+          "const": "linguist"
+        },
+        {
+          "description": "Use the language tag exactly as written in the code block",
+          "type": "string",
+          "const": "exact"
+        }
+      ]
+    },
+    "OnError": {
+      "description": "Error handling strategy for tool execution failures.",
+      "oneOf": [
+        {
+          "description": "Fail the lint/format operation (propagate error)",
+          "type": "string",
+          "const": "fail"
+        },
+        {
+          "description": "Skip the code block and continue processing",
+          "type": "string",
+          "const": "skip"
+        },
+        {
+          "description": "Log a warning but continue processing",
+          "type": "string",
+          "const": "warn"
+        }
+      ]
+    },
+    "OnMissing": {
+      "description": "Behavior when a language has no tools configured or a tool binary is missing.",
+      "oneOf": [
+        {
+          "description": "Silently skip and continue processing (default for backward compatibility)",
+          "type": "string",
+          "const": "ignore"
+        },
+        {
+          "description": "Record an error for that block, continue processing, exit non-zero at the end",
+          "type": "string",
+          "const": "fail"
+        },
+        {
+          "description": "Stop immediately on the first occurrence, exit non-zero",
+          "type": "string",
+          "const": "fail-fast"
+        }
+      ]
+    },
+    "LanguageToolConfig": {
+      "description": "Per-language tool configuration.",
+      "type": "object",
+      "properties": {
+        "lint": {
+          "description": "Tools to run in lint mode (rumdl check)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "format": {
+          "description": "Tools to run in format mode (rumdl check --fix / rumdl fmt)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "on-error": {
+          "description": "Override global on-error setting for this language",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OnError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      }
+    },
+    "ToolDefinition": {
+      "description": "Definition of an external tool.\n\nThis describes how to invoke a tool and how it communicates.",
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "Command to run (first element is the binary, rest are arguments)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stdin": {
+          "description": "Whether the tool reads from stdin (default: true)",
+          "type": "boolean",
+          "default": true
+        },
+        "stdout": {
+          "description": "Whether the tool writes to stdout (default: true)",
+          "type": "boolean",
+          "default": true
+        },
+        "lint-args": {
+          "description": "Additional arguments for lint mode (appended to command)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "format-args": {
+          "description": "Additional arguments for format mode (appended to command)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": ["command"]
     },
     "RuleConfig": {
       "description": "Represents a rule-specific configuration",

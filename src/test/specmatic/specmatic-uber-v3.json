@@ -1,0 +1,432 @@
+{
+  "components": {
+    "adapters": {
+      "apiServiceHooks": {
+        "post_specmatic_response_processor": "./hooks/encode_response_to_consumer.sh",
+        "pre_specmatic_request_processor": "./hooks/decode_request_from_consumer.sh",
+        "pre_specmatic_response_processor": "./hooks/decode_response_from_provider.sh"
+      },
+      "productServiceHooks": {
+        "pre_specmatic_request_processor": "./hooks/decode_request_from_consumer.sh",
+        "pre_specmatic_response_processor": "./hooks/decode_response_from_provider.sh"
+      }
+    },
+    "certificates": {
+      "serverCert": {
+        "keyStore": {
+          "alias": "specmatic_server",
+          "file": "./certs/proxy-keystore.jks",
+          "password": "changeit"
+        },
+        "keyStorePassword": "changeit"
+      }
+    },
+    "dictionaries": {
+      "globalDictionary": {
+        "path": "./dictionaries/global-dictionary.yaml"
+      },
+      "productServiceDictionary": {
+        "path": "./stub-dictionary.json"
+      }
+    },
+    "examples": {
+      "commonExamples": {
+        "directories": [
+          "./common-examples-for-my-service",
+          "./common-examples-for-all-service"
+        ]
+      },
+      "mockExamples": [
+        {
+          "directories": ["./mock-examples", "./mock-data"]
+        },
+        {
+          "$ref": "#/components/examples/commonExamples"
+        }
+      ],
+      "testExamples": [
+        {
+          "directories": ["./test-examples", "./test-examples", "./test-data"]
+        },
+        {
+          "$ref": "#/components/examples/commonExamples"
+        }
+      ]
+    },
+    "runOptions": {
+      "orderApiService": {
+        "openapi": {
+          "actuatorUrl": "http://localhost:8080/actuator",
+          "baseUrl": "${ORDER_API_SERVICE_BASE_URL:http://localhost:8080}",
+          "specs": [
+            {
+              "spec": {
+                "id": "orderAPIServiceSpec",
+                "overlayFilePath": "./overlays/order-service-overlay.yaml",
+                "securitySchemes": {
+                  "apiKeyScheme": {
+                    "token": "${API_KEY:default_API_key_value}",
+                    "type": "apiKey"
+                  },
+                  "basicScheme": {
+                    "token": "${BASIC_AUTH_USER:default_user}:${BASIC_AUTH_PWD:default_pwd}",
+                    "type": "basicAuth"
+                  },
+                  "bearerScheme": {
+                    "token": "${BEARER_TOKEN:default_bearer_token}",
+                    "type": "bearer"
+                  },
+                  "oauthScheme": {
+                    "token": "${OAUTH2_TOKEN:default_token_value}",
+                    "type": "oauth2"
+                  }
+                }
+              }
+            },
+            {
+              "spec": {
+                "id": "userAPIServiceSpec",
+                "overlayFilePath": "./overlays/user-service-overlay.yaml"
+              }
+            }
+          ],
+          "swaggerUrl": "http://localhost:8080/v3/api-docs",
+          "type": "test",
+          "workflow": {
+            "ids": {
+              "*": {
+                "use": "$.globalId"
+              },
+              "createUser": {
+                "extract": "$.userId"
+              }
+            }
+          }
+        }
+      },
+      "userApiService": {
+        "asyncapi": {
+          "inMemoryBroker": {
+            "host": "localhost",
+            "port": 9092
+          },
+          "servers": [
+            {
+              "host": "localhost:9092",
+              "protocol": "kafka"
+            }
+          ],
+          "type": "mock"
+        },
+        "openapi": {
+          "baseUrl": "${USER_API_SERVICE_BASE_URL:http://localhost:9000}",
+          "cert": {
+            "$ref": "#/components/certificates/serverCert"
+          },
+          "filter": "PATH=\"/order\" && METHOD=\"POST\"",
+          "logMode": "REQUEST_RESPONSE",
+          "logsDirPath": "./vs-logs",
+          "specs": [
+            {
+              "spec": {
+                "id": "userAPIServiceSpec",
+                "securitySchemes": {
+                  "bearerScheme": {
+                    "token": "${USER_API_BEARER_TOKEN:default_user_bearer_token}",
+                    "type": "bearer"
+                  }
+                }
+              }
+            }
+          ],
+          "type": "stateful-mock"
+        }
+      }
+    },
+    "services": {
+      "orderApiService": {
+        "definitions": [
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/specsRepo"
+              },
+              "specs": [
+                {
+                  "spec": {
+                    "id": "orderAPIServiceSpec",
+                    "path": "api_specs/oas/order-api-oas.yaml",
+                    "urlPathPrefix": "/v1/http/orders"
+                  }
+                },
+                {
+                  "spec": {
+                    "path": "api_specs/proto/order-api-grpc.proto"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/localSpecs"
+              },
+              "specs": [
+                {
+                  "spec": {
+                    "path": "wsdl/soap.wsdl"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "Order API Service"
+      },
+      "productApiService": {
+        "definitions": [
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/specsRepo"
+              },
+              "specs": ["api_specs/proto/product-api.proto"]
+            }
+          }
+        ]
+      },
+      "userApiService": {
+        "definitions": [
+          {
+            "definition": {
+              "source": {
+                "$ref": "#/components/sources/specsRepo"
+              },
+              "specs": [
+                "api_specs/oas/user-api-oas.yaml",
+                "api_specs/async/user-api-asyncapi.yaml"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "settings": {
+      "allMocks": {
+        "delayInMilliseconds": 100,
+        "strictMode": false
+      },
+      "myGlobal": {
+        "backwardCompatibility": {
+          "baseBranch": "main",
+          "repoDirectory": "../specs",
+          "strictMode": true,
+          "targetPath": "specifications"
+        },
+        "general": {
+          "disableTelemetry": false,
+          "featureFlags": {
+            "escapeSoapAction": false,
+            "fuzzyMatcherForPayloads": false,
+            "schemaExampleDefault": true
+          },
+          "ignoreInlineExampleWarnings": false,
+          "ignoreInlineExamples": false,
+          "logging": {
+            "json": {
+              "console": false,
+              "directory": "./logs/json",
+              "logFilePrefix": "specmatic"
+            },
+            "level": "INFO",
+            "text": {
+              "console": true,
+              "directory": "./logs/text",
+              "logFilePrefix": "specmatic"
+            }
+          },
+          "prettyPrint": true
+        },
+        "mock": {
+          "delayInMilliseconds": 250,
+          "generative": true,
+          "gracefulRestartTimeoutInMilliseconds": 10000,
+          "hotReload": true,
+          "startTimeoutInMilliseconds": 30000,
+          "strictMode": false
+        },
+        "proxy": {
+          "ignoreHeaders": ["Authorization", "Cookie"],
+          "recordRequests": true
+        },
+        "test": {
+          "junitReportDir": "./build/test-results/specmatic",
+          "maxTestRequestCombinations": 100,
+          "parallelism": "4",
+          "schemaResiliencyTests": "all",
+          "strictMode": true,
+          "timeoutInMilliseconds": 120000
+        }
+      },
+      "myService": {
+        "schemaResiliencyTests": "none",
+        "timeoutInMilliseconds": 45000
+      },
+      "userApiMock": {
+        "delayInMilliseconds": 50,
+        "strictMode": true
+      }
+    },
+    "sources": {
+      "localSpecs": {
+        "filesystem": {
+          "directory": "./local-specs"
+        }
+      },
+      "specsRepo": {
+        "git": {
+          "auth": {
+            "bearerFile": "bearer.txt"
+          },
+          "branch": "main",
+          "matchBranch": true,
+          "url": "https://github.com/example/specs-repo.git"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "data": {
+      "adapters": {
+        "$ref": "#/components/adapters/apiServiceHooks"
+      },
+      "dictionary": {
+        "$ref": "#/components/dictionaries/globalDictionary"
+      },
+      "examples": {
+        "$ref": "#/components/examples/mockExamples"
+      }
+    },
+    "services": [
+      {
+        "service": {
+          "$ref": "#/components/services/userApiService",
+          "runOptions": {
+            "$ref": "#/components/runOptions/userApiService"
+          }
+        }
+      },
+      {
+        "service": {
+          "$ref": "#/components/services/productApiService",
+          "data": {
+            "adapters": {
+              "$ref": "#/components/adapters/productServiceHooks"
+            },
+            "dictionary": {
+              "$ref": "#/components/dictionaries/productServiceDictionary"
+            },
+            "examples": {
+              "$ref": "#/components/examples/mockExamples"
+            }
+          },
+          "runOptions": {
+            "protobuf": {
+              "host": "localhost",
+              "importPaths": ["./proto-imports"],
+              "port": 10000,
+              "protocVersion": "3.15.0"
+            }
+          },
+          "settings": {
+            "$ref": "#/components/settings/userApiMock"
+          }
+        }
+      }
+    ],
+    "settings": {
+      "$ref": "#/components/settings/allMocks"
+    }
+  },
+  "mcp": {
+    "test": {
+      "baseUrl": "http://localhost:9100",
+      "bearerToken": "mcp-bearer-token",
+      "dictionaryFile": "./mcp-dictionary.json",
+      "enableResiliencyTests": true,
+      "filterTools": ["tool.alpha", "tool.beta"],
+      "skipTools": ["tool.gamma"],
+      "transportKind": "STREAMABLE_HTTP"
+    }
+  },
+  "proxies": [
+    {
+      "proxy": {
+        "adapters": {
+          "$ref": "#/components/adapters/apiServiceHooks"
+        },
+        "baseUrl": "http://localhost:8888",
+        "cert": {
+          "$ref": "#/components/certificates/serverCert"
+        },
+        "mock": ["specifications/proxy-api.yaml"],
+        "recordingsDirectory": "./proxy-recordings/example",
+        "target": "https://www.example.com/api",
+        "timeoutInMilliseconds": 15000
+      }
+    },
+    {
+      "proxy": {
+        "adapters": {
+          "$ref": "#/components/adapters/apiServiceHooks"
+        },
+        "baseUrl": "http://localhost:9999",
+        "recordingsDirectory": "./proxy-recordings/foo-bar",
+        "target": "https://www.foo-bar.com/api"
+      }
+    }
+  ],
+  "specmatic": {
+    "governance": {
+      "report": {
+        "formats": "${REPORT_FORMAT:[html, ctrf]}",
+        "outputDirectory": "${REPORT_OUTPUT_DIR:./build/reports/specmatic}"
+      },
+      "successCriteria": {
+        "enforce": "${ENFORCE_GOVERNANCE_CRITERIA:true}",
+        "maxMissedOperationsInSpec": "${MAX_MISSED_OPS:5}",
+        "minCoveragePercentage": "${MIN_COVERAGE:80}"
+      }
+    },
+    "license": {
+      "path": "${LICENCE:~/.home/specmatic-license.txt}"
+    },
+    "settings": {
+      "$ref": "#/components/settings/myGlobal"
+    }
+  },
+  "systemUnderTest": {
+    "service": {
+      "$ref": "#/components/services/orderApiService",
+      "data": {
+        "adapters": {
+          "$ref": "#/components/adapters/apiServiceHooks"
+        },
+        "dictionary": {
+          "$ref": "#/components/dictionaries/globalDictionary"
+        },
+        "examples": {
+          "$ref": "#/components/examples/testExamples"
+        }
+      },
+      "runOptions": {
+        "$ref": "#/components/runOptions/orderApiService"
+      },
+      "settings": {
+        "$ref": "#/components/settings/myService"
+      }
+    }
+  },
+  "version": 3
+}
