@@ -1,0 +1,732 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hiasinho.github.io/bmml/bmclang-v2.schema.json",
+  "title": "BMML Business Model v2",
+  "description": "A YAML-based format for describing business models, based on Alexander Osterwalder's work (v2 structure)",
+  "$comment": "DESIGN: v2 introduces three key principles: (1) SYMMETRY - Customer Profile lives in segments, Value Map lives in propositions, (2) CONSISTENCY - all relationships use for:/from: with typed sub-keys, (3) OPTIONALITY - VPC detail (profiles, value maps, fits) is optional; BMC works standalone. See specs/bmclang-v2-structure.md for rationale.",
+  "type": "object",
+  "required": ["version", "meta"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "BMML format version",
+      "const": "2.0"
+    },
+    "meta": {
+      "$ref": "#/$defs/Meta"
+    },
+    "customer_segments": {
+      "type": "array",
+      "description": "Customer segments the business targets",
+      "items": {
+        "$ref": "#/$defs/CustomerSegment"
+      }
+    },
+    "value_propositions": {
+      "type": "array",
+      "description": "Value propositions offered to customer segments",
+      "items": {
+        "$ref": "#/$defs/ValueProposition"
+      }
+    },
+    "fits": {
+      "type": "array",
+      "$comment": "DESIGN: Fits are top-level (not nested under VP) because a fit connects two peers (VP and CS) - neither owns the relationship. One VP can fit multiple segments differently, and one segment can be served by multiple VPs.",
+      "description": "Connections between value propositions and customer segments (VPC detail)",
+      "items": {
+        "$ref": "#/$defs/Fit"
+      }
+    },
+    "channels": {
+      "type": "array",
+      "description": "Channels to reach customer segments",
+      "items": {
+        "$ref": "#/$defs/Channel"
+      }
+    },
+    "customer_relationships": {
+      "type": "array",
+      "description": "Types of relationships with customer segments",
+      "items": {
+        "$ref": "#/$defs/CustomerRelationship"
+      }
+    },
+    "revenue_streams": {
+      "type": "array",
+      "description": "Revenue streams from customer segments",
+      "items": {
+        "$ref": "#/$defs/RevenueStream"
+      }
+    },
+    "key_resources": {
+      "type": "array",
+      "description": "Key resources needed to deliver value propositions",
+      "items": {
+        "$ref": "#/$defs/KeyResource"
+      }
+    },
+    "key_activities": {
+      "type": "array",
+      "description": "Key activities needed to deliver value propositions",
+      "items": {
+        "$ref": "#/$defs/KeyActivity"
+      }
+    },
+    "key_partnerships": {
+      "type": "array",
+      "description": "Key partnerships that provide resources or activities",
+      "items": {
+        "$ref": "#/$defs/KeyPartnership"
+      }
+    },
+    "costs": {
+      "type": "array",
+      "$comment": "DESIGN: v2 uses 'costs' array instead of v1's 'cost_structure' object with nested 'major_costs'. This aligns with how other infrastructure entities are defined (simple array of items with for: relations).",
+      "description": "Cost items (replaces v1 cost_structure)",
+      "items": {
+        "$ref": "#/$defs/Cost"
+      }
+    }
+  },
+  "$defs": {
+    "Meta": {
+      "type": "object",
+      "description": "Business model metadata",
+      "required": ["name", "portfolio", "stage"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the business model"
+        },
+        "tagline": {
+          "type": "string",
+          "description": "One-liner description"
+        },
+        "created": {
+          "type": "string",
+          "format": "date",
+          "description": "Creation date (ISO 8601)"
+        },
+        "updated": {
+          "type": "string",
+          "format": "date",
+          "description": "Last updated date (ISO 8601)"
+        },
+        "portfolio": {
+          "type": "string",
+          "enum": ["explore", "exploit"],
+          "$comment": "DESIGN: From Osterwalder's 'The Invincible Company' - companies manage two portfolios: 'explore' (searching for new value with high uncertainty) and 'exploit' (managing existing business with low uncertainty).",
+          "description": "Portfolio position (Osterwalder's Invincible Company)"
+        },
+        "stage": {
+          "type": "string",
+          "$comment": "DESIGN: Valid stages are constrained by portfolio. Explore: ideation→discovery→validation→acceleration. Exploit: improve→grow→sustain→retire. 'transfer' marks the shift from explore to exploit.",
+          "description": "Current stage within the portfolio"
+        },
+        "derived_from": {
+          "type": "string",
+          "description": "Relative path to parent business model file"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "portfolio": { "const": "explore" }
+            }
+          },
+          "then": {
+            "properties": {
+              "stage": {
+                "enum": ["ideation", "discovery", "validation", "acceleration", "transfer"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "portfolio": { "const": "exploit" }
+            }
+          },
+          "then": {
+            "properties": {
+              "stage": {
+                "enum": ["improve", "grow", "sustain", "retire", "transfer"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CustomerSegment": {
+      "type": "object",
+      "$comment": "DESIGN: Customer Profile (jobs/pains/gains) is nested here for SYMMETRY with Value Map in ValueProposition. This is v2's key structural change - profile lives with the segment it describes.",
+      "description": "A customer segment with optional profile (jobs, pains, gains)",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^cs-[a-z0-9-]+$",
+          "description": "Unique identifier with cs- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the customer segment"
+        },
+        "description": {
+          "type": "string",
+          "description": "Who they are"
+        },
+        "jobs": {
+          "type": "array",
+          "description": "Jobs to be done (Customer Profile)",
+          "items": {
+            "$ref": "#/$defs/Job"
+          }
+        },
+        "pains": {
+          "type": "array",
+          "description": "Customer pains (Customer Profile)",
+          "items": {
+            "$ref": "#/$defs/Pain"
+          }
+        },
+        "gains": {
+          "type": "array",
+          "description": "Customer gains (Customer Profile)",
+          "items": {
+            "$ref": "#/$defs/Gain"
+          }
+        }
+      }
+    },
+    "Job": {
+      "type": "object",
+      "$comment": "DESIGN: v2 removes 'type' and 'importance' fields from v1. Types can be added later as the format matures. This simplifies the initial structure.",
+      "description": "A job the customer is trying to accomplish",
+      "required": ["id", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^job-[a-z0-9-]+$",
+          "description": "Unique identifier with job- prefix"
+        },
+        "description": {
+          "type": "string",
+          "description": "What they're trying to accomplish"
+        }
+      }
+    },
+    "Pain": {
+      "type": "object",
+      "description": "A customer pain point",
+      "required": ["id", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pain-[a-z0-9-]+$",
+          "description": "Unique identifier with pain- prefix"
+        },
+        "description": {
+          "type": "string",
+          "description": "What frustrates them or blocks them"
+        }
+      }
+    },
+    "Gain": {
+      "type": "object",
+      "description": "A desired customer gain",
+      "required": ["id", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^gain-[a-z0-9-]+$",
+          "description": "Unique identifier with gain- prefix"
+        },
+        "description": {
+          "type": "string",
+          "description": "What they want to achieve or experience"
+        }
+      }
+    },
+    "ValueProposition": {
+      "type": "object",
+      "$comment": "DESIGN: Value Map (products/pain_relievers/gain_creators) is nested here for SYMMETRY with Customer Profile in CustomerSegment. In v1, pain_relievers and gain_creators lived in fits - v2 moves them here where they belong conceptually.",
+      "description": "A value proposition with optional value map (products, pain relievers, gain creators)",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^vp-[a-z0-9-]+$",
+          "description": "Unique identifier with vp- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the value proposition"
+        },
+        "description": {
+          "type": "string",
+          "description": "What you offer"
+        },
+        "products_services": {
+          "type": "array",
+          "description": "Products and services that deliver this value (Value Map)",
+          "items": {
+            "$ref": "#/$defs/ProductService"
+          }
+        },
+        "pain_relievers": {
+          "type": "array",
+          "description": "How this VP relieves customer pains (Value Map)",
+          "items": {
+            "$ref": "#/$defs/PainReliever"
+          }
+        },
+        "gain_creators": {
+          "type": "array",
+          "description": "How this VP creates customer gains (Value Map)",
+          "items": {
+            "$ref": "#/$defs/GainCreator"
+          }
+        }
+      }
+    },
+    "ProductService": {
+      "type": "object",
+      "description": "A product or service offering",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ps-[a-z0-9-]+$",
+          "description": "Unique identifier with ps- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the product or service"
+        }
+      }
+    },
+    "PainReliever": {
+      "type": "object",
+      "$comment": "DESIGN: New in v2 - pr-* prefix enables type inference in fit mappings. A [pr-*, pain-*] tuple is inferred as pain relief without explicit type field.",
+      "description": "How a value proposition relieves a specific pain",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pr-[a-z0-9-]+$",
+          "description": "Unique identifier with pr- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "How it relieves pain"
+        }
+      }
+    },
+    "GainCreator": {
+      "type": "object",
+      "$comment": "DESIGN: New in v2 - gc-* prefix enables type inference in fit mappings. A [gc-*, gain-*] tuple is inferred as gain creation without explicit type field.",
+      "description": "How a value proposition creates a specific gain",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^gc-[a-z0-9-]+$",
+          "description": "Unique identifier with gc- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "How it creates gain"
+        }
+      }
+    },
+    "ForRelation": {
+      "type": "object",
+      "$comment": "DESIGN: 'for:' means 'this entity serves/supports/targets these other entities'. Sub-keys match section names exactly (value_propositions not propositions) for self-documenting references and validation simplicity.",
+      "description": "Relationship target - which entities this serves/supports",
+      "additionalProperties": false,
+      "properties": {
+        "value_propositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^vp-[a-z0-9-]+$"
+          },
+          "description": "Value propositions this relates to"
+        },
+        "customer_segments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^cs-[a-z0-9-]+$"
+          },
+          "description": "Customer segments this relates to"
+        },
+        "key_resources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^kr-[a-z0-9-]+$"
+          },
+          "description": "Key resources this relates to"
+        },
+        "key_activities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^ka-[a-z0-9-]+$"
+          },
+          "description": "Key activities this relates to"
+        }
+      }
+    },
+    "FromRelation": {
+      "type": "object",
+      "$comment": "DESIGN: 'from:' means 'this entity receives from/is sourced by these other entities'. Currently only used by revenue_streams to indicate who pays.",
+      "description": "Relationship source - which entities this comes from",
+      "additionalProperties": false,
+      "properties": {
+        "customer_segments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^cs-[a-z0-9-]+$"
+          },
+          "description": "Customer segments this comes from"
+        }
+      }
+    },
+    "Fit": {
+      "type": "object",
+      "$comment": "DESIGN: Fit is a first-class entity (not nested) because it connects two peers. The 'for:' pattern requires both VP and CS refs. Mappings use tuples [reliever/creator, pain/gain] for conciseness - type is inferred from ID prefixes.",
+      "description": "A fit between value propositions and customer segments (VPC detail)",
+      "required": ["id", "for"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^fit-[a-z0-9-]+$",
+          "description": "Unique identifier with fit- prefix"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which VP(s) and CS(s) this fit connects",
+          "additionalProperties": false,
+          "properties": {
+            "value_propositions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^vp-[a-z0-9-]+$"
+              },
+              "minItems": 1,
+              "description": "Value propositions in this fit"
+            },
+            "customer_segments": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^cs-[a-z0-9-]+$"
+              },
+              "minItems": 1,
+              "description": "Customer segments in this fit"
+            }
+          },
+          "required": ["value_propositions", "customer_segments"]
+        },
+        "mappings": {
+          "type": "array",
+          "$comment": "DESIGN: Tuples replace v1's verbose objects. [pr-x, pain-y] = pain relief, [gc-x, gain-y] = gain creation. Type inference from prefixes eliminates explicit type fields.",
+          "description": "Tuple mappings: [reliever/creator, pain/gain]",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "Channel": {
+      "type": "object",
+      "$comment": "DESIGN: Channels have a TERNARY relationship - they deliver VPs TO CSs. The 'for:' pattern with both sub-keys expresses this cleanly without creating join entities.",
+      "description": "A channel to reach customer segments with value propositions",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ch-[a-z0-9-]+$",
+          "description": "Unique identifier with ch- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the channel"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which VPs and CSs this channel serves",
+          "additionalProperties": false,
+          "properties": {
+            "value_propositions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^vp-[a-z0-9-]+$"
+              },
+              "description": "Value propositions delivered through this channel"
+            },
+            "customer_segments": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^cs-[a-z0-9-]+$"
+              },
+              "description": "Customer segments reached through this channel"
+            }
+          }
+        }
+      }
+    },
+    "CustomerRelationship": {
+      "type": "object",
+      "description": "A type of relationship with customer segments",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^cr-[a-z0-9-]+$",
+          "description": "Unique identifier with cr- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name/type of relationship"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which customer segments this relationship applies to",
+          "additionalProperties": false,
+          "properties": {
+            "customer_segments": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^cs-[a-z0-9-]+$"
+              },
+              "description": "Customer segments with this relationship type"
+            }
+          }
+        }
+      }
+    },
+    "RevenueStream": {
+      "type": "object",
+      "$comment": "DESIGN: Revenue has bidirectional relationships - 'from:' (who pays) and 'for:' (what they pay for). This is the only entity using both prepositions, expressing: CS pays FOR VP.",
+      "description": "A revenue stream from customer segments for value propositions",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^rs-[a-z0-9-]+$",
+          "description": "Unique identifier with rs- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the revenue stream"
+        },
+        "from": {
+          "type": "object",
+          "description": "Who pays (source of revenue)",
+          "additionalProperties": false,
+          "properties": {
+            "customer_segments": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^cs-[a-z0-9-]+$"
+              },
+              "description": "Customer segments this revenue comes from"
+            }
+          }
+        },
+        "for": {
+          "type": "object",
+          "description": "What they pay for",
+          "additionalProperties": false,
+          "properties": {
+            "value_propositions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^vp-[a-z0-9-]+$"
+              },
+              "description": "Value propositions this revenue is for"
+            }
+          }
+        }
+      }
+    },
+    "KeyResource": {
+      "type": "object",
+      "description": "A key resource needed to deliver value",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^kr-[a-z0-9-]+$",
+          "description": "Unique identifier with kr- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the resource"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which value propositions need this resource",
+          "additionalProperties": false,
+          "properties": {
+            "value_propositions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^vp-[a-z0-9-]+$"
+              },
+              "description": "Value propositions that need this resource"
+            }
+          }
+        }
+      }
+    },
+    "KeyActivity": {
+      "type": "object",
+      "description": "A key activity needed to deliver value",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ka-[a-z0-9-]+$",
+          "description": "Unique identifier with ka- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the activity"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which value propositions require this activity",
+          "additionalProperties": false,
+          "properties": {
+            "value_propositions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^vp-[a-z0-9-]+$"
+              },
+              "description": "Value propositions that require this activity"
+            }
+          }
+        }
+      }
+    },
+    "KeyPartnership": {
+      "type": "object",
+      "$comment": "DESIGN: Partners link to infrastructure (resources/activities) via 'for:', not to VPs directly. This reflects reality: partners provide capabilities that enable VPs, not the VPs themselves.",
+      "description": "A key partnership that provides resources or activities",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^kp-[a-z0-9-]+$",
+          "description": "Unique identifier with kp- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the partner"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which resources/activities this partner provides",
+          "additionalProperties": false,
+          "properties": {
+            "key_resources": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^kr-[a-z0-9-]+$"
+              },
+              "description": "Resources this partner provides"
+            },
+            "key_activities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ka-[a-z0-9-]+$"
+              },
+              "description": "Activities this partner performs"
+            }
+          }
+        }
+      }
+    },
+    "Cost": {
+      "type": "object",
+      "$comment": "DESIGN: New in v2 with cost-* prefix. Costs link to infrastructure (resources/activities) like partnerships do. 'for:' here means 'incurred by' these resources/activities.",
+      "description": "A cost item linked to resources or activities",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^cost-[a-z0-9-]+$",
+          "description": "Unique identifier with cost- prefix"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the cost"
+        },
+        "for": {
+          "type": "object",
+          "description": "Which resources/activities incur this cost",
+          "additionalProperties": false,
+          "properties": {
+            "key_resources": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^kr-[a-z0-9-]+$"
+              },
+              "description": "Resources that incur this cost"
+            },
+            "key_activities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ka-[a-z0-9-]+$"
+              },
+              "description": "Activities that incur this cost"
+            }
+          }
+        }
+      }
+    }
+  }
+}
