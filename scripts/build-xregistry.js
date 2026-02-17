@@ -229,9 +229,9 @@ async function buildXRegistry() {
     )
     const url = schema.url
     console.info(`Determining schema format for ${url}...`)
-    // Map json.schemastore.org domain to schemastore.org
+    // Map www.schemastore.org domain to schemastore.org
     let domain = extractDomain(url)
-    if (domain === 'json.schemastore.org') {
+    if (domain === 'www.schemastore.org' || domain === 'json.schemastore.org') {
       domain = 'schemastore.org'
     }
 
