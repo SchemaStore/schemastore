@@ -40,6 +40,7 @@
   - [How to add a `$ref` to a JSON Schema that's hosted in this repository](#how-to-add-a-ref-to-a-json-schema-thats-hosted-in-this-repository)
   - [How to add a `$ref` to a JSON Schema that's self-hosted](#how-to-add-a-ref-to-a-json-schema-thats-self-hosted)
   - [How to validate a JSON Schema](#how-to-validate-a-json-schema)
+  - [How to check test coverage for a JSON Schema](#how-to-check-test-coverage-for-a-json-schema)
   - [How to ignore validation errors in a JSON Schema](#how-to-ignore-validation-errors-in-a-json-schema)
   - [How to name schemas that are subschemas (`partial-`)](#how-to-name-schemas-that-are-subschemas-partial-)
 - [Older Links](#older-links)
@@ -669,6 +670,39 @@ node ./cli.js check --schema-name=<schemaName.json>
 For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --schema-name=ava.json`
 
 Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`.
+
+### How to check test coverage for a JSON Schema
+
+The coverage tool analyzes how thoroughly your schema's test files exercise its constraints. It runs 8 checks:
+
+1. **Unused `$defs`** — flags `$defs`/`definitions` entries not referenced by any `$ref`
+2. **Description coverage** — flags properties missing a `description`
+3. **Test completeness** — checks that every top-level schema property appears in at least one positive test
+4. **Enum coverage** — checks that each enum value has positive test coverage and at least one invalid value in negative tests
+5. **Pattern coverage** — checks that each `pattern` constraint has a matching and a violating test value
+6. **Required field coverage** — checks that negative tests omit required fields
+7. **Default value coverage** — checks that positive tests include non-default values
+8. **Negative test isolation** — flags negative test files that test multiple unrelated violation types
+
+**Opting in:** Add your schema to the `coverage` array in `src/schema-validation.jsonc`:
+
+```jsonc
+"coverage": [
+  { "schema": "my-schema.json" },
+  { "schema": "my-strict-schema.json", "strict": true }
+]
+```
+
+- `strict` (default: `false`) — when `true`, coverage failures cause a non-zero exit code, enforced in CI.
+- Without `strict: true`, the tool reports findings but does not fail CI.
+
+**Running locally:**
+
+```console
+node ./cli.js coverage --schema-name=my-schema.json
+```
+
+Coverage is opt-in and runs in CI. Schemas with `strict: true` will block PRs on coverage failures. Schemas without `strict` get an advisory report only.
 
 ### How to ignore validation errors in a JSON Schema
 
