@@ -187,7 +187,7 @@
     "env": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Environment variables to set for Claude Code sessions",
+      "description": "Environment variables to set for Claude Code sessions. See https://code.claude.com/docs/en/model-config#environment-variables for notable variables like CLAUDE_CODE_DISABLE_1M_CONTEXT (disables 1M token context window variants)",
       "examples": [
         {
           "ANTHROPIC_MODEL": "claude-opus-4-1",
@@ -313,7 +313,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Restrict which models users can select. When defined, users can only switch between these model options. See https://code.claude.com/docs/en/model-config#restrict-model-selection",
+      "description": "Restrict which models users can select. When defined at multiple settings levels (user, project, etc.), arrays are merged and deduplicated. See https://code.claude.com/docs/en/model-config#restrict-model-selection",
       "examples": [["sonnet", "haiku"]]
     },
     "effortLevel": {
@@ -324,7 +324,7 @@
     },
     "fastMode": {
       "type": "boolean",
-      "description": "Enable fast mode for Opus 4.6. Fast mode uses the same model with faster output at higher cost per token. Alternatively, toggle with /fast command. See https://code.claude.com/docs/en/fast-mode",
+      "description": "Enable fast mode for Opus 4.6 (research preview). Fast mode uses the same model with 2.5x faster output at higher per-token cost. Requires extra usage enabled. Alternatively, toggle with /fast command. See https://code.claude.com/docs/en/fast-mode",
       "default": false
     },
     "enableAllProjectMcpServers": {
@@ -552,6 +552,27 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "ConfigChange": {
+          "type": "array",
+          "description": "Hooks that run when settings, managed settings, or skill files change during a session. Supports matchers: user_settings, project_settings, local_settings, policy_settings, skills. Command handlers only. Exit code 2 blocks the change (except policy_settings which is audit-only). See https://code.claude.com/docs/en/hooks#configchange",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "WorktreeCreate": {
+          "type": "array",
+          "description": "Hooks that run when a worktree is created via --worktree or isolation: \"worktree\" in subagents. Command handlers only, no matchers. Hook must print absolute path to created worktree on stdout; non-zero exit fails creation. See https://code.claude.com/docs/en/hooks#worktreecreate",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "WorktreeRemove": {
+          "type": "array",
+          "description": "Hooks that run when a worktree is being removed at session exit or when a subagent finishes. Command handlers only, no matchers. Used for cleanup tasks; cannot block removal. See https://code.claude.com/docs/en/hooks#worktreeremove",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "SessionStart": {
           "type": "array",
           "description": "Hooks that run when a new session starts",
@@ -570,7 +591,7 @@
     },
     "disableAllHooks": {
       "type": "boolean",
-      "description": "Disable all hooks and statusLine execution"
+      "description": "Disable all hooks and statusLine execution. When true in managed settings, user and project-level disableAllHooks cannot override it. See https://code.claude.com/docs/en/hooks#disable-or-remove-hooks"
     },
     "allowManagedHooksOnly": {
       "type": "boolean",
@@ -1210,8 +1231,13 @@
         "anyOf": [
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "url" },
+              "source": {
+                "type": "string",
+                "const": "url",
+                "description": "Block marketplace fetched from direct URL"
+              },
               "url": {
                 "type": "string",
                 "format": "uri",
@@ -1227,8 +1253,13 @@
           },
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "github" },
+              "source": {
+                "type": "string",
+                "const": "github",
+                "description": "Block marketplace from GitHub repository"
+              },
               "repo": {
                 "type": "string",
                 "description": "GitHub repository in owner/repo format"
@@ -1246,8 +1277,13 @@
           },
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "git" },
+              "source": {
+                "type": "string",
+                "const": "git",
+                "description": "Block marketplace from git repository URL"
+              },
               "url": {
                 "type": "string",
                 "pattern": ".*\\.git$",
@@ -1266,8 +1302,13 @@
           },
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "npm" },
+              "source": {
+                "type": "string",
+                "const": "npm",
+                "description": "Block marketplace from NPM package"
+              },
               "package": {
                 "type": "string",
                 "description": "NPM package containing marketplace.json"
@@ -1277,8 +1318,13 @@
           },
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "file" },
+              "source": {
+                "type": "string",
+                "const": "file",
+                "description": "Block marketplace from local file"
+              },
               "path": {
                 "type": "string",
                 "description": "Local file path to marketplace.json"
@@ -1288,8 +1334,13 @@
           },
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "directory" },
+              "source": {
+                "type": "string",
+                "const": "directory",
+                "description": "Block marketplace from local directory"
+              },
               "path": {
                 "type": "string",
                 "description": "Local directory containing .claude-plugin/marketplace.json"
@@ -1299,8 +1350,13 @@
           },
           {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "source": { "type": "string", "const": "hostPattern" },
+              "source": {
+                "type": "string",
+                "const": "hostPattern",
+                "description": "Block marketplace by host pattern matching"
+              },
               "hostPattern": {
                 "type": "string",
                 "description": "Regex pattern to match the host/domain extracted from any marketplace source type"
