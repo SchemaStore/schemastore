@@ -643,20 +643,55 @@ export function checkNegativeIsolation(schema, negativeTests) {
   const typeProps = new Map()
   for (const { name, propSchema } of walkProperties(schema)) {
     if (Array.isArray(propSchema.enum)) {
-      enumProps.set(
-        name,
-        new Set(propSchema.enum.filter((v) => v != null).map(String)),
+      const existing = enumProps.get(name)
+      const newVals = new Set(
+        propSchema.enum.filter((v) => v != null).map(String),
       )
+      if (existing) {
+        for (const v of newVals) existing.add(v)
+      } else {
+        enumProps.set(name, newVals)
+      }
     }
     if (typeof propSchema.pattern === 'string') {
       try {
-        patternProps.set(name, new RegExp(propSchema.pattern))
+        const regex = new RegExp(propSchema.pattern)
+        const existing = patternProps.get(name)
+        if (existing) {
+          existing.push(regex)
+        } else {
+          patternProps.set(name, [regex])
+        }
       } catch {
         // skip invalid regex
       }
     }
-    if (propSchema.type) {
-      typeProps.set(name, propSchema.type)
+    // Collect explicit type declarations
+    const types = propSchema.type
+      ? Array.isArray(propSchema.type)
+        ? propSchema.type
+        : [propSchema.type]
+      : []
+    // Infer types from anyOf/oneOf variants when no explicit type is declared
+    if (types.length === 0) {
+      for (const kw of ['anyOf', 'oneOf', 'allOf']) {
+        const variants = propSchema[kw]
+        if (Array.isArray(variants)) {
+          for (const v of variants) {
+            if (v && typeof v === 'object' && v.type) {
+              types.push(...(Array.isArray(v.type) ? v.type : [v.type]))
+            }
+          }
+        }
+      }
+    }
+    if (types.length > 0) {
+      const existing = typeProps.get(name)
+      if (existing) {
+        for (const t of types) existing.add(t)
+      } else {
+        typeProps.set(name, new Set(types))
+      }
     }
   }
 
@@ -704,9 +739,9 @@ export function checkNegativeIsolation(schema, negativeTests) {
     }
 
     // Pattern violations
-    for (const [name, regex] of patternProps) {
+    for (const [name, regexes] of patternProps) {
       for (const v of collectPropertyValues(data, name)) {
-        if (typeof v === 'string' && !regex.test(v)) {
+        if (typeof v === 'string' && !regexes.some((re) => re.test(v))) {
           violations.add('pattern_mismatch')
           break
         }
@@ -714,9 +749,8 @@ export function checkNegativeIsolation(schema, negativeTests) {
     }
 
     // Type violations
-    for (const [name, expectedType] of typeProps) {
-      const types = Array.isArray(expectedType) ? expectedType : [expectedType]
-      const checkers = types.map((t) => typeMap[t]).filter(Boolean)
+    for (const [name, typeSet] of typeProps) {
+      const checkers = [...typeSet].map((t) => typeMap[t]).filter(Boolean)
       if (checkers.length === 0) continue
       for (const v of collectPropertyValues(data, name)) {
         if (!checkers.some((check) => check(v))) {
@@ -758,7 +792,7 @@ export function checkNegativeIsolation(schema, negativeTests) {
   return {
     status: multiViolationFiles.length === 0 ? 'pass' : 'warn',
     totalNegativeTests: negativeTests.size,
-    note: 'Heuristic: name-based violation detection, not path-aware',
+    note: 'Heuristic — all checks match by property name, not JSON path. When the same name (e.g., "source", "type") appears at different schema depths with different constraints, violations may be misattributed. For each flagged file, verify that reported violation types reflect intentional test inputs at the correct nesting level, not collisions between unrelated schema depths',
     multiViolationFiles: multiViolationFiles.slice(0, 20),
   }
 }
