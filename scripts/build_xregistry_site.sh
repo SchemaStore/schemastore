@@ -56,7 +56,7 @@ docker exec "${CONTAINER_ID}" /xr import -d @/workspace/src/api/registry/registr
 echo "Exporting live data to $ARCHIVE_PATH..."
 docker exec "${CONTAINER_ID}" /bin/sh -c "
   mkdir -p /tmp/live
-  /xr download --index index.json -s localhost:8080 /tmp/live -u https://json.schemastore.org/api/registry
+  /xr download --index index.json -s localhost:8080 /tmp/live -u https://www.schemastore.org/api/registry
   cd /tmp/live
   tar czf $ARCHIVE_PATH .
 "
