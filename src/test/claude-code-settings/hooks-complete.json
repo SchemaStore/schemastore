@@ -1,13 +1,45 @@
 {
   "hooks": {
+    "ConfigChange": [
+      {
+        "hooks": [
+          {
+            "command": "echo 'Config changed' >> /tmp/claude-config.log",
+            "type": "command"
+          }
+        ],
+        "matcher": "user_settings"
+      }
+    ],
     "Notification": [
       {
         "hooks": [
           {
             "command": "osascript -e 'display notification \"Claude task complete\" with title \"Claude Code\"'",
             "type": "command"
+          },
+          {
+            "allowedEnvVars": ["WEBHOOK_SECRET"],
+            "headers": {
+              "X-Hook-Secret": "$WEBHOOK_SECRET"
+            },
+            "statusMessage": "Sending notification webhook",
+            "timeout": 15,
+            "type": "http",
+            "url": "http://localhost:8080/hooks/notification"
           }
         ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "command": "echo 'Permission requested' >> /tmp/claude-permissions.log",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
       }
     ],
     "PostToolUse": [
@@ -15,10 +47,21 @@
         "hooks": [
           {
             "command": "git diff",
+            "statusMessage": "Reviewing changes",
             "type": "command"
           }
         ],
         "matcher": "Edit"
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "command": "echo 'Tool failure' >> /tmp/claude-errors.log",
+            "type": "command"
+          }
+        ]
       }
     ],
     "PreCompact": [
@@ -36,6 +79,7 @@
         "hooks": [
           {
             "command": "echo 'About to write file' >> /tmp/claude-log.txt",
+            "statusMessage": "Preparing to write file",
             "type": "command"
           }
         ],
@@ -44,6 +88,7 @@
       {
         "hooks": [
           {
+            "async": true,
             "command": "echo 'Running bash command' >> /tmp/claude-log.txt",
             "timeout": 5,
             "type": "command"
@@ -72,14 +117,37 @@
         ]
       }
     ],
+    "Setup": [
+      {
+        "hooks": [
+          {
+            "command": "echo 'Repository setup' >> /tmp/claude-setup.log",
+            "type": "command"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
-            "command": "echo 'Claude finished' | tee -a /tmp/claude-session.log",
-            "type": "command"
+            "prompt": "Check if all tasks are complete before stopping: $ARGUMENTS",
+            "statusMessage": "Verifying task completion",
+            "timeout": 30,
+            "type": "prompt"
           }
         ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "command": "echo 'Subagent spawned' >> /tmp/claude-subagent.log",
+            "type": "command"
+          }
+        ],
+        "matcher": "Explore"
       }
     ],
     "SubagentStop": [
@@ -91,7 +159,29 @@
             "type": "command"
           }
         ],
-        "matcher": "Task"
+        "matcher": "Explore"
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "prompt": "Verify all tests pass and code meets requirements before marking task complete: $ARGUMENTS",
+            "timeout": 120,
+            "type": "agent"
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "command": "npm test",
+            "timeout": 120,
+            "type": "command"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -99,6 +189,26 @@
         "hooks": [
           {
             "command": "echo 'User prompt submitted' >> /tmp/claude-session.log",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "command": "mkdir -p /tmp/worktree && echo /tmp/worktree",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "command": "echo 'Removing worktree' >> /tmp/claude-cleanup.log",
             "type": "command"
           }
         ]
