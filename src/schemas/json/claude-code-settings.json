@@ -5,7 +5,7 @@
     "permissionRule": {
       "type": "string",
       "description": "Tool permission rule.\nSee https://code.claude.com/docs/en/settings#permission-rule-syntax\nSee https://code.claude.com/docs/en/settings#tools-available-to-claude for full list of tools available to Claude.",
-      "pattern": "^((Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LS|LSP|MultiEdit|NotebookEdit|NotebookRead|Read|Skill|Task|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LS|LSP|MultiEdit|NotebookEdit|NotebookRead|Read|Skill|Task|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
       "examples": [
         "Bash",
         "Bash(npm run build)",
@@ -20,6 +20,7 @@
         "Read(./secrets/**)",
         "Read(//Users/alice/secrets/**)",
         "Read(~/Documents/*.pdf)",
+        "Agent(Explore)",
         "Task(Explore)",
         "WebFetch",
         "WebFetch(domain:example.com)",
@@ -264,6 +265,11 @@
         }
       }
     },
+    "includeGitInstructions": {
+      "type": "boolean",
+      "description": "Include built-in git commit and PR workflow instructions in Claude's system prompt. Also configurable via CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS environment variable (set to 1 to disable). See https://code.claude.com/docs/en/settings#available-settings",
+      "default": true
+    },
     "includeCoAuthoredBy": {
       "type": "boolean",
       "description": "DEPRECATED. Use 'attribution' instead. Whether to include the co-authored-by Claude byline in git commits and pull requests (default: true)",
@@ -317,7 +323,7 @@
             "dontAsk",
             "plan"
           ],
-          "description": "Default permission mode.\n\"default\": prompts on first use.\n\"acceptEdits\": auto-accepts file edits.\n\"plan\": read-only, no modifications.\n\"delegate\": coordination-only for agent team leads (agent teams are experimental; enable via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).\n\"dontAsk\": auto-denies unless pre-approved via permissions.\n\"bypassPermissions\": skips all prompts (use only in isolated environments).\nSee https://code.claude.com/docs/en/permissions"
+          "description": "Default permission mode.\n\"default\": prompts on first use.\n\"acceptEdits\": auto-accepts file edits.\n\"plan\": read-only, no modifications.\nUNDOCUMENTED. \"delegate\": coordination-only for agent team leads (agent teams are experimental; enable via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).\n\"dontAsk\": auto-denies unless pre-approved via permissions.\n\"bypassPermissions\": skips all prompts (use only in isolated environments).\nSee https://code.claude.com/docs/en/permissions"
         },
         "disableBypassPermissionsMode": {
           "type": "string",
@@ -366,12 +372,17 @@
     "effortLevel": {
       "type": "string",
       "enum": ["low", "medium", "high"],
-      "description": "Control Opus 4.6 adaptive reasoning effort. Lower effort is faster and cheaper for straightforward tasks, higher effort provides deeper reasoning. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level",
+      "description": "Control Opus 4.6 adaptive reasoning effort. Lower effort is faster and cheaper for straightforward tasks, higher effort provides deeper reasoning. Opus 4.6 defaults to medium effort for Max and Team subscribers. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level",
       "default": "high"
     },
     "fastMode": {
       "type": "boolean",
       "description": "Enable fast mode for Opus 4.6 (research preview). Fast mode uses the same model with 2.5x faster output at higher per-token cost. Requires extra usage enabled. Alternatively, toggle with /fast command. See https://code.claude.com/docs/en/fast-mode",
+      "default": false
+    },
+    "fastModePerSessionOptIn": {
+      "type": "boolean",
+      "description": "Require per-session opt-in for fast mode. When true, fast mode does not persist across sessions and users must enable it with /fast each session. Useful for controlling costs. See https://code.claude.com/docs/en/fast-mode",
       "default": false
     },
     "enableAllProjectMcpServers": {
@@ -599,6 +610,13 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "InstructionsLoaded": {
+          "type": "array",
+          "description": "Hooks that run when a CLAUDE.md or .claude/rules/*.md file is loaded into context. Fires at session start and when files are lazily loaded (e.g., nested traversal, path glob match). No decision control; used for audit logging and observability. Does not support matchers. See https://code.claude.com/docs/en/hooks#instructionsloaded",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "ConfigChange": {
           "type": "array",
           "description": "Hooks that run when settings, managed settings, or skill files change during a session. Supports matchers: user_settings, project_settings, local_settings, policy_settings, skills. Command handlers only. Exit code 2 blocks the change (except policy_settings which is audit-only). See https://code.claude.com/docs/en/hooks#configchange",
@@ -646,7 +664,7 @@
     },
     "allowManagedPermissionRulesOnly": {
       "type": "boolean",
-      "description": "(Managed settings only) Prevent user and project settings from defining allow, ask, or deny permission rules. Only rules in managed settings apply. See https://code.claude.com/docs/en/settings"
+      "description": "(Managed settings only) Prevent user and project settings from defining allow, ask, or deny permission rules. Only rules in managed settings apply. See https://code.claude.com/docs/en/settings#permission-settings"
     },
     "statusLine": {
       "type": "object",
@@ -1008,6 +1026,22 @@
             },
             "required": ["source", "path"],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Identifies the marketplace source type",
+                "const": "pathPattern"
+              },
+              "pathPattern": {
+                "type": "string",
+                "description": "Regex pattern to match file or directory paths for marketplace sources"
+              }
+            },
+            "required": ["source", "pathPattern"],
+            "additionalProperties": false
           }
         ]
       },
@@ -1134,6 +1168,11 @@
           "description": "Automatically allow bash commands without prompting when they run in the sandbox. Only applies to commands that will run sandboxed.",
           "default": true
         },
+        "enableWeakerNetworkIsolation": {
+          "type": "boolean",
+          "description": "macOS only. Allow access to the system TLS trust service (com.apple.trustd.agent) in the sandbox. Required for Go-based tools like gh, gcloud, and terraform to verify TLS certificates when using httpProxyPort with a MITM proxy and custom CA. Reduces security by opening a potential data exfiltration path. Default: false. See https://code.claude.com/docs/en/settings#sandbox-settings",
+          "default": false
+        },
         "enableWeakerNestedSandbox": {
           "type": "boolean",
           "description": "Enable weaker sandbox mode for unprivileged docker environments where --proc mounting fails. This significantly reduces the strength of the sandbox and should only be used when this risk is acceptable.Default: false (secure)."
@@ -1209,7 +1248,7 @@
     },
     "spinnerTipsOverride": {
       "type": "object",
-      "description": "Customize the tips displayed in the spinner while Claude is working. See https://code.claude.com/docs/en/settings",
+      "description": "Customize the tips displayed in the spinner while Claude is working. See https://code.claude.com/docs/en/settings#available-settings",
       "properties": {
         "excludeDefault": {
           "type": "boolean",
@@ -1261,6 +1300,11 @@
       "enum": ["auto", "in-process", "tmux"],
       "description": "How agent team teammates display: \"auto\" picks split panes in tmux or iTerm2, in-process otherwise. Agent teams are experimental and disabled by default. Enable them by adding CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to your settings.json or environment. See https://code.claude.com/docs/en/agent-teams",
       "default": "auto"
+    },
+    "pluginTrustMessage": {
+      "type": "string",
+      "description": "(Managed settings only) Custom message appended to the plugin trust warning shown before installation. Use to provide organization-specific context about approved plugins. See https://code.claude.com/docs/en/settings#plugin-settings",
+      "minLength": 1
     },
     "pluginConfigs": {
       "type": "object",
@@ -1441,6 +1485,22 @@
               }
             },
             "required": ["source", "hostPattern"]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "type": "string",
+                "const": "pathPattern",
+                "description": "Block marketplace by file/directory path pattern matching"
+              },
+              "pathPattern": {
+                "type": "string",
+                "description": "Regex pattern to match file or directory paths for marketplace sources"
+              }
+            },
+            "required": ["source", "pathPattern"]
           }
         ]
       }
