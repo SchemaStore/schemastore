@@ -5,7 +5,7 @@
     "permissionRule": {
       "type": "string",
       "description": "Tool permission rule.\nSee https://code.claude.com/docs/en/settings#permission-rule-syntax\nSee https://code.claude.com/docs/en/settings#tools-available-to-claude for full list of tools available to Claude.",
-      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LS|LSP|MultiEdit|NotebookEdit|NotebookRead|Read|Skill|Task|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LSP|NotebookEdit|Read|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
       "examples": [
         "Bash",
         "Bash(npm run build)",
@@ -14,14 +14,12 @@
         "Bash(ls*)",
         "Bash(git * main)",
         "Edit",
-        "MultiEdit",
         "Edit(/src/**/*.ts)",
         "Read(./.env)",
         "Read(./secrets/**)",
         "Read(//Users/alice/secrets/**)",
         "Read(~/Documents/*.pdf)",
         "Agent(Explore)",
-        "Task(Explore)",
         "WebFetch",
         "WebFetch(domain:example.com)",
         "mcp__puppeteer",
@@ -383,11 +381,22 @@
       "description": "Restrict which models users can select. When defined at multiple settings levels (user, project, etc.), arrays are merged and deduplicated. See https://code.claude.com/docs/en/model-config#restrict-model-selection",
       "examples": [["sonnet", "haiku"]]
     },
+    "modelOverrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Map Anthropic model IDs to provider-specific model IDs such as Bedrock inference profile ARNs, Vertex AI version names, or Foundry deployment names. Each model picker entry uses its mapped value when calling the provider API. Unknown keys are ignored. See https://code.claude.com/docs/en/model-config#override-model-ids-per-version",
+      "examples": [
+        {
+          "claude-opus-4-6": "arn:aws:bedrock:us-east-2:123456789012:application-inference-profile/opus-prod"
+        }
+      ]
+    },
     "effortLevel": {
       "type": "string",
       "enum": ["low", "medium", "high"],
-      "description": "Control Opus 4.6 adaptive reasoning effort. Lower effort is faster and cheaper for straightforward tasks, higher effort provides deeper reasoning. Opus 4.6 defaults to medium effort for Max and Team subscribers. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level",
-      "default": "high"
+      "description": "Control Opus 4.6 adaptive reasoning effort. Lower effort is faster and cheaper for straightforward tasks, higher effort provides deeper reasoning. Defaults vary by model and plan (Opus 4.6 defaults to medium for Max and Team subscribers). Use /effort auto to reset to model default. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level"
     },
     "fastMode": {
       "type": "boolean",
@@ -398,6 +407,13 @@
       "type": "boolean",
       "description": "Require per-session opt-in for fast mode. When true, fast mode does not persist across sessions and users must enable it with /fast each session. Useful for controlling costs. See https://code.claude.com/docs/en/fast-mode",
       "default": false
+    },
+    "feedbackSurveyRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Probability (0–1) that the session quality survey appears when eligible. A value of 0.05 means 5% of eligible sessions. See https://code.claude.com/docs/en/settings",
+      "examples": [0.05]
     },
     "enableAllProjectMcpServers": {
       "type": "boolean",
@@ -608,6 +624,27 @@
         "PreCompact": {
           "type": "array",
           "description": "Hooks that run before the context is compacted",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PostCompact": {
+          "type": "array",
+          "description": "Hooks that run after the context is compacted. See https://code.claude.com/docs/en/hooks",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "Elicitation": {
+          "type": "array",
+          "description": "Hooks that run when an MCP server requests user input during a tool call. See https://code.claude.com/docs/en/hooks",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "ElicitationResult": {
+          "type": "array",
+          "description": "Hooks that run after a user responds to an MCP elicitation, before the response is sent back to the server. See https://code.claude.com/docs/en/hooks",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           }
@@ -1119,7 +1156,7 @@
     },
     "outputStyle": {
       "type": "string",
-      "description": "Controls the output style for assistant responses. See https://code.claude.com/docs/en/output-styles",
+      "description": "Controls the output style for assistant responses. Built-in styles: default, Explanatory, Learning. Custom styles can be added in ~/.claude/output-styles/ or .claude/output-styles/. See https://code.claude.com/docs/en/output-styles",
       "examples": ["default", "Explanatory", "Learning"],
       "minLength": 1
     },
@@ -1172,7 +1209,7 @@
             },
             "allowManagedDomainsOnly": {
               "type": "boolean",
-              "description": "(Managed settings only) Only allowedDomains and WebFetch(domain:...) allow rules from managed settings are respected. User, project, local, and flag settings domains are ignored. Denied domains are still respected from all sources."
+              "description": "(Managed settings only) Only allowedDomains and WebFetch(domain:...) allow rules from managed settings are respected. User, project, local, and flag settings domains are ignored. Denied domains are still respected from all sources. Non-allowed domains are automatically blocked without user prompts."
             }
           },
           "additionalProperties": false
@@ -1332,6 +1369,22 @@
       "enum": ["auto", "in-process", "tmux"],
       "description": "How agent team teammates display: \"auto\" picks split panes in tmux or iTerm2, in-process otherwise. Agent teams are experimental and disabled by default. Enable them by adding CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to your settings.json or environment. See https://code.claude.com/docs/en/agent-teams",
       "default": "auto"
+    },
+    "worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Configuration for --worktree sessions. See https://code.claude.com/docs/en/settings",
+      "properties": {
+        "sparsePaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Directories to check out in each worktree via git sparse-checkout (cone mode). Only the listed paths are written to disk, which is faster in large monorepos.",
+          "examples": [["packages/my-app", "shared/utils"]]
+        }
+      }
     },
     "pluginTrustMessage": {
       "type": "string",
