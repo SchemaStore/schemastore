@@ -58,6 +58,19 @@
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
+            },
+            "shell": {
+              "type": "string",
+              "enum": ["bash", "powershell"],
+              "description": "Shell interpreter. 'bash' uses $SHELL (bash/zsh/sh); 'powershell' uses pwsh. Defaults to bash"
+            },
+            "once": {
+              "type": "boolean",
+              "description": "If true, hook runs once and is removed after execution"
+            },
+            "asyncRewake": {
+              "type": "boolean",
+              "description": "If true, hook runs in background and wakes the model on exit code 2. Implies async"
             }
           }
         },
@@ -89,6 +102,10 @@
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
+            },
+            "once": {
+              "type": "boolean",
+              "description": "If true, hook runs once and is removed after execution"
             }
           }
         },
@@ -120,6 +137,10 @@
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
+            },
+            "once": {
+              "type": "boolean",
+              "description": "If true, hook runs once and is removed after execution"
             }
           }
         },
@@ -162,6 +183,10 @@
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
+            },
+            "once": {
+              "type": "boolean",
+              "description": "If true, hook runs once and is removed after execution"
             }
           }
         }
@@ -196,11 +221,23 @@
       "type": "string",
       "description": "JSON Schema reference for Claude Code settings"
     },
+    "agent": {
+      "type": "string",
+      "description": "Name of an agent (built-in or custom) to use for the main thread. Applies the agent's system prompt, tool restrictions, and model"
+    },
     "apiKeyHelper": {
       "type": "string",
       "description": "Path to a script that outputs authentication values",
       "examples": ["/bin/generate_temp_api_key.sh"],
       "minLength": 1
+    },
+    "autoDreamEnabled": {
+      "type": "boolean",
+      "description": "Enable background memory consolidation (auto-dream). When set, overrides the server-side default"
+    },
+    "autoMemoryDirectory": {
+      "type": "string",
+      "description": "Custom directory path for auto-memory storage. Supports ~/ prefix for home directory expansion. Ignored if set in projectSettings (checked-in .claude/settings.json) for security. When unset, defaults to ~/.claude/projects/<sanitized-cwd>/memory/"
     },
     "autoMemoryEnabled": {
       "type": "boolean",
@@ -224,6 +261,17 @@
       "description": "Path to a script that refreshes AWS authentication",
       "examples": ["aws sso login --profile myprofile"],
       "minLength": 1
+    },
+    "channelsEnabled": {
+      "type": "boolean",
+      "description": "Teams/Enterprise opt-in for channel notifications (MCP servers with the claude/channel capability pushing inbound messages). Default off. Set true to allow; users then select servers via --channels"
+    },
+    "claudeMdExcludes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns or absolute paths of CLAUDE.md files to exclude from loading. Patterns are matched against absolute file paths using picomatch. Only applies to User, Project, and Local memory types (Managed/policy files cannot be excluded)"
     },
     "cleanupPeriodDays": {
       "type": "integer",
@@ -317,6 +365,7 @@
           "type": "string",
           "enum": [
             "acceptEdits",
+            "auto",
             "bypassPermissions",
             "default",
             "delegate",
@@ -329,6 +378,11 @@
           "type": "string",
           "enum": ["disable"],
           "description": "Disable the ability to bypass permission prompts"
+        },
+        "disableAutoMode": {
+          "type": "string",
+          "enum": ["disable"],
+          "description": "Disable auto mode"
         },
         "additionalDirectories": {
           "type": "array",
@@ -357,9 +411,20 @@
       "description": "Preferred language for Claude's responses",
       "examples": ["japanese", "spanish", "french"]
     },
+    "minimumVersion": {
+      "type": "string",
+      "description": "Minimum version to stay on - prevents downgrades when switching to stable channel"
+    },
     "model": {
       "type": "string",
       "description": "Override the default model used by Claude Code. For finer control, use environment variables: ANTHROPIC_MODEL (runtime override), ANTHROPIC_DEFAULT_OPUS_MODEL, ANTHROPIC_DEFAULT_SONNET_MODEL, ANTHROPIC_DEFAULT_HAIKU_MODEL (per-class pinning), CLAUDE_CODE_SUBAGENT_MODEL (subagent model). See https://code.claude.com/docs/en/model-config"
+    },
+    "modelOverrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Override mapping from Anthropic model ID (e.g. \"claude-opus-4-6\") to provider-specific model ID (e.g. a Bedrock inference profile ARN). Typically set in managed settings by enterprise administrators"
     },
     "availableModels": {
       "type": "array",
@@ -384,6 +449,12 @@
       "type": "boolean",
       "description": "Require per-session opt-in for fast mode. When true, fast mode does not persist across sessions and users must enable it with /fast each session. Useful for controlling costs. See https://code.claude.com/docs/en/fast-mode",
       "default": false
+    },
+    "feedbackSurveyRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Probability (0-1) that the session quality survey appears when eligible. 0.05 is a reasonable starting point"
     },
     "enableAllProjectMcpServers": {
       "type": "boolean",
@@ -452,6 +523,16 @@
         ]
       },
       "description": "Enterprise allowlist of MCP servers that can be used. Applies to all scopes including enterprise servers from managed-mcp.json. If undefined, all servers are allowed. If empty array, no servers are allowed. Denylist takes precedence - if a server is on both lists, it is denied. See https://code.claude.com/docs/en/mcp#restriction-options"
+    },
+    "defaultShell": {
+      "type": "string",
+      "enum": ["bash", "powershell"],
+      "description": "Default shell for input-box ! commands. Defaults to 'bash' on all platforms (no Windows auto-flip)"
+    },
+    "defaultView": {
+      "type": "string",
+      "enum": ["chat", "transcript"],
+      "description": "Default transcript view: chat (SendUserMessage checkpoints only) or transcript (full)"
     },
     "deniedMcpServers": {
       "type": "array",
@@ -568,6 +649,13 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "StopFailure": {
+          "type": "array",
+          "description": "Hooks that run when an agent fails to stop cleanly",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "SubagentStart": {
           "type": "array",
           "description": "Hooks that run when a subagent is spawned",
@@ -585,6 +673,13 @@
         "PreCompact": {
           "type": "array",
           "description": "Hooks that run before the context is compacted",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PostCompact": {
+          "type": "array",
+          "description": "Hooks that run after the context is compacted",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           }
@@ -624,6 +719,20 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "Elicitation": {
+          "type": "array",
+          "description": "Hooks that run during elicitation events",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "ElicitationResult": {
+          "type": "array",
+          "description": "Hooks that run when elicitation results are received",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "WorktreeCreate": {
           "type": "array",
           "description": "Hooks that run when a worktree is created via --worktree or isolation: \"worktree\" in subagents. Command handlers only, no matchers. Hook must print absolute path to created worktree on stdout; non-zero exit fails creation. See https://code.claude.com/docs/en/hooks#worktreecreate",
@@ -654,6 +763,11 @@
         }
       }
     },
+    "disableAutoMode": {
+      "type": "string",
+      "enum": ["disable"],
+      "description": "Disable auto mode"
+    },
     "disableAllHooks": {
       "type": "boolean",
       "description": "Disable all hooks and statusLine execution. When true in managed settings, user and project-level disableAllHooks cannot override it. See https://code.claude.com/docs/en/hooks#disable-or-remove-hooks"
@@ -665,6 +779,20 @@
     "allowManagedPermissionRulesOnly": {
       "type": "boolean",
       "description": "(Managed settings only) Prevent user and project settings from defining allow, ask, or deny permission rules. Only rules in managed settings apply. See https://code.claude.com/docs/en/settings#permission-settings"
+    },
+    "allowedHttpHookUrls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Allowlist of URL patterns that HTTP hooks may target. Supports * as a wildcard (e.g. \"https://hooks.example.com/*\"). When set, HTTP hooks with non-matching URLs are blocked. If undefined, all URLs are allowed. If empty array, no HTTP hooks are allowed"
+    },
+    "httpHookAllowedEnvVars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Allowlist of environment variable names HTTP hooks may interpolate into headers. When set, each hook's effective allowedEnvVars is the intersection with this list. If undefined, no restriction is applied"
     },
     "statusLine": {
       "type": "object",
@@ -1080,6 +1208,11 @@
       "examples": ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"],
       "minLength": 1
     },
+    "gcpAuthRefresh": {
+      "type": "string",
+      "description": "Command to refresh GCP authentication (e.g., gcloud auth application-default login)",
+      "minLength": 1
+    },
     "otelHeadersHelper": {
       "type": "string",
       "description": "Path to a script that outputs OpenTelemetry headers",
@@ -1212,9 +1345,37 @@
                 "minLength": 1
               },
               "description": "Paths where subprocesses are explicitly denied read access"
+            },
+            "allowRead": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Paths to re-allow reading within denyRead regions. Takes precedence over denyRead for matching paths"
+            },
+            "allowManagedReadPathsOnly": {
+              "type": "boolean",
+              "description": "(Managed settings only) Only allowRead paths from policySettings are used"
             }
           },
           "additionalProperties": false
+        },
+        "ripgrep": {
+          "type": "object",
+          "description": "Custom ripgrep configuration for bundled ripgrep support",
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["command"]
         }
       },
       "additionalProperties": false
@@ -1336,6 +1497,29 @@
               }
             },
             "description": "User configuration values for MCP servers keyed by server name"
+          },
+          "options": {
+            "type": "object",
+            "description": "Non-sensitive option values from plugin manifest userConfig, keyed by option name. Sensitive values go to secure storage instead",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
           }
         },
         "additionalProperties": false
@@ -1503,6 +1687,144 @@
             "required": ["source", "pathPattern"]
           }
         ]
+      }
+    },
+    "promptSuggestionEnabled": {
+      "type": "boolean",
+      "description": "When false, prompt suggestions are disabled. When absent or true, prompt suggestions are enabled"
+    },
+    "remote": {
+      "type": "object",
+      "description": "Remote session configuration",
+      "properties": {
+        "defaultEnvironmentId": {
+          "type": "string",
+          "description": "Default environment ID to use for remote sessions"
+        }
+      }
+    },
+    "showClearContextOnPlanAccept": {
+      "type": "boolean",
+      "description": "When true, the plan-approval dialog offers a \"clear context\" option. Defaults to false"
+    },
+    "showThinkingSummaries": {
+      "type": "boolean",
+      "description": "Show thinking summaries in the transcript view (ctrl+o). Default: false"
+    },
+    "skipAutoPermissionPrompt": {
+      "type": "boolean",
+      "description": "Whether the user has accepted the auto mode opt-in dialog"
+    },
+    "skipDangerousModePermissionPrompt": {
+      "type": "boolean",
+      "description": "Whether the user has accepted the bypass permissions mode dialog"
+    },
+    "autoMode": {
+      "type": "object",
+      "description": "Auto mode classifier prompt customization",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Rules for the auto mode classifier allow section"
+        },
+        "soft_deny": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Rules for the auto mode classifier deny section"
+        },
+        "environment": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Entries for the auto mode classifier environment section"
+        }
+      }
+    },
+    "sshConfigs": {
+      "type": "array",
+      "description": "SSH connection configurations for remote environments. Typically set in managed settings by enterprise administrators to pre-configure SSH connections for team members",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this SSH config. Used to match configs across settings sources"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name for the SSH connection"
+          },
+          "sshHost": {
+            "type": "string",
+            "description": "SSH host in format \"user@hostname\" or \"hostname\", or a host alias from ~/.ssh/config"
+          },
+          "sshPort": {
+            "type": "integer",
+            "description": "SSH port (default: 22)"
+          },
+          "sshIdentityFile": {
+            "type": "string",
+            "description": "Path to SSH identity file (private key)"
+          },
+          "startDirectory": {
+            "type": "string",
+            "description": "Default working directory on the remote host. Supports tilde expansion (e.g. ~/projects)"
+          }
+        },
+        "required": ["id", "name", "sshHost"]
+      }
+    },
+    "strictPluginOnlyCustomization": {
+      "description": "When set in managed settings, blocks non-plugin customization sources for the listed surfaces. Array form locks specific surfaces (e.g. [\"skills\", \"hooks\"]); true locks all four; false is an explicit no-op",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["skills", "agents", "hooks", "mcp"]
+          }
+        }
+      ]
+    },
+    "syntaxHighlightingDisabled": {
+      "type": "boolean",
+      "description": "Whether to disable syntax highlighting in diffs"
+    },
+    "terminalTitleFromRename": {
+      "type": "boolean",
+      "description": "Whether /rename updates the terminal tab title (defaults to true). Set to false to keep auto-generated topic titles"
+    },
+    "voiceEnabled": {
+      "type": "boolean",
+      "description": "Enable voice mode (hold-to-talk dictation)"
+    },
+    "worktree": {
+      "type": "object",
+      "description": "Git worktree configuration for --worktree flag",
+      "properties": {
+        "symlinkDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Directories to symlink from main repository to worktrees to avoid disk bloat. Must be explicitly configured - no directories are symlinked by default"
+        },
+        "sparsePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Directories to include when creating worktrees, via git sparse-checkout (cone mode). Dramatically faster in large monorepos"
+        }
       }
     }
   },
