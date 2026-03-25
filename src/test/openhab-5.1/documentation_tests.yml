@@ -1,0 +1,158 @@
+# yaml-language-server: $schema=../../schemas/json/openhab-5.1.json
+
+version: 1
+
+tags:
+  Property_Minimum: {}
+
+  Equipment_OnlyLabel:
+    label: OnlyLabel
+
+  Location_Intermediate1_Intermediate2_TagName1:
+    label: My Label
+    description: The description
+    synonyms:
+      - My Synonym1
+      - My Synonym2
+
+things:
+  # Minimum Bridge
+  mqtt:broker:mosquitto:
+    isBridge: true
+    config:
+      lwtMessage: offline
+      lwtQos: 1
+      enableDiscovery: false
+
+  # Thing for bridge with multiple channels
+  mqtt:topic:some-switch:
+    bridge: mqtt:broker:mosquitto
+    label: Some Switch
+    config:
+      availabilityTopic: some-switch/status
+      payloadAvailable: online
+      payloadNotAvailable: offline
+    channels:
+      switch1:
+        type: switch
+        config:
+          stateTopic: some-switch/switch/switch1/state
+          commandTopic: some-switch/switch/switch1/command
+      button1:
+        type: string
+        config:
+          stateTopic: some-switch/button1
+          postCommand: true
+      statusled:
+        type: switch
+        config:
+          stateTopic: some-switch/light/status_led/state
+          commandTopic: some-switch/light/status_led/command
+          transformationPattern:
+            - JSONPATH:$.state
+          formatBeforePublish: '{"state": "%s"}'
+
+  # Example to configure a built-in channel
+  astro:sun:home:
+    config:
+      geolocation: 52.518771,13.375420
+      interval: 60
+    channels:
+      rise#event:
+        type: rangeEvent
+        config:
+          offset: -30
+
+  # Checks for kind and itemType in channel definitions
+  thing:with:channel:configs:
+    channels:
+      channel1:
+        kind: state
+        itemType: Number
+        itemDimension: W
+      channel2:
+        kind: trigger
+        itemType: String
+
+items:
+  MinimumItem:
+    type: Dimmer
+
+  FullItem:
+    type: Switch
+    label: MyLabel
+    icon: my_icon
+    autoupdate: false
+    format: '%d'
+    groups:
+      - GroupFuncWithParameters
+    tags:
+      - Location_Indoor_Room_MyRoom
+    channel: binding:thing:some_uid:name
+    metadata:
+      expire:
+        value: 3s
+
+  NumberItemWithoutDimension:
+    type: Number
+
+  NumberItemWithDimension:
+    type: Number
+    dimension: '°C'
+
+  ItemChannelsLongFormNoConfig:
+    type: String
+    channels:
+      mqtt:topic:some-switch:button1: {}
+
+  Item2ChannelsNoConfig:
+    type: Contact
+    channels:
+      mqtt:topic:some-switch:button1: {}
+      mqtt:topic:some-switch:button2: {}
+
+  ItemChannelProfile:
+    type: Contact
+    channels:
+      mqtt:topic:some-switch:statusled:
+        profile: transform:MAP
+        function: '|open=ON;closed=OFF'
+
+  ItemMetadataNoValue:
+    type: Rollershutter
+    metadata:
+      expire:
+        config:
+          duration: 3s
+          state: 0
+
+  ItemFullMetadata:
+    type: Location
+    metadata:
+      expire:
+        value: 'MyValue'
+        config:
+          key: value
+
+  MinimumGroup:
+    type: Group
+
+  GroupWithType:
+    type: Group
+    group:
+      type: Number
+
+  GroupTypeWithDimension:
+    type: Group
+    group:
+      type: Number
+      dimension: '°C'
+
+  GroupFuncWithParameters:
+    type: Group
+    group:
+      type: Switch
+      function: AND
+      parameters:
+        - ON
+        - OFF

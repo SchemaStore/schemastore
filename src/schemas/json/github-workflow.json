@@ -162,6 +162,9 @@
         "actions": {
           "$ref": "#/definitions/permissions-level"
         },
+        "artifact-metadata": {
+          "$ref": "#/definitions/permissions-level"
+        },
         "attestations": {
           "$ref": "#/definitions/permissions-level"
         },
@@ -250,6 +253,19 @@
           "$comment": "https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#example-using-environment-name-and-url",
           "description": "A deployment URL",
           "type": "string"
+        },
+        "deployment": {
+          "$comment": "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments#using-environments-without-deployments",
+          "description": "Whether to create a deployment for this job. Setting to false lets the job use environment secrets and variables without creating a deployment record. Wait timers and required reviewers still apply.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/expressionSyntax"
+            }
+          ],
+          "default": true
         }
       },
       "required": ["name"],
@@ -348,6 +364,34 @@
           "$comment": "https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#custom-shell",
           "type": "string",
           "enum": ["bash", "pwsh", "python", "sh", "cmd", "powershell"]
+        }
+      ]
+    },
+    "snapshot": {
+      "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idsnapshot",
+      "description": "You can use `jobs.<job_id>.snapshot` to generate a custom image.\nAdd the snapshot keyword to the job, using either the string syntax or mapping syntax as shown in https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#generating-a-custom-image.\nEach job that includes the snapshot keyword creates a separate image. To generate only one image or image version, include all workflow steps in a single job. Each successful run of a job that includes the snapshot keyword creates a new version of that image.\nFor more information, see https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images.",
+      "oneOf": [
+        {
+          "$comment": "https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#string-syntax",
+          "type": "string",
+          "description": "You can use the string syntax with `snapshot` to define the image name. This method creates a new image or adds a new version to an existing image with the same name. You cannot specify a version number using this syntax."
+        },
+        {
+          "$comment": "https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#mapping-syntax",
+          "type": "object",
+          "additionalProperties": false,
+          "description": "You can use the mapping syntax with `snapshot` to define both the `image-name` and the optional `version`. When you specify a major version, the minor versioning automatically increments if that major version already exists. Patch versions are not supported.",
+          "properties": {
+            "image-name": {
+              "type": "string"
+            },
+            "version": {
+              "$comment": "https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#specifying-a-version-in-your-workflow",
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+|\\*)?$"
+            }
+          },
+          "required": ["image-name"]
         }
       ]
     },
@@ -622,6 +666,9 @@
         },
         "needs": {
           "$ref": "#/definitions/jobNeeds"
+        },
+        "snapshot": {
+          "$ref": "#/definitions/snapshot"
         },
         "permissions": {
           "$ref": "#/definitions/permissions"
@@ -932,7 +979,6 @@
           }
         }
       ],
-      "required": ["description"],
       "additionalProperties": false
     }
   },
@@ -1733,16 +1779,22 @@
               "description": "You can use the GitHub API to trigger a webhook event called repository_dispatch when you want to trigger a workflow for activity that happens outside of GitHub. For more information, see https://developer.github.com/v3/repos/#create-a-repository-dispatch-event.\nTo trigger the custom repository_dispatch webhook event, you must send a POST request to a GitHub API endpoint and provide an event_type name to describe the activity type. To trigger a workflow run, you must also configure your workflow to use the repository_dispatch event."
             },
             "schedule": {
-              "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#scheduled-events-schedule",
-              "description": "You can schedule a workflow to run at specific UTC times using POSIX cron syntax (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07). Scheduled workflows run on the latest commit on the default or base branch. The shortest interval you can run scheduled workflows is once every 5 minutes.\nNote: GitHub Actions does not support the non-standard syntax @yearly, @monthly, @weekly, @daily, @hourly, and @reboot.\nYou can use crontab guru (https://crontab.guru/). to help generate your cron syntax and confirm what time it will run. To help you get started, there is also a list of crontab guru examples (https://crontab.guru/examples.html).",
+              "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule",
+              "description": "You can schedule a workflow to run at specific UTC times using POSIX cron syntax (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07). You can optionally specify a timezone using an IANA timezone string (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) for timezone-aware scheduling. Scheduled workflows run on the latest commit on the default or base branch. The shortest interval you can run scheduled workflows is once every 5 minutes.\nNote: GitHub Actions does not support the non-standard syntax @yearly, @monthly, @weekly, @daily, @hourly, and @reboot.\nYou can use crontab guru (https://crontab.guru/) to help generate your cron syntax and confirm what time it will run. To help you get started, there is also a list of crontab guru examples (https://crontab.guru/examples.html).",
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
                   "cron": {
+                    "description": "A cron expression that represents a schedule. A scheduled workflow will run at most once every 5 minutes.",
+                    "type": "string"
+                  },
+                  "timezone": {
+                    "description": "A string that represents the time zone a scheduled workflow will run relative to in IANA format (e.g. 'America/New_York' or 'Europe/London'). If omitted, the workflow will run relative to midnight UTC.",
                     "type": "string"
                   }
                 },
+                "required": ["cron"],
                 "additionalProperties": false
               },
               "minItems": 1
