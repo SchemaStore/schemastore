@@ -154,6 +154,11 @@
     "ContainerModel": {
       "required": ["image"],
       "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["execution", "service"],
+          "description": "The type of the container. Use `execution` for containers that execute Steps, and `service` for background service containers."
+        },
         "image": {
           "type": "string",
           "description": "The Docker image for the container, in `[REPOSITORY[:TAG]]` format."
@@ -181,6 +186,38 @@
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "ContainerReferenceConfigModel": {
+      "type": "object",
+      "description": "Additional configuration for a container reference.",
+      "properties": {
+        "recreate": {
+          "type": "boolean",
+          "description": "If true, the current container instance is discarded and a fresh one is started for this Step."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ContainerReferenceModel": {
+      "description": "A reference to a container. Can be specified as a container ID string or as an object with the container ID as the key and optional configuration as the value.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "The ID of the container as defined in the top-level `containers` map."
+        },
+        {
+          "type": "object",
+          "description": "The container ID with optional configuration.",
+          "patternProperties": {
+            ".*": {
+              "$ref": "#/definitions/ContainerReferenceConfigModel"
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 1
+        }
+      ]
     },
     "DockerCredentialModel": {
       "required": ["username", "password"],
@@ -423,37 +460,24 @@
       "additionalProperties": false,
       "type": "object"
     },
-    "PushTriggerMapItemModelCommitsCondition": {
-      "oneOf": [
-        {
-          "required": ["pattern"],
-          "properties": {
-            "pattern": {
-              "type": "string",
-              "description": "A glob pattern used to match against the condition."
-            },
-            "last_commit": {
-              "type": "boolean",
-              "description": "Defines whether Bitrise should evaluate every commit message or changed file in a code push or only those belonging to the most recent commit. Its default value is `false`."
-            }
-          }
+    "PushTriggerMapItemCommitsConditionModel": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "A glob pattern used to match against the condition."
         },
-        {
-          "required": ["regex"],
-          "properties": {
-            "regex": {
-              "type": "string",
-              "description": "A regular expression pattern used to match against the condition."
-            },
-            "last_commit": {
-              "type": "boolean",
-              "description": "Defines whether Bitrise should evaluate every commit message or changed file in a code push or only those belonging to the most recent commit. Its default value is `false`."
-            }
-          }
+        "regex": {
+          "type": "string",
+          "description": "A regular expression pattern used to match against the condition."
+        },
+        "last_commit": {
+          "type": "boolean",
+          "description": "Defines whether Bitrise should evaluate every commit message or changed file in a code push or only those belonging to the most recent commit. Its default value is `false`."
         }
-      ],
-      "additionalProperties": false,
-      "type": "object"
+      },
+      "oneOf": [{ "required": ["pattern"] }, { "required": ["regex"] }],
+      "additionalProperties": false
     },
     "PushTriggerModel": {
       "properties": {
@@ -466,21 +490,21 @@
         },
         "branch": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "A branch of the project's repository. Bitrise triggers a build if code is pushed to the branch defined in this property."
         },
         "commit_message": {
           "oneOf": [
-            { "$ref": "#/definitions/PushTriggerMapItemModelCommitsCondition" },
+            { "$ref": "#/definitions/PushTriggerMapItemCommitsConditionModel" },
             { "type": "string" }
           ],
           "description": "Define a Git commit message that should trigger a Bitrise build."
         },
         "changed_files": {
           "oneOf": [
-            { "$ref": "#/definitions/PushTriggerMapItemModelCommitsCondition" },
+            { "$ref": "#/definitions/PushTriggerMapItemCommitsConditionModel" },
             { "type": "string" }
           ],
           "description": "Set a filepath or a folder. If any file or files change in that location, Bitrise triggers a build."
@@ -505,42 +529,42 @@
         },
         "source_branch": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Bitrise triggers a build if the branch name in this property matches the source branch of a pull request opened in the project's repository."
         },
         "target_branch": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Bitrise triggers a build if the branch name in the property matches the target branch of a pull request opened in the project's repository."
         },
         "label": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "If a pull request's label matches the label in this property, Bitrise triggers a build."
         },
         "comment": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "This property looks for comments on pull requests to trigger Bitrise builds."
         },
         "commit_message": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Define a Git commit message that should trigger a Bitrise build."
         },
         "changed_files": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Set a filepath or a folder. If any file or files change in that location in a pull request, Bitrise triggers a build."
@@ -561,7 +585,7 @@
         },
         "name": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "This property looks for the name of a Git tag to trigger a Bitrise build."
@@ -570,15 +594,20 @@
       "additionalProperties": false,
       "type": "object"
     },
-    "TriggerMapItemModelRegexCondition": {
+    "TriggerMapItemRegexConditionModel": {
+      "type": "object",
       "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "A glob pattern used to match against the condition."
+        },
         "regex": {
           "type": "string",
-          "description": "A regular expression pattern used to match against specific code event attributes."
+          "description": "A regular expression pattern used to match against the condition."
         }
       },
-      "additionalProperties": false,
-      "type": "object"
+      "oneOf": [{ "required": ["pattern"] }, { "required": ["regex"] }],
+      "additionalProperties": false
     },
     "TriggerMapItemModel": {
       "properties": {
@@ -602,21 +631,21 @@
 
         "push_branch": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "A branch of the project's repository. Bitrise triggers a build if code is pushed to the branch defined in this property."
         },
         "commit_message": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Define a Git commit message that should trigger a Bitrise build."
         },
         "changed_files": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Set a filepath or a folder. If any file or files change in that location, Bitrise triggers a build."
@@ -624,14 +653,14 @@
 
         "pull_request_source_branch": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Bitrise triggers a build if the branch name in this property matches the source branch of a pull request opened in the project's repository."
         },
         "pull_request_target_branch": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Bitrise triggers a build if the branch name in the property matches the target branch of a pull request opened in the project's repository."
@@ -642,14 +671,14 @@
         },
         "pull_request_label": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "You can mark pull requests with labels. If a pull request's label matches the label in this property, Bitrise triggers a build."
         },
         "pull_request_comment": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "This property looks for comments on pull requests to trigger Bitrise builds."
@@ -657,7 +686,7 @@
 
         "tag": {
           "oneOf": [
-            { "$ref": "#/definitions/TriggerMapItemModelRegexCondition" },
+            { "$ref": "#/definitions/TriggerMapItemRegexConditionModel" },
             { "type": "string" }
           ],
           "description": "Bitrise triggers a build when a Git tag matching the tag defined in this property is pushed to the project's repository."
@@ -820,6 +849,17 @@
           "$ref": "#/definitions/EnvModel",
           "description": "Inputs defined for the Step bundle: these are values that can be set when the Step bundle is added to a Workflow."
         },
+        "execution_container": {
+          "$ref": "#/definitions/ContainerReferenceModel",
+          "description": "The default execution container for Steps in this bundle. Steps in the bundle inherit this container unless they define their own."
+        },
+        "service_containers": {
+          "type": "array",
+          "description": "The default service containers for Steps in this bundle. Service containers accumulate additively through the hierarchy.",
+          "items": {
+            "$ref": "#/definitions/ContainerReferenceModel"
+          }
+        },
         "steps": {
           "items": {
             "patternProperties": {
@@ -856,6 +896,17 @@
         },
         "inputs": {
           "$ref": "#/definitions/EnvModel"
+        },
+        "execution_container": {
+          "$ref": "#/definitions/ContainerReferenceModel",
+          "description": "Overrides the execution container for this bundle invocation."
+        },
+        "service_containers": {
+          "type": "array",
+          "description": "Overrides the service containers for this bundle invocation.",
+          "items": {
+            "$ref": "#/definitions/ContainerReferenceModel"
+          }
         }
       },
       "additionalProperties": false,
