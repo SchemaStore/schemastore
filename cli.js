@@ -578,7 +578,7 @@ async function taskNewSchema() {
 
   console.log('Enter the name of the schema (without .json extension)')
   await handleInput()
-  async function handleInput(/** @type {string | undefined} */ schemaName) {
+  async function handleInput(/** @type {string} */ schemaName = '') {
     if (!schemaName || schemaName.endsWith('.json')) {
       rl.question('input: ', handleInput)
       return
@@ -1702,7 +1702,7 @@ function assertFileHasNoBom(/** @type {DataFile} */ file) {
 
 async function assertFilePassesJsonLint(
   /** @type {DataFile} */ file,
-  /** @type {Record<string, unknown>} */ options,
+  /** @type {Record<string, unknown> | undefined} */ options = {},
 ) {
   try {
     jsonlint.parse(file.text, {
