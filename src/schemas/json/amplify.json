@@ -2,18 +2,174 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/amplify.json",
   "title": "AWS Amplify build specification (amplify.yml)",
+  "description": "Build settings for AWS Amplify Console. See https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html",
   "type": "object",
   "properties": {
     "version": {
-      "description": "Schema version (integer as in AWS examples)",
-      "type": "integer"
+      "$ref": "#/definitions/version"
+    },
+    "appRoot": {
+      "$ref": "#/definitions/appRoot"
+    },
+    "env": {
+      "$ref": "#/definitions/env"
+    },
+    "backend": {
+      "$ref": "#/definitions/backend"
+    },
+    "frontend": {
+      "$ref": "#/definitions/frontend"
+    },
+    "test": {
+      "$ref": "#/definitions/test"
+    },
+    "applications": {
+      "description": "List of applications for monorepo support",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/application"
+      }
+    },
+    "customHeaders": {
+      "$ref": "#/definitions/customHeaders"
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "version": {
+      "description": "Schema version. Use 1 for current specification.",
+      "type": "number",
+      "examples": [1, 0.1]
+    },
+    "appRoot": {
+      "description": "Path within the repository where the application resides (used in monorepo setups)",
+      "type": "string"
     },
     "env": {
       "type": "object",
+      "description": "Environment configuration",
       "properties": {
         "variables": {
+          "description": "Key-value pairs of environment variables",
           "type": "object",
           "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "phase": {
+      "type": "object",
+      "description": "A build phase containing commands to execute",
+      "properties": {
+        "commands": {
+          "description": "Shell commands to execute in this phase",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runtime-versions": {
+          "description": "Runtime versions to use (e.g., nodejs: 18)",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [{ "type": "string" }, { "type": "number" }]
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "buildPhases": {
+      "type": "object",
+      "description": "Build phases with preBuild, build, and postBuild steps",
+      "properties": {
+        "preBuild": {
+          "$ref": "#/definitions/phase",
+          "description": "Commands to run before the build"
+        },
+        "build": {
+          "$ref": "#/definitions/phase",
+          "description": "Build commands"
+        },
+        "postBuild": {
+          "$ref": "#/definitions/phase",
+          "description": "Commands to run after the build"
+        }
+      },
+      "additionalProperties": true
+    },
+    "testPhases": {
+      "type": "object",
+      "description": "Test phases with preTest, test, and postTest steps",
+      "properties": {
+        "preTest": {
+          "$ref": "#/definitions/phase",
+          "description": "Commands to run before tests"
+        },
+        "test": {
+          "$ref": "#/definitions/phase",
+          "description": "Test commands"
+        },
+        "postTest": {
+          "$ref": "#/definitions/phase",
+          "description": "Commands to run after tests"
+        }
+      },
+      "additionalProperties": true
+    },
+    "frontendArtifacts": {
+      "type": "object",
+      "description": "Build output artifacts configuration",
+      "properties": {
+        "files": {
+          "description": "Files to include in the build artifact (e.g., '**/*' for all files)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discard-paths": {
+          "description": "Whether to flatten the directory structure of artifacts",
+          "anyOf": [{ "type": "boolean" }, { "type": "string" }]
+        },
+        "baseDirectory": {
+          "description": "Directory containing the build output",
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "testArtifacts": {
+      "type": "object",
+      "description": "Test output artifacts configuration",
+      "properties": {
+        "files": {
+          "description": "Test output files to capture (e.g., screenshots, videos)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "configFilePath": {
+          "description": "Path to the test report configuration file",
+          "type": "string"
+        },
+        "baseDirectory": {
+          "description": "Directory containing the test output",
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "cache": {
+      "type": "object",
+      "description": "Cache configuration for speeding up builds",
+      "properties": {
+        "paths": {
+          "description": "Paths to cache between builds (must be relative to project root)",
+          "type": "array",
+          "items": {
             "type": "string"
           }
         }
@@ -22,123 +178,116 @@
     },
     "backend": {
       "type": "object",
+      "description": "Backend build configuration",
       "properties": {
         "phases": {
-          "type": "object",
-          "patternProperties": {
-            ".*": {
-              "$ref": "#/definitions/phase"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/definitions/buildPhases"
         }
       },
       "additionalProperties": true
     },
     "frontend": {
       "type": "object",
+      "description": "Frontend build configuration",
       "properties": {
         "buildpath": {
+          "description": "Path to run install/build from (lowercase variant)",
+          "type": "string"
+        },
+        "buildPath": {
+          "description": "Path to run install/build from (camelCase variant)",
           "type": "string"
         },
         "phases": {
-          "type": "object",
-          "patternProperties": {
-            ".*": {
-              "$ref": "#/definitions/phase"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/definitions/buildPhases"
         },
         "artifacts": {
-          "type": "object",
-          "properties": {
-            "files": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "discard-paths": {
-              "type": "boolean"
-            },
-            "baseDirectory": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/definitions/frontendArtifacts"
         },
         "cache": {
-          "type": "object",
-          "properties": {
-            "paths": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/definitions/cache"
         }
       },
       "additionalProperties": true
     },
     "test": {
       "type": "object",
+      "description": "Test build configuration",
       "properties": {
         "phases": {
-          "type": "object",
-          "patternProperties": {
-            ".*": {
-              "$ref": "#/definitions/phase"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/definitions/testPhases"
         },
         "artifacts": {
-          "type": "object",
-          "properties": {
-            "files": {
-              "type": "array",
-              "items": {
+          "$ref": "#/definitions/testArtifacts"
+        }
+      },
+      "additionalProperties": true
+    },
+    "customHeaderEntry": {
+      "type": "object",
+      "description": "A custom HTTP response header rule",
+      "properties": {
+        "pattern": {
+          "description": "URL path pattern to match",
+          "type": "string"
+        },
+        "headers": {
+          "description": "Headers to apply for matching requests",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "description": "Header name",
+                "type": "string"
+              },
+              "value": {
+                "description": "Header value",
                 "type": "string"
               }
             },
-            "configFilePath": {
-              "type": "string"
-            },
-            "baseDirectory": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
+            "required": ["key", "value"],
+            "additionalProperties": true
+          }
         }
       },
+      "required": ["pattern", "headers"],
       "additionalProperties": true
-    }
-  },
-  "definitions": {
-    "phase": {
+    },
+    "customHeaders": {
+      "description": "Custom HTTP response headers (legacy; consider using customHttp.yml instead)",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/customHeaderEntry"
+      }
+    },
+    "application": {
       "type": "object",
+      "description": "A single application configuration within a monorepo",
       "properties": {
-        "commands": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "appRoot": {
+          "$ref": "#/definitions/appRoot"
         },
-        "runtime-versions": {
-          "description": "Optional object to specify runtime versions (e.g. nodejs: 12)",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+        "env": {
+          "$ref": "#/definitions/env"
+        },
+        "backend": {
+          "$ref": "#/definitions/backend"
+        },
+        "frontend": {
+          "$ref": "#/definitions/frontend"
+        },
+        "test": {
+          "$ref": "#/definitions/test"
+        },
+        "customHeaders": {
+          "$ref": "#/definitions/customHeaders"
         }
       },
+      "required": ["appRoot"],
       "additionalProperties": true
     }
   },
-  "additionalProperties": true,
   "examples": [
     {
       "version": 1,
@@ -161,7 +310,6 @@
         }
       },
       "frontend": {
-        "buildpath": "",
         "phases": {
           "preBuild": {
             "commands": ["cd react-app", "npm ci"]
@@ -171,12 +319,12 @@
           }
         },
         "artifacts": {
-          "files": ["location"],
+          "files": ["**/*"],
           "discard-paths": true,
-          "baseDirectory": "location"
+          "baseDirectory": "build"
         },
         "cache": {
-          "paths": ["path"]
+          "paths": ["node_modules/**/*"]
         }
       },
       "test": {
@@ -197,6 +345,31 @@
           "baseDirectory": "location"
         }
       }
+    },
+    {
+      "version": 1,
+      "applications": [
+        {
+          "appRoot": "frontend",
+          "frontend": {
+            "phases": {
+              "preBuild": {
+                "commands": ["yarn install"]
+              },
+              "build": {
+                "commands": ["yarn build"]
+              }
+            },
+            "artifacts": {
+              "baseDirectory": "build",
+              "files": ["**/*"]
+            },
+            "cache": {
+              "paths": ["node_modules/**/*"]
+            }
+          }
+        }
+      ]
     }
   ]
 }
