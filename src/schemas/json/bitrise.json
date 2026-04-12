@@ -154,6 +154,11 @@
     "ContainerModel": {
       "required": ["image"],
       "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["execution", "service"],
+          "description": "The type of the container. Use `execution` for containers that execute Steps, and `service` for background service containers."
+        },
         "image": {
           "type": "string",
           "description": "The Docker image for the container, in `[REPOSITORY[:TAG]]` format."
@@ -181,6 +186,38 @@
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "ContainerReferenceConfigModel": {
+      "type": "object",
+      "description": "Additional configuration for a container reference.",
+      "properties": {
+        "recreate": {
+          "type": "boolean",
+          "description": "If true, the current container instance is discarded and a fresh one is started for this Step."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ContainerReferenceModel": {
+      "description": "A reference to a container. Can be specified as a container ID string or as an object with the container ID as the key and optional configuration as the value.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "The ID of the container as defined in the top-level `containers` map."
+        },
+        {
+          "type": "object",
+          "description": "The container ID with optional configuration.",
+          "patternProperties": {
+            ".*": {
+              "$ref": "#/definitions/ContainerReferenceConfigModel"
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 1
+        }
+      ]
     },
     "DockerCredentialModel": {
       "required": ["username", "password"],
@@ -812,6 +849,17 @@
           "$ref": "#/definitions/EnvModel",
           "description": "Inputs defined for the Step bundle: these are values that can be set when the Step bundle is added to a Workflow."
         },
+        "execution_container": {
+          "$ref": "#/definitions/ContainerReferenceModel",
+          "description": "The default execution container for Steps in this bundle. Steps in the bundle inherit this container unless they define their own."
+        },
+        "service_containers": {
+          "type": "array",
+          "description": "The default service containers for Steps in this bundle. Service containers accumulate additively through the hierarchy.",
+          "items": {
+            "$ref": "#/definitions/ContainerReferenceModel"
+          }
+        },
         "steps": {
           "items": {
             "patternProperties": {
@@ -848,6 +896,17 @@
         },
         "inputs": {
           "$ref": "#/definitions/EnvModel"
+        },
+        "execution_container": {
+          "$ref": "#/definitions/ContainerReferenceModel",
+          "description": "Overrides the execution container for this bundle invocation."
+        },
+        "service_containers": {
+          "type": "array",
+          "description": "Overrides the service containers for this bundle invocation.",
+          "items": {
+            "$ref": "#/definitions/ContainerReferenceModel"
+          }
         }
       },
       "additionalProperties": false,
