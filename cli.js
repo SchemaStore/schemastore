@@ -104,7 +104,7 @@ const SchemaDialects = [
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
     string: ['schema-name', 'unstable-check-with'],
-    boolean: ['help', 'build-xregistry', 'verify-xregistry'],
+    boolean: ['fix', 'help', 'build-xregistry', 'verify-xregistry'],
   })
 )
 
