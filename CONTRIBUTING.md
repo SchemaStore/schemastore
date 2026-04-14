@@ -651,7 +651,7 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 
 ### How to add a `$ref` to a JSON Schema that's self-hosted
 
-This currently isn't possible. This is tracked by [issue #2731](https://github.com/SchemaStore/schemastore/issues/2731).
+Just add the url.
 
 ### How to validate a JSON Schema
 
