@@ -621,7 +621,6 @@ async function ajvFactory(
    * Ditto, but with keywords (ex. "x-intellij-html-description")..
    */
   for (const unknownKeyword of unknownKeywords.concat([
-    'allowComments',
     'allowTrailingCommas',
     'defaultSnippets',
     'markdownDescription',
