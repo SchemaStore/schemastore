@@ -100,13 +100,120 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], fix?: boolean, help?: boolean, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean, 'clear-cache'?: boolean, 'cache-dir'?: string }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
-    string: ['schema-name', 'unstable-check-with'],
-    boolean: ['fix', 'help', 'build-xregistry', 'verify-xregistry'],
+    string: ['schema-name', 'unstable-check-with', 'cache-dir'],
+    boolean: [
+      'fix',
+      'help',
+      'build-xregistry',
+      'verify-xregistry',
+      'clear-cache',
+    ],
   })
 )
+
+// Remote-schema cache. Used by Ajv's `loadSchema` to fetch external `$ref`
+// URLs on demand.
+class RemoteSchemaCache {
+  constructor(/** @type {{ dir: string, ttlMs?: number }} */ { dir, ttlMs = 10 * 60 * 1000 }) {
+    this.dir = dir
+    this.ttlMs = ttlMs
+    this.metadataFile = path.join(dir, 'metadata.json')
+    this._metadata = null
+  }
+
+  _fileNameForUrl(/** @type {string} */ url) {
+    const base = path.basename(new URL(url).pathname) || 'schema.json'
+    // Disambiguate URLs that share a basename (e.g. many "schema.json").
+    const hash = Buffer.from(url).toString('base64url').slice(0, 10)
+    return `${hash}-${base}`
+  }
+
+  async _loadMetadata() {
+    if (this._metadata) return this._metadata
+    try {
+      const raw = await fs.readFile(this.metadataFile, 'utf-8')
+      this._metadata = JSON.parse(raw)
+    } catch {
+      this._metadata = { byUrl: {} }
+    }
+    this._metadata.byUrl ??= {}
+    return this._metadata
+  }
+
+  async _saveMetadata() {
+    await fs.mkdir(this.dir, { recursive: true })
+    await fs.writeFile(this.metadataFile, JSON.stringify(this._metadata, null, 2))
+  }
+
+  async has(/** @type {string} */ url) {
+    const metadata = await this._loadMetadata()
+    const entry = metadata.byUrl[url]
+    if (!entry) return false
+    const age = Date.now() - Date.parse(entry.requested_at)
+    if (Number.isNaN(age) || age >= this.ttlMs) return false
+    if (!fsCb.existsSync(path.join(this.dir, entry.file))) {
+      delete metadata.byUrl[url]
+      await this._saveMetadata()
+      return false
+    }
+    return true
+  }
+
+  async read(/** @type {string} */ url) {
+    const metadata = await this._loadMetadata()
+    const entry = metadata.byUrl[url]
+    if (!entry) throw new Error(`No cache entry for ${url}`)
+    const filePath = path.join(this.dir, entry.file)
+    const raw = await fs.readFile(filePath, 'utf-8')
+    try {
+      return JSON.parse(raw)
+    } catch (err) {
+      console.error(`Failed to parse cached schema for ${url}: ${err.message}`)
+      delete metadata.byUrl[url]
+      await fs.rm(filePath, { force: true })
+      await this._saveMetadata()
+      throw err
+    }
+  }
+
+  async write(/** @type {string} */ url, /** @type {any} */ json) {
+    const metadata = await this._loadMetadata()
+    const file = this._fileNameForUrl(url)
+    await fs.mkdir(this.dir, { recursive: true })
+    await fs.writeFile(path.join(this.dir, file), JSON.stringify(json))
+    metadata.byUrl[url] = { file, requested_at: new Date().toISOString() }
+    await this._saveMetadata()
+  }
+
+  async clear() {
+    this._metadata = null
+    await fs.rm(this.dir, { recursive: true, force: true })
+  }
+}
+
+const remoteSchemaCache = new RemoteSchemaCache({
+  dir: path.resolve(argv['cache-dir'] || path.join(process.cwd(), '.cache')),
+})
+
+async function loadRemoteSchema(/** @type {string} */ url) {
+  if (await remoteSchemaCache.has(url)) {
+    try {
+      return await remoteSchemaCache.read(url)
+    } catch {
+      // fall through to re-fetch
+    }
+  }
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Failed to fetch remote schema ${url}: ${res.status} ${res.statusText}`)
+  }
+  const json = await res.json()
+  await remoteSchemaCache.write(url, json)
+  return json
+}
 
 /**
  * @typedef {Object} JsonSchemaAny
@@ -436,7 +543,8 @@ async function ajvFactory(
     options,
   },
 ) {
-  let ajvOptions = {}
+  // `loadSchema` enables remote `$ref` resolution via the cache when used with `compileAsync`.
+  let ajvOptions = { loadSchema: loadRemoteSchema }
   Object.assign(
     ajvOptions,
     fullStrictMode
@@ -501,6 +609,7 @@ async function ajvFactory(
    * Ditto, but with keywords (ex. "x-intellij-html-description")..
    */
   for (const unknownKeyword of unknownKeywords.concat([
+    'allowComments',
     'allowTrailingCommas',
     'defaultSnippets',
     'markdownDescription',
@@ -757,7 +866,7 @@ async function taskCheck() {
 
       let validateFn
       try {
-        validateFn = ajv.compile(schemaFile.json)
+        validateFn = await ajv.compileAsync(schemaFile.json)
       } catch (err) {
         spinner.fail()
         printErrorAndExit(err, [
@@ -1924,7 +2033,7 @@ async function printDowngradableSchemaVersions() {
 
       schema.json.$schema = schemaDialectToBeTested.url
       try {
-        ajv.compile(schema.json)
+        await ajv.compileAsync(schema.json)
         validates = true
       } catch {
         validates = false
@@ -2079,6 +2188,11 @@ EXAMPLES:
   node ./cli.js check-strict --schema-name=schema-catalog.json
 `
 
+  if (argv['clear-cache']) {
+    await remoteSchemaCache.clear()
+    console.info(`Cleared cache directory: ${remoteSchemaCache.dir}`)
+    if (!argv._[0]) process.exit(0)
+  }
   if (!argv._[0]) {
     process.stderr.write(helpMenu + '\n')
     process.stderr.write(`${chalk.red('Error:')} No argument given` + '\n')
