@@ -117,7 +117,12 @@ const argv = /** @type {any} */ (
 // Remote-schema cache. Used by Ajv's `loadSchema` to fetch external `$ref`
 // URLs on demand.
 class RemoteSchemaCache {
-  constructor(/** @type {{ dir: string, ttlMs?: number }} */ { dir, ttlMs = 10 * 60 * 1000 }) {
+  constructor(
+    /** @type {{ dir: string, ttlMs?: number }} */ {
+      dir,
+      ttlMs = 10 * 60 * 1000,
+    },
+  ) {
     this.dir = dir
     this.ttlMs = ttlMs
     this.metadataFile = path.join(dir, 'metadata.json')
@@ -145,7 +150,10 @@ class RemoteSchemaCache {
 
   async _saveMetadata() {
     await fs.mkdir(this.dir, { recursive: true })
-    await fs.writeFile(this.metadataFile, JSON.stringify(this._metadata, null, 2))
+    await fs.writeFile(
+      this.metadataFile,
+      JSON.stringify(this._metadata, null, 2),
+    )
   }
 
   async has(/** @type {string} */ url) {
@@ -208,7 +216,9 @@ async function loadRemoteSchema(/** @type {string} */ url) {
   }
   const res = await fetch(url)
   if (!res.ok) {
-    throw new Error(`Failed to fetch remote schema ${url}: ${res.status} ${res.statusText}`)
+    throw new Error(
+      `Failed to fetch remote schema ${url}: ${res.status} ${res.statusText}`,
+    )
   }
   const json = await res.json()
   await remoteSchemaCache.write(url, json)
