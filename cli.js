@@ -179,7 +179,9 @@ class RemoteSchemaCache {
     try {
       return JSON.parse(raw)
     } catch (err) {
-      console.error(`Failed to parse cached schema for ${url}: ${err.message}`)
+      console.error(
+        `Failed to parse cached schema for ${url}: ${err instanceof Error ? err.message : err}`,
+      )
       delete metadata.byUrl[url]
       await fs.rm(filePath, { force: true })
       await this._saveMetadata()
