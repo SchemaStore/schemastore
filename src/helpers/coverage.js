@@ -396,6 +396,10 @@ export function checkEnumCoverage(schema, positiveTests, negativeTests) {
 
   const issues = []
   for (const { path: ePath, name, values } of enums) {
+    // $defs paths (e.g. "#$defs/foo.bar") can't be matched against test data
+    // because collectValuesByPath doesn't resolve $ref. Skip them.
+    if (ePath.startsWith('#')) continue
+
     // Positive coverage (use path-aware collection)
     const testValues = []
     const testedFiles = []
