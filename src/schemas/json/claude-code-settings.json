@@ -4,8 +4,8 @@
   "$defs": {
     "permissionRule": {
       "type": "string",
-      "description": "Tool permission rule.\nSee https://code.claude.com/docs/en/settings#permission-rule-syntax\nSee https://code.claude.com/docs/en/settings#tools-available-to-claude for full list of tools available to Claude.",
-      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LSP|NotebookEdit|Read|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "description": "Tool permission rule.\nSee https://code.claude.com/docs/en/settings#permission-rule-syntax\nSee https://code.claude.com/docs/en/tools-reference for full list of tools available to Claude.",
+      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LSP|Monitor|NotebookEdit|PowerShell|Read|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
       "examples": [
         "Bash",
         "Bash(npm run build)",
@@ -53,6 +53,19 @@
               "type": "boolean",
               "description": "Run this hook asynchronously without blocking Claude Code"
             },
+            "asyncRewake": {
+              "type": "boolean",
+              "description": "When true, the hook runs in the background and wakes the model when it exits with code 2. Implies async."
+            },
+            "shell": {
+              "type": "string",
+              "enum": ["bash", "powershell"],
+              "description": "Shell interpreter for the command. \"bash\" uses the login shell (bash/zsh/sh); \"powershell\" uses pwsh. Defaults to bash."
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter (e.g., \"Bash(git *)\"). Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.claude.com/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
@@ -83,6 +96,10 @@
               "type": "number",
               "description": "Optional timeout in seconds (default: 30)",
               "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.claude.com/docs/en/hooks-guide#filter-hooks-with-matchers"
             },
             "statusMessage": {
               "type": "string",
@@ -115,6 +132,10 @@
               "description": "Optional timeout in seconds (default: 60)",
               "exclusiveMinimum": 0
             },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.claude.com/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
@@ -123,7 +144,7 @@
         },
         {
           "type": "object",
-          "description": "HTTP webhook hook. POST JSON to a URL and receive JSON response. See https://code.claude.com/docs/en/hooks#http-hooks",
+          "description": "HTTP webhook hook. POST JSON to a URL and receive JSON response. See https://code.claude.com/docs/en/hooks#http-hook-fields",
           "additionalProperties": false,
           "required": ["type", "url"],
           "properties": {
@@ -156,6 +177,10 @@
               "type": "number",
               "description": "Optional timeout in seconds (default: 30)",
               "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.claude.com/docs/en/hooks-guide#filter-hooks-with-matchers"
             },
             "statusMessage": {
               "type": "string",
@@ -229,7 +254,7 @@
         "type": "string",
         "minLength": 1
       },
-      "description": "Glob patterns for CLAUDE.md files to exclude from loading. Useful in monorepos to skip irrelevant instructions from other teams. Patterns match against absolute file paths. Arrays merge across settings layers. Managed policy CLAUDE.md files cannot be excluded. See https://code.claude.com/docs/en/memory#exclude-specific-claudemd-files",
+      "description": "Glob patterns for CLAUDE.md files to exclude from loading. Useful in monorepos to skip irrelevant instructions from other teams. Patterns match against absolute file paths. Arrays merge across settings layers. Managed policy CLAUDE.md files cannot be excluded. See https://code.claude.com/docs/en/memory#exclude-specific-claude-md-files",
       "examples": [
         [
           "**/monorepo/CLAUDE.md",
@@ -239,8 +264,8 @@
     },
     "cleanupPeriodDays": {
       "type": "integer",
-      "minimum": 0,
-      "description": "Number of days to retain chat transcripts (0 to disable cleanup)",
+      "minimum": 1,
+      "description": "Number of days to retain sessions and orphaned subagent worktrees. Minimum is 1; setting 0 is rejected with a validation error. See https://code.claude.com/docs/en/settings",
       "examples": [20, 30, 60],
       "default": 30
     },
@@ -343,6 +368,11 @@
           "enum": ["disable"],
           "description": "Disable the ability to bypass permission prompts"
         },
+        "disableAutoMode": {
+          "type": "string",
+          "enum": ["disable"],
+          "description": "Set to \"disable\" to prevent auto mode from being activated. Removes `auto` from the Shift+Tab cycle and rejects `--permission-mode auto` at startup. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/permissions"
+        },
         "additionalDirectories": {
           "type": "array",
           "items": {
@@ -355,7 +385,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Tool usage permissions configuration.\nSee https://code.claude.com/docs/en/permissions and https://code.claude.com/docs/en/settings#permission-settings\nSee https://code.claude.com/docs/en/settings#tools-available-to-claude for full list of tools available to Claude.",
+      "description": "Tool usage permissions configuration.\nSee https://code.claude.com/docs/en/permissions and https://code.claude.com/docs/en/settings#permission-settings\nSee https://code.claude.com/docs/en/tools-reference for full list of tools available to Claude.",
       "examples": [
         {
           "allow": ["Bash(git add:*)"],
@@ -396,8 +426,8 @@
     },
     "effortLevel": {
       "type": "string",
-      "enum": ["low", "medium", "high"],
-      "description": "Control Opus 4.6 adaptive reasoning effort. Lower effort is faster and cheaper for straightforward tasks, higher effort provides deeper reasoning. Defaults vary by model and plan (Opus 4.6 defaults to medium for Max and Team subscribers). Use /effort auto to reset to model default. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level"
+      "enum": ["low", "medium", "high", "xhigh", "max"],
+      "description": "Persist adaptive reasoning effort across sessions. Effort is supported on Opus 4.7, Opus 4.6, and Sonnet 4.6. Opus 4.7 supports low/medium/high/xhigh/max (xhigh sits between high and max, added in v2.1.111); Opus 4.6 and Sonnet 4.6 support low/medium/high/max (xhigh falls back to high). Defaults: Opus 4.6 and Sonnet 4.6 default to high, or medium on Pro and Max plans; Opus 4.7 defaults to xhigh on Max plan. The max value is session-only unless set via CLAUDE_CODE_EFFORT_LEVEL. Use /effort auto to reset to model default. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level"
     },
     "fastMode": {
       "type": "boolean",
@@ -608,6 +638,13 @@
             "$ref": "#/$defs/hookMatcher"
           }
         },
+        "StopFailure": {
+          "type": "array",
+          "description": "Hooks that run when a turn ends due to an API error (e.g., rate_limit, authentication_failed, billing_error, invalid_request, server_error, max_output_tokens, unknown). Matcher can scope to specific error types. Hook output and exit code are ignored. See https://code.claude.com/docs/en/hooks",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
         "SubagentStart": {
           "type": "array",
           "description": "Hooks that run when a subagent is spawned",
@@ -733,6 +770,14 @@
       "type": "boolean",
       "description": "Disable all hooks and statusLine execution. When true in managed settings, user and project-level disableAllHooks cannot override it. See https://code.claude.com/docs/en/hooks#disable-or-remove-hooks"
     },
+    "allowedChannelPlugins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "(Managed settings only) Allowlist of plugin IDs whose MCP servers may advertise channel notifications when channelsEnabled is true. When set, only the listed plugins can push inbound messages. See https://code.claude.com/docs/en/mcp"
+    },
     "allowedHttpHookUrls": {
       "type": "array",
       "items": {
@@ -765,6 +810,11 @@
         "padding": {
           "type": "number",
           "description": "Optional number of extra horizontal spacing characters added to the status line content; defaults to 0."
+        },
+        "refreshInterval": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Re-run the status line command every N seconds in addition to event-driven updates. Leave unset to run only on events. Useful for time-based data like clocks, or when background subagents change git state while the main session is idle. See https://code.claude.com/docs/en/statusline"
         }
       },
       "required": ["type", "command"],
@@ -1225,6 +1275,15 @@
             "allowManagedDomainsOnly": {
               "type": "boolean",
               "description": "(Managed settings only) Only allowedDomains and WebFetch(domain:...) allow rules from managed settings are respected. User, project, local, and flag settings domains are ignored. Denied domains are still respected from all sources. Non-allowed domains are automatically blocked without user prompts."
+            },
+            "allowMachLookup": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "macOS only. Additional XPC/Mach service names the sandbox may look up. Supports a single trailing * for prefix matching. Needed for tools that communicate via XPC such as the iOS Simulator or Playwright. See https://code.claude.com/docs/en/settings",
+              "examples": [["com.apple.coresimulator.*"]]
             }
           },
           "additionalProperties": false
@@ -1311,6 +1370,26 @@
             }
           },
           "additionalProperties": false
+        },
+        "ripgrep": {
+          "type": "object",
+          "description": "Custom ripgrep configuration for Claude Code's bundled ripgrep support. Overrides the bundled binary and arguments.",
+          "additionalProperties": false,
+          "required": ["command"],
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Path to the ripgrep binary to use",
+              "minLength": 1
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Additional arguments to pass to the ripgrep binary"
+            }
+          }
         }
       },
       "additionalProperties": false
@@ -1448,11 +1527,26 @@
               }
             },
             "description": "User configuration values for MCP servers keyed by server name"
+          },
+          "options": {
+            "type": "object",
+            "description": "Non-sensitive option values from the plugin manifest's userConfig, keyed by option name. Sensitive values go to secure storage instead. See https://code.claude.com/docs/en/plugins-reference",
+            "additionalProperties": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "boolean" },
+                {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              ]
+            }
           }
         },
         "additionalProperties": false
       },
-      "description": "Per-plugin configuration including MCP server user configs, keyed by plugin ID (plugin@marketplace format). See https://code.claude.com/docs/en/plugins"
+      "description": "Per-plugin configuration including MCP server user configs and plugin options, keyed by plugin ID (plugin@marketplace format). See https://code.claude.com/docs/en/plugins"
     },
     "allowManagedMcpServersOnly": {
       "type": "boolean",
@@ -1616,6 +1710,113 @@
           }
         ]
       }
+    },
+    "agent": {
+      "type": "string",
+      "description": "Name of an agent (built-in or custom) to use for the main thread. Applies the agent's system prompt, tool restrictions, and model. See https://code.claude.com/docs/en/sub-agents",
+      "minLength": 1
+    },
+    "autoMemoryDirectory": {
+      "type": "string",
+      "description": "Custom directory path for auto-memory storage. Supports ~/ prefix for home-directory expansion. Ignored if set in checked-in project settings (.claude/settings.json) for security. Defaults to ~/.claude/projects/<sanitized-cwd>/memory/ when unset. See https://code.claude.com/docs/en/memory",
+      "minLength": 1
+    },
+    "autoMode": {
+      "type": "object",
+      "description": "Customization for the auto mode classifier prompt. Typically configured in managed settings to tune the allow/deny rules used when permissions.defaultMode is \"auto\". Note: allow and soft_deny REPLACE the default classifier rules entirely — review carefully. See https://code.claude.com/docs/en/permissions",
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional rules appended to the auto mode classifier allow section"
+        },
+        "soft_deny": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional rules appended to the auto mode classifier soft-deny section"
+        },
+        "environment": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Environment entries appended to the auto mode classifier environment section"
+        }
+      }
+    },
+    "channelsEnabled": {
+      "type": "boolean",
+      "description": "(Teams/Enterprise) Opt-in for channel notifications — MCP servers with the claude/channel capability pushing inbound messages. Default off. When true, users can select servers via --channels. See https://code.claude.com/docs/en/mcp",
+      "default": false
+    },
+    "defaultShell": {
+      "type": "string",
+      "enum": ["bash", "powershell"],
+      "description": "Default shell for input-box ! commands. Default: bash. Using \"powershell\" routes ! commands through PowerShell on Windows and requires CLAUDE_CODE_USE_POWERSHELL_TOOL=1 with pwsh on PATH. See https://code.claude.com/docs/en/settings"
+    },
+    "disableDeepLinkRegistration": {
+      "type": "string",
+      "enum": ["disable"],
+      "description": "Set to \"disable\" to prevent Claude Code from registering the `claude://` deep-link protocol handler on startup. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings"
+    },
+    "disableSkillShellExecution": {
+      "type": "boolean",
+      "description": "Disable inline shell execution for `` !`...` `` and ` ```! ` blocks in skills and custom slash commands from user, project, plugin, or additional-directory sources. Commands are replaced with [shell command execution disabled by policy] instead of being run. Bundled and managed skills are not affected. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings"
+    },
+    "forceRemoteSettingsRefresh": {
+      "type": "boolean",
+      "description": "(Managed settings only) Block CLI startup until remote managed settings are freshly fetched from the server. If the fetch fails, the CLI exits (fail-closed) rather than continuing with cached settings. When not set, startup continues without waiting for remote settings. See https://code.claude.com/docs/en/server-managed-settings"
+    },
+    "minimumVersion": {
+      "type": "string",
+      "description": "Minimum Claude Code version to stay on. Prevents downgrades when switching release channels. See https://code.claude.com/docs/en/settings",
+      "examples": ["2.1.0"],
+      "minLength": 1
+    },
+    "showClearContextOnPlanAccept": {
+      "type": "boolean",
+      "description": "When true, the plan-approval dialog offers a \"clear context\" option. Defaults to false.",
+      "default": false
+    },
+    "showThinkingSummaries": {
+      "type": "boolean",
+      "description": "Show thinking summaries in the transcript view (Ctrl+O). Thinking summaries are not generated by default in interactive sessions; set to true to restore. See https://code.claude.com/docs/en/settings",
+      "default": false
+    },
+    "skipDangerousModePermissionPrompt": {
+      "type": "boolean",
+      "description": "Whether the user has accepted the bypass permissions mode dialog. Typically managed by the CLI rather than set by hand."
+    },
+    "strictPluginOnlyCustomization": {
+      "description": "(Managed settings) Block non-plugin customization sources for the listed surfaces. Array form locks specific surfaces (e.g., [\"skills\", \"hooks\"]); true locks all four; false is an explicit no-op. See https://code.claude.com/docs/en/plugins-reference",
+      "anyOf": [
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["skills", "agents", "hooks", "mcp"]
+          }
+        }
+      ]
+    },
+    "tui": {
+      "type": "string",
+      "enum": ["fullscreen", "default"],
+      "description": "TUI rendering mode. Use \"fullscreen\" for the flicker-free alt-screen renderer with virtualized scrollback; \"default\" for the classic main-screen renderer. Corresponds to the /tui command. See https://code.claude.com/docs/en/settings"
+    },
+    "viewMode": {
+      "type": "string",
+      "enum": ["default", "verbose", "focus"],
+      "description": "Transcript view mode. \"default\" shows standard interactive view; \"verbose\" shows expanded tool details; \"focus\" shows prompt, one-line tool summaries, and final response only (Ctrl+O toggle). See https://code.claude.com/docs/en/settings"
+    },
+    "useAutoModeDuringPlan": {
+      "type": "boolean",
+      "description": "When true, apply the auto mode classifier during plan mode to auto-approve safe read-only tool calls while planning. Has no effect unless permissions.defaultMode allows auto. See https://code.claude.com/docs/en/permissions"
+    },
+    "voiceEnabled": {
+      "type": "boolean",
+      "description": "Enable push-to-talk voice dictation. Typically written automatically when /voice is used. Requires a Claude.ai account. See https://code.claude.com/docs/en/settings"
     }
   },
   "title": "Claude Code Settings"
