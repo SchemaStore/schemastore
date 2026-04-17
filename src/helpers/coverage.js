@@ -60,6 +60,33 @@ function collectPropertyValues(data, propName) {
 // matching is deferred to v2.
 function collectValuesByPath(data, path) {
   const values = []
+
+  // For $defs paths (e.g. "#$defs/hookCommand.shell"), path-based traversal
+  // cannot work because the path references the schema definition, not the
+  // test data structure.  Fall back to a deep name-based search for the
+  // terminal property name so that test files exercising the property via
+  // $ref usage are still matched.
+  if (path.startsWith('#')) {
+    const propName = path.split('.').pop()
+    function deepCollect(current) {
+      if (!current || typeof current !== 'object') return
+      if (Array.isArray(current)) {
+        for (const item of current) deepCollect(item)
+        return
+      }
+      for (const [key, val] of Object.entries(current)) {
+        if (key === propName && val !== undefined && val !== null) {
+          values.push(val)
+        }
+        if (typeof val === 'object' && val !== null) {
+          deepCollect(val)
+        }
+      }
+    }
+    deepCollect(data)
+    return values
+  }
+
   const segments = path.split('.')
 
   function traverse(current, remaining) {
