@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=../../schemas/json/opensrm.json
+apiVersion: srm/v1
+kind: ServiceReliabilityManifest
+metadata:
+  name: payment-gateway
+  team: platform-payments
+  tier: critical
+  labels:
+    domain: payments
+    pci-dss: 'true'
+spec:
+  type: api
+  contract:
+    availability: 0.9999
+    latency:
+      p99: 200ms
+    throughput:
+      max_rps: 10000
+      burst: 15000
+  slos:
+    availability:
+      target: 0.99995
+      window: 30d
+    latency:
+      p99: 150ms
+      target: 0.995
+      window: 30d
+    error_rate:
+      target: 0.0001
+      window: 30d
+  dependencies:
+    - service: stripe-adapter
+      type: external
+      critical: true
+      expects:
+        availability: 0.9999
+        latency:
+          p99: 100ms
+    - service: fraud-detection
+      type: service
+      critical: true
+      expects:
+        availability: 0.999
+    - service: notification-service
+      type: service
+      critical: false
+  ownership:
+    team: platform-payments
+    slack: '#payments-oncall'
+    email: payments@example.com
+    pagerduty:
+      service_id: PAYMENTS_CRITICAL
+    runbook: https://wiki.example.com/runbooks/payment-gateway
+    oncall_required: true
+  observability:
+    metrics:
+      required:
+        - payment_gateway_requests_total
+        - payment_gateway_request_duration_seconds
+      labels:
+        required:
+          - service
+          - environment
+      convention: prometheus
+    dashboards:
+      required: true
+    alerts:
+      required: true
+      definitions:
+        - name: high-error-rate
+          severity: critical
+          threshold: '>0.1% errors over 5m'
+    tracing:
+      required: true
+      sampling_rate: 1.0
