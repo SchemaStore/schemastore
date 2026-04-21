@@ -1,63 +1,102 @@
 {
-  "version": 1,
   "application": {
-    "connectionRef": "duckdb-local",
-    "database": "analytics_db",
-    "timezone": "Europe/Paris",
-    "loader": "native",
-    "createSchemaIfNotExists": true,
-    "validateOnLoad": true,
-    "maxParTask": 4,
-    "maxParCopy": 2,
-    "longJobTimeoutMs": 7200000,
-    "shortJobTimeoutMs": 600000,
-    "rejectMaxRecords": 50,
-    "rejectAllOnError": "false",
-    "rejectWithValue": true,
-    "emptyIsNull": true,
-    "archive": true,
-    "sinkReplayToFile": true,
-    "grouped": true,
-    "groupedMax": 10,
-    "csvOutput": false,
-    "prunePartitionOnMerge": true,
-    "forceHalt": false,
-    "autoExportSchema": true,
-    "syncSqlWithYaml": true,
-    "syncYamlWithDb": true,
-    "onExceptionRetries": 3,
-    "duckdbMode": true,
-    "duckdbExtensions": "spatial, json, httpfs, parquet",
-    "duckdbPath": "/data/duckdb",
-    "duckDbEnableExternalAccess": true,
-    "scd2StartTimestamp": "valid_from",
-    "scd2EndTimestamp": "valid_to",
-    "sqlParameterPattern": "\\$\\{(\\w+)\\}",
-    "schedulePresets": {
-      "hourly": "0 * * * *",
-      "daily": "0 6 * * *",
-      "weekly": "0 6 * * 1"
+    "accessPolicies": {
+      "apply": true,
+      "database": "my-gcp-project",
+      "location": "EU",
+      "taxonomy": "gdpr_taxonomy"
     },
+    "archive": true,
+    "area": {
+      "archive": "/data/archive",
+      "hiveDatabase": "starlake_db",
+      "incoming": "/data/incoming",
+      "ingesting": "/data/ingesting",
+      "replay": "/data/replay",
+      "stage": "/data/stage",
+      "unresolved": "/data/unresolved"
+    },
+    "audit": {
+      "active": true,
+      "database": "analytics_db",
+      "detailedLoadAudit": true,
+      "domain": "audit",
+      "domainExpectation": "expectations",
+      "domainRejected": "rejected",
+      "maxErrors": "100",
+      "sql": "INSERT INTO audit_log VALUES (?, ?, ?)"
+    },
+    "autoExportSchema": true,
+    "connectionRef": "duckdb-local",
     "connections": {
       "duckdb-local": {
-        "type": "duckdb",
         "options": {
           "path": "/data/duckdb/analytics.db"
-        }
+        },
+        "type": "duckdb"
       },
       "pg-warehouse": {
-        "type": "jdbc",
-        "sparkFormat": "jdbc",
+        "options": {
+          "driver": "org.postgresql.Driver",
+          "url": "jdbc:postgresql://localhost:5432/warehouse"
+        },
         "quote": "\"",
         "separator": ".",
-        "options": {
-          "url": "jdbc:postgresql://localhost:5432/warehouse",
-          "driver": "org.postgresql.Driver"
-        }
+        "sparkFormat": "jdbc",
+        "type": "jdbc"
       }
+    },
+    "createSchemaIfNotExists": true,
+    "csvOutput": false,
+    "dagRef": {
+      "load": "daily_load",
+      "transform": "daily_transform"
+    },
+    "database": "analytics_db",
+    "dsvOptions": {
+      "dateFormat": "yyyy-MM-dd",
+      "timestampFormat": "yyyy-MM-dd HH:mm:ss"
+    },
+    "duckDbEnableExternalAccess": true,
+    "duckdbExtensions": "spatial, json, httpfs, parquet",
+    "duckdbMode": true,
+    "duckdbPath": "/data/duckdb",
+    "emptyIsNull": true,
+    "expectations": {
+      "active": true,
+      "failOnError": true,
+      "path": "/data/expectations"
+    },
+    "forceHalt": false,
+    "gizmosql": {
+      "apiKey": "my-api-key",
+      "url": "http://localhost:10900"
+    },
+    "grouped": true,
+    "groupedMax": 10,
+    "hadoop": {
+      "fs.defaultFS": "hdfs://namenode:8020"
+    },
+    "http": {
+      "interface": "0.0.0.0",
+      "port": 9090
+    },
+    "internal": {
+      "bqAuditSaveInBatchMode": true,
+      "cacheStorageLevel": "MEMORY_AND_DISK",
+      "intermediateBigqueryFormat": "parquet",
+      "substituteVars": true,
+      "temporaryGcsBucket": "gs://my-temp-bucket"
     },
     "jdbcEngines": {
       "postgresql": {
+        "clusterBy": "CLUSTER BY",
+        "columnRemarks": "SELECT col_description(a.attrelid, a.attnum) FROM pg_attribute a WHERE a.attrelid = '{{table}}'::regclass AND a.attname = '{{column}}'",
+        "partitionBy": "PARTITION BY",
+        "preActions": "SET search_path TO starlake",
+        "quote": "\"",
+        "strategyBuilder": "postgresql",
+        "tableRemarks": "SELECT obj_description('{{schema}}.{{table}}'::regclass)",
         "tables": {
           "audit": {
             "createSql": "CREATE TABLE IF NOT EXISTS audit (job_id VARCHAR, timestamp TIMESTAMP, status VARCHAR)",
@@ -69,120 +108,61 @@
             "selectSql": "SELECT * FROM rejected WHERE job_id = '{{job_id}}'"
           }
         },
-        "quote": "\"",
-        "strategyBuilder": "postgresql",
-        "viewPrefix": "",
-        "preActions": "SET search_path TO starlake",
-        "partitionBy": "PARTITION BY",
-        "clusterBy": "CLUSTER BY",
-        "columnRemarks": "SELECT col_description(a.attrelid, a.attnum) FROM pg_attribute a WHERE a.attrelid = '{{table}}'::regclass AND a.attname = '{{column}}'",
-        "tableRemarks": "SELECT obj_description('{{schema}}.{{table}}'::regclass)"
+        "viewPrefix": ""
       }
     },
     "kafka": {
-      "serverOptions": {
-        "bootstrap.servers": "kafka-broker1:9092,kafka-broker2:9092",
-        "security.protocol": "SASL_SSL",
-        "sasl.mechanism": "PLAIN"
-      },
-      "topics": {
-        "user_events": {
-          "topicName": "prod.user.events",
-          "maxRead": 10000,
-          "fields": ["user_id", "event_type", "timestamp", "payload"],
-          "partitions": 12,
-          "replicationFactor": 3,
-          "createOptions": {
-            "retention.ms": "604800000",
-            "cleanup.policy": "delete"
-          },
-          "accessOptions": {
-            "key.deserializer": "org.apache.kafka.common.serialization.StringDeserializer",
-            "value.deserializer": "org.apache.kafka.common.serialization.StringDeserializer",
-            "group.id": "starlake-consumer"
-          }
-        }
-      },
       "cometOffsetsMode": "FILE",
       "customDeserializers": {
         "avro": "io.confluent.kafka.serializers.KafkaAvroDeserializer"
+      },
+      "serverOptions": {
+        "bootstrap.servers": "kafka-broker1:9092,kafka-broker2:9092",
+        "sasl.mechanism": "PLAIN",
+        "security.protocol": "SASL_SSL"
+      },
+      "topics": {
+        "user_events": {
+          "accessOptions": {
+            "group.id": "starlake-consumer",
+            "key.deserializer": "org.apache.kafka.common.serialization.StringDeserializer",
+            "value.deserializer": "org.apache.kafka.common.serialization.StringDeserializer"
+          },
+          "createOptions": {
+            "cleanup.policy": "delete",
+            "retention.ms": "604800000"
+          },
+          "fields": ["user_id", "event_type", "timestamp", "payload"],
+          "maxRead": 10000,
+          "partitions": 12,
+          "replicationFactor": 3,
+          "topicName": "prod.user.events"
+        }
       }
     },
-    "audit": {
-      "active": true,
-      "database": "analytics_db",
-      "domain": "audit",
-      "domainExpectation": "expectations",
-      "domainRejected": "rejected",
-      "detailedLoadAudit": true,
-      "maxErrors": "100",
-      "sql": "INSERT INTO audit_log VALUES (?, ?, ?)"
+    "loader": "native",
+    "lock": {
+      "path": "/tmp/starlake.lock",
+      "pollTime": 5,
+      "refreshTime": 10,
+      "timeout": 30000
     },
+    "longJobTimeoutMs": 7200000,
+    "maxParCopy": 2,
+    "maxParTask": 4,
     "metrics": {
       "active": true,
       "discreteMaxCardinality": 20,
       "path": "/data/metrics"
     },
-    "expectations": {
-      "active": true,
-      "failOnError": true,
-      "path": "/data/expectations"
-    },
-    "lock": {
-      "path": "/tmp/starlake.lock",
-      "timeout": 30000,
-      "pollTime": 5,
-      "refreshTime": 10
-    },
-    "area": {
-      "incoming": "/data/incoming",
-      "stage": "/data/stage",
-      "unresolved": "/data/unresolved",
-      "archive": "/data/archive",
-      "ingesting": "/data/ingesting",
-      "replay": "/data/replay",
-      "hiveDatabase": "starlake_db"
-    },
+    "onExceptionRetries": 3,
     "privacy": {
       "options": {
         "email_hash": "sha256",
         "phone_mask": "hideX(\"*\", 6)"
       }
     },
-    "internal": {
-      "cacheStorageLevel": "MEMORY_AND_DISK",
-      "intermediateBigqueryFormat": "parquet",
-      "temporaryGcsBucket": "gs://my-temp-bucket",
-      "substituteVars": true,
-      "bqAuditSaveInBatchMode": true
-    },
-    "accessPolicies": {
-      "apply": true,
-      "location": "EU",
-      "database": "my-gcp-project",
-      "taxonomy": "gdpr_taxonomy"
-    },
-    "sparkScheduling": {
-      "maxJobs": 4,
-      "poolName": "etl_pool",
-      "mode": "FAIR",
-      "file": "fairscheduler.xml"
-    },
-    "dagRef": {
-      "load": "daily_load",
-      "transform": "daily_transform"
-    },
-    "http": {
-      "interface": "0.0.0.0",
-      "port": 9090
-    },
-    "gizmosql": {
-      "url": "http://localhost:10900",
-      "apiKey": "my-api-key"
-    },
-    "hadoop": {
-      "fs.defaultFS": "hdfs://namenode:8020"
-    },
+    "prunePartitionOnMerge": true,
     "refs": [
       {
         "input": {
@@ -195,9 +175,29 @@
         }
       }
     ],
-    "dsvOptions": {
-      "dateFormat": "yyyy-MM-dd",
-      "timestampFormat": "yyyy-MM-dd HH:mm:ss"
-    }
-  }
+    "rejectAllOnError": "false",
+    "rejectMaxRecords": 50,
+    "rejectWithValue": true,
+    "scd2EndTimestamp": "valid_to",
+    "scd2StartTimestamp": "valid_from",
+    "schedulePresets": {
+      "daily": "0 6 * * *",
+      "hourly": "0 * * * *",
+      "weekly": "0 6 * * 1"
+    },
+    "shortJobTimeoutMs": 600000,
+    "sinkReplayToFile": true,
+    "sparkScheduling": {
+      "file": "fairscheduler.xml",
+      "maxJobs": 4,
+      "mode": "FAIR",
+      "poolName": "etl_pool"
+    },
+    "sqlParameterPattern": "\\$\\{(\\w+)\\}",
+    "syncSqlWithYaml": true,
+    "syncYamlWithDb": true,
+    "timezone": "Europe/Paris",
+    "validateOnLoad": true
+  },
+  "version": 1
 }

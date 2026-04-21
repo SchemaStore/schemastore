@@ -1,31 +1,36 @@
 {
-  "version": 1,
   "extract": {
+    "auditConnectionRef": "pg-audit",
     "connectionRef": "pg-source",
-    "sanitizeAttributeName": "ON_LOAD",
+    "default": {
+      "fetchSize": 256,
+      "fullExport": false,
+      "numPartitions": 4,
+      "schema": "public",
+      "tableTypes": ["TABLE"]
+    },
     "jdbcSchemas": [
       {
         "catalog": "main_catalog",
-        "schema": "public",
-        "tableRemarks": "SELECT obj_description('{{schema}}.{{table}}'::regclass)",
         "columnRemarks": "SELECT col_description(a.attrelid, a.attnum) FROM pg_attribute a WHERE a.attrelid = '{{schema}}.{{table}}'::regclass AND a.attname = '{{column}}'",
-        "tableTypes": ["TABLE", "VIEW"],
-        "template": "extract/templates/jdbc-extract.ssp",
-        "pattern": "{{schema}}_{{table}}.*",
-        "numericTrim": "BOTH",
-        "partitionColumn": "updated_at",
-        "numPartitions": 8,
-        "fetchSize": 500,
-        "fullExport": false,
-        "sanitizeName": true,
-        "stringPartitionFunc": "HASHTEXT({{col}}) % {{nb_partitions}}",
         "connectionOptions": {
           "fetchSize": "500",
           "queryTimeout": "3600"
         },
+        "exclude": ["pg_.*", "information_schema.*", "temp_.*"],
+        "fetchSize": 500,
+        "fullExport": false,
+        "numPartitions": 8,
+        "numericTrim": "BOTH",
+        "partitionColumn": "updated_at",
+        "pattern": "{{schema}}_{{table}}.*",
+        "sanitizeName": true,
+        "schema": "public",
+        "stringPartitionFunc": "HASHTEXT({{col}}) % {{nb_partitions}}",
+        "tableRemarks": "SELECT obj_description('{{schema}}.{{table}}'::regclass)",
+        "tableTypes": ["TABLE", "VIEW"],
         "tables": [
           {
-            "name": "customers",
             "columns": [
               "customer_id",
               {
@@ -35,46 +40,41 @@
               "first_name",
               "last_name"
             ],
-            "partitionColumn": "customer_id",
-            "numPartitions": 4,
             "fetchSize": 1000,
+            "filter": "active = true AND created_at > '2023-01-01'",
             "fullExport": true,
-            "filter": "active = true AND created_at > '2023-01-01'"
+            "name": "customers",
+            "numPartitions": 4,
+            "partitionColumn": "customer_id"
           },
           {
-            "name": "orders",
-            "sql": "SELECT o.*, c.email FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.status != 'CANCELLED'",
-            "partitionColumn": "order_date",
-            "numPartitions": 12,
             "connectionOptions": {
               "fetchSize": "2000"
             },
+            "name": "orders",
+            "numPartitions": 12,
+            "partitionColumn": "order_date",
+            "sql": "SELECT o.*, c.email FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.status != 'CANCELLED'",
             "stringPartitionFunc": "MOD(HASHTEXT({{col}}), {{nb_partitions}})"
           },
           {
             "name": "*"
           }
         ],
-        "exclude": ["pg_.*", "information_schema.*", "temp_.*"]
+        "template": "extract/templates/jdbc-extract.ssp"
       }
     ],
-    "auditConnectionRef": "pg-audit",
     "output": {
+      "datePattern": "yyyy-MM-dd",
       "encoding": "UTF-8",
-      "withHeader": true,
-      "separator": ",",
-      "quote": "\"",
       "escape": "\\",
       "nullValue": "",
-      "datePattern": "yyyy-MM-dd",
-      "timestampPattern": "yyyy-MM-dd HH:mm:ss.SSS"
+      "quote": "\"",
+      "separator": ",",
+      "timestampPattern": "yyyy-MM-dd HH:mm:ss.SSS",
+      "withHeader": true
     },
-    "default": {
-      "schema": "public",
-      "fetchSize": 256,
-      "numPartitions": 4,
-      "fullExport": false,
-      "tableTypes": ["TABLE"]
-    }
-  }
+    "sanitizeAttributeName": "ON_LOAD"
+  },
+  "version": 1
 }
