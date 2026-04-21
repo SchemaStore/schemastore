@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "load": {
+    "name": "ecommerce",
+    "comment": "E-commerce data domain with Kafka and XML ingestion support",
+    "database": "ecommerce_db",
+    "rename": "ecommerce_v2",
+    "tags": ["ecommerce", "production"],
+    "metadata": {
+      "format": "JSON",
+      "encoding": "UTF-8",
+      "multiline": true,
+      "array": false,
+      "withHeader": false,
+      "separator": "|",
+      "directory": "/data/incoming/ecommerce",
+      "extensions": [".json", ".xml", ".parquet"],
+      "ack": "",
+      "loader": "spark",
+      "emptyIsNull": true,
+      "nullValue": "\\N",
+      "dagRef": "ecommerce_load",
+      "schedule": "*/30 * * * *",
+      "freshness": {
+        "warn": "1 hour",
+        "error": "3 hour"
+      },
+      "writeStrategy": {
+        "type": "DELETE_THEN_INSERT",
+        "key": ["order_id"],
+        "types": {
+          "bigquery": "UPSERT_BY_KEY",
+          "snowflake": "OVERWRITE_BY_PARTITION"
+        }
+      },
+      "sink": {
+        "connectionRef": "snowflake-prod",
+        "partition": ["order_date"],
+        "clustering": ["customer_id"],
+        "materializedView": "TABLE",
+        "sharding": ["region"],
+        "enableRefresh": true,
+        "refreshIntervalMs": 3600000,
+        "id": "order_id",
+        "format": "parquet",
+        "extension": ".parquet",
+        "coalesce": true,
+        "path": "/data/warehouse/ecommerce",
+        "options": {
+          "compression": "snappy"
+        }
+      },
+      "options": {
+        "dateFormat": "yyyy-MM-dd",
+        "timestampFormat": "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+      }
+    }
+  }
+}

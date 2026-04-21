@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "transform": {
+    "name": "customer_analytics",
+    "comment": "Customer analytics pipeline with multiple tasks and defaults",
+    "default": {
+      "database": "analytics_db",
+      "domain": "customer_analytics",
+      "connectionRef": "bigquery-prod",
+      "writeStrategy": {
+        "type": "OVERWRITE_BY_PARTITION"
+      },
+      "schedule": "0 8 * * *",
+      "dagRef": "analytics_dag"
+    },
+    "tasks": [
+      {
+        "name": "customer_lifetime_value",
+        "table": "customer_ltv",
+        "sql": "SELECT customer_id, SUM(amount) as lifetime_value FROM orders GROUP BY customer_id",
+        "partition": ["signup_year"],
+        "primaryKey": ["customer_id"],
+        "writeStrategy": {
+          "type": "UPSERT_BY_KEY_AND_TIMESTAMP",
+          "key": ["customer_id"],
+          "timestamp": "last_updated",
+          "on": "SOURCE_AND_TARGET",
+          "queryFilter": "last_updated >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)"
+        },
+        "expectations": [
+          {
+            "expect": "count(*) > 0",
+            "failOnError": true
+          },
+          {
+            "expect": "count(CASE WHEN lifetime_value < 0 THEN 1 END) = 0"
+          }
+        ],
+        "freshness": {
+          "warn": "1 day",
+          "error": "3 day"
+        },
+        "tags": ["ltv", "customer"],
+        "taskTimeoutMs": 1800000
+      },
+      {
+        "name": "customer_segments",
+        "table": "customer_segments",
+        "python": "gs://scripts/segmentation.py",
+        "streams": ["customer_updates_stream"],
+        "acl": [
+          {
+            "role": "viewer",
+            "grants": ["group:marketing@company.com"],
+            "name": "marketing_access"
+          }
+        ],
+        "rls": [
+          {
+            "name": "segment_visibility",
+            "predicate": "segment_level <= user_clearance()",
+            "grants": ["group:all-employees@company.com"]
+          }
+        ],
+        "attributes": [
+          {
+            "name": "customer_id",
+            "type": "long",
+            "required": true,
+            "comment": "Customer unique identifier"
+          },
+          {
+            "name": "segment",
+            "type": "string",
+            "metricType": "DISCRETE"
+          },
+          {
+            "name": "score",
+            "type": "double",
+            "metricType": "CONTINUOUS"
+          }
+        ],
+        "sink": {
+          "materializedView": "MATERIALIZED_VIEW",
+          "enableRefresh": true,
+          "refreshIntervalMs": 86400000,
+          "days": 730
+        }
+      },
+      {
+        "name": "daily_kpis",
+        "table": "daily_kpis",
+        "presql": ["CALL refresh_source_views()"],
+        "postsql": ["CALL notify_dashboard_refresh('daily_kpis')"],
+        "parseSQL": false,
+        "dataset_triggering_strategy": "(customer_orders & customer_returns) | daily_revenue"
+      }
+    ]
+  }
+}

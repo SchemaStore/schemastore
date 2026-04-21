@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "extract": {
+    "connectionRef": "rest-api-connection",
+    "restAPI": {
+      "baseUrl": "https://api.example.com/v2",
+      "auth": {
+        "type": "oauth2_client_credentials",
+        "tokenUrl": "https://auth.example.com/oauth/token",
+        "clientId": "{{CLIENT_ID}}",
+        "clientSecret": "{{CLIENT_SECRET}}",
+        "scope": "read:data"
+      },
+      "headers": {
+        "Accept": "application/json",
+        "X-Request-Source": "starlake"
+      },
+      "rateLimit": {
+        "requestsPerSecond": 5
+      },
+      "defaults": {
+        "pagination": {
+          "type": "cursor",
+          "cursorParam": "after",
+          "cursorPath": "$.meta.next_cursor",
+          "pageSize": 200
+        },
+        "headers": {
+          "X-Api-Version": "2"
+        },
+        "queryParams": {
+          "format": "json"
+        }
+      },
+      "endpoints": [
+        {
+          "path": "/customers",
+          "as": "raw_customers",
+          "domain": "crm",
+          "responsePath": "$.data",
+          "incrementalField": "updated_at",
+          "pagination": {
+            "type": "page_number",
+            "pageParam": "page",
+            "limitParam": "per_page",
+            "pageSize": 50
+          },
+          "children": [
+            {
+              "path": "/customers/{parent.id}/orders",
+              "as": "customer_orders",
+              "domain": "crm",
+              "responsePath": "$.orders",
+              "excludeFields": ["_internal.*", "debug_info"]
+            }
+          ]
+        },
+        {
+          "path": "/products",
+          "method": "POST",
+          "domain": "catalog",
+          "requestBody": "{\"filter\": \"active\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "queryParams": {
+            "include_variants": "true"
+          },
+          "responsePath": "$.products",
+          "pagination": {
+            "type": "offset",
+            "offsetParam": "skip",
+            "limitParam": "take",
+            "pageSize": 100
+          }
+        },
+        {
+          "path": "/inventory",
+          "domain": "catalog",
+          "pagination": {
+            "type": "link_header",
+            "pageSize": 500
+          }
+        }
+      ]
+    }
+  }
+}

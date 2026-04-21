@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "task": {
+    "name": "aggregate_daily_sales",
+    "sql": "SELECT date, SUM(amount) as total FROM sales GROUP BY date",
+    "domain": "analytics",
+    "table": "daily_sales",
+    "database": "my_project",
+    "comment": "Aggregate daily sales from raw transactions",
+    "partition": ["date"],
+    "primaryKey": ["date"],
+    "presql": ["DELETE FROM analytics.daily_sales WHERE date = current_date()"],
+    "postsql": ["ANALYZE TABLE analytics.daily_sales"],
+    "writeStrategy": {
+      "type": "UPSERT_BY_KEY",
+      "key": ["date"]
+    },
+    "expectations": [
+      {
+        "expect": "count(*) > 0",
+        "failOnError": true
+      }
+    ],
+    "freshness": {
+      "warn": "2 hour",
+      "error": "6 hour"
+    },
+    "tags": ["daily", "sales", "aggregation"],
+    "schedule": "0 6 * * *",
+    "dagRef": "daily_etl",
+    "taskTimeoutMs": 600000,
+    "parseSQL": true,
+    "connectionRef": "bigquery-prod"
+  }
+}

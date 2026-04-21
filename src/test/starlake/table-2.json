@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "table": {
+    "name": "transactions",
+    "pattern": "transactions_.*\\.csv",
+    "comment": "Financial transaction records with fixed-width and nested attribute support",
+    "rename": "financial_transactions",
+    "sample": "txn_001,2024-01-15,1500.50,USD,John Doe",
+    "patternSample": "transactions_20240115.csv",
+    "filter": "amount > 0",
+    "tags": ["finance", "transactions", "pci"],
+    "primaryKey": ["txn_id", "txn_date"],
+    "metadata": {
+      "format": "POSITION",
+      "encoding": "UTF-8",
+      "separator": ",",
+      "quote": "\"",
+      "escape": "\\",
+      "withHeader": true,
+      "emptyIsNull": true,
+      "nullValue": "N/A",
+      "directory": "/data/incoming/transactions",
+      "extensions": [".csv", ".dat", ".txt"],
+      "ack": ".ack",
+      "loader": "native",
+      "dagRef": "daily_load",
+      "schedule": "0 */4 * * *",
+      "freshness": {
+        "warn": "4 hour",
+        "error": "12 hour"
+      },
+      "writeStrategy": {
+        "type": "UPSERT_BY_KEY_AND_TIMESTAMP",
+        "key": ["txn_id"],
+        "timestamp": "txn_date",
+        "on": "TARGET",
+        "queryFilter": "txn_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)"
+      },
+      "sink": {
+        "connectionRef": "bigquery-prod",
+        "partition": ["txn_date"],
+        "clustering": ["currency", "status"],
+        "days": 365,
+        "requirePartitionFilter": true,
+        "materializedView": "TABLE",
+        "coalesce": false,
+        "options": {
+          "partitionOverwriteMode": "dynamic"
+        }
+      },
+      "options": {
+        "dateFormat": "yyyy-MM-dd"
+      }
+    },
+    "attributes": [
+      {
+        "name": "txn_id",
+        "type": "string",
+        "required": true,
+        "comment": "Unique transaction identifier",
+        "position": {
+          "first": 0,
+          "last": 15
+        }
+      },
+      {
+        "name": "txn_date",
+        "type": "date",
+        "required": true,
+        "position": {
+          "first": 16,
+          "last": 25
+        }
+      },
+      {
+        "name": "amount",
+        "type": "decimal",
+        "required": true,
+        "trim": "BOTH",
+        "metricType": "CONTINUOUS",
+        "position": {
+          "first": 26,
+          "last": 40
+        }
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "default": "USD",
+        "metricType": "DISCRETE",
+        "tags": ["reference_data"]
+      },
+      {
+        "name": "customer_email",
+        "type": "email",
+        "privacy": "SHA256",
+        "accessPolicy": "pii_policy",
+        "rename": "email_hash",
+        "ignore": false
+      },
+      {
+        "name": "internal_notes",
+        "type": "string",
+        "ignore": true,
+        "comment": "Internal field, excluded from ingestion"
+      },
+      {
+        "name": "customer_name",
+        "type": "string",
+        "script": "UPPER(customer_name)",
+        "foreignKey": "customers.customer_id"
+      },
+      {
+        "name": "address",
+        "type": "struct",
+        "array": false,
+        "attributes": [
+          {
+            "name": "street",
+            "type": "string"
+          },
+          {
+            "name": "city",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "zip",
+            "type": "string"
+          },
+          {
+            "name": "geo",
+            "type": "struct",
+            "attributes": [
+              {
+                "name": "lat",
+                "type": "double"
+              },
+              {
+                "name": "lon",
+                "type": "double"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "line_items",
+        "type": "struct",
+        "array": true,
+        "attributes": [
+          {
+            "name": "product_id",
+            "type": "string"
+          },
+          {
+            "name": "quantity",
+            "type": "int"
+          },
+          {
+            "name": "unit_price",
+            "type": "decimal"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "expect": "count(*) > 0"
+      },
+      {
+        "expect": "count(CASE WHEN amount < 0 THEN 1 END) = 0",
+        "failOnError": true
+      }
+    ],
+    "rls": [
+      {
+        "name": "region_access",
+        "predicate": "region IN (SELECT allowed_region FROM user_permissions WHERE user = CURRENT_USER())",
+        "grants": ["group:finance@company.com", "serviceAccount:etl@project.iam.gserviceaccount.com"],
+        "description": "Restrict transaction visibility by region"
+      }
+    ],
+    "acl": [
+      {
+        "role": "reader",
+        "grants": ["group:auditors@company.com", "user:cfo@company.com"],
+        "name": "audit_read_access"
+      },
+      {
+        "role": "writer",
+        "grants": ["serviceAccount:etl@project.iam.gserviceaccount.com"],
+        "name": "etl_write_access"
+      }
+    ],
+    "presql": ["CREATE TEMP TABLE staging AS SELECT * FROM raw_transactions"],
+    "postsql": ["DROP TABLE IF EXISTS staging", "CALL update_statistics('financial_transactions')"],
+    "streams": ["txn_stream_v1"]
+  }
+}
