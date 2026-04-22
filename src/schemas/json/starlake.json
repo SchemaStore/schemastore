@@ -1649,7 +1649,7 @@
             }
           },
           "not": {
-            "required": ["openAPI"]
+            "anyOf": [{ "required": ["openAPI"] }, { "required": ["restAPI"] }]
           }
         }
       ]
@@ -1826,6 +1826,235 @@
             }
           },
           "required": ["openAPI"]
+        }
+      ]
+    },
+    "RestAPIAuthV1": {
+      "type": "object",
+      "description": "Authentication configuration for REST API extraction",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Authentication type",
+          "enum": ["bearer", "api_key", "basic", "oauth2_client_credentials"]
+        },
+        "token": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Bearer token value. Supports {{ENV_VAR}} syntax."
+        },
+        "key": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "API key value for api_key auth."
+        },
+        "header": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Header name for api_key auth. Defaults to X-API-Key."
+        },
+        "username": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Username for basic auth."
+        },
+        "password": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Password for basic auth."
+        },
+        "tokenUrl": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Token endpoint URL for OAuth2 client credentials."
+        },
+        "clientId": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Client ID for OAuth2."
+        },
+        "clientSecret": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Client secret for OAuth2."
+        },
+        "scope": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "OAuth2 scope (optional)."
+        }
+      },
+      "required": ["type"]
+    },
+    "RestAPIPaginationV1": {
+      "type": "object",
+      "description": "Pagination strategy for REST API endpoints",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Pagination strategy type",
+          "enum": ["offset", "cursor", "link_header", "page_number"]
+        },
+        "limitParam": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Query parameter name for page size limit."
+        },
+        "offsetParam": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Query parameter name for offset (offset pagination)."
+        },
+        "cursorParam": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Query parameter name for cursor value (cursor pagination)."
+        },
+        "cursorPath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "JSONPath to extract cursor from response (e.g. $.meta.next_cursor)."
+        },
+        "pageParam": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Query parameter name for page number (page_number pagination)."
+        },
+        "pageSize": {
+          "type": "integer",
+          "description": "Number of records per page. Defaults to 100.",
+          "default": 100
+        }
+      },
+      "required": ["type"]
+    },
+    "RestAPIEndpointV1": {
+      "type": "object",
+      "description": "REST API endpoint definition for data extraction",
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "API endpoint path (e.g. /api/v2/customers)."
+        },
+        "method": {
+          "type": "string",
+          "description": "HTTP method. Defaults to GET.",
+          "enum": ["GET", "POST"],
+          "default": "GET"
+        },
+        "as": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Table name override. If not set, derived from the last path segment."
+        },
+        "domain": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Domain name to group this endpoint under. Defaults to 'default'.",
+          "default": "default"
+        },
+        "headers": {
+          "$ref": "#/definitions/MapString",
+          "description": "Additional HTTP headers for this endpoint."
+        },
+        "queryParams": {
+          "$ref": "#/definitions/MapString",
+          "description": "Additional query parameters for this endpoint."
+        },
+        "requestBody": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "JSON request body for POST endpoints."
+        },
+        "pagination": {
+          "$ref": "#/definitions/RestAPIPaginationV1",
+          "description": "Pagination strategy for this endpoint. Overrides defaults."
+        },
+        "responsePath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "JSONPath to the data array in the response (e.g. $.data or $.results)."
+        },
+        "incrementalField": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Field name used for incremental extraction. The max value is saved between runs."
+        },
+        "children": {
+          "type": "array",
+          "description": "Child endpoints that depend on parent records. Use {parent.fieldName} in path.",
+          "items": {
+            "$ref": "#/definitions/RestAPIEndpointV1"
+          }
+        },
+        "excludeFields": {
+          "type": "array",
+          "description": "List of regex patterns to exclude fields from extraction.",
+          "items": {
+            "$ref": "#/definitions/ConvertibleToString"
+          }
+        }
+      },
+      "required": ["path"]
+    },
+    "RestAPIDefaultsV1": {
+      "type": "object",
+      "description": "Default settings applied to all endpoints",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/RestAPIPaginationV1",
+          "description": "Default pagination strategy for all endpoints."
+        },
+        "headers": {
+          "$ref": "#/definitions/MapString",
+          "description": "Default headers applied to all endpoints."
+        },
+        "queryParams": {
+          "$ref": "#/definitions/MapString",
+          "description": "Default query parameters applied to all endpoints."
+        }
+      }
+    },
+    "RestAPIRateLimitV1": {
+      "type": "object",
+      "properties": {
+        "requestsPerSecond": {
+          "type": "integer",
+          "description": "Maximum number of requests per second. Defaults to 10.",
+          "default": 10
+        }
+      }
+    },
+    "RestAPIV1": {
+      "type": "object",
+      "description": "REST API extraction configuration",
+      "properties": {
+        "baseUrl": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Base URL of the REST API (e.g. https://api.example.com/v2)."
+        },
+        "auth": {
+          "$ref": "#/definitions/RestAPIAuthV1",
+          "description": "Authentication configuration."
+        },
+        "headers": {
+          "$ref": "#/definitions/MapString",
+          "description": "Global HTTP headers applied to all requests."
+        },
+        "rateLimit": {
+          "$ref": "#/definitions/RestAPIRateLimitV1",
+          "description": "Rate limiting configuration."
+        },
+        "defaults": {
+          "$ref": "#/definitions/RestAPIDefaultsV1",
+          "description": "Default settings applied to all endpoints."
+        },
+        "endpoints": {
+          "type": "array",
+          "description": "List of API endpoints to extract data from.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/RestAPIEndpointV1"
+          }
+        }
+      },
+      "required": ["baseUrl", "endpoints"]
+    },
+    "RestAPIsV1": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ExtractV1Base"
+        },
+        {
+          "properties": {
+            "restAPI": {
+              "$ref": "#/definitions/RestAPIV1",
+              "description": "Describe how to extract data from REST API endpoints"
+            }
+          },
+          "required": ["restAPI"]
         }
       ]
     },
@@ -2406,6 +2635,10 @@
             {
               "$ref": "#/definitions/OpenAPIsV1",
               "description": "Defines OpenAPI schemas extraction"
+            },
+            {
+              "$ref": "#/definitions/RestAPIsV1",
+              "description": "Defines REST API data extraction"
             }
           ]
         },
