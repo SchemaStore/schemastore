@@ -187,6 +187,47 @@
               "description": "Custom spinner message displayed while the hook runs"
             }
           }
+        },
+        {
+          "type": "object",
+          "description": "MCP tool hook. Call a tool on an already-connected MCP server. See https://code.claude.com/docs/en/hooks#mcp-tool-hook-fields",
+          "additionalProperties": false,
+          "required": ["type", "server", "tool"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "mcp_tool"
+            },
+            "server": {
+              "type": "string",
+              "description": "Name of a configured MCP server (must already be connected)",
+              "minLength": 1
+            },
+            "tool": {
+              "type": "string",
+              "description": "Name of the tool to call on that server",
+              "minLength": 1
+            },
+            "input": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Arguments passed to the tool. String values support ${path} substitution from hook JSON input (e.g., ${tool_input.file_path}, ${cwd})"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 60)",
+              "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.claude.com/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
+            "statusMessage": {
+              "type": "string",
+              "description": "Custom spinner message displayed while the hook runs"
+            }
+          }
         }
       ]
     },
@@ -233,7 +274,7 @@
     "autoUpdatesChannel": {
       "type": "string",
       "enum": ["stable", "latest"],
-      "description": "Release channel to follow for updates. Use \"stable\" for a version that is typically about one week old and skips versions with major regressions, or \"latest\" (default) for the most recent release. Set DISABLE_AUTOUPDATER=1 to disable updates entirely.",
+      "description": "Release channel to follow for updates. Use \"stable\" for a version that is typically about one week old and skips versions with major regressions, or \"latest\" (default) for the most recent release. Set DISABLE_AUTOUPDATER=1 to disable background auto-updates, or DISABLE_UPDATES=1 (added in v2.1.118) to block all update paths including manual `claude update`.",
       "default": "latest"
     },
     "awsCredentialExport": {
@@ -265,7 +306,7 @@
     "cleanupPeriodDays": {
       "type": "integer",
       "minimum": 1,
-      "description": "Number of days to retain sessions and orphaned subagent worktrees. Minimum is 1; setting 0 is rejected with a validation error. See https://code.claude.com/docs/en/settings",
+      "description": "Number of days to retain sessions, orphaned subagent worktrees, tasks, shell snapshots, and backups. Minimum is 1; setting 0 is rejected with a validation error. See https://code.claude.com/docs/en/settings",
       "examples": [20, 30, 60],
       "default": 30
     },
@@ -427,7 +468,7 @@
     "effortLevel": {
       "type": "string",
       "enum": ["low", "medium", "high", "xhigh", "max"],
-      "description": "Persist adaptive reasoning effort across sessions. Effort is supported on Opus 4.7, Opus 4.6, and Sonnet 4.6. Opus 4.7 supports low/medium/high/xhigh/max (xhigh sits between high and max, added in v2.1.111); Opus 4.6 and Sonnet 4.6 support low/medium/high/max (xhigh falls back to high). Defaults: Opus 4.6 and Sonnet 4.6 default to high, or medium on Pro and Max plans; Opus 4.7 defaults to xhigh on Max plan. The max value is session-only unless set via CLAUDE_CODE_EFFORT_LEVEL. Use /effort auto to reset to model default. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level"
+      "description": "Persist adaptive reasoning effort across sessions. Effort is supported on Opus 4.7, Opus 4.6, and Sonnet 4.6. Opus 4.7 supports low/medium/high/xhigh/max (xhigh sits between high and max, added in v2.1.111); Opus 4.6 and Sonnet 4.6 support low/medium/high/max (xhigh falls back to high). Defaults: Opus 4.6 and Sonnet 4.6 default to high on all plans (Pro/Max raised from medium to high in v2.1.117); Opus 4.7 defaults to xhigh on Max plan. The max value is session-only unless set via CLAUDE_CODE_EFFORT_LEVEL. Use /effort auto to reset to model default. Also configurable via CLAUDE_CODE_EFFORT_LEVEL environment variable. See https://code.claude.com/docs/en/model-config#adjust-effort-level"
     },
     "fastMode": {
       "type": "boolean",
@@ -1474,6 +1515,11 @@
       "description": "Reduce or disable UI animations (spinners, shimmer, flash effects) for accessibility",
       "default": false
     },
+    "prUrlTemplate": {
+      "type": "string",
+      "description": "URL template for the PR badge shown in the footer and in tool-result summaries. Substitutes placeholders {host}, {owner}, {repo}, {number}, {url} from the gh-reported PR URL. Use this to point PR links at an internal code-review tool instead of github.com. Does not affect #123 autolinks in Claude's prose. See https://code.claude.com/docs/en/settings",
+      "examples": ["https://reviews.example.com/{owner}/{repo}/pull/{number}"]
+    },
     "alwaysThinkingEnabled": {
       "type": "boolean",
       "description": "Enable extended thinking by default for all sessions. Typically configured via the /config command rather than editing directly. See https://code.claude.com/docs/en/common-workflows#use-extended-thinking-thinking-mode"
@@ -1739,23 +1785,23 @@
     },
     "autoMode": {
       "type": "object",
-      "description": "Customization for the auto mode classifier prompt. Typically configured in managed settings to tune the allow/deny rules used when permissions.defaultMode is \"auto\". Note: allow and soft_deny REPLACE the default classifier rules entirely — review carefully. See https://code.claude.com/docs/en/permissions",
+      "description": "Customization for the auto mode classifier prompt. Typically configured in managed settings to tune the allow/deny rules used when permissions.defaultMode is \"auto\". By default, allow, soft_deny, and environment REPLACE the corresponding built-in classifier section entirely. Include the literal string \"$defaults\" as an array entry (added in v2.1.118) to splice the built-in defaults in at that position alongside your custom rules. See https://code.claude.com/docs/en/permissions",
       "additionalProperties": false,
       "properties": {
         "allow": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Additional rules appended to the auto mode classifier allow section"
+          "description": "Rules for the auto mode classifier allow section. Replaces the built-in allow rules entirely unless the literal string \"$defaults\" is included as an entry, which splices the built-in defaults in at that position."
         },
         "soft_deny": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Additional rules appended to the auto mode classifier soft-deny section"
+          "description": "Rules for the auto mode classifier soft-deny section. Replaces the built-in soft-deny rules entirely unless the literal string \"$defaults\" is included as an entry, which splices the built-in defaults in at that position."
         },
         "environment": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Environment entries appended to the auto mode classifier environment section"
+          "description": "Entries for the auto mode classifier environment section. Replaces the built-in environment context entirely unless the literal string \"$defaults\" is included as an entry, which splices the built-in defaults in at that position."
         }
       }
     },
@@ -1833,6 +1879,10 @@
     "voiceEnabled": {
       "type": "boolean",
       "description": "Enable push-to-talk voice dictation. Typically written automatically when /voice is used. Requires a Claude.ai account. See https://code.claude.com/docs/en/settings"
+    },
+    "wslInheritsWindowsSettings": {
+      "type": "boolean",
+      "description": "(Windows managed settings only) When true, Claude Code on WSL reads managed settings from the Windows policy chain in addition to /etc/claude-code, with Windows sources taking priority. Only honored when set in the HKLM registry key or C:\\Program Files\\ClaudeCode\\managed-settings.json, both of which require Windows admin to write. For HKCU policy to also apply on WSL, the flag must additionally be set in HKCU itself. Has no effect on native Windows. See https://code.claude.com/docs/en/settings"
     }
   },
   "title": "Claude Code Settings"
