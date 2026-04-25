@@ -1,0 +1,355 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/patchworkos/recipes/main/schema/recipe.v1.json",
+  "title": "Patchwork Recipe",
+  "description": "YAML recipe schema for Patchwork automation",
+  "x-taplo": {
+    "file-patterns": ["*.patchwork.yaml", "*.patchwork.yml"]
+  },
+  "type": "object",
+  "required": ["name", "trigger", "steps"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Recipe name (kebab-case recommended)",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this recipe does"
+    },
+    "maxConcurrency": {
+      "type": "number",
+      "description": "Maximum number of chained steps that may execute in parallel"
+    },
+    "maxDepth": {
+      "type": "number",
+      "description": "Maximum nested recipe depth for chained recipes"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version",
+      "default": "1.0.0"
+    },
+    "apiVersion": {
+      "type": "string",
+      "description": "Patchwork API version",
+      "enum": ["patchwork.sh/v1"],
+      "default": "patchwork.sh/v1"
+    },
+    "trigger": {
+      "type": "object",
+      "description": "When to run this recipe",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "cron",
+            "webhook",
+            "file_watch",
+            "git_hook",
+            "on_file_save",
+            "on_test_run",
+            "chained"
+          ],
+          "description": "Trigger type"
+        },
+        "at": {
+          "type": "string",
+          "description": "Cron expression (for cron trigger)"
+        },
+        "glob": {
+          "type": "string",
+          "description": "File glob pattern (for file_watch trigger)"
+        },
+        "on": {
+          "type": "string",
+          "enum": ["post-commit", "pre-push", "post-merge"],
+          "description": "Git hook event (for git_hook trigger)"
+        },
+        "filter": {
+          "type": "string",
+          "description": "File filter pattern (for file_watch trigger)"
+        },
+        "eventSource": {
+          "type": "string",
+          "description": "Webhook/event source name after legacy trigger normalization"
+        },
+        "eventFilter": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "Webhook/event filter after legacy trigger normalization"
+        },
+        "eventLeadTimeHours": {
+          "type": "number",
+          "description": "Lead time in hours after legacy trigger normalization"
+        },
+        "eventLeadTimeMinutes": {
+          "type": "number",
+          "description": "Lead time in minutes after legacy trigger normalization"
+        },
+        "legacyType": {
+          "type": "string",
+          "enum": ["event"],
+          "description": "Original trigger type preserved during legacy normalization"
+        }
+      }
+    },
+    "context": {
+      "type": "array",
+      "description": "Context blocks to load before running steps",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["file", "env"]
+          },
+          "path": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "Sequence of steps to execute",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["agent"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique chained step identifier used for outputs and dependencies"
+              },
+              "awaits": {
+                "type": "array",
+                "description": "Step IDs that must complete before this step runs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "when": {
+                "type": "string",
+                "description": "Template condition that controls whether this step runs"
+              },
+              "optional": {
+                "type": "boolean",
+                "description": "Whether step failure should be tolerated"
+              },
+              "risk": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "Risk level for this step"
+              },
+              "transform": {
+                "type": "string",
+                "description": "Template rendered after tool execution. Use $result to reference the tool output. Supports all template expressions."
+              },
+              "agent": {
+                "type": "object",
+                "required": ["prompt"],
+                "description": "Agent step configuration",
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "description": "Prompt to send to the AI (supports {{templates}})"
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Model to use for the agent step"
+                  },
+                  "driver": {
+                    "type": "string",
+                    "enum": [
+                      "claude",
+                      "claude-code",
+                      "api",
+                      "openai",
+                      "grok",
+                      "gemini",
+                      "anthropic"
+                    ],
+                    "description": "Driver for agent execution"
+                  },
+                  "into": {
+                    "type": "string",
+                    "description": "Variable name to store output in context"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["tool"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique chained step identifier used for outputs and dependencies"
+              },
+              "awaits": {
+                "type": "array",
+                "description": "Step IDs that must complete before this step runs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "when": {
+                "type": "string",
+                "description": "Template condition that controls whether this step runs"
+              },
+              "optional": {
+                "type": "boolean",
+                "description": "Whether step failure should be tolerated"
+              },
+              "risk": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "Risk level for this step"
+              },
+              "transform": {
+                "type": "string",
+                "description": "Template rendered after tool execution. Use $result to reference the tool output. Supports all template expressions."
+              },
+              "tool": {
+                "type": "string",
+                "not": {
+                  "enum": []
+                }
+              },
+              "into": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["recipe"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique chained step identifier used for outputs and dependencies"
+              },
+              "awaits": {
+                "type": "array",
+                "description": "Step IDs that must complete before this step runs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "when": {
+                "type": "string",
+                "description": "Template condition that controls whether this step runs"
+              },
+              "optional": {
+                "type": "boolean",
+                "description": "Whether step failure should be tolerated"
+              },
+              "risk": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "Risk level for this step"
+              },
+              "transform": {
+                "type": "string",
+                "description": "Template rendered after tool execution. Use $result to reference the tool output. Supports all template expressions."
+              },
+              "recipe": {
+                "type": "string",
+                "description": "Nested recipe name or path"
+              },
+              "vars": {
+                "type": "object",
+                "description": "Template variables passed into a nested recipe step",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "output": {
+                "type": "string",
+                "description": "Output key for the nested recipe result"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "expect": {
+      "type": "object",
+      "description": "Optional assertions for mocked recipe tests",
+      "properties": {
+        "stepsRun": {
+          "type": "number",
+          "description": "Expected number of executed steps"
+        },
+        "outputs": {
+          "type": "array",
+          "description": "Expected output paths or keys recorded by the run",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errorMessage": {
+          "type": ["string", "null"],
+          "description": "Expected final error message, or null for a clean run"
+        },
+        "context": {
+          "type": "object",
+          "description": "Expected context key/value pairs after the run",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "description": "Output file configuration",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to write final output"
+        }
+      }
+    },
+    "on_error": {
+      "type": "object",
+      "description": "Error handling policy",
+      "properties": {
+        "retry": {
+          "type": "number",
+          "description": "Number of retries",
+          "default": 0
+        },
+        "fallback": {
+          "type": "string",
+          "enum": ["log_only", "abort", "deliver_original"],
+          "description": "Fallback action on error"
+        },
+        "notify": {
+          "type": "boolean",
+          "description": "Whether to notify on error",
+          "default": true
+        }
+      }
+    }
+  }
+}
