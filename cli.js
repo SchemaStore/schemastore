@@ -1189,6 +1189,7 @@ async function taskBuildWebsite() {
   await fs.cp('./src/js', './website/js', { recursive: true })
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/.well-known', './website/.well-known', { recursive: true })
+  await fs.copyFile('./src/favicon.ico', './website/favicon.ico')
 }
 
 async function assertFileSystemIsValid() {
