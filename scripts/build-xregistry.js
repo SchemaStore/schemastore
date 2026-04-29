@@ -133,10 +133,18 @@ function parseSchemaFormat(schemaUri) {
 async function getSchemaFormat(schemaUrl) {
   try {
     const parsed = new URL(schemaUrl)
-    if (parsed.hostname === 'www.schemastore.org') {
+    if (
+      parsed.hostname === 'www.schemastore.org' ||
+      parsed.hostname === 'json.schemastore.org'
+    ) {
       // Read directly from the local checkout instead of making a network request
       const filename = parsed.pathname.replace(/^\//, '')
-      const localPath = path.join(__dirname, '../src/schemas/json', filename)
+      const schemasDir = path.resolve(__dirname, '../src/schemas/json')
+      const localPath = path.resolve(schemasDir, filename)
+      // Guard against path traversal
+      if (!localPath.startsWith(schemasDir + path.sep)) {
+        return 'JsonSchema'
+      }
       const data = JSON.parse(await fs.readFile(localPath, 'utf-8'))
       return parseSchemaFormat(data.$schema || '')
     }
@@ -151,8 +159,9 @@ async function getSchemaFormat(schemaUrl) {
 
 /**
  * Pre-fetches schema formats for all catalog entries in parallel (batched).
+ * Using a concurrency of 20 balances speed against overwhelming remote servers.
  * @param {Array<{ url: string }>} schemas - Catalog schema entries.
- * @param {number} [concurrency=20] - Max simultaneous requests.
+ * @param {number} [concurrency=20] - Max simultaneous operations.
  * @returns {Promise<Map<string, string>>} - Map from schema URL to format string.
  */
 async function prefetchSchemaFormats(schemas, concurrency = 20) {
