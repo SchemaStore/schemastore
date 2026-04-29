@@ -1187,6 +1187,8 @@ async function taskBuildWebsite() {
   await fs.cp('./src/img', './website/img', { recursive: true })
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/js', './website/js', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/.well-known', './website/.well-known', { recursive: true })
 }
 
 async function assertFileSystemIsValid() {
