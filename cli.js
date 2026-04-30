@@ -697,6 +697,7 @@ async function taskCheck() {
       assertFileHasNoBom(schema)
       assertFileHasCorrectExtensions(schema.path, ['.json'])
       await assertFilePassesJsonLint(schema)
+      await assertSchemaDoesNotUseJsonSchemaStoreUrl(schema)
       await assertSchemaHasValidIdField(schema)
       await assertSchemaHasValidSchemaField(schema)
     },
@@ -1736,6 +1737,35 @@ async function assertFileValidatesAgainstSchema(
   } else {
     printSchemaValidationErrorAndExit(filepath, schemaFilepath, ajv.errors)
   }
+}
+
+async function assertSchemaDoesNotUseJsonSchemaStoreUrl(
+  /** @type {SchemaFile} */ schema,
+) {
+  const allowedUrl = 'https://www.schemastore.org'
+  const forbiddenUrl = 'https://json.schemastore.org'
+
+  if (!schema.text.includes(forbiddenUrl)) {
+    return
+  }
+
+  const matches = []
+  const forbiddenUrlRegex = /https:\/\/json\.schemastore\.org/g
+
+  for (const [index, line] of schema.text.split('\n').entries()) {
+    for (const match of line.matchAll(forbiddenUrlRegex)) {
+      const lineNumber = index + 1
+      const columnStart = (match.index ?? 0) + 1
+      matches.push(`${schema.path}:${lineNumber}:${columnStart}`)
+    }
+  }
+
+  printErrorAndExit(new Error(), [
+    `Expected schema file "./${schema.path}" to not use "${forbiddenUrl}"`,
+    `Use "${allowedUrl}" instead`,
+    `Failed to successfully validate file "./${schema.path}"`,
+    ...matches.map((match) => `  - ${match}`),
+  ])
 }
 
 async function assertSchemaHasValidSchemaField(
