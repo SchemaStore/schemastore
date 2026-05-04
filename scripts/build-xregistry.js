@@ -112,24 +112,74 @@ function groupByDomain(schemas) {
 }
 
 /**
- * Determines the schema format by fetching the schema and reading its $schema URI.
+ * Parses a $schema URI into a format string.
+ * @param {string} schemaUri - The $schema value.
+ * @returns {string} - The schema format (e.g., JsonSchema/draft-07).
+ */
+function parseSchemaFormat(schemaUri) {
+  const draftMatch = /draft-(\d+)[-\w]*/i.exec(schemaUri)
+  if (draftMatch) {
+    return `JsonSchema/draft-${draftMatch[1]}`
+  }
+  return 'JsonSchema'
+}
+
+/**
+ * Determines the schema format for a local schemastore.org schema by reading
+ * the file directly, or for an external schema by fetching it.
  * @param {string} schemaUrl - The schema URL.
  * @returns {Promise<string>} - The schema format (e.g., JsonSchema/draft-07).
  */
 async function getSchemaFormat(schemaUrl) {
   try {
+    const parsed = new URL(schemaUrl)
+    if (
+      parsed.hostname === 'www.schemastore.org' ||
+      parsed.hostname === 'json.schemastore.org'
+    ) {
+      // Read directly from the local checkout instead of making a network request
+      const filename = parsed.pathname.replace(/^\//, '')
+      const schemasDir = path.resolve(__dirname, '../src/schemas/json')
+      const localPath = path.resolve(schemasDir, filename)
+      // Guard against path traversal
+      if (!localPath.startsWith(schemasDir + path.sep)) {
+        return 'JsonSchema'
+      }
+      const data = JSON.parse(await fs.readFile(localPath, 'utf-8'))
+      return parseSchemaFormat(data.$schema || '')
+    }
     const res = await fetch(schemaUrl)
     /** @type {any} */
     const data = await res.json()
-    const schemaUri = data.$schema || ''
-    const draftMatch = /draft-(\d+)[-\w]*/i.exec(schemaUri)
-    if (draftMatch) {
-      return `JsonSchema/draft-${draftMatch[1]}`
-    }
-    return 'JsonSchema'
+    return parseSchemaFormat(data.$schema || '')
   } catch {
     return 'JsonSchema'
   }
+}
+
+/**
+ * Pre-fetches schema formats for all catalog entries in parallel (batched).
+ * Using a concurrency of 20 balances speed against overwhelming remote servers.
+ * @param {Array<{ url: string }>} schemas - Catalog schema entries.
+ * @param {number} [concurrency=20] - Max simultaneous operations.
+ * @returns {Promise<Map<string, string>>} - Map from schema URL to format string.
+ */
+async function prefetchSchemaFormats(schemas, concurrency = 20) {
+  /** @type {Map<string, string>} */
+  const formatMap = new Map()
+  for (let i = 0; i < schemas.length; i += concurrency) {
+    const batch = schemas.slice(i, i + concurrency)
+    const results = await Promise.all(
+      batch.map(async (schema) => ({
+        url: schema.url,
+        format: await getSchemaFormat(schema.url),
+      })),
+    )
+    for (const { url, format } of results) {
+      formatMap.set(url, format)
+    }
+  }
+  return formatMap
 }
 
 /**
@@ -219,6 +269,14 @@ async function buildXRegistry() {
   // Read catalog
   const catalog = await readJsonFile(SOURCE_CATALOG)
   const totalSchemas = catalog.schemas.length
+
+  // Pre-fetch all schema formats in parallel to avoid sequential HTTP requests
+  console.info(
+    `Pre-fetching schema formats for ${totalSchemas} schemas in parallel...`,
+  )
+  const formatMap = await prefetchSchemaFormats(catalog.schemas)
+  console.info('Schema format pre-fetch complete.')
+
   let processedSchemas = 0
 
   // Build grouping in memory
@@ -228,7 +286,6 @@ async function buildXRegistry() {
       `Processing schema ${processedSchemas}/${totalSchemas}: ${schema.url}`,
     )
     const url = schema.url
-    console.info(`Determining schema format for ${url}...`)
     // Map json.schemastore.org domain to schemastore.org
     let domain = extractDomain(url)
     if (domain === 'json.schemastore.org') {
@@ -260,8 +317,7 @@ async function buildXRegistry() {
     if (domainConflict) continue
 
     // derive precise format by inspecting the schema's $schema URI
-    const format = await getSchemaFormat(url)
-    console.info(`Determined format ${format} for schema ${url}`)
+    const format = formatMap.get(url) ?? 'JsonSchema'
 
     // Derive schema id from filename, fallback to name
     const filename = path.basename(new URL(url).pathname)
