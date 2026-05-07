@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/schemastore-schemastore-badge.png)](https://mseep.ai/app/schemastore-schemastore)
+
 # JSON Schema Store
 
 The largest collection of independent JSON schemas in the world.
