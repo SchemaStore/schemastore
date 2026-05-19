@@ -69,6 +69,13 @@
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Argument list for exec form. When present, spawns the command directly without shell interpretation — each element is passed as-is, so path placeholders never need quoting. See https://code.claude.com/docs/en/hooks#command-hook-fields"
             }
           }
         },
@@ -104,6 +111,11 @@
             "statusMessage": {
               "type": "string",
               "description": "Custom spinner message displayed while the hook runs"
+            },
+            "continueOnBlock": {
+              "type": "boolean",
+              "default": false,
+              "description": "When the prompt returns ok: false, feed the reason back to Claude and continue the turn instead of stopping. Implemented as continue: true on the resulting decision: \"block\". See https://code.claude.com/docs/en/hooks#prompt-hook-configuration"
             }
           }
         },
@@ -410,6 +422,10 @@
           "type": "string",
           "description": "Google Vertex AI project ID"
         },
+        "ANTHROPIC_WORKSPACE_ID": {
+          "type": "string",
+          "description": "Workspace ID for workload identity federation. Scopes the minted token to a specific workspace when the federation rule covers more than one. See https://code.claude.com/docs/en/env-vars"
+        },
         "API_TIMEOUT_MS": {
           "type": "string",
           "description": "API request timeout in milliseconds (default: 600000)"
@@ -522,6 +538,11 @@
           "description": "Disable adaptive reasoning",
           "enum": ["0", "1"]
         },
+        "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": {
+          "type": "string",
+          "description": "Disable alternate screen buffer rendering. When set to 1, keeps conversation in native scrollback instead of fullscreen renderer",
+          "enum": ["0", "1"]
+        },
         "CLAUDE_CODE_DISABLE_ATTACHMENTS": {
           "type": "string",
           "description": "Disable attachment processing",
@@ -632,9 +653,19 @@
           "description": "Refresh plugins at turn boundaries",
           "enum": ["0", "1"]
         },
+        "CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL": {
+          "type": "string",
+          "description": "Enable feedback survey collection via OpenTelemetry for enterprises",
+          "enum": ["0", "1"]
+        },
         "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": {
           "type": "string",
           "description": "Force fine-grained tool output streaming",
+          "enum": ["0", "1"]
+        },
+        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": {
+          "type": "string",
+          "description": "Enable model discovery from LLM gateway /v1/models endpoint when ANTHROPIC_BASE_URL points at an Anthropic-compatible gateway",
           "enum": ["0", "1"]
         },
         "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION": {
@@ -668,6 +699,11 @@
         "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": {
           "type": "string",
           "description": "Token limit for file read operations"
+        },
+        "CLAUDE_CODE_FORCE_SYNC_OUTPUT": {
+          "type": "string",
+          "description": "Force synchronous output flushing. When set to 1, forces synchronized output on terminals that auto-detection misses (e.g., Emacs eat)",
+          "enum": ["0", "1"]
         },
         "CLAUDE_CODE_FORK_SUBAGENT": {
           "type": "string",
@@ -754,6 +790,11 @@
           "type": "string",
           "description": "OAuth access token"
         },
+        "CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE": {
+          "type": "string",
+          "enum": ["0", "1"],
+          "description": "Set to 1 to pin fast mode to Claude Opus 4.6 instead of the default Opus 4.7. With this set, /fast runs on Opus 4.6. Without it, /fast runs on Opus 4.7. See https://code.claude.com/docs/en/fast-mode and https://code.claude.com/docs/en/env-vars"
+        },
         "CLAUDE_CODE_OTEL_FLUSH_TIMEOUT_MS": {
           "type": "string",
           "description": "OpenTelemetry span flush timeout in milliseconds (default: 5000)"
@@ -765,6 +806,11 @@
         "CLAUDE_CODE_OTEL_SHUTDOWN_TIMEOUT_MS": {
           "type": "string",
           "description": "OpenTelemetry shutdown timeout in milliseconds (default: 2000)"
+        },
+        "CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE": {
+          "type": "string",
+          "description": "Enable automatic package manager updates. When set, Claude Code runs the upgrade command in background on Homebrew/WinGet and prompts to restart",
+          "enum": ["0", "1"]
         },
         "CLAUDE_CODE_PERFORCE_MODE": {
           "type": "string",
@@ -784,9 +830,19 @@
           "description": "Keep plugin cache on update failure",
           "enum": ["0", "1"]
         },
+        "CLAUDE_CODE_PLUGIN_PREFER_HTTPS": {
+          "type": "string",
+          "enum": ["0", "1"],
+          "description": "Set to 1 to clone GitHub owner/repo plugin sources over HTTPS instead of SSH. Useful in CI runners, containers, or environments without a configured SSH key for github.com. See https://code.claude.com/docs/en/env-vars"
+        },
         "CLAUDE_CODE_PLUGIN_SEED_DIR": {
           "type": "string",
           "description": "Path(s) to pre-populated plugin directories"
+        },
+        "CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY": {
+          "type": "string",
+          "enum": ["0", "1"],
+          "description": "Set to 1 to stop Claude Code from passing -ExecutionPolicy Bypass when spawning PowerShell for tool calls, hooks, and status line commands. By default Claude Code bypasses execution policy so .ps1 scripts work on default-Restricted Windows installs. See https://code.claude.com/docs/en/env-vars"
         },
         "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST": {
           "type": "string",
@@ -866,6 +922,10 @@
           "type": "string",
           "description": "Skip Google authentication for Vertex AI",
           "enum": ["0", "1"]
+        },
+        "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": {
+          "type": "string",
+          "description": "Override the default maximum consecutive Stop hook blocks (default: 8) before the turn ends with a warning. Raise this when a stop hook legitimately needs more than 8 iterations to converge. See https://code.claude.com/docs/en/hooks-guide"
         },
         "CLAUDE_CODE_SUBAGENT_MODEL": {
           "type": "string",
@@ -973,31 +1033,6 @@
         "USE_BUILTIN_RIPGREP": {
           "type": "string",
           "description": "Use the bundled ripgrep binary instead of system ripgrep",
-          "enum": ["0", "1"]
-        },
-        "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": {
-          "type": "string",
-          "description": "Disable alternate screen buffer rendering. When set to 1, keeps conversation in native scrollback instead of fullscreen renderer",
-          "enum": ["0", "1"]
-        },
-        "CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL": {
-          "type": "string",
-          "description": "Enable feedback survey collection via OpenTelemetry for enterprises",
-          "enum": ["0", "1"]
-        },
-        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": {
-          "type": "string",
-          "description": "Enable model discovery from LLM gateway /v1/models endpoint when ANTHROPIC_BASE_URL points at an Anthropic-compatible gateway",
-          "enum": ["0", "1"]
-        },
-        "CLAUDE_CODE_FORCE_SYNC_OUTPUT": {
-          "type": "string",
-          "description": "Force synchronous output flushing. When set to 1, forces synchronized output on terminals that auto-detection misses (e.g., Emacs eat)",
-          "enum": ["0", "1"]
-        },
-        "CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE": {
-          "type": "string",
-          "description": "Enable automatic package manager updates. When set, Claude Code runs the upgrade command in background on Homebrew/WinGet and prompts to restart",
           "enum": ["0", "1"]
         }
       },
@@ -1153,7 +1188,7 @@
     },
     "fastMode": {
       "type": "boolean",
-      "description": "Enable fast mode for Opus 4.6 (research preview). Fast mode uses the same model with 2.5x faster output at higher per-token cost. Requires extra usage enabled. Alternatively, toggle with /fast command. See https://code.claude.com/docs/en/fast-mode",
+      "description": "Enable fast mode, which uses Claude Opus 4.7 by default for 2.5x faster output at higher per-token cost. Requires extra usage enabled. Toggle with /fast command. Set CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE=1 to pin fast mode to Opus 4.6. See https://code.claude.com/docs/en/fast-mode",
       "default": false
     },
     "fastModePerSessionOptIn": {
@@ -1165,7 +1200,7 @@
       "type": "number",
       "minimum": 0,
       "maximum": 1,
-      "description": "Probability (0\u20131) that the session quality survey appears when eligible. A value of 0.05 means 5% of eligible sessions. See https://code.claude.com/docs/en/settings#available-settings",
+      "description": "Probability (0–1) that the session quality survey appears when eligible. A value of 0.05 means 5% of eligible sessions. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [0.05]
     },
     "enableAllProjectMcpServers": {
@@ -1565,6 +1600,10 @@
           "type": "integer",
           "minimum": 1,
           "description": "Re-run the status line command every N seconds in addition to event-driven updates. Leave unset to run only on events. Useful for time-based data like clocks, or when background subagents change git state while the main session is idle. See https://code.claude.com/docs/en/statusline"
+        },
+        "hideVimModeIndicator": {
+          "type": "boolean",
+          "description": "Set to true when your status line script renders the vim mode indicator itself, to suppress the built-in vim mode display. See https://code.claude.com/docs/en/statusline#manually-configure-a-status-line"
         }
       },
       "required": ["type", "command"],
@@ -2172,6 +2211,10 @@
           "type": "string",
           "minLength": 1,
           "description": "(Managed setting only) Path to custom socat binary for Linux/WSL network proxying. Overrides default. See https://code.claude.com/docs/en/server-managed-settings"
+        },
+        "failIfUnavailable": {
+          "type": "boolean",
+          "description": "When true, make sandbox startup a hard failure if required sandbox dependencies are missing. Default: false (sandbox is skipped with a warning). See https://code.claude.com/docs/en/sandboxing#enable-sandboxing"
         }
       },
       "additionalProperties": false
@@ -2242,7 +2285,12 @@
         "enum": ["on", "name-only", "user-invocable-only", "off"]
       },
       "description": "Per-skill visibility overrides. Controls whether skills appear to Claude and in the / picker. Values: 'on' (name and description shown, default), 'name-only' (name only), 'user-invocable-only' (hidden from Claude, visible in /), 'off' (hidden everywhere). Plugin skills are not affected by this setting. See https://code.claude.com/docs/en/skills#override-skill-visibility-from-settings",
-      "examples": [{ "legacy-context": "name-only", "deploy": "off" }]
+      "examples": [
+        {
+          "legacy-context": "name-only",
+          "deploy": "off"
+        }
+      ]
     },
     "prefersReducedMotion": {
       "type": "boolean",
@@ -2291,6 +2339,12 @@
           "enum": ["fresh", "head"],
           "default": "fresh",
           "description": "Whether to branch worktrees from origin/<default> (fresh) or local HEAD (head). Default: fresh. Set to 'head' to preserve unpushed commits in new worktrees. See https://code.claude.com/docs/en/settings#worktree-settings"
+        },
+        "bgIsolation": {
+          "type": "string",
+          "enum": ["worktree", "none"],
+          "default": "worktree",
+          "description": "Isolation mode for background sessions. \"worktree\" blocks Edit/Write in main checkout until EnterWorktree is called; \"none\" lets background jobs edit the working copy directly without EnterWorktree, for repos where worktrees are impractical. See https://code.claude.com/docs/en/settings#worktree-settings"
         }
       }
     },
@@ -2576,7 +2630,7 @@
     },
     "channelsEnabled": {
       "type": "boolean",
-      "description": "(Teams/Enterprise) Opt-in for channel notifications \u2014 MCP servers with the claude/channel capability pushing inbound messages. Default off. When true, users can select servers via --channels. See https://code.claude.com/docs/en/mcp",
+      "description": "(Teams/Enterprise) Opt-in for channel notifications — MCP servers with the claude/channel capability pushing inbound messages. Default off. When true, users can select servers via --channels. See https://code.claude.com/docs/en/mcp",
       "default": false
     },
     "defaultShell": {
@@ -2654,6 +2708,24 @@
     "wslInheritsWindowsSettings": {
       "type": "boolean",
       "description": "(Windows managed settings only) When true, Claude Code on WSL reads managed settings from the Windows policy chain in addition to /etc/claude-code, with Windows sources taking priority. Only honored when set in the HKLM registry key or C:\\Program Files\\ClaudeCode\\managed-settings.json, both of which require Windows admin to write. For HKCU policy to also apply on WSL, the flag must additionally be set in HKCU itself. Has no effect on native Windows. See https://code.claude.com/docs/en/settings#available-settings"
+    },
+    "subagentStatusLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Status line configuration for subagent sessions. See https://code.claude.com/docs/en/statusline#subagent-status-lines",
+      "required": ["type", "command"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "command",
+          "description": "Must be \"command\""
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to run for the subagent status line",
+          "minLength": 1
+        }
+      }
     }
   },
   "title": "Claude Code Settings"
