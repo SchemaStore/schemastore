@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.schemastore.org/pgrls.json",
+  "title": "pgrls configuration",
+  "description": "Configuration file (pgrls.toml) for pgrls, the Postgres Row-Level Security linter. Rule reference: https://github.com/pgrls/pgrls/blob/main/AGENTS.md",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "extends": {
+      "description": "Path, or list of paths, to base pgrls.toml file(s) merged beneath this one. Later list entries and this file's own keys take precedence.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Database connection and scan scope.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Postgres connection string. $VAR and ${VAR} are interpolated from the environment. Prefer leaving this unset and passing --database-url (or $DATABASE_URL) at runtime so secrets stay out of version control."
+        },
+        "schemas": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Schemas to lint.",
+          "default": ["public"]
+        }
+      }
+    },
+    "lint": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Lint behavior.",
+      "properties": {
+        "fail_on": {
+          "$ref": "#/$defs/severity",
+          "description": "Severity that makes `pgrls lint` exit non-zero. CI gates on this.",
+          "default": "warning"
+        },
+        "disable": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rule IDs to disable entirely (case-insensitive), e.g. [\"SEC022\", \"PERF002\"]."
+        },
+        "rules": {
+          "type": "object",
+          "description": "Per-rule settings, keyed by rule ID — e.g. a [lint.rules.SEC001] table.",
+          "additionalProperties": { "$ref": "#/$defs/ruleOptions" }
+        }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Behavior of `pgrls diff`.",
+      "properties": {
+        "fail_on": {
+          "type": "string",
+          "enum": ["safe", "breaking", "requires-review", "dangerous"],
+          "description": "Change classification at or above which `pgrls diff` exits non-zero.",
+          "default": "dangerous"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning", "info"]
+    },
+    "ruleOptions": {
+      "type": "object",
+      "description": "Settings for a single rule.",
+      "properties": {
+        "severity": {
+          "$ref": "#/$defs/severity",
+          "description": "Remap this rule's emitted severity without disabling it (promote an info nudge to a CI-blocking error, or demote a noisy warning)."
+        },
+        "allowlist": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Objects exempt from this rule. Entry shape depends on the rule: a policy ID (schema.table.policy), a table reference (table or schema.table), a role name, a qualified view/function, etc."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
