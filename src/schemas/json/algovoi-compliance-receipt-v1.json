@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/algovoi-compliance-receipt-v1.json",
+  "title": "AlgoVoi Compliance Receipt v1",
+  "description": "Categorical compliance screening receipt for agentic-payment flows. Emitted by a screening provider when a wallet, agent, or payee passes the regulatory gate at admission time. Retained as part of an audit chain under framework-bound retention obligations (UK MLR 2017, EU AMLD5/6, MiCA Art. 80, AMLR Art. 56, DORA Art. 14). The categorical screen result (ALLOW / REFER / DENY) is load-bearing for downstream regulatory obligations -- a REFER under UK POCA 2002 s.330 carries a mandatory SAR obligation that a DENY does not, so a score / tier projection is NOT a valid substitute. Canonicalisation discipline pinned in-band via canon_version; see https://github.com/x402-foundation/x402/pull/2436.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "payer_ref",
+    "screen_result",
+    "screen_timestamp_ms",
+    "screen_provider_did",
+    "jurisdiction_flags",
+    "canon_version"
+  ],
+  "properties": {
+    "payer_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Content-addressed identity reference for the payer. Typically of the form 'sha256:<lowercase-hex>' where the hash is taken over the JCS-canonical bytes of an identity object. The receipt MUST NOT carry cleartext identity content -- only the content-addressed reference -- so the screening provider's retention layer is GDPR Art. 5(1)(c) minimal by construction.",
+      "examples": [
+        "sha256:0dd5d0b76c9b9281fdeb2509ad38ab132b16a17385ca01d976ff9e6e12563a0f"
+      ]
+    },
+    "screen_result": {
+      "type": "string",
+      "enum": ["ALLOW", "REFER", "DENY"],
+      "description": "Categorical screening outcome. ALLOW = clear to proceed under regulatory gate. REFER = enhanced due diligence required (and under UK POCA 2002 s.330 a mandatory SAR obligation if jurisdiction includes UK). DENY = transaction refused under sanctions / AML rule. Closed set; a score / tier projection is NOT a valid substitute and would lose the SAR distinction."
+    },
+    "screen_timestamp_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Epoch-millisecond integer timestamp of the screening decision. Substrate Rule 1: timestamp_ms MUST be an integer, not a float, not an RFC 3339 string -- the integer-millisecond shape is what makes year-five re-canonicalisation deterministic from retained bytes alone."
+    },
+    "screen_provider_did": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^did:[a-z0-9]+:.+$",
+      "description": "Decentralised Identifier of the screening provider. Most production deployments use did:web (e.g. did:web:api.algovoi.co.uk) so the public key for verification is resolvable via the DID Document at https://<host>/.well-known/did.json.",
+      "examples": ["did:web:api.algovoi.co.uk"]
+    },
+    "jurisdiction_flags": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Jurisdiction code (typically ISO 3166-1 alpha-2 or the regional aggregate code such as EU)."
+      },
+      "uniqueItems": false,
+      "description": "Ordered list of jurisdictions under which the screening was performed. Element order is load-bearing: per RFC 8785 §3.2.3 array element order is preserved in canonicalisation, so ['UK','EU'] and ['EU','UK'] produce distinct canonical bytes and distinct SHA-256 hashes. Producer-side ordering MUST match the order under which the regulatory rules were applied.",
+      "examples": [["UK", "EU"], ["UK"], ["EU", "DE"]]
+    },
+    "canon_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "In-band canonicalisation rule version pin. Carries the version of the JCS canonicalisation discipline active at emission time, so a year-five re-canonicalisation against retained bytes alone knows which rule to apply. The discipline is defined in x402-foundation/x402 PR #2436 (three-voice coalition co-signed). Current value: jcs-rfc8785-v1.",
+      "enum": ["jcs-rfc8785-v1"],
+      "examples": ["jcs-rfc8785-v1"]
+    }
+  }
+}
