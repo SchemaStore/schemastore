@@ -84,6 +84,24 @@ function collectValuesByPath(data, path) {
       }
     }
     deepCollect(data)
+    // If name-based search found nothing (def is used as array items or
+    // additionalProperties values, not as a named key), fall back to all
+    // string values in the data. Covers permissionRule, builtinAction, etc.
+    if (values.length === 0) {
+      function collectAllStrings(current) {
+        if (typeof current === 'string') {
+          values.push(current)
+          return
+        }
+        if (!current || typeof current !== 'object') return
+        if (Array.isArray(current)) {
+          for (const item of current) collectAllStrings(item)
+          return
+        }
+        for (const val of Object.values(current)) collectAllStrings(val)
+      }
+      collectAllStrings(data)
+    }
     return values
   }
 
@@ -226,10 +244,25 @@ function walkProperties(schema, currentPath = '') {
     if (defs && typeof defs === 'object' && !Array.isArray(defs)) {
       for (const [defName, defSchema] of Object.entries(defs)) {
         if (defSchema && typeof defSchema === 'object') {
+          const defPath = `#${defsKey}/${defName}`
+          // Emit the def itself if it is a leaf schema (enum/pattern/type
+          // directly on the def, not via child properties). This covers
+          // reusable string-enum defs like context or builtinAction.
+          if (
+            Array.isArray(defSchema.enum) ||
+            typeof defSchema.pattern === 'string' ||
+            (defSchema.type && !defSchema.properties)
+          ) {
+            results.push({
+              path: defPath,
+              name: defName,
+              propSchema: /** @type {Record<string, unknown>} */ (defSchema),
+            })
+          }
           results.push(
             ...walkProperties(
               /** @type {Record<string, unknown>} */ (defSchema),
-              `#${defsKey}/${defName}`,
+              defPath,
             ),
           )
         }
