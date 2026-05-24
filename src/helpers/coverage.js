@@ -400,7 +400,7 @@ export function checkDescriptionCoverage(schema) {
     status: missing.length === 0 ? 'pass' : 'fail',
     totalProperties: nonDefProps.length,
     missingCount: missing.length,
-    missing: missing.slice(0, 20).map((p) => p.path),
+    missing: missing.map((p) => p.path),
   }
 }
 
@@ -471,7 +471,7 @@ export function checkEnumCoverage(schema, positiveTests, negativeTests) {
       issues.push({
         path: ePath,
         type: 'positive_uncovered',
-        values: uncovered.slice(0, 10),
+        values: uncovered,
         testedFiles,
       })
     }
@@ -490,7 +490,7 @@ export function checkEnumCoverage(schema, positiveTests, negativeTests) {
   return {
     status: issues.length === 0 ? 'pass' : 'fail',
     totalEnums: enums.length,
-    issues: issues.slice(0, 20),
+    issues: issues,
   }
 }
 
@@ -569,7 +569,7 @@ export function checkPatternCoverage(schema, positiveTests, negativeTests) {
   return {
     status: issues.length === 0 ? 'pass' : 'fail',
     totalPatterns: patterns.length,
-    issues: issues.slice(0, 20),
+    issues: issues,
   }
 }
 
@@ -621,7 +621,7 @@ export function checkRequiredCoverage(schema, negativeTests) {
     status: issues.length === 0 ? 'pass' : 'warn',
     totalRequiredGroups: requiredGroups.length,
     note: 'Heuristic: name-based matching, not path-aware',
-    uncovered: issues.slice(0, 20),
+    uncovered: issues,
   }
 }
 
@@ -682,7 +682,7 @@ export function checkDefaultCoverage(schema, positiveTests) {
   return {
     status: issues.length === 0 ? 'pass' : 'fail',
     totalDefaults: defaults.length,
-    issues: issues.slice(0, 20),
+    issues: issues,
   }
 }
 
@@ -853,7 +853,7 @@ export function checkNegativeIsolation(schema, negativeTests) {
     status: multiViolationFiles.length === 0 ? 'pass' : 'warn',
     totalNegativeTests: negativeTests.size,
     note: 'Heuristic — all checks match by property name, not JSON path. When the same name (e.g., "source", "type") appears at different schema depths with different constraints, violations may be misattributed. For each flagged file, verify that reported violation types reflect intentional test inputs at the correct nesting level, not collisions between unrelated schema depths',
-    multiViolationFiles: multiViolationFiles.slice(0, 20),
+    multiViolationFiles: multiViolationFiles,
   }
 }
 
