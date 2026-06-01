@@ -1,0 +1,390 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.schemastore.org/intlayer.json",
+  "title": "Dictionary",
+  "description": "JSON Schema Intlayer Dictionary",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "projectIds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "localId": {
+      "type": "string"
+    },
+    "localIds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "format": {
+      "type": "string",
+      "enum": ["intlayer", "icu", "i18next", "vue-i18n", "po"]
+    },
+    "key": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "versions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "version": {
+      "type": "string"
+    },
+    "filePath": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string"
+    },
+    "contentAutoTransformation": {
+      "anyOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "properties": {
+            "markdown": { "type": "boolean" },
+            "html": { "type": "boolean" },
+            "insertion": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "fill": {
+      "anyOf": [
+        { "type": "boolean" },
+        { "type": "string" },
+        {
+          "type": "object",
+          "description": "Per-locale fill configuration - object with locale codes as keys and boolean or string values",
+          "additionalProperties": {
+            "anyOf": [{ "type": "boolean" }, { "type": "string" }]
+          }
+        }
+      ]
+    },
+    "filled": {
+      "type": "boolean",
+      "const": true
+    },
+    "priority": {
+      "type": "number"
+    },
+    "importMode": {
+      "type": "string",
+      "enum": ["static", "dynamic", "fetch"]
+    },
+    "location": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "content": {
+      "$ref": "#/definitions/contentValue",
+      "type": "object",
+      "description": "Represents content of the dictionary to be processed."
+    }
+  },
+  "required": ["key", "content"],
+  "additionalProperties": false,
+
+  "definitions": {
+    "contentValue": {
+      "description": "Any valid content node or scalar value.",
+      "anyOf": [
+        { "$ref": "#/definitions/stringValue" },
+        { "$ref": "#/definitions/numberValue" },
+        { "$ref": "#/definitions/booleanValue" },
+        { "$ref": "#/definitions/nullValue" },
+        { "$ref": "#/definitions/arrayValue" },
+        {
+          "if": {
+            "type": "object",
+            "properties": { "nodeType": { "type": "string" } },
+            "required": ["nodeType"]
+          },
+          "then": {
+            "anyOf": [
+              { "$ref": "#/definitions/translationContent" },
+              { "$ref": "#/definitions/enumerationContent" },
+              { "$ref": "#/definitions/pluralContent" },
+              { "$ref": "#/definitions/conditionContent" },
+              { "$ref": "#/definitions/insertionContent" },
+              { "$ref": "#/definitions/markdownContent" },
+              { "$ref": "#/definitions/nestedContent" },
+              { "$ref": "#/definitions/fileContent" },
+              { "$ref": "#/definitions/genderContent" }
+            ]
+          },
+          "else": { "$ref": "#/definitions/objectValue" }
+        }
+      ]
+    },
+
+    "stringValue": {
+      "type": "string",
+      "description": "Represents a simple string or a placeholder for a function/promise."
+    },
+    "numberValue": {
+      "type": "number",
+      "description": "Represents a simple numeric value."
+    },
+    "booleanValue": {
+      "type": "boolean",
+      "description": "Represents a simple boolean value."
+    },
+    "nullValue": {
+      "type": "null",
+      "description": "Represents a simple null value."
+    },
+    "objectValue": {
+      "type": "object",
+      "description": "Represents an object shape { [key: string]: ContentValue }.",
+      "additionalProperties": {
+        "$ref": "#/definitions/contentValue"
+      }
+    },
+
+    "arrayValue": {
+      "type": "array",
+      "description": "Represents an array of content values.",
+      "items": {
+        "$ref": "#/definitions/contentValue"
+      }
+    },
+
+    "translationContent": {
+      "type": "object",
+      "description": "Represents a translation node.",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "translation"
+        },
+        "translation": {
+          "type": "object",
+          "description": "Translation object with arbitrary locale codes as keys.",
+          "additionalProperties": {
+            "$ref": "#/definitions/contentValue"
+          }
+        }
+      },
+      "required": ["nodeType", "translation"],
+      "additionalProperties": false
+    },
+
+    "enumerationContent": {
+      "type": "object",
+      "description": "Represents an enumeration node.",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "enumeration"
+        },
+        "enumeration": {
+          "type": "object",
+          "description": "Enumeration object (keys can be numeric strings, comparison strings, or 'fallback').",
+          "additionalProperties": {
+            "$ref": "#/definitions/contentValue"
+          }
+        }
+      },
+      "required": ["nodeType", "enumeration"],
+      "additionalProperties": false
+    },
+
+    "conditionContent": {
+      "type": "object",
+      "description": "Represents a condition node.",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "condition"
+        },
+        "condition": {
+          "type": "object",
+          "description": "Condition object with keys like 'true', 'false', 'fallback'.",
+          "properties": {
+            "true": { "$ref": "#/definitions/contentValue" },
+            "false": { "$ref": "#/definitions/contentValue" },
+            "fallback": { "$ref": "#/definitions/contentValue" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["nodeType", "condition"],
+      "additionalProperties": false
+    },
+
+    "insertionContent": {
+      "type": "object",
+      "description": "Represents an insertion node with a string that may have placeholders.",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "insertion"
+        },
+        "insertion": {
+          "$ref": "#/definitions/contentValue"
+        }
+      },
+      "required": ["nodeType", "insertion"],
+      "additionalProperties": false
+    },
+
+    "markdownContent": {
+      "type": "object",
+      "description": "Represents a markdown node (either plain string or another content node).",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "markdown"
+        },
+        "markdown": {
+          "$ref": "#/definitions/contentValue"
+        }
+      },
+      "required": ["nodeType", "markdown"],
+      "additionalProperties": false
+    },
+
+    "fileContent": {
+      "type": "object",
+      "description": "Represents a file node, referencing an external file path.",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "file"
+        },
+        "file": {
+          "type": "string",
+          "description": "Represents a file path."
+        }
+      },
+      "required": ["nodeType", "file"],
+      "additionalProperties": false
+    },
+
+    "nestedContent": {
+      "type": "object",
+      "description": "Represents a reference to another dictionary node (by dictionaryKey + path).",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "nested"
+        },
+        "nested": {
+          "type": "object",
+          "properties": {
+            "dictionaryKey": { "type": "string" },
+            "path": { "type": "string" }
+          },
+          "required": ["dictionaryKey"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["nodeType", "nested"],
+      "additionalProperties": false
+    },
+
+    "reactNode": {
+      "type": "object",
+      "description": "A React node structure. Not strictly enforceable, but we allow typical React props.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "React element type (e.g., 'div', 'span', 'code', etc.)."
+        },
+        "key": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+        "_owner": {
+          "anyOf": [{ "type": "object" }, { "type": "null" }]
+        },
+        "_store": { "type": "object" },
+        "props": {
+          "type": "object",
+          "properties": {
+            "children": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      { "type": "string" },
+                      { "$ref": "#/definitions/reactNode" }
+                    ]
+                  }
+                },
+                { "$ref": "#/definitions/reactNode" }
+              ]
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["props"],
+      "additionalProperties": true
+    },
+
+    "pluralContent": {
+      "type": "object",
+      "description": "Represents a plural node using CLDR pluralization rules.",
+      "properties": {
+        "nodeType": {
+          "type": "string",
+          "const": "plural"
+        },
+        "plural": {
+          "type": "object",
+          "description": "Plural object with CLDR category keys. 'other' is required as the fallback.",
+          "properties": {
+            "zero": { "$ref": "#/definitions/contentValue" },
+            "one": { "$ref": "#/definitions/contentValue" },
+            "two": { "$ref": "#/definitions/contentValue" },
+            "few": { "$ref": "#/definitions/contentValue" },
+            "many": { "$ref": "#/definitions/contentValue" },
+            "other": { "$ref": "#/definitions/contentValue" }
+          },
+          "required": ["other"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["nodeType", "plural"],
+      "additionalProperties": false
+    },
+
+    "genderContent": {
+      "type": "object",
+      "description": "Represents a gender node.",
+      "properties": {
+        "nodeType": { "type": "string", "const": "gender" },
+        "gender": { "$ref": "#/definitions/contentValue" }
+      },
+      "required": ["nodeType", "gender"],
+      "additionalProperties": false
+    }
+  }
+}
