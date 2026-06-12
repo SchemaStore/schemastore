@@ -2,6 +2,11 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/ryl.json",
   "definitions": {
+    "AllRulesSelector": {
+      "description": "The `ALL` keyword accepted in a `per-line-ignores` `rules` list.",
+      "enum": ["ALL"],
+      "type": "string"
+    },
     "FilesTable": {
       "additionalProperties": false,
       "description": "File-to-source-kind glob mapping (ryl-only; TOML). Each kind selects which\nfiles are linted as that kind. A file matching more than one kind is an error.",
@@ -126,6 +131,37 @@
       "enum": ["unix", "dos", "platform"],
       "type": "string"
     },
+    "PerLineIgnore": {
+      "additionalProperties": false,
+      "description": "A single `per-line-ignores` entry. Suppresses `rules` on source lines matching\n`regex` (the whole physical line, unanchored) within files matching `path` (a\nglob). All present fields must match (logical AND); at least one of `regex`/`path`\nis required (validated in `validate_toml_config`), so an entry can't disable a rule\nglobally.",
+      "properties": {
+        "path": {
+          "type": ["string", "null"]
+        },
+        "regex": {
+          "type": ["string", "null"]
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/definitions/PerLineRule"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["rules"],
+      "type": "object"
+    },
+    "PerLineRule": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/AllRulesSelector"
+        },
+        {
+          "$ref": "#/definitions/RuleName"
+        }
+      ],
+      "description": "A `per-line-ignores` rule selector: a built-in rule name, or `ALL` to suppress\nevery rule on a matching line. Untagged so `\"ALL\"` and rule names share one list."
+    },
     "QuoteType": {
       "enum": ["any", "single", "double", "consistent"],
       "type": "string"
@@ -182,6 +218,20 @@
         },
         {
           "$ref": "#/definitions/RuleOptionsForCommasOptions"
+        }
+      ],
+      "description": "Common rule entry shape used by TOML config."
+    },
+    "RuleEntryForCommentsIndentationOptions": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/RuleSwitch"
+        },
+        {
+          "$ref": "#/definitions/RuleOptionsForCommentsIndentationOptions"
         }
       ],
       "description": "Common rule entry shape used by TOML config."
@@ -252,20 +302,6 @@
         },
         {
           "$ref": "#/definitions/RuleOptionsForFloatValuesOptions"
-        }
-      ],
-      "description": "Common rule entry shape used by TOML config."
-    },
-    "RuleEntryForHyphensOptions": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "$ref": "#/definitions/RuleSwitch"
-        },
-        {
-          "$ref": "#/definitions/RuleOptionsForHyphensOptions"
         }
       ],
       "description": "Common rule entry shape used by TOML config."
@@ -378,6 +414,20 @@
         },
         {
           "$ref": "#/definitions/RuleOptionsForTomlAnchorsOptions"
+        }
+      ],
+      "description": "Common rule entry shape used by TOML config."
+    },
+    "RuleEntryForTomlHyphensOptions": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/RuleSwitch"
+        },
+        {
+          "$ref": "#/definitions/RuleOptionsForTomlHyphensOptions"
         }
       ],
       "description": "Common rule entry shape used by TOML config."
@@ -610,6 +660,46 @@
       },
       "type": "object"
     },
+    "RuleOptionsForCommentsIndentationOptions": {
+      "additionalProperties": false,
+      "description": "Common rule fields plus rule-specific options.",
+      "properties": {
+        "allow-any-open-indent": {
+          "type": ["boolean", "null"]
+        },
+        "ignore": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-from-file": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
     "RuleOptionsForCommentsOptions": {
       "additionalProperties": false,
       "description": "Common rule fields plus rule-specific options.",
@@ -833,46 +923,6 @@
         },
         "require-numeral-before-decimal": {
           "type": ["boolean", "null"]
-        }
-      },
-      "type": "object"
-    },
-    "RuleOptionsForHyphensOptions": {
-      "additionalProperties": false,
-      "description": "Common rule fields plus rule-specific options.",
-      "properties": {
-        "ignore": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/StringOrVec"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ignore-from-file": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/StringOrVec"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "level": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RuleLevel"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "max-spaces-after": {
-          "type": ["integer", "null"]
         }
       },
       "type": "object"
@@ -1251,6 +1301,49 @@
       },
       "type": "object"
     },
+    "RuleOptionsForTomlHyphensOptions": {
+      "additionalProperties": false,
+      "description": "Common rule fields plus rule-specific options.",
+      "properties": {
+        "dash-on-own-line": {
+          "type": ["boolean", "null"]
+        },
+        "ignore": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-from-file": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max-spaces-after": {
+          "type": ["integer", "null"]
+        }
+      },
+      "type": "object"
+    },
     "RuleOptionsForTomlKeyDuplicatesOptions": {
       "additionalProperties": false,
       "description": "Common rule fields plus rule-specific options.",
@@ -1502,7 +1595,7 @@
         "comments-indentation": {
           "anyOf": [
             {
-              "$ref": "#/definitions/RuleEntryForNoOptions"
+              "$ref": "#/definitions/RuleEntryForCommentsIndentationOptions"
             },
             {
               "type": "null"
@@ -1562,7 +1655,7 @@
         "hyphens": {
           "anyOf": [
             {
-              "$ref": "#/definitions/RuleEntryForHyphensOptions"
+              "$ref": "#/definitions/RuleEntryForTomlHyphensOptions"
             },
             {
               "type": "null"
@@ -1824,6 +1917,13 @@
       },
       "description": "Per-file rule ignores.",
       "type": ["object", "null"]
+    },
+    "per-line-ignores": {
+      "description": "Per-line rule ignores: suppress rules on lines/files matching a pattern.",
+      "items": {
+        "$ref": "#/definitions/PerLineIgnore"
+      },
+      "type": ["array", "null"]
     },
     "rules": {
       "anyOf": [
