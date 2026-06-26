@@ -3668,43 +3668,94 @@
     },
     "security": {
       "title": "security options",
-      "description": "The security options\nhttps://gohugo.io/about/security-model/#security-policy",
+      "description": "The security options\nhttps://gohugo.io/configuration/security/",
       "type": "object",
       "default": {
+        "allowContent": ["! ^text/html$"],
         "enableInlineShortcodes": false,
         "exec": {
-          "allow": ["^dart-sass-embedded$", "^go$", "^npx$", "^postcss$"],
-          "osEnv": ["(?i)^(PATH|PATHEXT|APPDATA|TMP|TEMP|TERM)$"]
+          "allow": [
+            "^(dart-)?sass(-embedded)?$",
+            "^go$",
+            "^git$",
+            "^node$",
+            "^postcss$",
+            "^tailwindcss$"
+          ],
+          "osEnv": [
+            "(?i)^((HTTPS?|NO)_PROXY|PATH(EXT)?|APPDATA|TE?MP|TERM|GO\\w+|(XDG_CONFIG_)?HOME|USERPROFILE|SSH_AUTH_SOCK|DISPLAY|LANG|SYSTEMDRIVE|PROGRAMDATA)$"
+          ]
         },
         "funcs": {
-          "getenv": ["^HUGO_"]
+          "getenv": ["^HUGO_", "^CI$"]
         },
         "http": {
           "methods": ["(?i)GET|POST"],
-          "urls": [".*"]
+          "urls": [
+            "(?i)^https?://[a-z0-9]",
+            "! ^https?://\\d+\\.",
+            "! (?i)localhost",
+            "! (?i)^https?://[^/?#]*@"
+          ]
+        },
+        "node": {
+          "permissions": {
+            "disable": false,
+            "allowAddons": ["tailwindcss"],
+            "allowChildProcess": ["tailwindcss"],
+            "allowRead": ["."],
+            "allowWorker": ["tailwindcss"],
+            "allowWrite": []
+          }
         }
       },
       "properties": {
         "_merge": {
           "$ref": "#/definitions/mergeType"
         },
+        "allowContent": {
+          "description": "Regular expressions matching media types of content formats allowed in the content directory\nhttps://gohugo.io/configuration/security/#allowcontent",
+          "type": "array",
+          "default": ["! ^text/html$"],
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "enableInlineShortcodes": {
-          "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+          "description": "Controls whether inline shortcodes are enabled\nhttps://gohugo.io/configuration/security/#enableinlineshortcodes",
           "type": "boolean",
           "default": false
         },
         "exec": {
-          "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+          "description": "Controls which external executables Hugo is allowed to run\nhttps://gohugo.io/configuration/security/#exec",
           "type": "object",
           "default": {
-            "allow": ["^dart-sass-embedded$", "^go$", "^npx$", "^postcss$"],
-            "osEnv": ["(?i)^(PATH|PATHEXT|APPDATA|TMP|TEMP|TERM)$"]
+            "allow": [
+              "^(dart-)?sass(-embedded)?$",
+              "^go$",
+              "^git$",
+              "^node$",
+              "^postcss$",
+              "^tailwindcss$"
+            ],
+            "osEnv": [
+              "(?i)^((HTTPS?|NO)_PROXY|PATH(EXT)?|APPDATA|TE?MP|TERM|GO\\w+|(XDG_CONFIG_)?HOME|USERPROFILE|SSH_AUTH_SOCK|DISPLAY|LANG|SYSTEMDRIVE|PROGRAMDATA)$"
+            ]
           },
           "properties": {
             "allow": {
-              "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+              "description": "Regular expressions matching names of external executables Hugo is permitted to run\nhttps://gohugo.io/configuration/security/#execallow",
               "type": "array",
-              "default": ["^dart-sass-embedded$", "^go$", "^npx$", "^postcss$"],
+              "default": [
+                "^(dart-)?sass(-embedded)?$",
+                "^go$",
+                "^git$",
+                "^node$",
+                "^postcss$",
+                "^tailwindcss$"
+              ],
               "uniqueItems": true,
               "items": {
                 "type": "string",
@@ -3712,9 +3763,11 @@
               }
             },
             "osEnv": {
-              "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+              "description": "Regular expressions matching OS environment variable names Hugo can access\nhttps://gohugo.io/configuration/security/#execosenv",
               "type": "array",
-              "default": ["(?i)^(PATH|PATHEXT|APPDATA|TMP|TEMP|TERM)$"],
+              "default": [
+                "(?i)^((HTTPS?|NO)_PROXY|PATH(EXT)?|APPDATA|TE?MP|TERM|GO\\w+|(XDG_CONFIG_)?HOME|USERPROFILE|SSH_AUTH_SOCK|DISPLAY|LANG|SYSTEMDRIVE|PROGRAMDATA)$"
+              ],
               "uniqueItems": true,
               "items": {
                 "type": "string",
@@ -3725,16 +3778,16 @@
           "additionalProperties": false
         },
         "funcs": {
-          "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+          "description": "Controls which environment variables are accessible via template functions\nhttps://gohugo.io/configuration/security/#funcs",
           "type": "object",
           "default": {
-            "getenv": ["^HUGO_"]
+            "getenv": ["^HUGO_", "^CI$"]
           },
           "properties": {
             "getenv": {
-              "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+              "description": "Regular expressions for environment variable names accessible via the os.Getenv function\nhttps://gohugo.io/configuration/security/#funcsgetenv",
               "type": "array",
-              "default": ["^HUGO_"],
+              "default": ["^HUGO_", "^CI$"],
               "uniqueItems": true,
               "items": {
                 "type": "string",
@@ -3745,15 +3798,29 @@
           "additionalProperties": false
         },
         "http": {
-          "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+          "description": "Controls HTTP access for resources.GetRemote\nhttps://gohugo.io/configuration/security/#http",
           "type": "object",
           "default": {
             "methods": ["(?i)GET|POST"],
-            "urls": [".*"]
+            "urls": [
+              "(?i)^https?://[a-z0-9]",
+              "! ^https?://\\d+\\.",
+              "! (?i)localhost",
+              "! (?i)^https?://[^/?#]*@"
+            ]
           },
           "properties": {
+            "mediaTypes": {
+              "description": "Regular expressions matching Content-Type values in HTTP responses that Hugo trusts\nhttps://gohugo.io/configuration/security/#httpmediatypes",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
             "methods": {
-              "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+              "description": "Regular expressions matching HTTP methods allowed by resources.GetRemote\nhttps://gohugo.io/configuration/security/#httpmethods",
               "type": "array",
               "default": ["(?i)GET|POST"],
               "uniqueItems": true,
@@ -3763,14 +3830,96 @@
               }
             },
             "urls": {
-              "description": "\nhttps://gohugo.io/about/security-model/#security-policy",
+              "description": "Regular expressions matching URLs that resources.GetRemote is allowed to access\nhttps://gohugo.io/configuration/security/#httpurls",
               "type": "array",
-              "default": [".*"],
+              "default": [
+                "(?i)^https?://[a-z0-9]",
+                "! ^https?://\\d+\\.",
+                "! (?i)localhost",
+                "! (?i)^https?://[^/?#]*@"
+              ],
               "uniqueItems": true,
               "items": {
                 "type": "string",
                 "minLength": 1
               }
+            }
+          },
+          "additionalProperties": false
+        },
+        "node": {
+          "description": "Controls Node.js permission model settings\nhttps://gohugo.io/configuration/security/#node",
+          "type": "object",
+          "properties": {
+            "permissions": {
+              "description": "Node.js permission model configuration\nhttps://gohugo.io/configuration/security/#nodepermissions",
+              "type": "object",
+              "default": {
+                "disable": false,
+                "allowAddons": ["tailwindcss"],
+                "allowChildProcess": ["tailwindcss"],
+                "allowRead": ["."],
+                "allowWorker": ["tailwindcss"],
+                "allowWrite": []
+              },
+              "properties": {
+                "disable": {
+                  "description": "Whether to disable the Node.js permission model\nhttps://gohugo.io/configuration/security/#nodepermissionsdisable",
+                  "type": "boolean",
+                  "default": false
+                },
+                "allowAddons": {
+                  "description": "Node.js tool names permitted to load native addons\nhttps://gohugo.io/configuration/security/#nodepermissionsallowaddons",
+                  "type": "array",
+                  "default": ["tailwindcss"],
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "allowChildProcess": {
+                  "description": "Node.js tool names permitted to spawn child processes\nhttps://gohugo.io/configuration/security/#nodepermissionsallowchildprocess",
+                  "type": "array",
+                  "default": ["tailwindcss"],
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "allowRead": {
+                  "description": "File system paths Node.js tools may read\nhttps://gohugo.io/configuration/security/#nodepermissionsallowread",
+                  "type": "array",
+                  "default": ["."],
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "allowWorker": {
+                  "description": "Node.js tool names permitted to spawn worker threads\nhttps://gohugo.io/configuration/security/#nodepermissionsallowworker",
+                  "type": "array",
+                  "default": ["tailwindcss"],
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "allowWrite": {
+                  "description": "File system paths Node.js tools may write\nhttps://gohugo.io/configuration/security/#nodepermissionsallowwrite",
+                  "type": "array",
+                  "default": [],
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
