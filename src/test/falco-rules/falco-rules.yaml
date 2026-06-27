@@ -1,0 +1,47 @@
+- list: shell_binaries
+  items: [bash, sh, dash, zsh, fish, csh, ksh]
+
+- macro: shell_procs
+  condition: proc.name in (shell_binaries)
+
+- rule: Terminal shell in container
+  desc: A shell was used as the entrypoint/exec point into a container with an attached terminal.
+  condition: >
+    spawned_process and container
+    and shell_procs and proc.tty != 0
+    and container_entrypoint
+    and not user_expected_terminal_shell_in_container_conditions
+  output: A shell was spawned in a container with an attached terminal (evt_type=%evt.type user=%user.name user_uid=%user.uid user_loginuid=%user.loginuid process=%proc.name proc_exepath=%proc.exepath parent=%proc.pname command=%proc.cmdline terminal=%proc.tty exe_flags=%evt.arg.flags %container.info)
+  priority: NOTICE
+  tags: [maturity_stable, container, shell, mitre_execution, T1059]
+
+- rule: Read sensitive file untrusted
+  desc: An attempt to read a file that contains sensitive data, by a process not explicitly allowed to do so.
+  condition: >
+    open_read
+    and sensitive_files
+    and not proc.name in (user_mgmt_binaries)
+    and not read_sensitive_file_binaries
+    and not read_sensitive_file_conditions
+  output: Sensitive file opened for reading by non-trusted program (file=%fd.name gparent=%proc.aname[2] ggparent=%proc.aname[3] gggparent=%proc.aname[4] evt_type=%evt.type user=%user.name user_uid=%user.uid user_loginuid=%user.loginuid process=%proc.name proc_exepath=%proc.exepath parent=%proc.pname command=%proc.cmdline terminal=%proc.tty %container.info)
+  priority: WARNING
+  tags: [maturity_stable, host, container, filesystem, mitre_credential_access, T1555]
+
+- rule: Custom rule with override example
+  desc: Example showing override syntax
+  condition: evt.type = open
+  output: File opened (file=%fd.name %container.info)
+  priority: DEBUG
+  tags: [custom]
+  override:
+    condition: append
+    output: replace
+
+- required_engine_version: "0.36.0"
+
+- required_plugin_versions:
+    - name: cloudtrail
+      version: "0.10.0"
+      alternatives:
+        - name: cloudtrail-v2
+          version: "2.0.0"
