@@ -84,6 +84,24 @@ function collectValuesByPath(data, path) {
       }
     }
     deepCollect(data)
+    // If name-based search found nothing (def is used as array items or
+    // additionalProperties values, not as a named key), fall back to all
+    // string values in the data. Covers permissionRule, builtinAction, etc.
+    if (values.length === 0) {
+      function collectAllStrings(current) {
+        if (typeof current === 'string') {
+          values.push(current)
+          return
+        }
+        if (!current || typeof current !== 'object') return
+        if (Array.isArray(current)) {
+          for (const item of current) collectAllStrings(item)
+          return
+        }
+        for (const val of Object.values(current)) collectAllStrings(val)
+      }
+      collectAllStrings(data)
+    }
     return values
   }
 
@@ -226,10 +244,25 @@ function walkProperties(schema, currentPath = '') {
     if (defs && typeof defs === 'object' && !Array.isArray(defs)) {
       for (const [defName, defSchema] of Object.entries(defs)) {
         if (defSchema && typeof defSchema === 'object') {
+          const defPath = `#${defsKey}/${defName}`
+          // Emit the def itself if it is a leaf schema (enum/pattern/type
+          // directly on the def, not via child properties). This covers
+          // reusable string-enum defs like context or builtinAction.
+          if (
+            Array.isArray(defSchema.enum) ||
+            typeof defSchema.pattern === 'string' ||
+            (defSchema.type && !defSchema.properties)
+          ) {
+            results.push({
+              path: defPath,
+              name: defName,
+              propSchema: /** @type {Record<string, unknown>} */ (defSchema),
+            })
+          }
           results.push(
             ...walkProperties(
               /** @type {Record<string, unknown>} */ (defSchema),
-              `#${defsKey}/${defName}`,
+              defPath,
             ),
           )
         }
@@ -367,7 +400,7 @@ export function checkDescriptionCoverage(schema) {
     status: missing.length === 0 ? 'pass' : 'fail',
     totalProperties: nonDefProps.length,
     missingCount: missing.length,
-    missing: missing.slice(0, 20).map((p) => p.path),
+    missing: missing.map((p) => p.path),
   }
 }
 
@@ -438,7 +471,7 @@ export function checkEnumCoverage(schema, positiveTests, negativeTests) {
       issues.push({
         path: ePath,
         type: 'positive_uncovered',
-        values: uncovered.slice(0, 10),
+        values: uncovered,
         testedFiles,
       })
     }
@@ -457,7 +490,7 @@ export function checkEnumCoverage(schema, positiveTests, negativeTests) {
   return {
     status: issues.length === 0 ? 'pass' : 'fail',
     totalEnums: enums.length,
-    issues: issues.slice(0, 20),
+    issues: issues,
   }
 }
 
@@ -536,7 +569,7 @@ export function checkPatternCoverage(schema, positiveTests, negativeTests) {
   return {
     status: issues.length === 0 ? 'pass' : 'fail',
     totalPatterns: patterns.length,
-    issues: issues.slice(0, 20),
+    issues: issues,
   }
 }
 
@@ -588,7 +621,7 @@ export function checkRequiredCoverage(schema, negativeTests) {
     status: issues.length === 0 ? 'pass' : 'warn',
     totalRequiredGroups: requiredGroups.length,
     note: 'Heuristic: name-based matching, not path-aware',
-    uncovered: issues.slice(0, 20),
+    uncovered: issues,
   }
 }
 
@@ -649,7 +682,7 @@ export function checkDefaultCoverage(schema, positiveTests) {
   return {
     status: issues.length === 0 ? 'pass' : 'fail',
     totalDefaults: defaults.length,
-    issues: issues.slice(0, 20),
+    issues: issues,
   }
 }
 
@@ -820,7 +853,7 @@ export function checkNegativeIsolation(schema, negativeTests) {
     status: multiViolationFiles.length === 0 ? 'pass' : 'warn',
     totalNegativeTests: negativeTests.size,
     note: 'Heuristic — all checks match by property name, not JSON path. When the same name (e.g., "source", "type") appears at different schema depths with different constraints, violations may be misattributed. For each flagged file, verify that reported violation types reflect intentional test inputs at the correct nesting level, not collisions between unrelated schema depths',
-    multiViolationFiles: multiViolationFiles.slice(0, 20),
+    multiViolationFiles: multiViolationFiles,
   }
 }
 
