@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.schemastore.org/tradingstrategyprotocol.json",
+  "$defs": {
+    "templateDefinition": {
+      "type": "object",
+      "required": ["kind", "template"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "template" },
+        "template": {
+          "enum": ["mean-reversion", "breakout", "trend-continuation"]
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      }
+    },
+    "rulesDefinition": {
+      "type": "object",
+      "required": ["kind", "rules"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "rules" },
+        "indicators": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/indicator" }
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rule" }
+        }
+      }
+    },
+    "indicator": {
+      "type": "object",
+      "required": ["fn"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fn": { "const": "rsi" },
+            "period": { "type": "number" }
+          }
+        },
+        {
+          "required": ["period"],
+          "additionalProperties": false,
+          "properties": {
+            "fn": { "const": "ema" },
+            "period": { "type": "number" }
+          }
+        },
+        {
+          "required": ["period"],
+          "additionalProperties": false,
+          "properties": {
+            "fn": { "const": "sma" },
+            "period": { "type": "number" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fn": { "const": "macdHist" },
+            "fast": { "type": "number" },
+            "slow": { "type": "number" },
+            "signal": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "required": ["when", "signal"],
+      "additionalProperties": false,
+      "properties": {
+        "when": { "$ref": "#/$defs/condition" },
+        "signal": { "$ref": "#/$defs/signal" }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "required": ["side"],
+      "additionalProperties": false,
+      "properties": {
+        "side": { "enum": ["buy", "sell"] },
+        "strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reason": { "type": "string" }
+      }
+    },
+    "operand": {
+      "description": "A numeric literal, the keyword \"price\" (current mid), or a declared indicator name.",
+      "oneOf": [{ "type": "number" }, { "type": "string", "minLength": 1 }]
+    },
+    "comparison": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "gt": { "$ref": "#/$defs/operandPair" },
+        "gte": { "$ref": "#/$defs/operandPair" },
+        "lt": { "$ref": "#/$defs/operandPair" },
+        "lte": { "$ref": "#/$defs/operandPair" },
+        "eq": { "$ref": "#/$defs/operandPair" },
+        "neq": { "$ref": "#/$defs/operandPair" }
+      }
+    },
+    "operandPair": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/operand" }
+    },
+    "condition": {
+      "oneOf": [
+        { "$ref": "#/$defs/comparison" },
+        {
+          "type": "object",
+          "required": ["and"],
+          "additionalProperties": false,
+          "properties": {
+            "and": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/condition" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["or"],
+          "additionalProperties": false,
+          "properties": {
+            "or": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/condition" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["not"],
+          "additionalProperties": false,
+          "properties": { "not": { "$ref": "#/$defs/condition" } }
+        }
+      ]
+    }
+  },
+  "title": "Trading Strategy Protocol (TSP) v0.1",
+  "description": "An open, vendor-neutral, declarative JSON protocol for signals-only equities & crypto trading strategies. A TSP document reads a market-data stream and emits buy/sell signals; it executes no code, so user-authored strategies are safe to run and publish.",
+  "type": "object",
+  "required": ["tsp", "id", "name", "definition"],
+  "additionalProperties": false,
+  "properties": {
+    "tsp": {
+      "description": "Protocol version.",
+      "const": "0.1"
+    },
+    "id": {
+      "description": "Stable slug for the strategy.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "author": { "type": "string" },
+    "description": { "type": "string" },
+    "assetClasses": {
+      "type": "array",
+      "items": { "enum": ["crypto", "equity"] },
+      "uniqueItems": true
+    },
+    "definition": {
+      "oneOf": [
+        { "$ref": "#/$defs/templateDefinition" },
+        { "$ref": "#/$defs/rulesDefinition" }
+      ]
+    }
+  }
+}
