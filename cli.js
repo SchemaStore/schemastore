@@ -11,6 +11,7 @@ import { Ajv as AjvDraft06And07 } from 'ajv'
 import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
 import _addFormats from 'ajv-formats'
+import _ajvKeywords from 'ajv-keywords'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
@@ -54,6 +55,9 @@ const Ajv2019 = /** @type {any} */ (_Ajv2019)
 
 /** @type {typeof _Ajv2020.default} */
 const Ajv2020 = /** @type {any} */ (_Ajv2020)
+
+/** @type {any} */
+const ajvKeywords = _ajvKeywords
 
 /** @type {typeof _addFormats.default} */
 const addFormats = /** @type {any} */ (_addFormats)
@@ -100,19 +104,13 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
-    string: ['SchemaName', 'schema-name', 'unstable-check-with'],
-    boolean: ['help', 'build-xregistry', 'verify-xregistry'],
+    string: ['schema-name', 'unstable-check-with'],
+    boolean: ['fix', 'help', 'build-xregistry', 'verify-xregistry'],
   })
 )
-if (argv.SchemaName) {
-  process.stderr.write(
-    `WARNING: Please use "--schema-name" instead of "--SchemaName". The flag "--SchemaName" will be removed.\n`,
-  )
-  argv['schema-name'] = argv.SchemaName
-}
 
 /**
  * @typedef {Object} JsonSchemaAny
@@ -493,6 +491,8 @@ async function ajvFactory(
       throw new Error('No JSON Schema version specified')
   }
 
+  ajvKeywords(ajv, 'uniqueItemProperties')
+
   /**
    * In strict mode, Ajv will throw an error if it does not
    * recognize any non-standard formats. That is, unrecognized
@@ -578,7 +578,7 @@ async function taskNewSchema() {
 
   console.log('Enter the name of the schema (without .json extension)')
   await handleInput()
-  async function handleInput(/** @type {string | undefined} */ schemaName) {
+  async function handleInput(/** @type {string} */ schemaName = '') {
     if (!schemaName || schemaName.endsWith('.json')) {
       rl.question('input: ', handleInput)
       return
@@ -1193,6 +1193,9 @@ async function taskBuildWebsite() {
   await fs.cp('./src/img', './website/img', { recursive: true })
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/js', './website/js', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/.well-known', './website/.well-known', { recursive: true })
+  await fs.copyFile('./src/favicon.ico', './website/favicon.ico')
 }
 
 async function assertFileSystemIsValid() {
@@ -1702,7 +1705,7 @@ function assertFileHasNoBom(/** @type {DataFile} */ file) {
 
 async function assertFilePassesJsonLint(
   /** @type {DataFile} */ file,
-  /** @type {Record<string, unknown>} */ options,
+  /** @type {Record<string, unknown> | undefined} */ options = {},
 ) {
   try {
     jsonlint.parse(file.text, {
@@ -2268,16 +2271,9 @@ EXAMPLES:
     'build-website': taskBuildWebsite,
     'build-xregistry': taskBuildXRegistry,
     coverage: taskCoverage,
-    build: taskCheck, // Undocumented alias.
   }
   const taskOrFn = argv._[0]
   if (taskOrFn in taskMap) {
-    if (taskOrFn === 'build') {
-      process.stdout.write(
-        `WARNING: Please use the "check" task instead of "build". The "build" task will be removed.\n`,
-      )
-    }
-
     await taskMap[taskOrFn]()
   } else {
     eval(`${taskOrFn}()`)

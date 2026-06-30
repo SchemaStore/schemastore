@@ -1,0 +1,80 @@
+{
+  "extract": {
+    "auditConnectionRef": "pg-audit",
+    "connectionRef": "pg-source",
+    "default": {
+      "fetchSize": 256,
+      "fullExport": false,
+      "numPartitions": 4,
+      "schema": "public",
+      "tableTypes": ["TABLE"]
+    },
+    "jdbcSchemas": [
+      {
+        "catalog": "main_catalog",
+        "columnRemarks": "SELECT col_description(a.attrelid, a.attnum) FROM pg_attribute a WHERE a.attrelid = '{{schema}}.{{table}}'::regclass AND a.attname = '{{column}}'",
+        "connectionOptions": {
+          "fetchSize": "500",
+          "queryTimeout": "3600"
+        },
+        "exclude": ["pg_.*", "information_schema.*", "temp_.*"],
+        "fetchSize": 500,
+        "fullExport": false,
+        "numPartitions": 8,
+        "numericTrim": "BOTH",
+        "partitionColumn": "updated_at",
+        "pattern": "{{schema}}_{{table}}.*",
+        "sanitizeName": true,
+        "schema": "public",
+        "stringPartitionFunc": "HASHTEXT({{col}}) % {{nb_partitions}}",
+        "tableRemarks": "SELECT obj_description('{{schema}}.{{table}}'::regclass)",
+        "tableTypes": ["TABLE", "VIEW"],
+        "tables": [
+          {
+            "columns": [
+              "customer_id",
+              {
+                "name": "email_address",
+                "rename": "email"
+              },
+              "first_name",
+              "last_name"
+            ],
+            "fetchSize": 1000,
+            "filter": "active = true AND created_at > '2023-01-01'",
+            "fullExport": true,
+            "name": "customers",
+            "numPartitions": 4,
+            "partitionColumn": "customer_id"
+          },
+          {
+            "connectionOptions": {
+              "fetchSize": "2000"
+            },
+            "name": "orders",
+            "numPartitions": 12,
+            "partitionColumn": "order_date",
+            "sql": "SELECT o.*, c.email FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.status != 'CANCELLED'",
+            "stringPartitionFunc": "MOD(HASHTEXT({{col}}), {{nb_partitions}})"
+          },
+          {
+            "name": "*"
+          }
+        ],
+        "template": "extract/templates/jdbc-extract.ssp"
+      }
+    ],
+    "output": {
+      "datePattern": "yyyy-MM-dd",
+      "encoding": "UTF-8",
+      "escape": "\\",
+      "nullValue": "",
+      "quote": "\"",
+      "separator": ",",
+      "timestampPattern": "yyyy-MM-dd HH:mm:ss.SSS",
+      "withHeader": true
+    },
+    "sanitizeAttributeName": "ON_LOAD"
+  },
+  "version": 1
+}

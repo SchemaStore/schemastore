@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/codex-hooks.json",
+  "title": "Codex hooks configuration",
+  "description": "Configuration for OpenAI Codex lifecycle hooks.\nhttps://developers.openai.com/codex/hooks",
+  "type": "object",
+  "required": ["hooks"],
+  "additionalProperties": false,
+  "properties": {
+    "hooks": {
+      "type": "object",
+      "description": "Hook event registrations grouped by Codex lifecycle event.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/matcherGroups"
+      },
+      "properties": {
+        "SessionStart": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs when a Codex session starts. The matcher filters the start source, such as startup, resume, or clear."
+        },
+        "PreToolUse": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs before supported tool calls. The matcher filters tool names and aliases."
+        },
+        "PermissionRequest": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs before Codex asks for approval. The matcher filters tool names and aliases."
+        },
+        "PostToolUse": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs after supported tool calls. The matcher filters tool names and aliases."
+        },
+        "PreCompact": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs before conversation compaction. The matcher filters the compaction trigger, such as manual or auto."
+        },
+        "PostCompact": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs after conversation compaction. The matcher filters the compaction trigger, such as manual or auto."
+        },
+        "UserPromptSubmit": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs before a user prompt is submitted. Codex currently ignores matcher for this event."
+        },
+        "SubagentStart": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs when a subagent starts. The matcher filters the subagent type."
+        },
+        "SubagentStop": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs when a subagent stops. The matcher filters the subagent type."
+        },
+        "Stop": {
+          "$ref": "#/definitions/matcherGroups",
+          "description": "Runs when a turn stops. Codex currently ignores matcher for this event."
+        }
+      }
+    }
+  },
+  "definitions": {
+    "matcherGroups": {
+      "type": "array",
+      "description": "Matcher groups for one Codex hook event.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/matcherGroup"
+      }
+    },
+    "matcherGroup": {
+      "type": "object",
+      "description": "Matcher group that decides when one or more hook handlers run.",
+      "required": ["hooks"],
+      "additionalProperties": true,
+      "properties": {
+        "matcher": {
+          "type": "string",
+          "description": "Regex string that filters when hooks fire. Use *, an empty string, or omit matcher to match every supported occurrence."
+        },
+        "hooks": {
+          "type": "array",
+          "description": "Handlers to run when this matcher group matches.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/hookHandler"
+          }
+        }
+      }
+    },
+    "hookHandler": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/commandHandler"
+        },
+        {
+          "$ref": "#/definitions/skippedHandler"
+        }
+      ]
+    },
+    "commandHandler": {
+      "type": "object",
+      "description": "Command hook handler. Commands run with the session cwd as their working directory.",
+      "required": ["type", "command"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "const": "command",
+          "description": "Command handlers are the only hook handler type that runs in the current Codex runtime."
+        },
+        "command": {
+          "type": "string",
+          "description": "Command to execute.",
+          "minLength": 1
+        },
+        "commandWindows": {
+          "type": "string",
+          "description": "Optional Windows-only command override.",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Timeout in seconds. Codex uses 600 seconds when omitted.",
+          "minimum": 0
+        },
+        "statusMessage": {
+          "type": "string",
+          "description": "Optional status text shown while the hook runs."
+        },
+        "async": {
+          "type": "boolean",
+          "description": "Parsed by Codex, but async command hooks are not supported yet and async handlers are skipped."
+        }
+      }
+    },
+    "skippedHandler": {
+      "type": "object",
+      "description": "Prompt and agent handlers are parsed by Codex but skipped in the current runtime.",
+      "required": ["type"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["prompt", "agent"]
+        }
+      }
+    }
+  }
+}

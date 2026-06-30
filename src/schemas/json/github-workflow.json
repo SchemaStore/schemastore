@@ -18,7 +18,7 @@
       "properties": {
         "group": {
           "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-using-concurrency-to-cancel-any-in-progress-job-or-run-1",
-          "description": "When a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled.",
+          "description": "When a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`.",
           "type": "string"
         },
         "cancel-in-progress": {
@@ -32,6 +32,13 @@
               "$ref": "#/definitions/expressionSyntax"
             }
           ]
+        },
+        "queue": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#example-queueing-multiple-pending-runs",
+          "description": "Controls how pending jobs or workflow runs are queued within a concurrency group. With the default `single`, at most one run can be pending — additional pending runs cancel the previous one. With `max`, up to 100 runs can be pending and are processed in FIFO order. The combination of `queue: max` and `cancel-in-progress: true` is not allowed.",
+          "type": "string",
+          "enum": ["single", "max"],
+          "default": "single"
         }
       },
       "required": ["group"],
@@ -62,16 +69,16 @@
         }
       ]
     },
-    "container": {
+    "jobContainer": {
       "type": "object",
       "properties": {
         "image": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainerimage",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainerimage",
           "description": "The Docker image to use as the container to run the action. The value can be the Docker Hub image name or a registry name.",
           "type": "string"
         },
         "credentials": {
-          "$comment": "https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idcontainercredentials",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainercredentials",
           "description": "If the image's container registry requires authentication to pull the image, you can use credentials to set a map of the username and password. The credentials are the same values that you would provide to the `docker login` command.",
           "type": "object",
           "properties": {
@@ -84,12 +91,12 @@
           }
         },
         "env": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainerenv",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainerenv",
           "$ref": "#/definitions/env",
-          "description": "Sets an array of environment variables in the container."
+          "description": "Sets a map of environment variables in the container."
         },
         "ports": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainerports",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainerports",
           "description": "Sets an array of ports to expose on the container.",
           "type": "array",
           "items": {
@@ -105,7 +112,7 @@
           "minItems": 1
         },
         "volumes": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainervolumes",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainervolumes",
           "description": "Sets an array of volumes for the container to use. You can use volumes to share data between services or other steps in a job. You can specify named Docker volumes, anonymous Docker volumes, or bind mounts on the host.\nTo specify a volume, you specify the source and destination path: <source>:<destinationPath>\nThe <source> is a volume name or an absolute path on the host machine, and <destinationPath> is an absolute path in the container.",
           "type": "array",
           "items": {
@@ -114,8 +121,78 @@
           "minItems": 1
         },
         "options": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontaineroptions",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontaineroptions",
           "description": "Additional Docker container resource options. For a list of options, see https://docs.docker.com/engine/reference/commandline/create/#options.",
+          "type": "string"
+        }
+      },
+      "required": ["image"],
+      "additionalProperties": false
+    },
+    "serviceContainer": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idimage",
+          "description": "The Docker image to use as the service container to run the action. The value can be the Docker Hub image name or a registry name.",
+          "type": "string"
+        },
+        "credentials": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idcredentials",
+          "description": "If the image's container registry requires authentication to pull the image, you can use credentials to set a map of the username and password. The credentials are the same values that you would provide to the `docker login` command.",
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "env": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idenv",
+          "$ref": "#/definitions/env",
+          "description": "Sets a map of environment variables in the service container."
+        },
+        "ports": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idports",
+          "description": "Sets an array of ports to expose on the service container.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "minItems": 1
+        },
+        "volumes": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idvolumes",
+          "description": "Sets an array of volumes for the service container to use. You can use volumes to share data between services or other steps in a job. You can specify named Docker volumes, anonymous Docker volumes, or bind mounts on the host.\nTo specify a volume, you specify the source and destination path: <source>:<destinationPath>\nThe <source> is a volume name or an absolute path on the host machine, and <destinationPath> is an absolute path in the container.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "options": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idoptions",
+          "description": "Additional Docker container resource options. For a list of options, see https://docs.docker.com/engine/reference/commandline/create/#options.",
+          "type": "string"
+        },
+        "command": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idcommand",
+          "description": "Overrides the Docker image's default command (`CMD`). The value is passed as arguments after the image name in the `docker create` command. If you also specify `entrypoint`, `command` provides the arguments to that entrypoint.",
+          "type": "string"
+        },
+        "entrypoint": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_identrypoint",
+          "description": "Overrides the Docker image's default `ENTRYPOINT`. The value is a single string defining the executable to run. Use this when you need to replace the image's entrypoint entirely. You can combine `entrypoint` with `command` to pass arguments to the custom entrypoint.",
           "type": "string"
         }
       },
@@ -169,6 +246,9 @@
           "$ref": "#/definitions/permissions-level"
         },
         "checks": {
+          "$ref": "#/definitions/permissions-level"
+        },
+        "code-quality": {
           "$ref": "#/definitions/permissions-level"
         },
         "contents": {
@@ -408,6 +488,18 @@
         },
         {
           "required": ["run"]
+        },
+        {
+          "required": ["wait"]
+        },
+        {
+          "required": ["wait-all"]
+        },
+        {
+          "required": ["cancel"]
+        },
+        {
+          "required": ["parallel"]
         }
       ],
       "properties": {
@@ -486,6 +578,46 @@
               "$ref": "#/definitions/expressionSyntax"
             }
           ]
+        },
+        "background": {
+          "$comment": "https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsbackground",
+          "description": "Runs a step asynchronously so the job continues to the next step without waiting for it to finish. You can use background on steps that use run or uses. To reference a background step from wait or cancel, give it an id. A maximum of 10 background steps can run concurrently in a single job.",
+          "type": "boolean"
+        },
+        "wait": {
+          "$comment": "https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepswait",
+          "description": "Pauses the job until one or more background steps complete. Provide a single step id as a string, or multiple step ids as an array. After a wait step completes, the outputs of the referenced background steps become available to subsequent steps.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          ]
+        },
+        "wait-all": {
+          "$comment": "https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepswait-all",
+          "description": "Pauses the job until all active background steps complete. The wait-all keyword takes no arguments.",
+          "type": ["boolean", "null"]
+        },
+        "cancel": {
+          "$comment": "https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepscancel",
+          "description": "Gracefully terminates a running background step. The runner sends the step's process a termination signal (SIGTERM) so it can clean up. The cancel keyword targets a single background step by its id.",
+          "type": "string"
+        },
+        "parallel": {
+          "$comment": "https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsparallel",
+          "description": "Runs a group of steps concurrently, then waits for all of them to finish before continuing. Every step in the group runs as a background step, with an implicit wait at the end of the group.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "minItems": 1
         }
       }
     },
@@ -640,7 +772,7 @@
         },
         "concurrency": {
           "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idconcurrency",
-          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
+          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
           "oneOf": [
             {
               "type": "string"
@@ -829,7 +961,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/container"
+              "$ref": "#/definitions/jobContainer"
             }
           ]
         },
@@ -838,12 +970,12 @@
           "description": "Additional containers to host services for a job in a workflow. These are useful for creating databases or cache services like redis. The runner on the virtual machine will automatically create a network and manage the life cycle of the service containers.\nWhen you use a service container for a job or your step uses container actions, you don't need to set port information to access the service. Docker automatically exposes all ports between containers on the same network.\nWhen both the job and the action run in a container, you can directly reference the container by its hostname. The hostname is automatically mapped to the service name.\nWhen a step does not use a container action, you must access the service using localhost and bind the ports.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/container"
+            "$ref": "#/definitions/serviceContainer"
           }
         },
         "concurrency": {
           "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idconcurrency",
-          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
+          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
           "oneOf": [
             {
               "type": "string"
@@ -1007,11 +1139,19 @@
           "properties": {
             "branch_protection_rule": {
               "$comment": "https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#branch_protection_rule",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the branch_protection_rule event occurs. More than one activity type triggers this event.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "edited", "deleted"]
@@ -1022,11 +1162,19 @@
             },
             "check_run": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#check-run-event-check_run",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the check_run event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/checks/runs.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": [
@@ -1047,11 +1195,19 @@
             },
             "check_suite": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#check-suite-event-check_suite",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the check_suite event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/checks/suites/.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["completed", "requested", "rerequested"]
@@ -1062,31 +1218,55 @@
             },
             "create": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#create-event-create",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime someone creates a branch or tag, which triggers the create event. For information about the REST API, see https://developer.github.com/v3/git/refs/#create-a-reference."
             },
             "delete": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#delete-event-delete",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime someone deletes a branch or tag, which triggers the delete event. For information about the REST API, see https://developer.github.com/v3/git/refs/#delete-a-reference."
             },
             "deployment": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#deployment-event-deployment",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime someone creates a deployment, which triggers the deployment event. Deployments created with a commit SHA may not have a Git ref. For information about the REST API, see https://developer.github.com/v3/repos/deployments/."
             },
             "deployment_status": {
               "$comment": "https://docs.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime a third party provides a deployment status, which triggers the deployment_status event. Deployments created with a commit SHA may not have a Git ref. For information about the REST API, see https://developer.github.com/v3/repos/deployments/#create-a-deployment-status."
             },
             "discussion": {
               "$comment": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows#discussion",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the discussion event occurs. More than one activity type triggers this event. For information about the GraphQL API, see https://docs.github.com/en/graphql/guides/using-the-graphql-api-for-discussions",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": [
@@ -1125,11 +1305,19 @@
             },
             "discussion_comment": {
               "$comment": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows#discussion_comment",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the discussion_comment event occurs. More than one activity type triggers this event. For information about the GraphQL API, see https://docs.github.com/en/graphql/guides/using-the-graphql-api-for-discussions",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "edited", "deleted"]
@@ -1140,21 +1328,37 @@
             },
             "fork": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#fork-event-fork",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime when someone forks a repository, which triggers the fork event. For information about the REST API, see https://developer.github.com/v3/repos/forks/#create-a-fork."
             },
             "gollum": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#gollum-event-gollum",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow when someone creates or updates a Wiki page, which triggers the gollum event."
             },
             "issue_comment": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#issue-comment-event-issue_comment",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the issue_comment event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/issues/comments/.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "edited", "deleted"]
@@ -1165,11 +1369,19 @@
             },
             "issues": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#issues-event-issues",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the issues event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/issues.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": [
@@ -1214,11 +1426,19 @@
             },
             "label": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#label-event-label",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the label event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/issues/labels/.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "edited", "deleted"]
@@ -1229,11 +1449,19 @@
             },
             "merge_group": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#merge_group",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow when a pull request is added to a merge queue, which adds the pull request to a merge group. For information about the merge queue, see https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/merging-a-pull-request-with-a-merge-queue .",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["checks_requested"]
@@ -1244,11 +1472,19 @@
             },
             "milestone": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#milestone-event-milestone",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the milestone event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/issues/milestones/.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "closed", "opened", "edited", "deleted"]
@@ -1265,16 +1501,28 @@
             },
             "page_build": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#page-build-event-page_build",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime someone pushes to a GitHub Pages-enabled branch, which triggers the page_build event. For information about the REST API, see https://developer.github.com/v3/repos/pages/."
             },
             "project": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#project-event-project",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the project event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/projects/.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": [
@@ -1299,11 +1547,19 @@
             },
             "project_card": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#project-card-event-project_card",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the project_card event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/projects/cards.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": [
@@ -1326,11 +1582,19 @@
             },
             "project_column": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#project-column-event-project_column",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the project_column event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/projects/columns.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "updated", "moved", "deleted"]
@@ -1341,21 +1605,31 @@
             },
             "public": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#public-event-public",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime someone makes a private repository public, which triggers the public event. For information about the REST API, see https://developer.github.com/v3/repos/#edit."
             },
             "pull_request": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#pull-request-event-pull_request",
               "description": "Runs your workflow anytime the pull_request event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/pulls.\nNote: Workflows do not run on private base repositories when you open a pull request from a forked repository.\nWhen you create a pull request from a forked repository to the base repository, GitHub sends the pull_request event to the base repository and no pull request events occur on the forked repository.\nWorkflows don't run on forked repositories by default. You must enable GitHub Actions in the Actions tab of the forked repository.\nThe permissions for the GITHUB_TOKEN in forked repositories is read-only. For more information about the GITHUB_TOKEN, see https://help.github.com/en/articles/virtual-environments-for-github-actions.",
               "oneOf": [
-                { "type": "null" },
+                {
+                  "type": "null"
+                },
                 {
                   "allOf": [
                     {
                       "type": "object",
                       "properties": {
                         "types": {
-                          "$ref": "#/definitions/types",
+                          "allOf": [
+                            {
+                              "$ref": "#/definitions/types"
+                            }
+                          ],
                           "items": {
                             "type": "string",
                             "enum": [
@@ -1426,11 +1700,19 @@
             },
             "pull_request_review": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#pull-request-review-event-pull_request_review",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the pull_request_review event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/pulls/reviews.\nNote: Workflows do not run on private base repositories when you open a pull request from a forked repository.\nWhen you create a pull request from a forked repository to the base repository, GitHub sends the pull_request event to the base repository and no pull request events occur on the forked repository.\nWorkflows don't run on forked repositories by default. You must enable GitHub Actions in the Actions tab of the forked repository.\nThe permissions for the GITHUB_TOKEN in forked repositories is read-only. For more information about the GITHUB_TOKEN, see https://help.github.com/en/articles/virtual-environments-for-github-actions.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["submitted", "edited", "dismissed"]
@@ -1441,11 +1723,19 @@
             },
             "pull_request_review_comment": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#pull-request-review-comment-event-pull_request_review_comment",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime a comment on a pull request's unified diff is modified, which triggers the pull_request_review_comment event. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/pulls/comments.\nNote: Workflows do not run on private base repositories when you open a pull request from a forked repository.\nWhen you create a pull request from a forked repository to the base repository, GitHub sends the pull_request event to the base repository and no pull request events occur on the forked repository.\nWorkflows don't run on forked repositories by default. You must enable GitHub Actions in the Actions tab of the forked repository.\nThe permissions for the GITHUB_TOKEN in forked repositories is read-only. For more information about the GITHUB_TOKEN, see https://help.github.com/en/articles/virtual-environments-for-github-actions.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["created", "edited", "deleted"]
@@ -1458,14 +1748,20 @@
               "$comment": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request_target",
               "description": "This event is similar to pull_request, except that it runs in the context of the base repository of the pull request, rather than in the merge commit. This means that you can more safely make your secrets available to the workflows triggered by the pull request, because only workflows defined in the commit on the base repository are run. For example, this event allows you to create workflows that label and comment on pull requests, based on the contents of the event payload.",
               "oneOf": [
-                { "type": "null" },
+                {
+                  "type": "null"
+                },
                 {
                   "allOf": [
                     {
                       "type": "object",
                       "properties": {
                         "types": {
-                          "$ref": "#/definitions/types",
+                          "allOf": [
+                            {
+                              "$ref": "#/definitions/types"
+                            }
+                          ],
                           "items": {
                             "type": "string",
                             "enum": [
@@ -1534,7 +1830,9 @@
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#push-event-push",
               "description": "Runs your workflow when someone pushes to a repository branch, which triggers the push event.\nNote: The webhook payload available to GitHub Actions does not include the added, removed, and modified attributes in the commit object. You can retrieve the full commit object using the REST API. For more information, see https://developer.github.com/v3/repos/commits/#get-a-single-commit.",
               "oneOf": [
-                { "type": "null" },
+                {
+                  "type": "null"
+                },
                 {
                   "allOf": [
                     {
@@ -1582,11 +1880,19 @@
             },
             "registry_package": {
               "$comment": "https://help.github.com/en/actions/reference/events-that-trigger-workflows#registry-package-event-registry_package",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime a package is published or updated. For more information, see https://help.github.com/en/github/managing-packages-with-github-packages.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["published", "updated"]
@@ -1597,11 +1903,19 @@
             },
             "release": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#release-event-release",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the release event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/repos/releases/ in the GitHub Developer documentation.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": [
@@ -1628,12 +1942,20 @@
             },
             "status": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#status-event-status",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the status of a Git commit changes, which triggers the status event. For information about the REST API, see https://developer.github.com/v3/repos/statuses/."
             },
             "watch": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#watch-event-watch",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "Runs your workflow anytime the watch event occurs. More than one activity type triggers this event. For information about the REST API, see https://developer.github.com/v3/activity/starring/."
             },
             "workflow_call": {
@@ -1750,11 +2072,19 @@
             },
             "workflow_run": {
               "$comment": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows#workflow_run",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "This event occurs when a workflow run is requested or completed, and allows you to execute a workflow based on the finished result of another workflow. For example, if your pull_request workflow generates build artifacts, you can create a new workflow that uses workflow_run to analyze the results and add a comment to the original pull request.",
               "properties": {
                 "types": {
-                  "$ref": "#/definitions/types",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/types"
+                    }
+                  ],
                   "items": {
                     "type": "string",
                     "enum": ["requested", "completed", "in_progress"]
@@ -1775,7 +2105,11 @@
             },
             "repository_dispatch": {
               "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#external-events-repository_dispatch",
-              "$ref": "#/definitions/eventObject",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/eventObject"
+                }
+              ],
               "description": "You can use the GitHub API to trigger a webhook event called repository_dispatch when you want to trigger a workflow for activity that happens outside of GitHub. For more information, see https://developer.github.com/v3/repos/#create-a-repository-dispatch-event.\nTo trigger the custom repository_dispatch webhook event, you must send a POST request to a GitHub API endpoint and provide an event_type name to describe the activity type. To trigger a workflow run, you must also configure your workflow to use the repository_dispatch event."
             },
             "schedule": {
@@ -1816,7 +2150,7 @@
     },
     "concurrency": {
       "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#concurrency",
-      "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
+      "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
       "oneOf": [
         {
           "type": "string"

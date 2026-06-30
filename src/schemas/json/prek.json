@@ -5,6 +5,10 @@
   "description": "The configuration file for prek, a git hook manager written in Rust.",
   "type": "object",
   "properties": {
+    "auto_update": {
+      "$ref": "#/definitions/AutoUpdateOptions",
+      "description": "Default settings for `prek auto-update` in this project."
+    },
     "repos": {
       "type": "array",
       "items": {
@@ -32,6 +36,9 @@
           "type": "string"
         },
         "dart": {
+          "type": "string"
+        },
+        "deno": {
           "type": "string"
         },
         "docker": {
@@ -96,7 +103,8 @@
       "type": "array",
       "items": {
         "$ref": "#/definitions/Stage"
-      }
+      },
+      "uniqueItems": true
     },
     "files": {
       "$ref": "#/definitions/FilePattern",
@@ -123,6 +131,17 @@
   "additionalProperties": true,
   "x-tombi-toml-version": "v1.1.0",
   "definitions": {
+    "AutoUpdateOptions": {
+      "description": "Controls how `prek auto-update` selects eligible releases.",
+      "type": "object",
+      "properties": {
+        "cooldown_days": {
+          "type": "integer",
+          "maximum": 255,
+          "minimum": 0
+        }
+      }
+    },
     "Repo": {
       "description": "A repository of hooks, which can be remote, local, meta, or builtin.",
       "type": "object",
@@ -191,6 +210,14 @@
           "type": "integer",
           "minimum": 0
         },
+        "groups": {
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\S+$"
+          }
+        },
         "alias": {
           "description": "Not documented in the official docs.",
           "type": "string"
@@ -208,21 +235,24 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "types_or": {
           "description": "List of file types to run on (OR).\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "exclude_types": {
           "description": "List of file types to exclude.\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "additional_dependencies": {
           "description": "Not documented in the official docs.",
@@ -254,8 +284,8 @@
           "type": "boolean"
         },
         "pass_filenames": {
-          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true.",
-          "type": "boolean"
+          "$ref": "#/definitions/PassFilenames",
+          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
           "description": "A description of the hook. For metadata only.",
@@ -269,16 +299,21 @@
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
           "type": "string"
         },
+        "shell": {
+          "$ref": "#/definitions/Shell",
+          "description": "Run the hook entry through a predefined shell adapter."
+        },
         "require_serial": {
           "description": "This hook will execute using a single process instead of in parallel.\nDefault is false.",
           "type": "boolean"
         },
         "stages": {
-          "description": "Select which git hook(s) to run for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
+          "description": "Select which Git hook stages this hook runs for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Stage"
-          }
+          },
+          "uniqueItems": true
         },
         "verbose": {
           "description": "Print the output of the hook even if it passes.\nDefault is false.",
@@ -299,6 +334,7 @@
         "conda",
         "coursier",
         "dart",
+        "deno",
         "docker",
         "docker_image",
         "dotnet",
@@ -349,6 +385,23 @@
         }
       ]
     },
+    "PassFilenames": {
+      "description": "Whether to pass filenames to the hook. `true` passes all matching filenames (default), `false` passes none, and a positive integer limits each invocation to at most that many filenames.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        }
+      ]
+    },
+    "Shell": {
+      "description": "A predefined shell adapter used to run hook entries as shell source.",
+      "type": "string",
+      "enum": ["sh", "bash", "pwsh", "powershell", "cmd"]
+    },
     "Stage": {
       "type": "string",
       "enum": [
@@ -378,7 +431,8 @@
           "items": {
             "$ref": "#/definitions/LocalHook"
           }
-        }
+        },
+        "rev": false
       },
       "required": ["repo", "hooks"],
       "additionalProperties": true
@@ -408,6 +462,14 @@
           "type": "integer",
           "minimum": 0
         },
+        "groups": {
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\S+$"
+          }
+        },
         "alias": {
           "description": "Not documented in the official docs.",
           "type": "string"
@@ -425,21 +487,24 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "types_or": {
           "description": "List of file types to run on (OR).\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "exclude_types": {
           "description": "List of file types to exclude.\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "additional_dependencies": {
           "description": "Not documented in the official docs.",
@@ -471,8 +536,8 @@
           "type": "boolean"
         },
         "pass_filenames": {
-          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true.",
-          "type": "boolean"
+          "$ref": "#/definitions/PassFilenames",
+          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
           "description": "A description of the hook. For metadata only.",
@@ -486,16 +551,21 @@
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
           "type": "string"
         },
+        "shell": {
+          "$ref": "#/definitions/Shell",
+          "description": "Run the hook entry through a predefined shell adapter."
+        },
         "require_serial": {
           "description": "This hook will execute using a single process instead of in parallel.\nDefault is false.",
           "type": "boolean"
         },
         "stages": {
-          "description": "Select which git hook(s) to run for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
+          "description": "Select which Git hook stages this hook runs for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Stage"
-          }
+          },
+          "uniqueItems": true
         },
         "verbose": {
           "description": "Print the output of the hook even if it passes.\nDefault is false.",
@@ -522,7 +592,8 @@
           "items": {
             "$ref": "#/definitions/MetaHook"
           }
-        }
+        },
+        "rev": false
       },
       "required": ["repo", "hooks"],
       "additionalProperties": true
@@ -552,6 +623,14 @@
           "type": "integer",
           "minimum": 0
         },
+        "groups": {
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\S+$"
+          }
+        },
         "alias": {
           "description": "Not documented in the official docs.",
           "type": "string"
@@ -569,21 +648,24 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "types_or": {
           "description": "List of file types to run on (OR).\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "exclude_types": {
           "description": "List of file types to exclude.\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "additional_dependencies": {
           "description": "Not documented in the official docs.",
@@ -615,8 +697,8 @@
           "type": "boolean"
         },
         "pass_filenames": {
-          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true.",
-          "type": "boolean"
+          "$ref": "#/definitions/PassFilenames",
+          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
           "description": "A description of the hook. For metadata only.",
@@ -630,16 +712,21 @@
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
           "type": "string"
         },
+        "shell": {
+          "$ref": "#/definitions/Shell",
+          "description": "Run the hook entry through a predefined shell adapter."
+        },
         "require_serial": {
           "description": "This hook will execute using a single process instead of in parallel.\nDefault is false.",
           "type": "boolean"
         },
         "stages": {
-          "description": "Select which git hook(s) to run for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
+          "description": "Select which Git hook stages this hook runs for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Stage"
-          }
+          },
+          "uniqueItems": true
         },
         "verbose": {
           "description": "Print the output of the hook even if it passes.\nDefault is false.",
@@ -670,7 +757,8 @@
           "items": {
             "$ref": "#/definitions/BuiltinHook"
           }
-        }
+        },
+        "rev": false
       },
       "required": ["repo", "hooks"],
       "additionalProperties": true
@@ -700,6 +788,14 @@
           "type": "integer",
           "minimum": 0
         },
+        "groups": {
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\S+$"
+          }
+        },
         "alias": {
           "description": "Not documented in the official docs.",
           "type": "string"
@@ -717,21 +813,24 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "types_or": {
           "description": "List of file types to run on (OR).\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "exclude_types": {
           "description": "List of file types to exclude.\nDefault is `[]`.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "uniqueItems": true
         },
         "additional_dependencies": {
           "description": "Not documented in the official docs.",
@@ -763,8 +862,8 @@
           "type": "boolean"
         },
         "pass_filenames": {
-          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true.",
-          "type": "boolean"
+          "$ref": "#/definitions/PassFilenames",
+          "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
           "description": "A description of the hook. For metadata only.",
@@ -778,16 +877,21 @@
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
           "type": "string"
         },
+        "shell": {
+          "$ref": "#/definitions/Shell",
+          "description": "Run the hook entry through a predefined shell adapter."
+        },
         "require_serial": {
           "description": "This hook will execute using a single process instead of in parallel.\nDefault is false.",
           "type": "boolean"
         },
         "stages": {
-          "description": "Select which git hook(s) to run for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
+          "description": "Select which Git hook stages this hook runs for.\nDefault all stages are selected.\nSee <https://pre-commit.com/#confining-hooks-to-run-at-certain-stages>.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Stage"
-          }
+          },
+          "uniqueItems": true
         },
         "verbose": {
           "description": "Print the output of the hook even if it passes.\nDefault is false.",
@@ -807,18 +911,25 @@
         "check-added-large-files",
         "check-case-conflict",
         "check-executables-have-shebangs",
+        "check-illegal-windows-names",
         "check-json",
         "check-json5",
         "check-merge-conflict",
+        "check-shebang-scripts-are-executable",
         "check-symlinks",
         "check-toml",
+        "check-vcs-permalinks",
         "check-xml",
         "check-yaml",
+        "destroyed-symlinks",
         "detect-private-key",
         "end-of-file-fixer",
+        "file-contents-sorter",
         "fix-byte-order-marker",
+        "forbid-new-submodules",
         "mixed-line-ending",
         "no-commit-to-branch",
+        "pretty-format-json",
         "trailing-whitespace"
       ]
     },

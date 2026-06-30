@@ -1,0 +1,170 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.schemastore.org/yap.json",
+  "title": "yap.json",
+  "description": "Schema for YAP (Yet Another Packager) multi-package project files. A yap.json describes a collection of PKGBUILD-based projects built together for a target distribution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "buildDir", "output", "projects"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional reference to this JSON Schema for editor validation/autocomplete."
+    },
+    "name": {
+      "type": "string",
+      "description": "Logical name of the project collection.",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the project collection.",
+      "minLength": 1
+    },
+    "buildDir": {
+      "type": "string",
+      "description": "Directory where build artifacts and intermediate files are produced.",
+      "minLength": 1
+    },
+    "output": {
+      "type": "string",
+      "description": "Directory where the final packages are written.",
+      "minLength": 1
+    },
+    "projects": {
+      "type": "array",
+      "description": "Ordered list of sub-projects (each containing a PKGBUILD) to build.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Sub-directory name (relative to the yap.json location) containing the project's PKGBUILD. Must not start with '.' or './'.",
+            "pattern": "^(?!\\.)(?!\\./).+"
+          },
+          "install": {
+            "type": "boolean",
+            "description": "If true, the built package is installed immediately after building, before subsequent projects build (useful for intra-collection build dependencies).",
+            "default": false
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional human-readable note for the sub-project. Not consumed by the builder (the PKGBUILD's pkgdesc is authoritative); useful for documenting intent in yap.json."
+          }
+        }
+      }
+    },
+    "compressionDeb": {
+      "type": "string",
+      "description": "Compression algorithm for .deb artifacts.",
+      "enum": ["zstd", "gzip", "xz"]
+    },
+    "compressionRpm": {
+      "type": "string",
+      "description": "Compression algorithm for .rpm artifacts.",
+      "enum": ["zstd", "gzip", "xz"]
+    },
+    "signing": {
+      "type": "object",
+      "description": "Package signing configuration. Note: keys are PascalCase (the struct has no JSON tags). Key/passphrase resolution can also be driven by CLI flags and environment variables; see docs.",
+      "additionalProperties": false,
+      "properties": {
+        "Enabled": {
+          "type": "boolean",
+          "description": "Whether signing is active for this build.",
+          "default": false
+        },
+        "KeyPath": {
+          "type": "string",
+          "description": "Absolute path to the private key (PEM for RSA/APK, ASCII-armored for GPG/DEB/RPM/Pacman)."
+        },
+        "Passphrase": {
+          "type": "string",
+          "description": "Passphrase for the private key. Prefer environment variables over committing this."
+        },
+        "KeyName": {
+          "type": "string",
+          "description": "Optional key name, used for APK key naming (e.g. \"mykey\")."
+        }
+      }
+    },
+    "repos": {
+      "type": "array",
+      "description": "Additional package repositories to configure before resolving build/runtime dependencies.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "url"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Repository identifier."
+          },
+          "url": {
+            "type": "string",
+            "description": "Base URL of the repository."
+          },
+          "suite": {
+            "type": "string",
+            "description": "APT suite/codename (e.g. \"jammy\"). Ignored for non-APT formats."
+          },
+          "components": {
+            "type": "array",
+            "description": "APT components (e.g. [\"main\", \"universe\"]). Ignored for non-APT formats.",
+            "items": { "type": "string" }
+          },
+          "keyURL": {
+            "type": "string",
+            "description": "URL of the repository signing key to import."
+          },
+          "distros": {
+            "type": "array",
+            "description": "Restrict this repo to specific distro keys (e.g. [\"ubuntu\", \"rocky\"]). Empty means all.",
+            "items": { "type": "string" }
+          },
+          "format": {
+            "type": "string",
+            "description": "Force a specific repository format. Normally inferred from the target distro."
+          },
+          "gpgCheck": {
+            "type": "boolean",
+            "description": "Enable GPG signature verification for this repository.",
+            "default": false
+          }
+        }
+      }
+    },
+    "skipDeps": {
+      "type": "array",
+      "description": "Package names to omit from makedepends installation.",
+      "items": { "type": "string" }
+    },
+    "targetArch": {
+      "type": "string",
+      "description": "Cross-compilation target architecture (e.g. \"arm64\", \"aarch64\"). Empty means native host arch."
+    },
+    "debugDir": {
+      "type": "string",
+      "description": "Directory to capture per-step build debug artifacts."
+    },
+    "parallel": {
+      "type": "boolean",
+      "description": "Build independent projects in parallel. Default is sequential (file order).",
+      "default": false
+    },
+    "sbom": {
+      "type": "boolean",
+      "description": "Generate Software Bill of Materials for each artifact.",
+      "default": false
+    },
+    "sbomFormat": {
+      "type": "string",
+      "description": "SBOM format(s) to emit when sbom is enabled.",
+      "enum": ["cyclonedx", "spdx", "both"],
+      "default": "both"
+    }
+  }
+}
