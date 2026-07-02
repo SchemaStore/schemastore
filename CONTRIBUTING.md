@@ -295,6 +295,10 @@ Whether trailing commas are allowed in the schema itself. Use the [`allowTrailin
 
 Used by: `vscode-json-languageservice`.
 
+**`deprecationMessage`**
+
+Used by: `vscode-json-languageservice`, `Intellij`, `tombi-toml/tombi`.
+
 **`markdownDescription`**
 
 Used by: `vscode-json-languageservice`.
