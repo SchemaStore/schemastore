@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/bosh-job-bpm-config.json",
+  "$comment": "Schema built from [BPM docs](https://github.com/cloudfoundry/bpm-release/blob/9d556975335b6fbfe4c8e5a729ac02d1faba542b/docs/config.md and https://github.com/cloudfoundry/bpm-release/blob/9d556975335b6fbfe4c8e5a729ac02d1faba542b/docs/config.md), [adapter.go](https://github.com/cloudfoundry/bpm-release/blob/9d556975335b6fbfe4c8e5a729ac02d1faba542b/src/bpm/runc/adapter/adapter.go), and [OCI Runtime Spec Configuration docs](https://github.com/opencontainers/runtime-spec/blob/6999a89a76a0329f440d5740497bedb9dd431297/config.md).",
+  "$ref": "#/definitions/BpmConfig",
+  "definitions": {
+    "BpmConfig": {
+      "type": "object",
+      "properties": {
+        "processes": {
+          "description": "A top-level listing of all of the processes in your job.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/Process" }
+        }
+      }
+    },
+    "Process": {
+      "type": "object",
+      "required": ["name", "executable"],
+      "properties": {
+        "name": {
+          "description": "The name of this process.",
+          "type": "string"
+        },
+        "executable": {
+          "description": "The path to the executable file for this process.",
+          "type": "string"
+        },
+        "args": {
+          "description": "The arguments which will be passed to the `executable` of this process.",
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" }
+            ]
+          },
+          "default": []
+        },
+        "env": {
+          "description": "Any additional environment variables to be included in the environment of this process.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "workdir": {
+          "description": "The working directory for this process.",
+          "type": "string",
+          "default": "/var/vcap/jobs/<job>"
+        },
+        "hooks": { "$ref": "#/definitions/Hooks" },
+        "capabilities": {
+          "$comment": "Maps to ambient, bounding, inheritable, and permitted capabilities",
+          "description": "The list of [capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html) (without `CAP_`) which should be granted to this process.",
+          "examples": [["NET_BIND_SERVICE"]],
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "limits": { "$ref": "#/definitions/Limits" },
+        "ephemeral_disk": {
+          "description": "Whether or not an ephemeral disk should be mounted into the container at `/var/vcap/data/<job>`.",
+          "type": "boolean",
+          "default": false
+        },
+        "persistent_disk": {
+          "description": "Whether or not an persistent disk should be mounted into the container at `/var/vcap/store/<job>`.",
+          "type": "boolean",
+          "default": false
+        },
+        "additional_volumes": {
+          "description": "A list of additional volumes to mount inside this process. The paths which can be used are restricted.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/VolumeRestricted" },
+          "default": []
+        },
+        "unsafe": { "$ref": "#/definitions/Unsafe" },
+        "shutdown_signal": {
+          "description": "The first signal to send to the process when trying to shut it down.",
+          "type": "string",
+          "enum": ["TERM", "INT"],
+          "default": "TERM"
+        }
+      }
+    },
+    "Hooks": {
+      "type": "object",
+      "description": "The hook configuration for this process.",
+      "properties": {
+        "pre_start": {
+          "type": "string",
+          "description": "The startup hook must finish with time to spare before the `monit start` timeout (default: 30s)"
+        }
+      }
+    },
+    "Limits": {
+      "type": "object",
+      "properties": {
+        "memory": {
+          "$comment": "[Conversion to bytes](https://github.com/cloudfoundry/bpm-release/blob/9d556975335b6fbfe4c8e5a729ac02d1faba542b/src/bpm/runc/adapter/adapter.go#L270) is [handled by bytefmt](https://github.com/cloudfoundry/bytefmt/blob/dfc835280bacc8272adec8bf10a6edbff68a1d82/bytes.go#L104-L121). The coefficient must be greater than zero. Leading zeros are permissible.",
+          "description": "The memory limit to apply to this process.",
+          "examples": ["1G", "256M"],
+          "type": "string",
+          "format": "regex",
+          "pattern": "^((0+[1-9]+)|[1-9]+)(B|K|M|G|T|P|E)(I?B)?$"
+        },
+        "open_files": {
+          "$comment": "Maps to POSIX `RLIMIT_NOFILE` soft and hard limits.",
+          "description": "The number of files this process is allowed to have open at any one time.",
+          "type": "integer"
+        },
+        "processes": {
+          "description": "The number of processes which this process is allowed to have running at any one moment (inclusive of the main process).",
+          "type": "integer"
+        },
+        "core_file_size": {
+          "$comment": "Maps to POSIX `RLIMIT_CORE` soft and hard limits.",
+          "description": "The maximum size (in bytes) of a core dump file. Set to enable core dump generation for post-mortem debugging.",
+          "type": "integer"
+        }
+      }
+    },
+    "VolumeCommon": {
+      "type": "object",
+      "properties": {
+        "writable": {
+          "type": "boolean",
+          "description": "Whether or not this volume is writable by the process.",
+          "default": false
+        },
+        "allow_executions": {
+          "type": "boolean",
+          "description": "Whether or not executable files can be executed from this volume.",
+          "default": false
+        },
+        "mount_only": {
+          "type": "boolean",
+          "description": "Whether or not BPM should just mount this directory rather than creating (if it doesn't exist) and chowning a backing directory too.",
+          "default": false
+        }
+      }
+    },
+    "VolumeUnrestricted": {
+      "description": "An unrestricted list of additional volumes to mount inside this process.",
+      "type": "object",
+      "required": ["path"],
+      "allOf": [
+        { "$ref": "#/definitions/VolumeCommon" },
+        { "properties": { "path": { "type": "string" } } }
+      ]
+    },
+    "VolumeRestricted": {
+      "type": "object",
+      "required": ["path"],
+      "allOf": [
+        { "$ref": "#/definitions/VolumeCommon" },
+        {
+          "properties": {
+            "path": {
+              "type": "string",
+              "format": "regex",
+              "pattern": "^\/var\/vcap*",
+              "examples": ["/var/vcap/jobs/*/config/indicators.yml"]
+            },
+            "shared": {
+              "type": "boolean",
+              "description": "Whether or not BPM should share the mount (internal mountpoints are visible in all namespaces).",
+              "default": "false"
+            }
+          }
+        }
+      ]
+    },
+    "Unsafe": {
+      "description": "The unsafe configuration for this process.",
+      "type": "object",
+      "properties": {
+        "privileges": {
+          "description": "Whether or not this process should execute with increased privileges.\nThis removes some the safeguards which surround a BPM process:\n- Runs as user `root` and group `root`\n- Grants a larger list of privileges (taken from Docker's privileged list)\n- Allows new privileges to be gained\n- Removes seccomp limitations\n- Removes masked and readonly paths (still applies to volumes and `/var/vcap/{data,store})\n- All mounts have their `nosuid` option removed",
+          "type": "boolean",
+          "default": false
+        },
+        "unrestricted_volumes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/VolumeUnrestricted" },
+          "default": []
+        },
+        "host_pid_namespace": {
+          "description": "Use the host's PID namespace inside the container.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  }
+}

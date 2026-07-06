@@ -1,0 +1,1167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.schemastore.org/evidence-bundle.json",
+  "$defs": {
+    "Application": {
+      "additionalProperties": false,
+      "description": "Product or service under evaluation.",
+      "properties": {
+        "environment": {
+          "default": "production",
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Environment",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "owner_team": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner Team"
+        },
+        "repository": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        }
+      },
+      "required": ["name", "repository"],
+      "title": "Application",
+      "type": "object"
+    },
+    "ConfidenceLevel": {
+      "description": "Confidence of an evidence or an evaluation.\n\nManual attestations default to `medium` at best; automated signals from\ntrusted sources can reach `high`. `low` signals data that is inconsistent\nor derived from weakly authenticated sources.",
+      "enum": ["high", "medium", "low"],
+      "title": "ConfidenceLevel",
+      "type": "string"
+    },
+    "ControlCriticality": {
+      "description": "Criticality of a control, driving release gate impact.\n\n- `critical`: missing evidence forces `release_status = not_ready`.\n- `high`: missing evidence forces `release_status = conditional` (at best).\n- `medium`: missing evidence downgrades to `conditional` when paired with\n  any other gap; otherwise tolerated.\n- `low`: advisory; never blocks the release by itself.",
+      "enum": ["critical", "high", "medium", "low"],
+      "title": "ControlCriticality",
+      "type": "string"
+    },
+    "ControlEvaluation": {
+      "additionalProperties": false,
+      "description": "Outcome of evaluating a control against the collected evidence set.",
+      "properties": {
+        "confidence": {
+          "$ref": "#/$defs/ConfidenceLevel",
+          "default": "medium"
+        },
+        "control_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Control Id",
+          "type": "string"
+        },
+        "control_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Control Name",
+          "type": "string"
+        },
+        "criticality": {
+          "$ref": "#/$defs/ControlCriticality"
+        },
+        "evaluated_at": {
+          "format": "date-time",
+          "title": "Evaluated At",
+          "type": "string"
+        },
+        "evaluation_status": {
+          "$ref": "#/$defs/ControlEvaluationStatus"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "exception_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Exception Refs",
+          "type": "array"
+        },
+        "framework": {
+          "$ref": "#/$defs/ControlFramework"
+        },
+        "missing_recommended_evidence_types": {
+          "items": {
+            "$ref": "#/$defs/EvidenceType"
+          },
+          "title": "Missing Recommended Evidence Types",
+          "type": "array"
+        },
+        "missing_required_evidence_types": {
+          "items": {
+            "$ref": "#/$defs/EvidenceType"
+          },
+          "title": "Missing Required Evidence Types",
+          "type": "array"
+        },
+        "rationale": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "control_id",
+        "framework",
+        "control_name",
+        "evaluation_status",
+        "criticality",
+        "rationale"
+      ],
+      "title": "ControlEvaluation",
+      "type": "object"
+    },
+    "ControlEvaluationStatus": {
+      "description": "Outcome of evaluating a control against collected evidence.",
+      "enum": ["met", "partial", "missing", "waived", "not_applicable"],
+      "title": "ControlEvaluationStatus",
+      "type": "string"
+    },
+    "ControlFramework": {
+      "description": "Compliance / governance frameworks referenced by controls.",
+      "enum": ["NIST_SSDF", "OWASP_SAMM", "ORG_INTERNAL"],
+      "title": "ControlFramework",
+      "type": "string"
+    },
+    "EvidenceClassification": {
+      "additionalProperties": false,
+      "description": "How the ``evidence_type`` of a record was decided.\n\nPromotes the implicit confidence signal previously visible only in\n``evaluation.rationale`` text to a first-class bundle field so\ndownstream consumers can weight or filter evidence by classification\nconfidence without parsing free-form prose. The taxonomy is small on\npurpose: any new ``reason`` value MUST be documented in\n``docs/limitations.md`` so reviewers know what to expect.",
+      "properties": {
+        "confidence": {
+          "$ref": "#/$defs/ConfidenceLevel"
+        },
+        "driver_name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Driver Name"
+        },
+        "reason": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": ["confidence", "reason"],
+      "title": "EvidenceClassification",
+      "type": "object"
+    },
+    "EvidenceException": {
+      "additionalProperties": false,
+      "description": "Formal, time-bound waiver that allows a control to pass without\nits required evidence being present.\n\nExceptions must have an approver, a written justification, and an\nexpiration date. The engine refuses expired or unscoped exceptions.",
+      "properties": {
+        "approved_at": {
+          "format": "date-time",
+          "title": "Approved At",
+          "type": "string"
+        },
+        "approver": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Approver",
+          "type": "string"
+        },
+        "control_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Control Id",
+          "type": "string"
+        },
+        "exception_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Exception Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "justification": {
+          "maxLength": 2000,
+          "minLength": 10,
+          "title": "Justification",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ticket or document where the waiver was recorded.",
+          "title": "Reference"
+        },
+        "scope": {
+          "$ref": "#/$defs/ExceptionScope"
+        }
+      },
+      "required": [
+        "exception_id",
+        "control_id",
+        "approver",
+        "approved_at",
+        "expires_at",
+        "justification"
+      ],
+      "title": "EvidenceException",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "Origin system that produced an evidence artifact.",
+      "properties": {
+        "kind": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": ["name", "kind"],
+      "title": "EvidenceSource",
+      "type": "object"
+    },
+    "EvidenceStatus": {
+      "description": "Operational status of an evidence artifact.\n\n`passed`/`failed` apply to evaluative evidence (scans, tests). `generated`\napplies to artifacts that exist without a pass/fail verdict (SBOM). `missing`\nis used by the evaluation engine when an expected evidence is not found.\n`invalid` marks artifacts that were present but failed parsing/validation.",
+      "enum": [
+        "passed",
+        "failed",
+        "completed",
+        "generated",
+        "missing",
+        "invalid",
+        "unknown"
+      ],
+      "title": "EvidenceStatus",
+      "type": "string"
+    },
+    "EvidenceType": {
+      "description": "Canonical evidence types supported by the MVP.\n\nExtending this enum requires updating control definitions that reference\nthe new type. Unknown evidence should be rejected at the parser boundary.",
+      "enum": [
+        "sast_scan",
+        "sca_scan",
+        "secrets_scan",
+        "dast_scan",
+        "sbom",
+        "test_result",
+        "code_review",
+        "pr_metadata",
+        "workflow_run",
+        "threat_model",
+        "release_approval",
+        "rollback_plan",
+        "artifact_signature",
+        "artifact_attestation",
+        "generic_attestation",
+        "model_card",
+        "prompt_injection_test_result",
+        "ai_safety_eval",
+        "mcp_tool_inventory",
+        "ai_training_data_lineage"
+      ],
+      "title": "EvidenceType",
+      "type": "string"
+    },
+    "ExceptionScope": {
+      "additionalProperties": false,
+      "description": "Scope to which an exception applies.",
+      "properties": {
+        "application": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Application"
+        },
+        "release_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Release Id"
+        }
+      },
+      "title": "ExceptionScope",
+      "type": "object"
+    },
+    "Gap": {
+      "additionalProperties": false,
+      "description": "A concrete missing or weak evidence that impacts release readiness.",
+      "properties": {
+        "control_id": {
+          "title": "Control Id",
+          "type": "string"
+        },
+        "criticality": {
+          "$ref": "#/$defs/ControlCriticality"
+        },
+        "description": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "remediation": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remediation"
+        }
+      },
+      "required": ["control_id", "criticality", "description"],
+      "title": "Gap",
+      "type": "object"
+    },
+    "NormalizedEvidence": {
+      "additionalProperties": false,
+      "description": "Canonical evidence record after normalization.\n\nEvery evaluation must reference normalized evidence via `evidence_id`.",
+      "properties": {
+        "classification": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceClassification"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional classification provenance for the evidence_type. Populated by parsers that apply a heuristic (currently the SARIF normalizer); absent when the evidence type is self-evident from the format (SBOM, JUnit, ZAP)."
+        },
+        "collected_at": {
+          "format": "date-time",
+          "title": "Collected At",
+          "type": "string"
+        },
+        "commit_sha": {
+          "maxLength": 64,
+          "minLength": 7,
+          "title": "Commit Sha",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/ConfidenceLevel",
+          "default": "medium"
+        },
+        "cve_ids": {
+          "description": "Distinct CVE identifiers extracted from the underlying scanner output. Populated by parsers that can correlate findings to CVEs (SARIF results with security/cve tags, CycloneDX vulnerabilities block). Used by the optional EPSS/KEV enrichment step. Empty when the parser cannot derive CVEs or when the evidence type does not correspond to vulnerability data (test_result, code_review, etc).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Cve Ids",
+          "type": "array"
+        },
+        "evidence_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "evidence_type": {
+          "$ref": "#/$defs/EvidenceType"
+        },
+        "findings_count": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Aggregated findings counters keyed by severity, e.g. {high: 0}.",
+          "title": "Findings Count",
+          "type": "object"
+        },
+        "generated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generated At"
+        },
+        "manual": {
+          "default": false,
+          "description": "True when the evidence was provided via manual attestation.",
+          "title": "Manual",
+          "type": "boolean"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "producer": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Producer",
+          "type": "string"
+        },
+        "raw": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RawEvidenceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reachability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reachability"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional reachability annotation (§3.2). Populated externally (CodeQL reachability, Endor Labs, Semgrep Pro, manual review). The collector preserves the upstream verdict; it does not compute reachability itself."
+        },
+        "release_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Release Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource"
+        },
+        "status": {
+          "$ref": "#/$defs/EvidenceStatus"
+        },
+        "subject_ref": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Subject Ref",
+          "type": "string"
+        },
+        "subject_type": {
+          "$ref": "#/$defs/SubjectType"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "vulnerability_intelligence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VulnerabilityIntelligence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional EPSS/KEV enrichment summary for the CVEs in ``cve_ids``. Stays ``None`` unless the user opted into enrichment via the ``run --enrich`` flag or the standalone ``sdlc-evidence enrich`` command. The bundle remains schema-compatible with pre-enrichment consumers when this field is absent."
+        }
+      },
+      "required": [
+        "evidence_id",
+        "evidence_type",
+        "source",
+        "producer",
+        "subject_type",
+        "subject_ref",
+        "status",
+        "release_id",
+        "commit_sha"
+      ],
+      "title": "NormalizedEvidence",
+      "type": "object"
+    },
+    "RawEvidenceRef": {
+      "additionalProperties": false,
+      "description": "Reference to a raw (non-normalized) artifact stored alongside the bundle.",
+      "properties": {
+        "artifact_path": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Path"
+        },
+        "artifact_uri": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Uri"
+        },
+        "content_type": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Type"
+        },
+        "integrity_hash": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hex digest with algorithm prefix, e.g. sha256:abcd...",
+          "title": "Integrity Hash"
+        },
+        "size_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Bytes"
+        }
+      },
+      "title": "RawEvidenceRef",
+      "type": "object"
+    },
+    "Reachability": {
+      "additionalProperties": false,
+      "description": "Optional reachability annotation for an SCA / dependency finding (§3.2).\n\nRecords whether the vulnerable code path is reachable from the\napplication entry points. Source = whichever tool produced the\nsignal (CodeQL reachability, Endor Labs, Semgrep Pro, or a manual\nreview). The collector **does not** re-derive reachability; it\nonly stores the upstream verdict so consumers can filter findings\nby reachable / not_reachable / unknown.",
+      "properties": {
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Ref"
+        },
+        "method": {
+          "default": "manual_review",
+          "maxLength": 30,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 20,
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": ["status", "source"],
+      "title": "Reachability",
+      "type": "object"
+    },
+    "ReleaseContext": {
+      "additionalProperties": false,
+      "description": "Release candidate context that anchors every evidence collected.",
+      "properties": {
+        "artifact_digest": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Content digest of the published artifact, e.g. sha256:...",
+          "title": "Artifact Digest"
+        },
+        "branch": {
+          "default": "main",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Branch",
+          "type": "string"
+        },
+        "build_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Build Id"
+        },
+        "commit_sha": {
+          "maxLength": 64,
+          "minLength": 7,
+          "title": "Commit Sha",
+          "type": "string"
+        },
+        "pipeline_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipeline Run Id"
+        },
+        "release_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Release Id",
+          "type": "string"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag"
+        }
+      },
+      "required": ["release_id", "commit_sha"],
+      "title": "ReleaseContext",
+      "type": "object"
+    },
+    "ReleaseStatus": {
+      "description": "Overall release readiness verdict computed from control evaluations.",
+      "enum": ["ready", "conditional", "not_ready"],
+      "title": "ReleaseStatus",
+      "type": "string"
+    },
+    "RiskAssessment": {
+      "additionalProperties": false,
+      "description": "Risk-weighted verdict rationale (T6.6, opt-in).\n\nPopulated when the run was invoked with ``--risk-mode epss-weighted``.\n``None`` when the default presence-based verdict is in effect, which\npreserves byte-stability for pre-T6.6 bundles.",
+      "properties": {
+        "base_release_status": {
+          "$ref": "#/$defs/ReleaseStatus"
+        },
+        "epss_percentile_threshold": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Epss Percentile Threshold",
+          "type": "number"
+        },
+        "exploitable_cve_count": {
+          "minimum": 0,
+          "title": "Exploitable Cve Count",
+          "type": "integer"
+        },
+        "high_epss_cve_count": {
+          "minimum": 0,
+          "title": "High Epss Cve Count",
+          "type": "integer"
+        },
+        "kev_blocks": {
+          "default": true,
+          "title": "Kev Blocks",
+          "type": "boolean"
+        },
+        "kev_cve_count": {
+          "minimum": 0,
+          "title": "Kev Cve Count",
+          "type": "integer"
+        },
+        "kev_ransomware_cve_count": {
+          "minimum": 0,
+          "title": "Kev Ransomware Cve Count",
+          "type": "integer"
+        },
+        "mode": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Mode",
+          "type": "string"
+        },
+        "rationale": {
+          "default": "",
+          "maxLength": 400,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "epss_percentile_threshold",
+        "exploitable_cve_count",
+        "kev_cve_count",
+        "kev_ransomware_cve_count",
+        "high_epss_cve_count",
+        "base_release_status"
+      ],
+      "title": "RiskAssessment",
+      "type": "object"
+    },
+    "SubjectType": {
+      "description": "Subject an evidence is attached to.",
+      "enum": [
+        "repository",
+        "commit",
+        "pull_request",
+        "workflow_run",
+        "build",
+        "artifact",
+        "release",
+        "application",
+        "ai_model",
+        "ai_agent",
+        "ai_dataset"
+      ],
+      "title": "SubjectType",
+      "type": "string"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "description": "Aggregated verdict and scores for the bundle.",
+      "properties": {
+        "confidence_score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Confidence Score",
+          "type": "integer"
+        },
+        "controls_met": {
+          "minimum": 0,
+          "title": "Controls Met",
+          "type": "integer"
+        },
+        "controls_missing": {
+          "minimum": 0,
+          "title": "Controls Missing",
+          "type": "integer"
+        },
+        "controls_not_applicable": {
+          "minimum": 0,
+          "title": "Controls Not Applicable",
+          "type": "integer"
+        },
+        "controls_partial": {
+          "minimum": 0,
+          "title": "Controls Partial",
+          "type": "integer"
+        },
+        "controls_waived": {
+          "minimum": 0,
+          "title": "Controls Waived",
+          "type": "integer"
+        },
+        "evidence_coverage_score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Evidence Coverage Score",
+          "type": "integer"
+        },
+        "missing_critical_evidence": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Critical Evidence",
+          "type": "array"
+        },
+        "release_status": {
+          "$ref": "#/$defs/ReleaseStatus"
+        },
+        "risk_assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RiskAssessment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "total_controls": {
+          "minimum": 0,
+          "title": "Total Controls",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "evidence_coverage_score",
+        "confidence_score",
+        "release_status",
+        "total_controls",
+        "controls_met",
+        "controls_partial",
+        "controls_missing",
+        "controls_waived",
+        "controls_not_applicable"
+      ],
+      "title": "Summary",
+      "type": "object"
+    },
+    "TopRiskCve": {
+      "additionalProperties": false,
+      "description": "A single CVE selected for top-risk listing in vulnerability intelligence.\n\nKept small on purpose: only the fields a maintainer needs to decide\nwhether to patch *this week* vs *batch later*. Full CVE detail lives\nin the raw scanner artefacts referenced by ``raw.artifact_path``.",
+      "properties": {
+        "cve_id": {
+          "maxLength": 30,
+          "minLength": 1,
+          "title": "Cve Id",
+          "type": "string"
+        },
+        "epss_percentile": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Epss Percentile",
+          "type": "number"
+        },
+        "epss_score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Epss Score",
+          "type": "number"
+        },
+        "in_kev": {
+          "default": false,
+          "title": "In Kev",
+          "type": "boolean"
+        },
+        "known_ransomware": {
+          "default": false,
+          "title": "Known Ransomware",
+          "type": "boolean"
+        }
+      },
+      "required": ["cve_id", "epss_score", "epss_percentile"],
+      "title": "TopRiskCve",
+      "type": "object"
+    },
+    "VulnerabilityIntelligence": {
+      "additionalProperties": false,
+      "description": "EPSS + CISA KEV enrichment aggregated for a single evidence record.\n\nComputed by the optional ``enrich`` step (CLI flag ``--enrich`` on\n``run``, or the standalone ``sdlc-evidence enrich`` command). When the\nenrichment step is skipped the field stays ``None`` and the bundle\nbehaves exactly like it did pre-enrichment, so consumers that never\nopt in are unaffected.\n\nSource feeds:\n\n* EPSS — https://epss.cyentia.com/ (FIRST.org, public CSV, refreshed\n  daily). ``epss_score`` is the probability of exploitation in the\n  next 30 days; ``epss_percentile`` is the position within the day's\n  distribution.\n* CISA KEV — https://www.cisa.gov/known-exploited-vulnerabilities-catalog\n  (JSON catalog of vulnerabilities confirmed exploited in the wild).",
+      "properties": {
+        "cve_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cve Count",
+          "type": "integer"
+        },
+        "cves_in_kev_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cves In Kev Count",
+          "type": "integer"
+        },
+        "cves_known_ransomware_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cves Known Ransomware Count",
+          "type": "integer"
+        },
+        "enriched_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timestamp at which enrichment ran; volatile, stripped before structural hash.",
+          "title": "Enriched At"
+        },
+        "epss_feed_date": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY-MM-DD date stamped on the EPSS feed used for enrichment.",
+          "title": "Epss Feed Date"
+        },
+        "epss_model_version": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "EPSS model version stamped on the feed header (e.g. 'v2026.01.04'). EPSS scores are not comparable across model versions, so recording it keeps day-to-day score deltas honest. None when enrichment is skipped or the feed header omits it.",
+          "title": "Epss Model Version"
+        },
+        "kev_feed_date": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY-MM-DD date stamped on the CISA KEV catalog used for enrichment.",
+          "title": "Kev Feed Date"
+        },
+        "max_epss_percentile": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Epss Percentile"
+        },
+        "max_epss_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Epss Score"
+        },
+        "top_risk_cves": {
+          "description": "Up to N CVEs sorted by EPSS percentile (highest first).",
+          "items": {
+            "$ref": "#/$defs/TopRiskCve"
+          },
+          "title": "Top Risk Cves",
+          "type": "array"
+        }
+      },
+      "title": "VulnerabilityIntelligence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level, serializable container produced by the collector.",
+  "properties": {
+    "application": {
+      "$ref": "#/$defs/Application"
+    },
+    "bundle_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Bundle Id",
+      "type": "string"
+    },
+    "bundle_version": {
+      "default": "1.0.0",
+      "title": "Bundle Version",
+      "type": "string"
+    },
+    "control_evaluations": {
+      "items": {
+        "$ref": "#/$defs/ControlEvaluation"
+      },
+      "title": "Control Evaluations",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/NormalizedEvidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "exceptions": {
+      "items": {
+        "$ref": "#/$defs/EvidenceException"
+      },
+      "title": "Exceptions",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/Gap"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "release": {
+      "$ref": "#/$defs/ReleaseContext"
+    },
+    "summary": {
+      "$ref": "#/$defs/Summary"
+    }
+  },
+  "required": ["bundle_id", "application", "release", "summary"],
+  "title": "EvidenceBundle",
+  "type": "object"
+}
