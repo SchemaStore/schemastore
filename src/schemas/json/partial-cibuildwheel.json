@@ -9,8 +9,6 @@
     },
     "enable": {
       "enum": [
-        "cpython-experimental-riscv64",
-        "cpython-freethreading",
         "cpython-prerelease",
         "graalpy",
         "pyodide-prerelease",
@@ -24,6 +22,36 @@
   "description": "cibuildwheel's settings. Generated with ./bin/generate_schema.py --schemastore from cibuildwheel.",
   "type": "object",
   "properties": {
+    "audit-command": {
+      "description": "Execute a shell command to audit each wheel after it is repaired. Use {wheel} for each wheel path, or {abi3_wheel} to only audit abi3 wheels.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "title": "CIBW_AUDIT_COMMAND"
+    },
+    "audit-requires": {
+      "description": "Install Python dependencies for the audit step.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "title": "CIBW_AUDIT_REQUIRES"
+    },
     "archs": {
       "description": "Change the architectures built on your machine by default.",
       "oneOf": [
@@ -102,10 +130,10 @@
     },
     "build-frontend": {
       "default": "default",
-      "description": "Set the tool to use to build, either \"build\" (default), \"build[uv]\", or \"pip\"",
+      "description": "Set the tool to use to build, either \"build\" (default), \"build[uv]\", \"uv\", or \"pip\"",
       "oneOf": [
         {
-          "enum": ["pip", "build", "build[uv]", "default"]
+          "enum": ["pip", "build", "build[uv]", "uv", "default"]
         },
         {
           "type": "string",
@@ -120,12 +148,16 @@
           "pattern": "^build\\[uv\\]; ?args:"
         },
         {
+          "type": "string",
+          "pattern": "^uv; ?args:"
+        },
+        {
           "type": "object",
           "additionalProperties": false,
           "required": ["name"],
           "properties": {
             "name": {
-              "enum": ["pip", "build", "build[uv]"]
+              "enum": ["pip", "build", "build[uv]", "uv"]
             },
             "args": {
               "type": "array",
@@ -395,6 +427,34 @@
       ],
       "title": "CIBW_XBUILD_TOOLS"
     },
+    "xbuild-files": {
+      "description": "Platform-specific files in the build environment",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            ".+": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "title": "CIBW_XBUILD_FILES"
+    },
     "pyodide-version": {
       "type": "string",
       "description": "Specify the version of Pyodide to use",
@@ -595,6 +655,12 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+              "audit-command": {
+                "$ref": "#/$defs/inherit"
+              },
+              "audit-requires": {
+                "$ref": "#/$defs/inherit"
+              },
               "before-all": {
                 "$ref": "#/$defs/inherit"
               },
@@ -602,6 +668,9 @@
                 "$ref": "#/$defs/inherit"
               },
               "xbuild-tools": {
+                "$ref": "#/$defs/inherit"
+              },
+              "xbuild-files": {
                 "$ref": "#/$defs/inherit"
               },
               "before-test": {
@@ -641,6 +710,12 @@
                 "$ref": "#/$defs/inherit"
               }
             }
+          },
+          "audit-command": {
+            "$ref": "#/properties/audit-command"
+          },
+          "audit-requires": {
+            "$ref": "#/properties/audit-requires"
           },
           "before-all": {
             "$ref": "#/properties/before-all"
@@ -726,6 +801,9 @@
           "xbuild-tools": {
             "$ref": "#/properties/xbuild-tools"
           },
+          "xbuild-files": {
+            "$ref": "#/properties/xbuild-files"
+          },
           "pyodide-version": {
             "$ref": "#/properties/pyodide-version"
           },
@@ -760,6 +838,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "audit-command": {
+          "$ref": "#/properties/audit-command"
+        },
+        "audit-requires": {
+          "$ref": "#/properties/audit-requires"
+        },
         "archs": {
           "$ref": "#/properties/archs"
         },
@@ -844,6 +928,9 @@
         "xbuild-tools": {
           "$ref": "#/properties/xbuild-tools"
         },
+        "xbuild-files": {
+          "$ref": "#/properties/xbuild-files"
+        },
         "pyodide-version": {
           "$ref": "#/properties/pyodide-version"
         },
@@ -890,6 +977,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "audit-command": {
+          "$ref": "#/properties/audit-command"
+        },
+        "audit-requires": {
+          "$ref": "#/properties/audit-requires"
+        },
         "archs": {
           "$ref": "#/properties/archs"
         },
@@ -920,11 +1013,27 @@
         "xbuild-tools": {
           "$ref": "#/properties/xbuild-tools"
         },
+        "xbuild-files": {
+          "$ref": "#/properties/xbuild-files"
+        },
         "pyodide-version": {
           "$ref": "#/properties/pyodide-version"
         },
         "repair-wheel-command": {
-          "$ref": "#/properties/repair-wheel-command"
+          "description": "Execute a shell command to repair each built wheel.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "title": "CIBW_REPAIR_WHEEL_COMMAND",
+          "default": "delvewheel repair -w {dest_dir} -v {wheel}"
         },
         "test-command": {
           "$ref": "#/properties/test-command"
@@ -953,6 +1062,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "audit-command": {
+          "$ref": "#/properties/audit-command"
+        },
+        "audit-requires": {
+          "$ref": "#/properties/audit-requires"
+        },
         "archs": {
           "$ref": "#/properties/archs"
         },
@@ -982,6 +1097,9 @@
         },
         "xbuild-tools": {
           "$ref": "#/properties/xbuild-tools"
+        },
+        "xbuild-files": {
+          "$ref": "#/properties/xbuild-files"
         },
         "pyodide-version": {
           "$ref": "#/properties/pyodide-version"
@@ -1029,6 +1147,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "audit-command": {
+          "$ref": "#/properties/audit-command"
+        },
+        "audit-requires": {
+          "$ref": "#/properties/audit-requires"
+        },
         "archs": {
           "$ref": "#/properties/archs"
         },
@@ -1058,6 +1182,9 @@
         },
         "xbuild-tools": {
           "$ref": "#/properties/xbuild-tools"
+        },
+        "xbuild-files": {
+          "$ref": "#/properties/xbuild-files"
         },
         "pyodide-version": {
           "$ref": "#/properties/pyodide-version"
@@ -1092,6 +1219,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "audit-command": {
+          "$ref": "#/properties/audit-command"
+        },
+        "audit-requires": {
+          "$ref": "#/properties/audit-requires"
+        },
         "archs": {
           "$ref": "#/properties/archs"
         },
@@ -1122,11 +1255,27 @@
         "xbuild-tools": {
           "$ref": "#/properties/xbuild-tools"
         },
+        "xbuild-files": {
+          "$ref": "#/properties/xbuild-files"
+        },
         "pyodide-version": {
           "$ref": "#/properties/pyodide-version"
         },
         "repair-wheel-command": {
-          "$ref": "#/properties/repair-wheel-command"
+          "description": "Execute a shell command to repair each built wheel.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "title": "CIBW_REPAIR_WHEEL_COMMAND",
+          "default": "auditwheel repair --ldpaths {ldpaths} -w {dest_dir} {wheel}"
         },
         "test-command": {
           "$ref": "#/properties/test-command"
@@ -1155,6 +1304,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "audit-command": {
+          "$ref": "#/properties/audit-command"
+        },
+        "audit-requires": {
+          "$ref": "#/properties/audit-requires"
+        },
         "archs": {
           "$ref": "#/properties/archs"
         },
@@ -1184,6 +1339,9 @@
         },
         "xbuild-tools": {
           "$ref": "#/properties/xbuild-tools"
+        },
+        "xbuild-files": {
+          "$ref": "#/properties/xbuild-files"
         },
         "pyodide-version": {
           "$ref": "#/properties/pyodide-version"

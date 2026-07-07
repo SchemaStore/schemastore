@@ -1,0 +1,206 @@
+{
+  "table": {
+    "acl": [
+      {
+        "grants": ["group:auditors@company.com", "user:cfo@company.com"],
+        "name": "audit_read_access",
+        "role": "reader"
+      },
+      {
+        "grants": ["serviceAccount:etl@project.iam.gserviceaccount.com"],
+        "name": "etl_write_access",
+        "role": "writer"
+      }
+    ],
+    "attributes": [
+      {
+        "comment": "Unique transaction identifier",
+        "name": "txn_id",
+        "position": {
+          "first": 0,
+          "last": 15
+        },
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "txn_date",
+        "position": {
+          "first": 16,
+          "last": 25
+        },
+        "required": true,
+        "type": "date"
+      },
+      {
+        "metricType": "CONTINUOUS",
+        "name": "amount",
+        "position": {
+          "first": 26,
+          "last": 40
+        },
+        "required": true,
+        "trim": "BOTH",
+        "type": "decimal"
+      },
+      {
+        "default": "USD",
+        "metricType": "DISCRETE",
+        "name": "currency",
+        "tags": ["reference_data"],
+        "type": "string"
+      },
+      {
+        "accessPolicy": "pii_policy",
+        "ignore": false,
+        "name": "customer_email",
+        "privacy": "SHA256",
+        "rename": "email_hash",
+        "type": "email"
+      },
+      {
+        "comment": "Internal field, excluded from ingestion",
+        "ignore": true,
+        "name": "internal_notes",
+        "type": "string"
+      },
+      {
+        "foreignKey": "customers.customer_id",
+        "name": "customer_name",
+        "script": "UPPER(customer_name)",
+        "type": "string"
+      },
+      {
+        "array": false,
+        "attributes": [
+          {
+            "name": "street",
+            "type": "string"
+          },
+          {
+            "name": "city",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "zip",
+            "type": "string"
+          },
+          {
+            "attributes": [
+              {
+                "name": "lat",
+                "type": "double"
+              },
+              {
+                "name": "lon",
+                "type": "double"
+              }
+            ],
+            "name": "geo",
+            "type": "struct"
+          }
+        ],
+        "name": "address",
+        "type": "struct"
+      },
+      {
+        "array": true,
+        "attributes": [
+          {
+            "name": "product_id",
+            "type": "string"
+          },
+          {
+            "name": "quantity",
+            "type": "int"
+          },
+          {
+            "name": "unit_price",
+            "type": "decimal"
+          }
+        ],
+        "name": "line_items",
+        "type": "struct"
+      }
+    ],
+    "comment": "Financial transaction records with fixed-width and nested attribute support",
+    "expectations": [
+      {
+        "expect": "count(*) > 0"
+      },
+      {
+        "expect": "count(CASE WHEN amount < 0 THEN 1 END) = 0",
+        "failOnError": true
+      }
+    ],
+    "filter": "amount > 0",
+    "metadata": {
+      "ack": ".ack",
+      "dagRef": "daily_load",
+      "directory": "/data/incoming/transactions",
+      "emptyIsNull": true,
+      "encoding": "UTF-8",
+      "escape": "\\",
+      "extensions": [".csv", ".dat", ".txt"],
+      "format": "POSITION",
+      "freshness": {
+        "error": "12 hour",
+        "warn": "4 hour"
+      },
+      "loader": "native",
+      "nullValue": "N/A",
+      "options": {
+        "dateFormat": "yyyy-MM-dd"
+      },
+      "quote": "\"",
+      "schedule": "0 */4 * * *",
+      "separator": ",",
+      "sink": {
+        "clustering": ["currency", "status"],
+        "coalesce": false,
+        "connectionRef": "bigquery-prod",
+        "days": 365,
+        "materializedView": "TABLE",
+        "options": {
+          "partitionOverwriteMode": "dynamic"
+        },
+        "partition": ["txn_date"],
+        "requirePartitionFilter": true
+      },
+      "withHeader": true,
+      "writeStrategy": {
+        "key": ["txn_id"],
+        "on": "TARGET",
+        "queryFilter": "txn_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)",
+        "timestamp": "txn_date",
+        "type": "UPSERT_BY_KEY_AND_TIMESTAMP"
+      }
+    },
+    "name": "transactions",
+    "pattern": "transactions_.*\\.csv",
+    "patternSample": "transactions_20240115.csv",
+    "postsql": [
+      "DROP TABLE IF EXISTS staging",
+      "CALL update_statistics('financial_transactions')"
+    ],
+    "presql": ["CREATE TEMP TABLE staging AS SELECT * FROM raw_transactions"],
+    "primaryKey": ["txn_id", "txn_date"],
+    "rename": "financial_transactions",
+    "rls": [
+      {
+        "description": "Restrict transaction visibility by region",
+        "grants": [
+          "group:finance@company.com",
+          "serviceAccount:etl@project.iam.gserviceaccount.com"
+        ],
+        "name": "region_access",
+        "predicate": "region IN (SELECT allowed_region FROM user_permissions WHERE user = CURRENT_USER())"
+      }
+    ],
+    "sample": "txn_001,2024-01-15,1500.50,USD,John Doe",
+    "streams": ["txn_stream_v1"],
+    "tags": ["finance", "transactions", "pci"]
+  },
+  "version": 1
+}

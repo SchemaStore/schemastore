@@ -6,6 +6,48 @@ The largest collection of independent JSON schemas in the world.
 
 The repository is a universal JSON schema store, where schemas for popular JSON documents can be found.
 
+## MCP Server
+
+An [MCP (Model Context Protocol) server](https://github.com/SchemaStore/SchemaStoreMcpServer) is available for SchemaStore, allowing AI assistants and editors to search, browse, and retrieve JSON schemas from the catalog.
+
+The server is publicly hosted at **https://mcp.schemastore.org** — no local setup required.
+
+### Visual Studio Code
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "SchemaStore": {
+      "url": "https://mcp.schemastore.org/",
+      "type": "http"
+    }
+  }
+}
+```
+
+### Visual Studio
+
+Add a `.mcp.json` file to your solution root:
+
+```json
+{
+  "inputs": [],
+  "servers": {
+    "SchemaStore": {
+      "url": "https://mcp.schemastore.org/",
+      "type": "http",
+      "headers": {}
+    }
+  }
+}
+```
+
+### Any MCP Client
+
+Point your client at `https://mcp.schemastore.org/` using HTTP transport.
+
 ## Contribute
 
 Contributions are more than welcome! Read [CONTRIBUTING.md](./CONTRIBUTING.md) for more information.

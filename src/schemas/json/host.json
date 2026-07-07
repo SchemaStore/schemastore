@@ -319,6 +319,29 @@
               "description": "A value indicating whether to write orchestration replay events to Application Insights.",
               "type": "boolean",
               "default": false
+            },
+            "distributedTracingEnabled": {
+              "description": "Distributed tracing tracks requests and shows how different services interact with each other and correlates orchestrations, entities, and activities together.",
+              "type": "boolean",
+              "default": false
+            },
+            "version": {
+              "description": "Distributed tracing version",
+              "oneOf": [
+                {
+                  "description": "Distributed Tracing is disabled.",
+                  "const": "None"
+                },
+                {
+                  "description": "Original implementation of Distributed Tracing in Durable Functions that can be configured to use HttpCorrelationProtocol or W3CTraceContext",
+                  "const": "V1"
+                },
+                {
+                  "description": "OpenTelemetry compatible version of Distributed Tracing in Durable Functions.",
+                  "const": "V2"
+                }
+              ],
+              "default": "V2"
             }
           },
           "additionalProperties": false
@@ -443,6 +466,74 @@
             "leasePrefix": {
               "description": "Lease prefix to use across all functions in an app.",
               "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcp-extension": {
+      "type": "object",
+      "description": "Configuration settings for 'mcp' triggers.",
+      "properties": {
+        "instructions": {
+          "description": "Describes to clients how to access the remote MCP server.",
+          "type": "string"
+        },
+        "serverName": {
+          "description": "A friendly name for the remote MCP server.",
+          "type": "string"
+        },
+        "serverVersion": {
+          "description": "Current version of the remote MCP server.",
+          "type": "string"
+        },
+        "encryptClientState": {
+          "description": "Determines if client state is encrypted. Defaults to true. Setting to false may be useful for debugging and test scenarios but isn't recommended for production.",
+          "type": "boolean",
+          "default": true
+        },
+        "messageOptions": {
+          "description": "COptions object for the message endpoint in the SSE transport.",
+          "type": "object",
+          "properties": {
+            "useAbsoluteUriForEndpoint": {
+              "description": "If set to false, the message endpoint is provided as a relative URI during initial connections over the SSE transport. If set to true, the message endpoint is returned as an absolute URI. Using a relative URI isn't recommended unless you have a specific reason to do so.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "system": {
+          "description": "COptions object for the message endpoint in the SSE transport.",
+          "type": "object",
+          "properties": {
+            "webhookAuthorizationLevel": {
+              "description": "Defines the authorization level required for the webhook endpoint. Defaults to \"System\". Allowed values are \"System\" and \"Anonymous\". When you set the value to \"Anonymous\", an access key is no longer required for requests.",
+              "enum": ["System", "Anonymous"],
+              "default": "System"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "connector-extension": {
+      "type": "object",
+      "description": "Configuration settings for connector extension.",
+      "properties": {
+        "system": {
+          "type": "object",
+          "description": "System-level options for the connector extension.",
+          "properties": {
+            "webhookAuthorizationLevel": {
+              "type": "string",
+              "description": "Defines the authorization level for the webhook endpoint. Defaults to \"System\". Use \"Anonymous\" only when alternative authentication (for example, Easy Auth) is configured, as requests will not require an access key.",
+              "enum": ["System", "Anonymous"],
+              "default": "System"
             }
           },
           "additionalProperties": false
@@ -1075,6 +1166,22 @@
               "description": "Proxy HttpTrigger request to the custom handler",
               "type": "boolean",
               "default": false
+            },
+            "http": {
+              "description": "HTTP configuration for the custom handler",
+              "type": "object",
+              "properties": {
+                "defaultAuthorizationLevel": {
+                  "description": "The default authorization level for HTTP-triggered functions",
+                  "enum": ["anonymous", "function", "admin"],
+                  "default": "anonymous"
+                }
+              },
+              "additionalProperties": false
+            },
+            "port": {
+              "description": "The port on which the custom handler process listens",
+              "type": "integer"
             }
           },
           "additionalProperties": false
@@ -1280,6 +1387,11 @@
                       "type": "integer",
                       "default": 1000
                     },
+                    "minMessageBatchSize": {
+                      "description": "The minimum number of messages desired in a batch. This setting only applies when the function is receiving multiple messages and must be less than maxMessageBatchSize. Using this setting requires Microsoft.Azure.WebJobs.Extensions.ServiceBus 5.10.0 or later.",
+                      "type": "integer",
+                      "default": 1
+                    },
                     "maxBatchWaitTime": {
                       "description": "The maximum interval that the trigger should wait to fill a batch before invoking the function. The wait time is only considered when minMessageBatchSize is larger than 1 and is ignored otherwise. If less than minMessageBatchSize messages were available before the wait time elapses, the function is invoked with a partial batch. The longest allowed wait time is 50% of the entity message lock duration, meaning the maximum allowed is 2 minutes and 30 seconds. Otherwise, you may get lock exceptions. NOTE: This interval is not a strict guarantee for the exact timing on which the function is invoked. There is a small margin of error due to timer precision.",
                       "type": "string",
@@ -1318,6 +1430,18 @@
                       "type": "integer",
                       "default": 10,
                       "minimum": 1
+                    },
+                    "minEventBatchSize": {
+                      "description": "The minimum number of events desired in a batch. The minimum applies only when the function is receiving multiple events and must be less than maxEventBatchSize.",
+                      "type": "integer",
+                      "default": 1,
+                      "minimum": 1
+                    },
+                    "maxWaitTime": {
+                      "description": "The maximum interval that the trigger should wait to fill a batch before invoking the function.",
+                      "type": "string",
+                      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$",
+                      "default": "00:01:00"
                     },
                     "batchCheckpointFrequency": {
                       "description": "The number of batches to process before creating a checkpoint for the Event Hub.",
@@ -1480,6 +1604,9 @@
                 }
               },
               "additionalProperties": false
+            },
+            "mcp": {
+              "$ref": "#/definitions/mcp-extension"
             }
           },
           "additionalProperties": false

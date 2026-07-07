@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://json.schemastore.org/maestro-flow.json",
+  "$defs": {
+    "flowConfiguration": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "appId": {
+          "type": "string",
+          "title": "Application ID",
+          "description": "Android package name or iOS bundle ID under test. May use ${ENV_VAR} interpolation.",
+          "examples": ["com.example.app", "${APP_ID}"]
+        },
+        "url": {
+          "type": "string",
+          "title": "Web URL under test",
+          "description": "For web flows, the starting URL (see Maestro web testing docs).",
+          "format": "uri"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable flow name for reports."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags for filtering and organization."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Default environment variables for this flow (${VAR_NAME} in commands)."
+        },
+        "onFlowStart": {
+          "$ref": "#/$defs/commandList",
+          "description": "Commands run before the main flow body; failure fails the flow."
+        },
+        "onFlowComplete": {
+          "$ref": "#/$defs/commandList",
+          "description": "Commands run after the main flow (e.g. teardown)."
+        }
+      }
+    },
+    "commandList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commandStep" },
+      "description": "Sequence of Maestro commands executed in order."
+    },
+    "commandStep": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/bareCommandName",
+          "description": "Shorthand step with no parameters (YAML scalar list item)."
+        },
+        {
+          "$ref": "#/$defs/commandObject",
+          "description": "Single-key object: command name -> arguments map, string, or null."
+        }
+      ]
+    },
+    "bareCommandName": {
+      "type": "string",
+      "title": "Bare command",
+      "description": "Commands that need no argument object. Maestro accepts many more; list is indicative.",
+      "examples": [
+        "launchApp",
+        "hideKeyboard",
+        "back",
+        "stopApp",
+        "clearState",
+        "clearKeychain",
+        "waitForAnimationToEnd",
+        "takeScreenshot",
+        "startRecording",
+        "stopRecording"
+      ]
+    },
+    "commandObject": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/commandValue"
+      },
+      "propertyNames": {
+        "type": "string",
+        "description": "Maestro command name (typically camelCase, e.g. tapOn, runFlow)."
+      }
+    },
+    "commandValue": {
+      "title": "Command arguments",
+      "description": "Depends on the command: omitted/null, boolean, string selector, number, array of nested steps, or parameter object.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/commandStep" } },
+        { "$ref": "#/$defs/argumentMap" }
+      ]
+    },
+    "argumentMap": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Command-specific parameters. Commands: https://docs.maestro.dev/reference/commands-available/ — Selectors: https://docs.maestro.dev/reference/selectors — Conditions (when): https://docs.maestro.dev/maestro-flows/flow-control-and-logic/conditions — runFlow: https://docs.maestro.dev/reference/commands-available/runflow — launchApp: https://docs.maestro.dev/reference/commands-available/launchapp — extendedWaitUntil: https://docs.maestro.dev/reference/commands-available/extendedwaituntil"
+    }
+  },
+  "title": "Maestro Flow",
+  "description": "YAML flow file for Maestro (mobile & web UI automation). A single file is usually two YAML documents separated by ---: (1) flow configuration, (2) command list. Assign this schema to *.flow.yaml or **/.maestro/**/*.yaml. Official docs: https://docs.maestro.dev/",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/flowConfiguration",
+      "description": "First document: app/url, env, tags, hooks."
+    },
+    {
+      "$ref": "#/$defs/commandList",
+      "description": "Second document: ordered list of Maestro commands."
+    }
+  ]
+}

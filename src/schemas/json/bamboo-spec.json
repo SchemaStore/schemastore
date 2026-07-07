@@ -1,5 +1,6 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/bamboo-spec.json",
   "additionalProperties": {
     "$ref": "#/definitions/job"
   },
@@ -140,6 +141,13 @@
                     },
                     "namespace": {
                       "type": "string"
+                    },
+                    "conditions": {
+                      "type": "array",
+                      "description": "Task execution conditions.",
+                      "items": {
+                        "type": "object"
+                      }
                     }
                   }
                 }
@@ -187,7 +195,10 @@
           "$ref": "#/definitions/docker"
         },
         "final-tasks": {
-          "type": "array"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/taskItem"
+          }
         },
         "key": {
           "type": "string"
@@ -221,17 +232,19 @@
         "tasks": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/predefinedTask"
-              },
-              {
-                "$ref": "#/definitions/script"
-              },
-              {
-                "$ref": "#/definitions/job/definitions/task"
-              }
-            ]
+            "$ref": "#/definitions/taskItem"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/job/definitions/artifact"
+          }
+        },
+        "artifact-subscriptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/artifactSubscription"
           }
         }
       }
@@ -511,6 +524,17 @@
                     "period": {
                       "type": "integer"
                     },
+                    "cron": {
+                      "type": "string",
+                      "description": "Cron expression for polling trigger."
+                    },
+                    "repositories": {
+                      "type": "array",
+                      "description": "Repositories to poll.",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "description": {
                       "type": "string",
                       "description": "Trigger description."
@@ -520,11 +544,21 @@
                       "items": {
                         "type": "object",
                         "patternProperties": {
-                          "[a-zA-Z0-9\\s+_-]": {
-                            "type": "object",
-                            "additionalProperties": {
-                              "type": "boolean"
-                            }
+                          "[a-zA-Z0-9\\s+_-]+": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "boolean"
+                                }
+                              }
+                            ]
                           }
                         }
                       }
@@ -638,11 +672,323 @@
           }
         ]
       }
+    },
+    "branches": {
+      "title": "Branches",
+      "description": "Branch management configuration for the plan.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "create": {
+              "type": "string",
+              "description": "Branch creation strategy."
+            },
+            "delete": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "after-deleted-days": {
+                      "type": "integer"
+                    },
+                    "after-inactive-days": {
+                      "type": "integer"
+                    },
+                    "after-issue-status-changed": {
+                      "type": "boolean"
+                    },
+                    "after-successful-builds": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ]
+            },
+            "integration": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "merge-from": {
+                      "type": "string"
+                    },
+                    "push-on-success": {
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              ]
+            },
+            "link-to-jira": {
+              "type": "boolean"
+            },
+            "notifications": {
+              "type": "array"
+            }
+          }
+        }
+      ]
+    },
+    "dependencies": {
+      "title": "Dependencies",
+      "description": "Plan dependencies configuration.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enabled-for-branches": {
+              "type": "boolean"
+            },
+            "require-all-stages-passing": {
+              "type": "boolean"
+            },
+            "block-strategy": {
+              "type": "string"
+            },
+            "plans": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "dependencies": {
+              "type": "array"
+            }
+          }
+        }
+      ]
+    },
+    "artifactSubscription": {
+      "title": "Artifact subscription",
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "type": "string",
+          "description": "Artifact name to download."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Destination directory in workspace."
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": ["artifact"]
+    },
+    "mavenTask": {
+      "title": "Maven",
+      "type": "object",
+      "properties": {
+        "executable": {
+          "type": "string"
+        },
+        "jdk": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "tests": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "working-dir": {
+          "type": "string"
+        },
+        "project-file": {
+          "type": "string"
+        },
+        "use-return-code": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "anyTask": {
+      "title": "Any task",
+      "description": "Run a task provided by a plugin.",
+      "type": "object",
+      "properties": {
+        "plugin-key": {
+          "type": "string"
+        },
+        "configuration": {
+          "type": "object"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": ["plugin-key"]
+    },
+    "vcsBranchTask": {
+      "title": "VCS Branch",
+      "type": "object",
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "vcsTagTask": {
+      "title": "VCS Tag",
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "vcsCommitTask": {
+      "title": "VCS Commit",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "taskItem": {
+      "description": "A task entry. Either a predefined task string, or an object with a single task type key.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/predefinedTask"
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "properties": {
+            "script": {
+              "$ref": "#/definitions/job/definitions/task"
+            },
+            "maven": {
+              "$ref": "#/definitions/mavenTask"
+            },
+            "inject-variables": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "type": "string"
+                    },
+                    "conditions": {
+                      "type": "array",
+                      "description": "UNDOCUMENTED. Task execution conditions.",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "any-task": {
+              "$ref": "#/definitions/anyTask"
+            },
+            "vcs-branch": {
+              "$ref": "#/definitions/vcsBranchTask"
+            },
+            "vcs-tag": {
+              "$ref": "#/definitions/vcsTagTask"
+            },
+            "vcs-commit": {
+              "$ref": "#/definitions/vcsCommitTask"
+            },
+            "test-parser": {
+              "$ref": "#/definitions/job/definitions/task/properties/test-parser"
+            },
+            "checkout": {
+              "$ref": "#/definitions/job/definitions/task/properties/checkout"
+            },
+            "clean": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": {
+            "description": "UNDOCUMENTED. Other task types supported by Bamboo Specs.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/script"
+        },
+        {
+          "$ref": "#/definitions/job/definitions/task"
+        }
+      ]
     }
   },
-  "description": "Full spec reference: https://docs.atlassian.com/bamboo-specs-docs/7.2.4/specs.html",
-  "id": "https://json.schemastore.org/bamboo-spec.json",
+  "description": "Full spec reference: https://docs.atlassian.com/bamboo-specs-docs/12.1.2/specs.html",
   "properties": {
+    "server-name": {
+      "title": "Server Name",
+      "description": "Identifies which Bamboo server the spec applies to. Can be a regular expression pattern.",
+      "type": "string"
+    },
     "default-environment-permissions": {
       "title": "Default Environment Permissions",
       "description": "These permissions apply to all environments defined in this deployment project",
@@ -816,7 +1162,23 @@
                     "type": "string"
                   },
                   "shared-credentials": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "scope": {
+                            "type": "string",
+                            "enum": ["project", "global"]
+                          }
+                        }
+                      }
+                    ]
                   },
                   "lfs": {
                     "type": "boolean"
@@ -905,6 +1267,12 @@
     },
     "other": {
       "type": "object"
+    },
+    "branches": {
+      "$ref": "#/definitions/branches"
+    },
+    "dependencies": {
+      "$ref": "#/definitions/dependencies"
     }
   },
   "title": "Bamboo CI Specification",

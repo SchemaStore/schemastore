@@ -11,6 +11,7 @@ import { Ajv as AjvDraft06And07 } from 'ajv'
 import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
 import _addFormats from 'ajv-formats'
+import _ajvKeywords from 'ajv-keywords'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
@@ -19,6 +20,17 @@ import jsonlint from '@prantlf/jsonlint'
 import * as jsoncParser from 'jsonc-parser'
 import ora from 'ora'
 import chalk from 'chalk'
+import {
+  checkUnusedDefs,
+  checkDescriptionCoverage,
+  checkTestCompleteness,
+  checkEnumCoverage,
+  checkPatternCoverage,
+  checkRequiredCoverage,
+  checkDefaultCoverage,
+  checkNegativeIsolation,
+  printCoverageReport,
+} from './src/helpers/coverage.js'
 import minimist from 'minimist'
 import fetch, { FetchError } from 'node-fetch'
 import { execFile } from 'node:child_process'
@@ -43,6 +55,9 @@ const Ajv2019 = /** @type {any} */ (_Ajv2019)
 
 /** @type {typeof _Ajv2020.default} */
 const Ajv2020 = /** @type {any} */ (_Ajv2020)
+
+/** @type {any} */
+const ajvKeywords = _ajvKeywords
 
 /** @type {typeof _addFormats.default} */
 const addFormats = /** @type {any} */ (_addFormats)
@@ -89,19 +104,13 @@ const SchemaDialects = [
   { draftVersion: 'draft-03', url: 'http://json-schema.org/draft-03/schema#', isActive: false, isTooHigh: false },
 ]
 
-/** @type {{ _: string[], fix?: boolean, help?: boolean, SchemaName?: string, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
+/** @type {{ _: string[], fix?: boolean, help?: boolean, 'schema-name'?: string, 'unstable-check-with'?: string, 'build-xregistry'?: boolean, 'verify-xregistry'?: boolean }} */
 const argv = /** @type {any} */ (
   minimist(process.argv.slice(2), {
-    string: ['SchemaName', 'schema-name', 'unstable-check-with'],
-    boolean: ['help', 'build-xregistry', 'verify-xregistry'],
+    string: ['schema-name', 'unstable-check-with'],
+    boolean: ['fix', 'help', 'build-xregistry', 'verify-xregistry'],
   })
 )
-if (argv.SchemaName) {
-  process.stderr.write(
-    `WARNING: Please use "--schema-name" instead of "--SchemaName". The flag "--SchemaName" will be removed.\n`,
-  )
-  argv['schema-name'] = argv.SchemaName
-}
 
 /**
  * @typedef {Object} JsonSchemaAny
@@ -144,6 +153,7 @@ if (argv.SchemaName) {
  * @property {string[]} highSchemaVersion
  * @property {string[]} missingCatalogUrl
  * @property {string[]} skiptest
+ * @property {{schema: string, strict?: boolean}[]} coverage
  * @property {string[]} catalogEntryNoLintNameOrDescription
  * @property {Record<string, SchemaValidationJsonOption>} options
  */
@@ -481,6 +491,8 @@ async function ajvFactory(
       throw new Error('No JSON Schema version specified')
   }
 
+  ajvKeywords(ajv, 'uniqueItemProperties')
+
   /**
    * In strict mode, Ajv will throw an error if it does not
    * recognize any non-standard formats. That is, unrecognized
@@ -566,7 +578,7 @@ async function taskNewSchema() {
 
   console.log('Enter the name of the schema (without .json extension)')
   await handleInput()
-  async function handleInput(/** @type {string | undefined} */ schemaName) {
+  async function handleInput(/** @type {string} */ schemaName = '') {
     if (!schemaName || schemaName.endsWith('.json')) {
       rl.question('input: ', handleInput)
       return
@@ -1181,6 +1193,9 @@ async function taskBuildWebsite() {
   await fs.cp('./src/img', './website/img', { recursive: true })
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/js', './website/js', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/.well-known', './website/.well-known', { recursive: true })
+  await fs.copyFile('./src/favicon.ico', './website/favicon.ico')
 }
 
 async function assertFileSystemIsValid() {
@@ -1481,6 +1496,10 @@ async function assertSchemaValidationJsonReferencesNoNonexistentFiles() {
   schemaNamesMustExist(SchemaValidation.skiptest, 'skiptest')
   schemaNamesMustExist(SchemaValidation.missingCatalogUrl, 'missingCatalogUrl')
   schemaNamesMustExist(SchemaValidation.highSchemaVersion, 'highSchemaVersion')
+  schemaNamesMustExist(
+    (SchemaValidation.coverage ?? []).map((c) => c.schema),
+    'coverage',
+  )
   for (const schemaName in SchemaValidation.options) {
     if (!SchemasToBeTested.includes(schemaName)) {
       printErrorAndExit(new Error(), [
@@ -1686,7 +1705,7 @@ function assertFileHasNoBom(/** @type {DataFile} */ file) {
 
 async function assertFilePassesJsonLint(
   /** @type {DataFile} */ file,
-  /** @type {Record<string, unknown>} */ options,
+  /** @type {Record<string, unknown> | undefined} */ options = {},
 ) {
   try {
     jsonlint.parse(file.text, {
@@ -2060,6 +2079,7 @@ TASKS:
   check-remote: Run all build checks for remote schemas
   maintenance: Run maintenance checks
   build-xregistry: Build the xRegistry from the catalog.json
+  coverage: Run test coverage analysis on opted-in schemas
 
 EXAMPLES:
   node ./cli.js check
@@ -2132,6 +2152,113 @@ EXAMPLES:
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Coverage task
+  // ---------------------------------------------------------------------------
+
+  async function taskCoverage() {
+    const coverageSchemas = SchemaValidation.coverage ?? []
+    if (coverageSchemas.length === 0) {
+      console.info(
+        'No schemas opted into coverage. Add schemas to "coverage" in schema-validation.jsonc',
+      )
+      return
+    }
+
+    const spinner = ora()
+    spinner.start()
+    let hasFailure = false
+    let hasMatch = false
+
+    for (const entry of coverageSchemas) {
+      const schemaName = entry.schema
+      const strict = entry.strict ?? false
+      if (argv['schema-name'] && argv['schema-name'] !== schemaName) {
+        continue
+      }
+      hasMatch = true
+
+      const schemaId = schemaName.replace('.json', '')
+      spinner.text = `Running coverage checks on "${schemaName}"${strict ? ' (strict)' : ''}`
+
+      // Load schema
+      const schemaFile = await toFile(path.join(SchemaDir, schemaName))
+      const schema = /** @type {Record<string, unknown>} */ (schemaFile.json)
+
+      // Load positive test files
+      const positiveTests = new Map()
+      const posDir = path.join(TestPositiveDir, schemaId)
+      for (const testfile of await fs.readdir(posDir).catch(() => [])) {
+        if (isIgnoredFile(testfile)) continue
+        const file = await toFile(path.join(posDir, testfile))
+        positiveTests.set(testfile, file.json)
+      }
+
+      // Load negative test files
+      const negativeTests = new Map()
+      const negDir = path.join(TestNegativeDir, schemaId)
+      for (const testfile of await fs.readdir(negDir).catch(() => [])) {
+        if (isIgnoredFile(testfile)) continue
+        const file = await toFile(path.join(negDir, testfile))
+        negativeTests.set(testfile, file.json)
+      }
+
+      // Run all 8 checks
+      const results = [
+        { name: '1. Unused $defs', result: checkUnusedDefs(schema) },
+        {
+          name: '2. Description Coverage',
+          result: checkDescriptionCoverage(schema),
+        },
+        {
+          name: '3. Test Completeness',
+          result: checkTestCompleteness(schema, positiveTests),
+        },
+        {
+          name: '4. Enum Coverage',
+          result: checkEnumCoverage(schema, positiveTests, negativeTests),
+        },
+        {
+          name: '5. Pattern Coverage',
+          result: checkPatternCoverage(schema, positiveTests, negativeTests),
+        },
+        {
+          name: '6. Required Field Coverage',
+          result: checkRequiredCoverage(schema, negativeTests),
+        },
+        {
+          name: '7. Default Value Coverage',
+          result: checkDefaultCoverage(schema, positiveTests),
+        },
+        {
+          name: '8. Negative Test Isolation',
+          result: checkNegativeIsolation(schema, negativeTests),
+        },
+      ]
+
+      spinner.stop()
+      printCoverageReport(schemaName, results)
+      if (strict && results.some((r) => r.result.status === 'fail'))
+        hasFailure = true
+
+      // Restart spinner for next schema
+      if (coverageSchemas.indexOf(entry) < coverageSchemas.length - 1) {
+        spinner.start()
+      }
+    }
+
+    if (!hasMatch) {
+      spinner.stop()
+      printErrorAndExit(null, [
+        `Schema "${argv['schema-name']}" is not in the coverage list in "${SchemaValidationFile}"`,
+      ])
+    }
+
+    if (hasFailure) {
+      process.exit(1)
+    }
+  }
+
   /** @type {Record<string, () => Promise<unknown>>} */
   const taskMap = {
     'new-schema': taskNewSchema,
@@ -2143,16 +2270,10 @@ EXAMPLES:
     maintenance: taskMaintenance,
     'build-website': taskBuildWebsite,
     'build-xregistry': taskBuildXRegistry,
-    build: taskCheck, // Undocumented alias.
+    coverage: taskCoverage,
   }
   const taskOrFn = argv._[0]
   if (taskOrFn in taskMap) {
-    if (taskOrFn === 'build') {
-      process.stdout.write(
-        `WARNING: Please use the "check" task instead of "build". The "build" task will be removed.\n`,
-      )
-    }
-
     await taskMap[taskOrFn]()
   } else {
     eval(`${taskOrFn}()`)

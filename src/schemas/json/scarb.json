@@ -1,0 +1,931 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://json.schemastore.org/scarb.json",
+  "$defs": {
+    "DetailedTomlDependency": {
+      "type": "object",
+      "properties": {
+        "branch": {
+          "description": "Git branch to use when `git` is specified.",
+          "type": ["string", "null"]
+        },
+        "default-features": {
+          "description": "Whether to enable this dependency's default features (defaults to `true`).",
+          "type": ["boolean", "null"]
+        },
+        "features": {
+          "description": "A list of features to enable for this dependency.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "git": {
+          "description": "Git URL for the dependency source.",
+          "type": ["string", "null"]
+        },
+        "path": {
+          "description": "Local path to the dependency source, relative to the manifest that\ndeclares it.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelativeUtf8PathBuf"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "registry": {
+          "description": "Custom registry index URL to fetch this dependency from.",
+          "type": ["string", "null"]
+        },
+        "rev": {
+          "description": "Specific Git revision (commit hash) to use when `git` is specified.",
+          "type": ["string", "null"]
+        },
+        "tag": {
+          "description": "Git tag to use when `git` is specified.",
+          "type": ["string", "null"]
+        },
+        "version": {
+          "description": "A semver version requirement for the dependency.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "InliningStrategy": {
+      "description": "Controls function inlining behavior during compilation.\n\nCan be a non-negative integer (inline small functions up to the given weight)\nor one of the predefined strategies: `\"default\"`, `\"avoid\"`.",
+      "anyOf": [
+        {
+          "description": "Inline small functions up to the given weight threshold.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        {
+          "description": "A predefined strategy: `\"default\"` or `\"avoid\"`.",
+          "type": "string",
+          "enum": ["default", "avoid"]
+        }
+      ]
+    },
+    "MaybeWorkspace": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceField",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace.",
+          "type": "string"
+        }
+      ]
+    },
+    "MaybeWorkspace2": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceField",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "MaybeWorkspace3": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceField",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "$ref": "#/$defs/PathOrBool",
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace."
+        }
+      ]
+    },
+    "MaybeWorkspace4": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceDependency",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "$ref": "#/$defs/TomlDependency",
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace."
+        }
+      ]
+    },
+    "MaybeWorkspace5": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WorkspaceScriptDefinition",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "$ref": "#/$defs/ScriptDefinition",
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace."
+        }
+      ]
+    },
+    "MaybeWorkspace6": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceTool",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace."
+        }
+      ]
+    },
+    "MaybeWorkspace7": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceTargetDefault",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "$ref": "#/$defs/TomlTargetDefaults",
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace."
+        }
+      ]
+    },
+    "MaybeWorkspace8": {
+      "description": "Allows inheriting keys from a workspace.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspaceBuildExternalContracts",
+          "description": "The type when inheriting from a workspace."
+        },
+        {
+          "description": "The \"defined\" type, or the type that that is used when not inheriting from a workspace.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "PackageInheritableFields": {
+      "type": "object",
+      "properties": {
+        "authors": {
+          "description": "Authors list to inherit for members.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "cairo-version": {
+          "description": "A Cairo compiler version requirement that this package is\ncompatible with. This does not change the compiler version used by Scarb\nbut enforces compatibility (can be ignored with `--ignore-cairo-version`).\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#cairo-version>",
+          "type": ["string", "null"]
+        },
+        "description": {
+          "description": "Short description of the package; shown on registries.",
+          "type": ["string", "null"]
+        },
+        "documentation": {
+          "description": "URL of the package documentation.",
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "edition": {
+          "description": "Cairo edition to inherit for members (e.g. `\"2023_10\"`).",
+          "type": ["string", "null"]
+        },
+        "homepage": {
+          "description": "Project homepage URL.",
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "keywords": {
+          "description": "Search keywords for package discovery on registries.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "license": {
+          "description": "SPDX license expression, e.g. `\"MIT\"` or `\"Apache-2.0\"`.",
+          "type": ["string", "null"]
+        },
+        "license-file": {
+          "description": "Path to a license file to include in the package.",
+          "type": ["string", "null"]
+        },
+        "readme": {
+          "description": "Path to a README file, or `false` to disable including a readme.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PathOrBool"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repository": {
+          "description": "URL of the source repository.",
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "version": {
+          "description": "Version to inherit for members that opt into\n`workspace.package.version = ...`.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "PackageName": {
+      "description": "A valid Cairo package name.\n\nMust use only ASCII lowercase alphanumeric characters or `_`, cannot be empty,\ncannot start with a digit, cannot be a Cairo keyword, and cannot be just `_`.\n\nSee the full naming rules in the\n[Scarb docs](https://docs.swmansion.com/scarb/docs/reference/manifest.html#name).",
+      "type": "string"
+    },
+    "PathOrBool": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "RelativeUtf8PathBuf": {
+      "description": "Type representing a path for use in `Scarb.toml` where all paths are expected to be relative to\nit.",
+      "type": "string"
+    },
+    "ScriptDefinition": {
+      "type": "string"
+    },
+    "TargetDefaults": {
+      "type": "object",
+      "properties": {
+        "build-external-contracts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["build-external-contracts"]
+    },
+    "TomlCairo": {
+      "type": "object",
+      "properties": {
+        "add-functions-debug-info": {
+          "description": "Add additional information about sierra functions to debug info.\nUsed by [cairo-debugger](https://github.com/software-mansion-labs/cairo-debugger).\nThis feature is unstable and is subject to change.",
+          "type": ["boolean", "null"]
+        },
+        "add-statements-code-locations-debug-info": {
+          "description": "Add a mapping between sierra statement indexes and lines in cairo code\nto debug info. A statement index maps to a vector consisting of a line which caused the\nstatement to be generated and all lines that were inlined or generated along the way.\nUsed by [cairo-coverage](https://github.com/software-mansion/cairo-coverage).\nThis feature is unstable and is subject to change.",
+          "type": ["boolean", "null"]
+        },
+        "add-statements-functions-debug-info": {
+          "description": "Add a mapping between sierra statement indexes and fully qualified paths of cairo functions\nto debug info. A statement index maps to a vector consisting of a function which caused the\nstatement to be generated and all functions that were inlined or generated along the way.\nUsed by [cairo-profiler](https://github.com/software-mansion/cairo-profiler).\nThis feature is unstable and is subject to change.",
+          "type": ["boolean", "null"]
+        },
+        "allow-warnings": {
+          "description": "Do not exit with error on compiler warnings.",
+          "type": ["boolean", "null"]
+        },
+        "enable-gas": {
+          "description": "Enable auto gas withdrawal and gas usage check.",
+          "type": ["boolean", "null"]
+        },
+        "incremental": {
+          "description": "Whether to enable incremental compilation.",
+          "type": ["boolean", "null"]
+        },
+        "inlining-strategy": {
+          "description": "Inlining strategy.\nIf `skip_sierra_optimizations` is set to `true`,\nthe value of this field has to be set to [`None`] or [`Some`] with [`InliningStrategy::Avoid`].",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InliningStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "panic-backtrace": {
+          "description": "Whether to add panic backtrace handling to the generated code.",
+          "type": ["boolean", "null"]
+        },
+        "sierra-replace-ids": {
+          "description": "Replace all names in generated Sierra code with dummy counterparts, representing the\nexpanded information about the named items.\n\nFor libfuncs and types that would be recursively opening their generic arguments.\nFor functions, that would be their original name in Cairo.\nFor example, while the Sierra name be `[6]`, with this flag turned on it might be:\n- For libfuncs: `felt252_const<2>` or `unbox<Box<Box<felt252>>>`.\n- For types: `felt252` or `Box<Box<felt252>>`.\n- For user functions: `test::foo`.\n\nDefaults to `false` except for \"dev\" profile.",
+          "type": ["boolean", "null"]
+        },
+        "skip-optimizations": {
+          "description": "Disable most possible optimizations that happen during compilation.\nSince inlining is an optimization as well, setting this field to `true` will make the cairo\ncompiler behave (in the aspect of inlining) as if the `inlining_strategy` was set\nto [`InliningStrategy::Avoid`].",
+          "type": ["boolean", "null"]
+        },
+        "unsafe-panic": {
+          "description": "Do not generate panic handling code. This might be useful for client side proving.",
+          "type": ["boolean", "null"]
+        },
+        "unstable-add-statements-code-locations-debug-info": {
+          "description": "Alias for `add_statements_code_locations_debug_info`.\nIf both defined, `add_statements_code_locations_debug_info` takes precedence.",
+          "type": ["boolean", "null"]
+        },
+        "unstable-add-statements-functions-debug-info": {
+          "description": "Alias for `add_statements_functions_debug_info`.\nIf both defined, `add_statements_functions_debug_info` takes precedence.",
+          "type": ["boolean", "null"]
+        }
+      }
+    },
+    "TomlDependency": {
+      "anyOf": [
+        {
+          "description": "[`VersionReq`] specified as a string, e.g. `package = \"<version>\"`.",
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/DetailedTomlDependency",
+          "description": "Detailed specification as a table, e.g. `package = { version = \"<version>\" }`."
+        }
+      ]
+    },
+    "TomlFeatureToEnable": {
+      "type": "string"
+    },
+    "TomlPackage": {
+      "description": "Represents the `package` section of a `Scarb.toml`.",
+      "type": "object",
+      "properties": {
+        "assets": {
+          "description": "A list of additional assets to ship with the package (packaged alongside sources).\nDeclare files that should be treated as runtime assets of the package.\nPaths are relative to the package root and must point to files (directories are not allowed).\nAssets must exist at build time.\n\n```toml\n[package]\nassets = [\"mypackage-oracle.wasm\", \"some/file.dat\"]\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#assets>",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "authors": {
+          "description": "List of package authors.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#authors>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cairo-version": {
+          "description": "A Cairo compiler version requirement that this package is\ncompatible with. This does not change the compiler version used by Scarb\nbut enforces compatibility (can be ignored with `--ignore-cairo-version`).\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#cairo-version>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "description": "Short description of the package.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#description>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "documentation": {
+          "description": "URL to package documentation.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#documentation>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "edition": {
+          "description": "An optional key that affects which Cairo edition your package is compiled with.\nThe editions allow newer Cairo compiler versions to introduce opt-in features that may break existing code.\nSetting the edition key in `[package]` will affect all targets in the package, including test suites etc.\n\nMost manifests have the edition field filled in automatically by scarb new with the latest available edition.\nIf the edition field is not present in Scarb.toml, then the default edition is assumed.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#edition>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "experimental-features": {
+          "description": "This field is responsible for setting experimental flags to be used on the package for the compiler.\n```toml\n[package]\nexperimental-features = [\"negative_impls\"]\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#experimental-features>",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "homepage": {
+          "description": "Project homepage URL.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#homepage>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include": {
+          "description": "When packaging a package with `scarb package` command (see\n[packaging your package](../registries/publishing.md#packaging-your-package)), all files excluded with rules from\n`.gitignore` or `.scarbignore` files are not included in the resulting package tarball.\nThis field can be used mark files and subdirectories that should be included in the package tarball, even if those files\nwould be excluded by rules from ignore files.\nThe paths are relative to the package root and cannot point to files outside the package.\n\n```toml\n[package]\ninclude = [\"target/some/file.txt\"]\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#include>",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "keywords": {
+          "description": "An array of strings that describe your package. This can help when searching for the package on a registry,\nand it is allowed to choose any words that would help someone find this package.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#keywords>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "license": {
+          "description": "The `license` field contains the name of the software license that the package is released under.\nThe `license-file` field contains the path to a file containing the text of the license (relative to this `Scarb.toml`).\n\nPackage registries must interpret the `license` field as\nan [SPDX 2 license expression](https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/).\nThe license name must be a known license from the [SPDX license list](https://spdx.org/licenses/).\n\nSPDX license expressions support AND and OR operators to combine multiple licenses.\n\n```toml\n[package]\nlicense = \"MIT OR Apache-2.0\"\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#license-and-license-file>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "license-file": {
+          "description": "Path to a license file.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#license-and-license-file>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/PackageName",
+          "description": "The package name is a valid Cairo identifier used to refer to the package.\nIt is used when listed as a dependency in another package, and as the default name of targets.\n\nThe name must use only ASCII lowercase alphanumeric characters or _, and cannot be empty. It also must not be a valid Cairo keyword or a wildcard pattern (_).\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#name>"
+        },
+        "no-core": {
+          "description": "**UNSTABLE** This package does not depend on Cairo's `core`.",
+          "type": ["boolean", "null"]
+        },
+        "publish": {
+          "description": "Whether the package is allowed to be published to a registry.\nDefaults to `true`. Set to `false` to prevent publishing.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#publish>",
+          "type": ["boolean", "null"]
+        },
+        "re-export-cairo-plugins": {
+          "description": "Re-exports direct `cairo-plugin` dependencies to all downstream packages.\n\nWhen declared, any package depending on this one will automatically inherit\nthese plugins as dependencies. Only direct dependencies with the\n`cairo-plugin` target are eligible for re-export.\n```toml\n[package]\nre-export-cairo-plugins = [\"proc_macro_package\"]\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#re-export-cairo-plugins>",
+          "type": ["array", "null"],
+          "items": {
+            "$ref": "#/$defs/PackageName"
+          }
+        },
+        "readme": {
+          "description": "This field should be the path to a file in the package root (relative to this `Scarb.toml`) that contains general\ninformation about the package.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#readme>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repository": {
+          "description": "This field should be a URL to the source repository for your package.\n\n```toml\n[package]\nrepository = \"https://github.com/software-mansion/scarb\"\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#repository>",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaybeWorkspace"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "urls": {
+          "description": "A free-form map of additional internet links related to this package. Keys are human-readable link names, and values are URLs.\n```toml\n[package.urls]\n\"We can help you build your project\" = \"https://swmansion.com/products/\"\n\"We're hiring\" = \"https://swmansion.com/careers/\"\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#urls>",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "version": {
+          "$ref": "#/$defs/MaybeWorkspace",
+          "description": "Package version obeying Semantic Versioning (semver), e.g. `\"0.1.0\"`.\nCan be inherited from the workspace via `{ workspace = true }`.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#version>"
+        }
+      },
+      "required": ["name", "version"]
+    },
+    "TomlProfile": {
+      "type": "object",
+      "properties": {
+        "cairo": {
+          "description": "Cairo compiler configuration for this profile.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TomlCairo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inherits": {
+          "description": "The name of another profile to inherit defaults from.",
+          "type": ["string", "null"]
+        },
+        "tool": {
+          "description": "Tool-specific configuration for this profile (under `tool.<name>`).",
+          "type": ["object", "null"],
+          "additionalProperties": true
+        }
+      }
+    },
+    "TomlTarget": {
+      "type": "object",
+      "properties": {
+        "casm": {
+          "description": "Emit CASM assembly for the library target.",
+          "type": ["boolean", "null"]
+        },
+        "name": {
+          "description": "Override the default target name.",
+          "type": ["string", "null"]
+        },
+        "sierra": {
+          "description": "Emit a compiled Sierra program for the library target, in JSON format.",
+          "type": ["boolean", "null"]
+        },
+        "sierra-text": {
+          "description": "Emit Sierra in a human-readable text form.",
+          "type": ["boolean", "null"]
+        },
+        "source-path": {
+          "description": "Path to the source root of this target.\nDefaults to `src/lib.cairo`.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "TomlTarget2": {
+      "type": "object",
+      "properties": {
+        "allow-syscalls": {
+          "description": "If true, will allow syscalls in the program.\n\nIn general, syscalls are not allowed in executables, as they are currently not checked.",
+          "type": ["boolean", "null"]
+        },
+        "function": {
+          "description": "Program entrypoint.\n\nExecutable must have exactly one entrypoint that will be used during the execution.\nThis must be a function with the `#[executable]` attribute.",
+          "type": ["string", "null"]
+        },
+        "name": {
+          "description": "Override the default target name.",
+          "type": ["string", "null"]
+        },
+        "sierra": {
+          "description": "Emit a compiled Sierra program for the executable function, in JSON format.\nThis may be useful, for example, for debugging or local profiling.",
+          "type": ["boolean", "null"]
+        },
+        "source-path": {
+          "description": "Path to the source root of this target.\nDefaults to `src/lib.cairo`.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "TomlTarget3": {
+      "type": "object",
+      "properties": {
+        "builtin": {
+          "description": "If `true`, mark this plugin as builtin.\nGenerally, it should not be used.",
+          "type": ["boolean", "null"]
+        },
+        "name": {
+          "description": "Override the default target name.",
+          "type": ["string", "null"]
+        },
+        "source-path": {
+          "description": "Path to the source root of this target.\nDefaults to `src/lib.cairo`.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "TomlTarget4": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Override the default target name.",
+          "type": ["string", "null"]
+        },
+        "source-path": {
+          "description": "Path to the source root of this target.\nDefaults to `src/lib.cairo`.",
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "TomlTargetDefaults": {
+      "type": "object",
+      "properties": {
+        "build-external-contracts": {
+          "$ref": "#/$defs/MaybeWorkspace8"
+        }
+      },
+      "required": ["build-external-contracts"]
+    },
+    "TomlWorkspace": {
+      "description": "Represents the workspace root definition.",
+      "type": "object",
+      "properties": {
+        "allow-no-audits": {
+          "description": "List of workspace packages that are allowed to have no audits.",
+          "type": ["array", "null"],
+          "items": {
+            "$ref": "#/$defs/PackageName"
+          }
+        },
+        "dependencies": {
+          "description": "Shared workspace `[workspace.dependencies]` available to members.\nSpecifying a workspace dependency is similar to package dependencies,\nexcept you can then inherit the workspace dependency as a package dependency.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/workspaces.html#dependencies>",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "$ref": "#/$defs/TomlDependency"
+          }
+        },
+        "members": {
+          "description": "List of workspace member package paths (relative to the workspace root).\nSupports globs to match multiple paths, using typical filename glob patterns like * and ?.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/workspaces.html#members>",
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "package": {
+          "description": "Package fields that can be inherited by workspace members\nvia `workspace.package.*` (e.g., `version`, `edition`, `authors`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PackageInheritableFields"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "require-audits": {
+          "description": "Setting this field to true will cause Scarb to ignore any versions of dependencies, including transitive ones, that are not marked as audited in the registry.\nIf unable to resolve the dependency tree due to this, Scarb will exit with an error.\nBy default, this field is set to false. This policy applies to the entire workspace.\nThis field is ignored in member packages manifest files, and only the one defined in the workspace root manifest is applied when compiling member packages.\n\nYou may whitelist specific packages to ignore the require-audits setting by specifying them in the allow-no-audits key:\n```toml\n[workspace]\nallow-no-audits = [\"alexandria_math\"]\n```\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/workspaces.html#security-and-audits>",
+          "type": ["boolean", "null"]
+        },
+        "scripts": {
+          "description": "Workspace-wide `[workspace.scripts]` available to members.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/workspaces.html#scripts>",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "$ref": "#/$defs/ScriptDefinition"
+          }
+        },
+        "target-defaults": {
+          "description": "Defaults applied to targets within workspace members when not\nconfigured on the target, must be inherited explicitly.\nFor example:\n```toml\n [target-defaults]\n test.workspace = true\n```",
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "$ref": "#/$defs/TargetDefaults"
+          }
+        },
+        "tool": {
+          "description": "Workspace-level `[workspace.tool]` configuration passed to external tools.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/workspaces.html#tool>",
+          "type": ["object", "null"],
+          "additionalProperties": true
+        }
+      }
+    },
+    "TomlWorkspaceBuildExternalContracts": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "boolean"
+        }
+      },
+      "required": ["workspace"]
+    },
+    "TomlWorkspaceDependency": {
+      "description": "When { workspace = true } you cannot define other keys that configure the source of\nthe dependency such as `version`, `registry`, `path`, `git`, `branch`, `tag`, `rev`.\nYou can also not define `default-features`.\nOnly `features` is allowed.",
+      "type": "object",
+      "properties": {
+        "features": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "workspace": {
+          "type": "boolean"
+        }
+      },
+      "required": ["workspace"]
+    },
+    "TomlWorkspaceField": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "boolean"
+        }
+      },
+      "required": ["workspace"]
+    },
+    "TomlWorkspaceTargetDefault": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "boolean"
+        }
+      },
+      "required": ["workspace"]
+    },
+    "TomlWorkspaceTool": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "description": "If `true`, indicates that the tool configuration is defined at the\nworkspace level and should be inherited by members.",
+          "type": "boolean"
+        }
+      },
+      "required": ["workspace"]
+    },
+    "WorkspaceScriptDefinition": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "description": "If `true`, the script entry is defined at the workspace level and can be\ninherited by member packages.",
+          "type": "boolean"
+        }
+      },
+      "required": ["workspace"]
+    }
+  },
+  "title": "TomlManifest",
+  "description": "This type is used to deserialize `Scarb.toml` files.",
+  "type": "object",
+  "properties": {
+    "cairo": {
+      "description": "Global Cairo compiler configuration for this package or workspace profile.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#cairo>",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlCairo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cairo-plugin": {
+      "description": "The `[cairo-plugin]` target describing a Cairo compiler plugin artifact.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlTarget3"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dependencies": {
+      "description": "The `[dependencies]` table for normal build dependencies.\n\nYour packages can depend on other libraries from registries,\nGit repositories, or subdirectories on your local file system.\n - See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/specifying-dependencies.html>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "$ref": "#/$defs/MaybeWorkspace4"
+      }
+    },
+    "dev-dependencies": {
+      "description": "The `[dev-dependencies]` table for dependencies used only in tests.\nDevelopment dependencies are not used when compiling a package for building, but are used for compiling tests.\n\nThese dependencies are not propagated to other packages which depend on this package.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/specifying-dependencies.html#development-dependencies>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "$ref": "#/$defs/MaybeWorkspace4"
+      }
+    },
+    "executable": {
+      "description": "The `[executable]` target describing how to build an executable entrypoint.\n\nThe executable target defines an artifact that can be executed with `scarb execute` command.\nThis target should be used for packages that are meant to be executed rather than used as dependencies.\n\nConfigure the entry `function`, `allow-syscalls`, and whether to emit\nSierra output for the executable.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/targets.html#executable-target>",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlTarget2"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "features": {
+      "description": "The `[features]` table defining feature flags for conditional compilation.\n\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/conditional-compilation.html#features>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/TomlFeatureToEnable"
+        }
+      }
+    },
+    "lib": {
+      "description": "The `[lib]` target describing how to build the package library.\n\nThe library target defines a \"library\" that can be used by other packages.\nIn other words, if a package does not provide a library target, it cannot be used as a dependency.\nIf not specified, the name of the library defaults to the name of the package. A package can have only one library target.\n\nIf the manifest does not list any targets, Scarb will assume the library target with its default parameters.\n\nControls output artifacts (e.g. `sierra`, `casm`) and optional\n`name` overrides.\n - See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/targets.html#library>",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlTarget"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "package": {
+      "description": "The `[package]` section with metadata about the current package.\n\nRequired for non-workspace members. Contains fields like `name`,\n`version`, `edition`, `publish`, `license`, etc.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlPackage"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "patch": {
+      "description": "The `[patch.<source>]` tables to override dependency sources.\n\nUseful to redirect packages to local paths or forks for the resolver.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/overriding-dependencies.html#the-patch-section>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/$defs/TomlDependency"
+        }
+      }
+    },
+    "profile": {
+      "description": "The `[profile]` table defining build profiles.\n\nCommon profiles are `dev` and `release`. Each profile can override `cairo`\noptions and `tool` settings, and may `inherit` from another profile.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/profiles.html#profiles>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "$ref": "#/$defs/TomlProfile"
+      }
+    },
+    "scripts": {
+      "description": "The `[scripts]` table with custom commands you can run via `scarb run <name>`.\n\nScript commands are simple shell snippets; in workspaces, they can be\nmarked with `{ workspace = true }` to indicate inheritance.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/scripts.html#listing-scripts>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "$ref": "#/$defs/MaybeWorkspace5"
+      }
+    },
+    "target": {
+      "description": "The `[[target.*]]` tables to define additional, custom-named targets.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/TomlTarget4"
+        }
+      }
+    },
+    "target-defaults": {
+      "description": "The `[target-defaults]` table to define defaults applied to targets\n(for example, test settings) when not explicitly set on a target.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/targets.html#target-defaults>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "$ref": "#/$defs/MaybeWorkspace7"
+      }
+    },
+    "test": {
+      "description": "The `[[test]]` array of tables defining external test suites.\n\nEach table describes a test target with its own parameters. When absent,\nScarb may auto-detect tests under the default tests directory.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/targets.html#test-targets>",
+      "type": ["array", "null"],
+      "items": {
+        "$ref": "#/$defs/TomlTarget4"
+      }
+    },
+    "tool": {
+      "description": "The `[tool]` table for third‑party tool configuration namespaces.\n\nKeys under `tool.<name>` are passed to external tools. Use\n`{ workspace = true }` to opt into workspace inheritance when applicable.\n- See official documentation at: <https://docs.swmansion.com/scarb/docs/reference/manifest.html#tool>",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "$ref": "#/$defs/MaybeWorkspace6"
+      }
+    },
+    "workspace": {
+      "description": "The `[workspace]` section defining a multi-package workspace.\n\nLets you list `members`, define shared `dependencies`, `scripts`,\nand defaults inherited by workspace members.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlWorkspace"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

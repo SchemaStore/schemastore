@@ -1,0 +1,210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.schemastore.org/quikrun.json",
+  "title": "quikrun",
+  "description": "Configuration for quikrun, a CLI tool to run code files instantly without typing complex commands in terminal.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path to the JSON schema"
+    },
+    "shell": {
+      "description": "Custom shell to run commands in",
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Cross-platform custom shell to run commands"
+        },
+        {
+          "type": "object",
+          "description": "Platform-specific custom shells",
+          "properties": {
+            "win": {
+              "type": "string",
+              "description": "Custom shell for Windows"
+            },
+            "linux": {
+              "type": "string",
+              "description": "Custom shell for Linux"
+            },
+            "darwin": {
+              "type": "string",
+              "description": "Custom shell for macOS (Darwin)"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "clear_terminal": {
+      "type": "boolean",
+      "description": "Clear the terminal before executing commands",
+      "default": true
+    },
+    "show_time_took": {
+      "type": "boolean",
+      "description": "Show time taken to execute the script",
+      "default": true
+    },
+    "show_command": {
+      "type": "boolean",
+      "description": "Show the actual command that is being run",
+      "default": true
+    },
+    "show_shell": {
+      "type": "boolean",
+      "description": "Show the shell being used for execution",
+      "default": true
+    },
+    "show_divider": {
+      "type": "boolean",
+      "description": "Show the divider line before command stdout/stderr",
+      "default": true
+    },
+    "temp_dir": {
+      "type": ["string", "null"],
+      "description": "Directory to store temporary execution files",
+      "default": null
+    },
+    "cd_to_file_dir": {
+      "type": "boolean",
+      "description": "Change directory to the folder containing the file before execution",
+      "default": false
+    },
+    "keep_artifacts": {
+      "type": "boolean",
+      "description": "Keep generated binaries or temporary files after execution",
+      "default": false
+    },
+    "auto_close": {
+      "description": "Controls closing behavior after execution",
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": ["always", "never", "on_success"],
+          "description": "always: close immediately, never: wait for Enter, on_success: close only on success"
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "description": "Auto-close delay in seconds before exit (for example: 1, 2.5)."
+        }
+      ]
+    },
+    "commands": {
+      "type": "object",
+      "description": "Command Templates by file extension",
+      "additionalProperties": {
+        "$ref": "#/definitions/commandValue"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "compileRun": {
+      "type": "object",
+      "properties": {
+        "compile": {
+          "type": "string",
+          "description": "Command template to compile the file before running (e.g. 'g++ {file} -o {out}')"
+        },
+        "run": {
+          "type": "string",
+          "description": "Command template to execute the compiled binary (e.g. '{out}')"
+        }
+      },
+      "additionalProperties": false
+    },
+    "osSpecific": {
+      "type": "object",
+      "properties": {
+        "linux": {
+          "$ref": "#/definitions/commandValue",
+          "description": "Command for Linux"
+        },
+        "darwin": {
+          "$ref": "#/definitions/commandValue",
+          "description": "Command for macOS (Darwin)"
+        },
+        "win": {
+          "$ref": "#/definitions/commandValue",
+          "description": "Command for Windows"
+        }
+      },
+      "additionalProperties": false
+    },
+    "shellFamilySpecific": {
+      "type": "object",
+      "properties": {
+        "posix": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/commandValue"
+            },
+            {
+              "$ref": "#/definitions/osSpecific"
+            }
+          ],
+          "description": "Command for POSIX shells (bash, zsh, sh, etc.)"
+        },
+        "cmd": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/commandValue"
+            },
+            {
+              "$ref": "#/definitions/osSpecific"
+            }
+          ],
+          "description": "Command for Windows Command Prompt (cmd.exe)"
+        },
+        "pwsh": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/commandValue"
+            },
+            {
+              "$ref": "#/definitions/osSpecific"
+            }
+          ],
+          "description": "Command for PowerShell Core (pwsh)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "singleCommand": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^@.+$",
+          "description": "Inheritance alias starting with @ (e.g., '@js')"
+        },
+        {
+          "type": "string",
+          "description": "The command to execute (e.g., 'python {file}')"
+        },
+        {
+          "$ref": "#/definitions/compileRun"
+        }
+      ]
+    },
+    "commandValue": {
+      "description": "Command string, fallback array, or platform-specific object",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/singleCommand"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/commandValue"
+          }
+        },
+        {
+          "$ref": "#/definitions/shellFamilySpecific"
+        }
+      ]
+    }
+  }
+}

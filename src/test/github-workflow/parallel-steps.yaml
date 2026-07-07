@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=../../schemas/json/github-workflow.json
+name: Test parallel steps
+on:
+  - push
+jobs:
+  background-step:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start server
+        id: server
+        run: npm start
+        background: true
+      - name: Run tests against the server
+        run: npm test
+      - name: Wait for the server step to finish
+        wait: server
+
+  background-with-uses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        background: true
+        id: checkout
+      - run: echo "other work"
+      - wait: checkout
+
+  wait-multiple:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build frontend
+        id: build-frontend
+        run: npm run build:frontend
+        background: true
+      - name: Build backend
+        id: build-backend
+        run: npm run build:backend
+        background: true
+      - name: Run linter while builds run
+        run: npm run lint
+      - name: Wait for both builds to finish
+        wait:
+          - build-frontend
+          - build-backend
+      - name: Run tests
+        run: npm test
+
+  wait-all-step:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start database
+        id: db
+        run: docker run -d postgres:15
+        background: true
+      - name: Start cache
+        id: cache
+        run: docker run -d redis:7
+        background: true
+      - name: Run integration tests
+        run: npm run test:integration
+      - name: Wait for all services to stop
+        wait-all:
+
+  cancel-step:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start long-running monitor
+        id: monitor
+        run: ./scripts/monitor.sh
+        background: true
+      - name: Run the main task
+        run: npm test
+      - name: Stop the monitor
+        cancel: monitor
+
+  parallel-group:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - parallel:
+          - name: Build frontend
+            run: npm run build:frontend
+          - name: Build backend
+            run: npm run build:backend
+          - name: Build docs
+            run: npm run build:docs
+      - name: Run tests after all builds complete
+        run: npm test
+
+  parallel-group-with-uses:
+    runs-on: ubuntu-latest
+    steps:
+      - parallel:
+          - uses: actions/setup-node@v4
+          - uses: actions/setup-python@v5
+      - run: echo "both set up"
+
+  combined:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start server
+        id: server
+        run: npm start
+        background: true
+      - parallel:
+          - name: Build A
+            run: npm run build:a
+          - name: Build B
+            run: npm run build:b
+      - name: Run tests
+        run: npm test
+      - cancel: server

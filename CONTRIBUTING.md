@@ -40,6 +40,7 @@
   - [How to add a `$ref` to a JSON Schema that's hosted in this repository](#how-to-add-a-ref-to-a-json-schema-thats-hosted-in-this-repository)
   - [How to add a `$ref` to a JSON Schema that's self-hosted](#how-to-add-a-ref-to-a-json-schema-thats-self-hosted)
   - [How to validate a JSON Schema](#how-to-validate-a-json-schema)
+  - [How to check test coverage for a JSON Schema](#how-to-check-test-coverage-for-a-json-schema)
   - [How to ignore validation errors in a JSON Schema](#how-to-ignore-validation-errors-in-a-json-schema)
   - [How to name schemas that are subschemas (`partial-`)](#how-to-name-schemas-that-are-subschemas-partial-)
 - [Older Links](#older-links)
@@ -207,7 +208,7 @@ When renaming a schema name, the old version must continue to exist. Otherwise, 
 
 ```json
 {
-  "$ref": "https://json.schemastore.org/NEWNAME.json"
+  "$ref": "https://www.schemastore.org/NEWNAME.json"
 }
 ```
 
@@ -218,7 +219,7 @@ The process of renaming schemas is similar to [this section](#how-to-move-a-json
 Many tools, such as [validate-pyproject](https://github.com/abravalheri/validate-pyproject), accept passing in subpaths for validation like so:
 
 ```sh
-validate-pyproject --tool cibuildwheel=https://json.schemastore.org/cibuildwheel.toml#/properties/tool/properties
+validate-pyproject --tool cibuildwheel=https://www.schemastore.org/cibuildwheel.toml#/properties/tool/properties
 ```
 
 This means that renames in subschema paths is a potentially a breaking change. However, it needs to be possible to refactor internal schema structures.
@@ -293,6 +294,10 @@ Whether trailing commas are allowed in the schema itself. Use the [`allowTrailin
 **`defaultSnippets`**
 
 Used by: `vscode-json-languageservice`.
+
+**`deprecationMessage`**
+
+Used by: `vscode-json-languageservice`, `Intellij`, `tombi-toml/tombi`.
 
 **`markdownDescription`**
 
@@ -409,7 +414,7 @@ When adding glob patterns to `fileMatch` so language servers can auto-apply sche
   "name": "Hugo",
   "description": "Hugo static site generator config file",
   "fileMatch": ["config.toml"], // Avoid generic patterns.
-  "url": "https://json.schemastore.org/hugo.json",
+  "url": "https://www.schemastore.org/hugo.json",
 }
 ```
 
@@ -539,7 +544,7 @@ If you do not wish to use the `new-schema` task, the manual steps are listed bel
 
    ```json
    {
-     "$id": "https://json.schemastore.org/<schemaName>.json",
+     "$id": "https://www.schemastore.org/<schemaName>.json",
      "$schema": "http://json-schema.org/draft-07/schema#",
      "additionalProperties": true,
      "properties": {},
@@ -560,7 +565,7 @@ If you do not wish to use the `new-schema` task, the manual steps are listed bel
      "description": "Schema description",
      "fileMatch": ["list of well-known filenames matching schema"],
      "name": "Friendly schema name",
-     "url": "https://json.schemastore.org/<schemaName>.json"
+     "url": "https://www.schemastore.org/<schemaName>.json"
    }
    ```
 
@@ -570,7 +575,7 @@ Finally, validate your changes. See [How to Validate a JSON Schema](#how-to-vali
 
 ### How to add a JSON Schema that's self-hosted/remote/external
 
-You may wish to serve a schema from `https://json.schemastore.org/<schemaName>.json`, but keep the content of the schema file at a place you control (not this repository).
+You may wish to serve a schema from `https://www.schemastore.org/<schemaName>.json`, but keep the content of the schema file at a place you control (not this repository).
 
 See [this PR](https://github.com/SchemaStore/schemastore/pull/1211/files) as an example. Simply register your schema in the [schema catalog](src/api/json/catalog.json), with the `url` field pointing to your schema file:
 
@@ -618,11 +623,11 @@ Then, use the `versions` field to list each of them. Add the latest version to t
   "description": "JSON schema for the Agrippa config file",
   "fileMatch": [".agripparc.json", "agripparc.json"],
   "name": ".agripparc.json",
-  "url": "https://json.schemastore.org/agripparc-1.4.json",
+  "url": "https://www.schemastore.org/agripparc-1.4.json",
   "versions": {
-    "1.2": "https://json.schemastore.org/agripparc-1.2.json",
-    "1.3": "https://json.schemastore.org/agripparc-1.3.json",
-    "1.4": "https://json.schemastore.org/agripparc-1.4.json"
+    "1.2": "https://www.schemastore.org/agripparc-1.2.json",
+    "1.3": "https://www.schemastore.org/agripparc-1.3.json",
+    "1.4": "https://www.schemastore.org/agripparc-1.4.json"
   }
 }
 ```
@@ -642,8 +647,8 @@ See [this PR](https://github.com/SchemaStore/schemastore/pull/2421/files) for a 
 
 - Both schemas must exist [locally](src/schemas/json) in SchemaStore.
 - Both schemas must have the same draft (ex. `draft-07`)
-- `schema_y.json` must have `id` or `$id` with this value `"https://json.schemastore.org/schema_y.json"`
-- In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://json.schemastore.org/schema_y.json#..."`
+- `schema_y.json` must have `id` or `$id` with this value `"https://www.schemastore.org/schema_y.json"`
+- In `schema_x.json`, add ref to `schema_y.json`: `"$ref": "https://www.schemastore.org/schema_y.json#..."`
 - Within [schema-validation.jsonc](./src/schema-validation.jsonc), in `"options": []`, add an entry:
   `{ "schema_x.json": {"externalSchema": ["schema_y.json"] } }`
   - Note that all transitive schemas must be specified in `externalSchema`
@@ -669,6 +674,39 @@ node ./cli.js check --schema-name=<schemaName.json>
 For example, to validate the [`ava.json`](https://github.com/SchemaStore/schemastore/blob/master/src/schemas/json/ava.json) schema, run `node ./cli.js check --schema-name=ava.json`
 
 Note that `<schemaName.json>` refers to the _filename_ that the schema has under `src/schemas/json`.
+
+### How to check test coverage for a JSON Schema
+
+The coverage tool analyzes how thoroughly your schema's test files exercise its constraints. It runs 8 checks:
+
+1. **Unused `$defs`** — flags `$defs`/`definitions` entries not referenced by any `$ref`
+2. **Description coverage** — flags properties missing a `description`
+3. **Test completeness** — checks that every top-level schema property appears in at least one positive test
+4. **Enum coverage** — checks that each enum value has positive test coverage and at least one invalid value in negative tests
+5. **Pattern coverage** — checks that each `pattern` constraint has a matching and a violating test value
+6. **Required field coverage** — checks that negative tests omit required fields
+7. **Default value coverage** — checks that positive tests include non-default values
+8. **Negative test isolation** — flags negative test files that test multiple unrelated violation types
+
+**Opting in:** Add your schema to the `coverage` array in `src/schema-validation.jsonc`:
+
+```jsonc
+"coverage": [
+  { "schema": "my-schema.json" },
+  { "schema": "my-strict-schema.json", "strict": true }
+]
+```
+
+- `strict` (default: `false`) — when `true`, coverage failures cause a non-zero exit code, enforced in CI.
+- Without `strict: true`, the tool reports findings but does not fail CI.
+
+**Running locally:**
+
+```console
+node ./cli.js coverage --schema-name=my-schema.json
+```
+
+Coverage is opt-in and runs in CI. Schemas with `strict: true` will block PRs on coverage failures. Schemas without `strict` get an advisory report only.
 
 ### How to ignore validation errors in a JSON Schema
 

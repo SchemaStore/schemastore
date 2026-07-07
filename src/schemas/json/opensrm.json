@@ -1,0 +1,1114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/opensrm.json",
+  "title": "OpenSRM",
+  "description": "Open Service Reliability Manifest - Define service reliability requirements as code\nhttps://github.com/rsionnach/opensrm",
+  "oneOf": [
+    { "$ref": "#/definitions/ServiceReliabilityManifest" },
+    { "$ref": "#/definitions/Template" }
+  ],
+  "definitions": {
+    "Duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(ms|s|m|h|d|w)$",
+      "description": "Duration format: number followed by ms, s, m, h, d, or w"
+    },
+    "Ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Ratio value (0.0 - 1.0)"
+    },
+    "ServiceType": {
+      "type": "string",
+      "enum": ["api", "worker", "stream", "ai-gate", "batch", "database"],
+      "description": "Service operational pattern\nhttps://github.com/rsionnach/opensrm#service-types"
+    },
+    "Tier": {
+      "type": "string",
+      "enum": ["critical", "high", "standard", "low"],
+      "description": "Service criticality tier"
+    },
+    "AvailabilitySLO": {
+      "type": "object",
+      "description": "Availability SLO - measures proportion of successful requests",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Target availability ratio (e.g., 0.9995 for 99.95%)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "LatencySLO": {
+      "type": "object",
+      "description": "Latency SLO - measures response time at specified percentiles",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "p50": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target median (50th percentile) latency"
+        },
+        "p90": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 90th percentile latency"
+        },
+        "p95": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 95th percentile latency"
+        },
+        "p99": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 99th percentile latency"
+        },
+        "p999": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 99.9th percentile latency"
+        },
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Ratio of requests meeting the latency threshold"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      },
+      "anyOf": [
+        { "required": ["p50"] },
+        { "required": ["p90"] },
+        { "required": ["p95"] },
+        { "required": ["p99"] },
+        { "required": ["p999"] }
+      ]
+    },
+    "ErrorRateSLO": {
+      "type": "object",
+      "description": "Error rate SLO - measures proportion of failed requests",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Maximum error ratio (e.g., 0.001 for 0.1%)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "ThroughputSLO": {
+      "type": "object",
+      "description": "Throughput SLO - measures request processing rate",
+      "required": ["target", "unit"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum throughput"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["rps", "rpm", "rph"],
+          "description": "Throughput unit"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "1h",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "ProcessingTimeSLO": {
+      "type": "object",
+      "description": "Processing time SLO - job completion time for worker services",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "p50": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target median processing time"
+        },
+        "p90": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 90th percentile"
+        },
+        "p95": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 95th percentile"
+        },
+        "p99": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 99th percentile"
+        },
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Ratio of jobs meeting the time threshold"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "7d",
+          "description": "Measurement window"
+        }
+      },
+      "anyOf": [
+        { "required": ["p50"] },
+        { "required": ["p90"] },
+        { "required": ["p95"] },
+        { "required": ["p99"] }
+      ]
+    },
+    "LagSLO": {
+      "type": "object",
+      "description": "Lag SLO - consumer lag for stream services",
+      "required": ["max_seconds", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "max_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum acceptable lag in seconds"
+        },
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Ratio of time within lag threshold"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "7d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "SuccessRateSLO": {
+      "type": "object",
+      "description": "Success rate SLO - measures proportion of successful operations",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Target success ratio (e.g., 0.995 for 99.5%)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "7d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "DurationSLO": {
+      "type": "object",
+      "description": "Duration SLO - job execution time for batch services",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "p50": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target median duration"
+        },
+        "p90": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 90th percentile"
+        },
+        "p95": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 95th percentile"
+        },
+        "p99": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 99th percentile"
+        },
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Ratio of jobs meeting threshold"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      },
+      "anyOf": [
+        { "required": ["p50"] },
+        { "required": ["p90"] },
+        { "required": ["p95"] },
+        { "required": ["p99"] }
+      ]
+    },
+    "ScheduleAdherenceSLO": {
+      "type": "object",
+      "description": "Schedule adherence SLO - measures timeliness of batch job starts",
+      "required": ["max_delay"],
+      "additionalProperties": false,
+      "properties": {
+        "max_delay": {
+          "$ref": "#/definitions/Duration",
+          "description": "Maximum acceptable delay from scheduled start time"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "7d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "DataFreshnessSLO": {
+      "type": "object",
+      "description": "Data freshness SLO - measures staleness of batch output data",
+      "required": ["max_age"],
+      "additionalProperties": false,
+      "properties": {
+        "max_age": {
+          "$ref": "#/definitions/Duration",
+          "description": "Maximum acceptable age of output data"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "7d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "QueryLatencySLO": {
+      "type": "object",
+      "description": "Query latency SLO - response time for database services",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "p50": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target median query latency"
+        },
+        "p90": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 90th percentile"
+        },
+        "p95": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 95th percentile"
+        },
+        "p99": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 99th percentile"
+        },
+        "p999": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target 99.9th percentile"
+        },
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Ratio of queries meeting threshold"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      },
+      "anyOf": [
+        { "required": ["p50"] },
+        { "required": ["p90"] },
+        { "required": ["p95"] },
+        { "required": ["p99"] },
+        { "required": ["p999"] }
+      ]
+    },
+    "ReplicationLagSLO": {
+      "type": "object",
+      "description": "Replication lag SLO for database services",
+      "required": ["max_lag"],
+      "additionalProperties": false,
+      "properties": {
+        "max_lag": {
+          "type": "string",
+          "pattern": "^[0-9]+(ms|s|m)$",
+          "description": "Maximum acceptable replication lag (e.g., 1s, 500ms, 5m)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "ConnectionAvailabilitySLO": {
+      "type": "object",
+      "description": "Connection availability SLO for database services",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Target connection availability ratio (e.g., 0.9999 for 99.99%)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "default": "30d",
+          "description": "Measurement window"
+        }
+      }
+    },
+    "ReversalRateSLO": {
+      "type": "object",
+      "description": "Reversal rate SLO - measures how often humans override AI decisions\nhttps://github.com/rsionnach/opensrm#judgment-slos",
+      "required": ["target", "window"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Maximum reversal ratio (e.g., 0.05 for 5%)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "description": "SLO evaluation window"
+        },
+        "observation_period": {
+          "$ref": "#/definitions/Duration",
+          "default": "24h",
+          "description": "Time to wait for reversals after a decision"
+        }
+      }
+    },
+    "HighConfidenceFailureSLO": {
+      "type": "object",
+      "description": "High-confidence failure SLO - measures rate of confident but wrong decisions\nhttps://github.com/rsionnach/opensrm#judgment-slos",
+      "required": ["target", "window"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Maximum HCF ratio (e.g., 0.02 for 2%)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "description": "SLO evaluation window"
+        },
+        "confidence_threshold": {
+          "$ref": "#/definitions/Ratio",
+          "default": 0.9,
+          "description": "What counts as high confidence"
+        }
+      }
+    },
+    "CalibrationSLO": {
+      "type": "object",
+      "description": "Calibration SLO - measures if stated confidence matches actual accuracy (ECE)\nhttps://github.com/rsionnach/opensrm#judgment-slos",
+      "required": ["target", "window"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Maximum Expected Calibration Error (e.g., 0.15)"
+        },
+        "window": {
+          "$ref": "#/definitions/Duration",
+          "description": "SLO evaluation window"
+        }
+      }
+    },
+    "FeedbackLatencySLO": {
+      "type": "object",
+      "description": "Feedback latency SLO - measures time until decision quality is known\nhttps://github.com/rsionnach/opensrm#judgment-slos",
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["p50"] }, { "required": ["p90"] }],
+      "properties": {
+        "p50": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target for median feedback latency"
+        },
+        "p90": {
+          "$ref": "#/definitions/Duration",
+          "description": "Target for 90th percentile feedback latency"
+        }
+      }
+    },
+    "JudgmentSLOs": {
+      "type": "object",
+      "description": "Judgment SLOs for AI gate services - measure decision quality\nhttps://github.com/rsionnach/opensrm#judgment-slos",
+      "additionalProperties": false,
+      "properties": {
+        "reversal_rate": {
+          "$ref": "#/definitions/ReversalRateSLO"
+        },
+        "high_confidence_failure": {
+          "$ref": "#/definitions/HighConfidenceFailureSLO"
+        },
+        "calibration": {
+          "$ref": "#/definitions/CalibrationSLO"
+        },
+        "feedback_latency": {
+          "$ref": "#/definitions/FeedbackLatencySLO"
+        }
+      }
+    },
+    "SLOs": {
+      "type": "object",
+      "description": "Service Level Objectives",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "$ref": "#/definitions/AvailabilitySLO"
+        },
+        "latency": {
+          "$ref": "#/definitions/LatencySLO"
+        },
+        "error_rate": {
+          "$ref": "#/definitions/ErrorRateSLO"
+        },
+        "throughput": {
+          "$ref": "#/definitions/ThroughputSLO"
+        },
+        "processing_time": {
+          "$ref": "#/definitions/ProcessingTimeSLO"
+        },
+        "lag": {
+          "$ref": "#/definitions/LagSLO"
+        },
+        "success_rate": {
+          "$ref": "#/definitions/SuccessRateSLO"
+        },
+        "duration": {
+          "$ref": "#/definitions/DurationSLO"
+        },
+        "schedule_adherence": {
+          "$ref": "#/definitions/ScheduleAdherenceSLO"
+        },
+        "data_freshness": {
+          "$ref": "#/definitions/DataFreshnessSLO"
+        },
+        "query_latency": {
+          "$ref": "#/definitions/QueryLatencySLO"
+        },
+        "replication_lag": {
+          "$ref": "#/definitions/ReplicationLagSLO"
+        },
+        "connection_availability": {
+          "$ref": "#/definitions/ConnectionAvailabilitySLO"
+        },
+        "openslo": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path to OpenSLO file"
+              }
+            }
+          },
+          "description": "References to external OpenSLO files"
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "target"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Custom SLO name"
+              },
+              "target": {
+                "type": "number",
+                "description": "Target value"
+              },
+              "unit": {
+                "type": "string",
+                "description": "Unit of measurement"
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable description"
+              }
+            }
+          },
+          "description": "Custom SLO types"
+        },
+        "judgment": {
+          "$ref": "#/definitions/JudgmentSLOs"
+        }
+      }
+    },
+    "ContractLatency": {
+      "type": "object",
+      "description": "Latency guarantees in a contract",
+      "additionalProperties": false,
+      "properties": {
+        "p50": {
+          "$ref": "#/definitions/Duration",
+          "description": "Promised median latency"
+        },
+        "p99": {
+          "$ref": "#/definitions/Duration",
+          "description": "Promised 99th percentile latency"
+        },
+        "p999": {
+          "$ref": "#/definitions/Duration",
+          "description": "Promised 99.9th percentile latency"
+        }
+      }
+    },
+    "ContractThroughput": {
+      "type": "object",
+      "description": "Throughput guarantees in a contract",
+      "additionalProperties": false,
+      "properties": {
+        "max_rps": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum sustained requests per second"
+        },
+        "burst": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum burst capacity"
+        }
+      }
+    },
+    "ContractJudgment": {
+      "type": "object",
+      "description": "Judgment guarantees in a contract for AI gate services",
+      "additionalProperties": false,
+      "properties": {
+        "max_reversal_rate": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Maximum promised reversal rate"
+        },
+        "max_hcf_rate": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Maximum promised high-confidence failure rate"
+        },
+        "max_feedback_latency": {
+          "$ref": "#/definitions/Duration",
+          "description": "Maximum promised feedback latency"
+        }
+      }
+    },
+    "Contract": {
+      "type": "object",
+      "description": "Reliability guarantees promised to dependents\nhttps://github.com/rsionnach/opensrm#contracts",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Promised uptime ratio"
+        },
+        "latency": {
+          "$ref": "#/definitions/ContractLatency"
+        },
+        "throughput": {
+          "$ref": "#/definitions/ContractThroughput"
+        },
+        "judgment": {
+          "$ref": "#/definitions/ContractJudgment"
+        }
+      }
+    },
+    "Dependency": {
+      "type": "object",
+      "description": "Upstream dependency and expected guarantees",
+      "required": ["service"],
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "Dependency identifier (service name)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["service", "database", "cache", "queue", "external"],
+          "description": "Type of dependency"
+        },
+        "critical": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether failure causes service failure"
+        },
+        "expects": {
+          "type": "object",
+          "description": "Expected guarantees from dependency",
+          "additionalProperties": false,
+          "properties": {
+            "availability": {
+              "$ref": "#/definitions/Ratio",
+              "description": "Expected availability ratio"
+            },
+            "latency": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "p99": {
+                  "$ref": "#/definitions/Duration",
+                  "description": "Expected 99th percentile latency"
+                }
+              }
+            }
+          }
+        },
+        "manifest": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to dependency's SRM manifest"
+        }
+      }
+    },
+    "Ownership": {
+      "type": "object",
+      "description": "Service ownership information",
+      "required": ["team"],
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "description": "Team identifier"
+        },
+        "slack": {
+          "type": "string",
+          "description": "Slack channel for alerts (e.g., '#team-oncall')"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Team email address"
+        },
+        "escalation": {
+          "type": "string",
+          "description": "On-call rotation or escalation policy name"
+        },
+        "pagerduty": {
+          "type": "object",
+          "description": "PagerDuty integration",
+          "additionalProperties": false,
+          "properties": {
+            "service_id": {
+              "type": "string",
+              "description": "PagerDuty service ID"
+            },
+            "escalation_policy_id": {
+              "type": "string",
+              "description": "PagerDuty escalation policy ID"
+            }
+          }
+        },
+        "runbook": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to operational runbook"
+        },
+        "documentation": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to service documentation"
+        },
+        "oncall_required": {
+          "type": "boolean",
+          "description": "Whether on-call rotation is required"
+        }
+      }
+    },
+    "Instrumentation": {
+      "type": "object",
+      "description": "Telemetry configuration for AI gate services",
+      "required": ["events"],
+      "additionalProperties": false,
+      "properties": {
+        "events": {
+          "type": "object",
+          "description": "Event name mappings",
+          "required": ["decision", "reversal"],
+          "additionalProperties": false,
+          "properties": {
+            "decision": {
+              "type": "string",
+              "description": "Event name emitted when AI makes a decision"
+            },
+            "reversal": {
+              "type": "string",
+              "description": "Event name emitted when a decision is overridden"
+            },
+            "outcome": {
+              "type": "string",
+              "description": "Event name emitted when ground truth is known"
+            }
+          }
+        },
+        "attributes": {
+          "type": "object",
+          "description": "Attribute name mappings",
+          "additionalProperties": false,
+          "properties": {
+            "decision_id": {
+              "type": "string",
+              "default": "decision_id",
+              "description": "Field name for decision identifier"
+            },
+            "confidence": {
+              "type": "string",
+              "default": "confidence",
+              "description": "Field name for confidence score"
+            },
+            "decision": {
+              "type": "string",
+              "default": "decision",
+              "description": "Field name for decision value"
+            }
+          }
+        }
+      }
+    },
+    "Observability": {
+      "type": "object",
+      "description": "Observability requirements",
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "type": "object",
+          "description": "Metric requirements",
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Metric names that must exist"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "required": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Labels that must be present"
+                }
+              }
+            },
+            "convention": {
+              "type": "string",
+              "enum": ["opentelemetry", "prometheus"],
+              "default": "opentelemetry",
+              "description": "Metric naming convention"
+            }
+          }
+        },
+        "dashboards": {
+          "type": "object",
+          "description": "Dashboard requirements",
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "Whether dashboards must exist"
+            },
+            "urls": {
+              "type": "array",
+              "items": { "type": "string", "format": "uri" },
+              "description": "URLs to service dashboards"
+            }
+          }
+        },
+        "alerts": {
+          "type": "object",
+          "description": "Alert requirements",
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "Whether alerts must be configured"
+            },
+            "definitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "severity"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Alert name"
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": ["critical", "warning", "info"],
+                    "description": "Alert severity"
+                  },
+                  "threshold": {
+                    "type": "string",
+                    "description": "Human-readable threshold description"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tracing": {
+          "type": "object",
+          "description": "Distributed tracing requirements",
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "Whether distributed tracing must be enabled"
+            },
+            "sampling_rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Expected sampling rate (0.0 - 1.0)"
+            }
+          }
+        }
+      }
+    },
+    "Deployment": {
+      "type": "object",
+      "description": "Deployment requirements",
+      "additionalProperties": false,
+      "properties": {
+        "environments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Environments where service is deployed"
+        },
+        "gates": {
+          "type": "object",
+          "description": "Deployment gates",
+          "additionalProperties": true,
+          "properties": {
+            "error_budget": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "threshold": { "type": "number" }
+              }
+            },
+            "slo_compliance": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "min_compliance": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            },
+            "recent_incidents": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "lookback": { "$ref": "#/definitions/Duration" },
+                "max_p1": { "type": "integer", "minimum": 0 },
+                "max_p2": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-": {
+              "type": "object",
+              "description": "Custom deployment gates"
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "description": "Rollback configuration",
+          "additionalProperties": false,
+          "properties": {
+            "automatic": {
+              "type": "boolean",
+              "description": "Whether automatic rollback is enabled"
+            },
+            "criteria": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "error_rate_increase": {
+                  "type": "string",
+                  "description": "Error rate increase threshold"
+                },
+                "latency_increase": {
+                  "type": "string",
+                  "description": "Latency increase threshold"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Metadata": {
+      "type": "object",
+      "description": "Service identity and classification",
+      "required": ["name", "team", "tier"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique service identifier (lowercase alphanumeric with hyphens)"
+        },
+        "team": {
+          "type": "string",
+          "description": "Owning team identifier"
+        },
+        "tier": {
+          "$ref": "#/definitions/Tier",
+          "description": "Service criticality level"
+        },
+        "template": {
+          "type": "string",
+          "description": "Name of template to inherit from"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Key-value pairs for filtering/grouping"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Arbitrary metadata (not used for selection)"
+        }
+      }
+    },
+    "TemplateMetadata": {
+      "type": "object",
+      "description": "Template identity",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique template identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        }
+      }
+    },
+    "Spec": {
+      "type": "object",
+      "description": "Reliability requirements",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/ServiceType"
+        },
+        "slos": {
+          "$ref": "#/definitions/SLOs"
+        },
+        "contract": {
+          "$ref": "#/definitions/Contract"
+        },
+        "instrumentation": {
+          "$ref": "#/definitions/Instrumentation"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Dependency" },
+          "description": "Upstream dependencies"
+        },
+        "ownership": {
+          "$ref": "#/definitions/Ownership"
+        },
+        "observability": {
+          "$ref": "#/definitions/Observability"
+        },
+        "deployment": {
+          "$ref": "#/definitions/Deployment"
+        }
+      }
+    },
+    "TemplateSpec": {
+      "type": "object",
+      "description": "Partial spec for template inheritance",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/ServiceType"
+        },
+        "slos": {
+          "$ref": "#/definitions/SLOs"
+        },
+        "ownership": {
+          "$ref": "#/definitions/Ownership"
+        },
+        "instrumentation": {
+          "$ref": "#/definitions/Instrumentation"
+        }
+      }
+    },
+    "ServiceReliabilityManifest": {
+      "type": "object",
+      "description": "Service Reliability Manifest - defines reliability requirements for a service",
+      "required": ["apiVersion", "kind", "metadata", "spec"],
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "const": "srm/v1",
+          "description": "Schema version. Must be srm/v1"
+        },
+        "kind": {
+          "type": "string",
+          "const": "ServiceReliabilityManifest",
+          "description": "Document type"
+        },
+        "metadata": {
+          "$ref": "#/definitions/Metadata"
+        },
+        "spec": {
+          "$ref": "#/definitions/Spec"
+        }
+      }
+    },
+    "Template": {
+      "type": "object",
+      "description": "Reusable template for service reliability manifests",
+      "required": ["apiVersion", "kind", "metadata", "spec"],
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "const": "srm/v1",
+          "description": "Schema version. Must be srm/v1"
+        },
+        "kind": {
+          "type": "string",
+          "const": "Template",
+          "description": "Document type"
+        },
+        "metadata": {
+          "$ref": "#/definitions/TemplateMetadata"
+        },
+        "spec": {
+          "$ref": "#/definitions/TemplateSpec"
+        }
+      }
+    }
+  }
+}
