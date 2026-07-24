@@ -1,0 +1,386 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/git-cliff.json",
+  "x-tombi-toml-version": "v1.0.0",
+  "title": "git-cliff configuration",
+  "description": "Configuration for git-cliff, a changelog generator that follows Conventional Commits.\nhttps://git-cliff.org/docs/configuration/",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "$schema": {
+      "description": "Optional schema URL for editor integrations.",
+      "type": "string"
+    },
+    "changelog": {
+      "$ref": "#/definitions/changelog"
+    },
+    "git": {
+      "$ref": "#/definitions/git"
+    },
+    "remote": {
+      "$ref": "#/definitions/remoteConfig"
+    },
+    "bump": {
+      "$ref": "#/definitions/bump"
+    }
+  },
+  "definitions": {
+    "changelog": {
+      "description": "Configuration options for changelog generation.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "header": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Header template rendered at the beginning of the changelog."
+        },
+        "body": {
+          "description": "Body template rendered for each release.",
+          "type": "string"
+        },
+        "footer": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Footer template rendered at the end of the changelog."
+        },
+        "trim": {
+          "description": "Whether to remove leading and trailing whitespace from the changelog body.",
+          "type": "boolean"
+        },
+        "render_always": {
+          "description": "Whether to render the body template even if there are no releases to process.",
+          "type": "boolean"
+        },
+        "postprocessors": {
+          "description": "Regex-based processors applied after changelog rendering.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/textProcessor"
+          }
+        },
+        "output": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Output file path for the changelog."
+        }
+      }
+    },
+    "git": {
+      "description": "Git parsing and filtering options.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "processing_order": {
+          "description": "Custom commit processing pipeline.",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "commit_preprocessors",
+                  "split_commits",
+                  "conventional_commits",
+                  "commit_parsers",
+                  "link_parsers"
+                ]
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conventional_commits": {
+          "description": "Whether to parse commits according to the Conventional Commits specification.",
+          "type": "boolean"
+        },
+        "require_conventional": {
+          "description": "Whether all included commits must be conventional.",
+          "type": "boolean"
+        },
+        "filter_unconventional": {
+          "description": "Whether to exclude commits that are not conventional.",
+          "type": "boolean"
+        },
+        "split_commits": {
+          "description": "Whether each line of a commit should be processed as an individual commit message.",
+          "type": "boolean"
+        },
+        "commit_preprocessors": {
+          "description": "Regex-based processors applied before commit parsing.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/textProcessor"
+          }
+        },
+        "commit_parsers": {
+          "description": "Commit parser rules that classify, scope, or skip commits.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/commitParser"
+          }
+        },
+        "protect_breaking_commits": {
+          "description": "Whether breaking changes are protected from being skipped by commit parsers.",
+          "type": "boolean"
+        },
+        "link_parsers": {
+          "description": "Regex-based parsers that extract links from commit messages.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/linkParser"
+          }
+        },
+        "filter_commits": {
+          "description": "Whether commits not matched by a commit parser are filtered out.",
+          "type": "boolean"
+        },
+        "fail_on_unmatched_commit": {
+          "description": "Whether git-cliff should fail when an included commit is not matched by any parser.",
+          "type": "boolean"
+        },
+        "tag_pattern": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for selecting release tags."
+        },
+        "skip_tags": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for tags to skip."
+        },
+        "ignore_tags": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for tags to ignore."
+        },
+        "count_tags": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for tags to count."
+        },
+        "use_branch_tags": {
+          "description": "Whether to include only tags that belong to the current branch.",
+          "type": "boolean"
+        },
+        "topo_order": {
+          "description": "Whether releases are processed in topological order instead of chronological order.",
+          "type": "boolean"
+        },
+        "topo_order_commits": {
+          "description": "Whether commits are processed in topological order instead of chronological order.",
+          "type": "boolean"
+        },
+        "sort_commits": {
+          "description": "Ordering for commits inside each release section.",
+          "type": "string",
+          "enum": ["oldest", "newest"]
+        },
+        "limit_commits": {
+          "description": "Maximum number of commits included in the generated changelog.",
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "recurse_submodules": {
+          "$ref": "#/definitions/optionalBoolean",
+          "description": "Whether to read and process submodule commits."
+        },
+        "include_paths": {
+          "$ref": "#/definitions/stringArray",
+          "description": "Glob patterns for paths whose commits should be included."
+        },
+        "exclude_paths": {
+          "$ref": "#/definitions/stringArray",
+          "description": "Glob patterns for paths whose commits should be excluded."
+        }
+      }
+    },
+    "remoteConfig": {
+      "description": "Git remote integration options.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "offline": {
+          "description": "Whether to disable external calls even when remotes are configured.",
+          "type": "boolean"
+        },
+        "github": {
+          "$ref": "#/definitions/remote"
+        },
+        "gitlab": {
+          "$ref": "#/definitions/remote"
+        },
+        "gitea": {
+          "$ref": "#/definitions/remote"
+        },
+        "bitbucket": {
+          "$ref": "#/definitions/remote"
+        },
+        "azure_devops": {
+          "$ref": "#/definitions/remote"
+        }
+      }
+    },
+    "remote": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["owner", "repo"],
+      "properties": {
+        "owner": {
+          "description": "Remote owner or organization.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Remote repository name.",
+          "type": "string"
+        },
+        "token": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Access token for the remote."
+        },
+        "api_url": {
+          "$ref": "#/definitions/optionalString",
+          "description": "API URL for the remote."
+        },
+        "native_tls": {
+          "$ref": "#/definitions/optionalBoolean",
+          "description": "Whether to use the platform native certificate store."
+        }
+      }
+    },
+    "bump": {
+      "description": "Version bumping options.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "features_always_bump_minor": {
+          "$ref": "#/definitions/optionalBoolean",
+          "description": "Whether feature commits always trigger a minor version bump."
+        },
+        "breaking_always_bump_major": {
+          "$ref": "#/definitions/optionalBoolean",
+          "description": "Whether breaking changes always trigger a major version bump."
+        },
+        "initial_tag": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Initial version used when no tags are found."
+        },
+        "custom_major_increment_regex": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for custom commit types that trigger major increments."
+        },
+        "custom_minor_increment_regex": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for custom commit types that trigger minor increments."
+        },
+        "no_increment_regex": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern for commit types that do not increment the version."
+        },
+        "bump_type": {
+          "description": "Forced version bump type.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["major", "minor", "patch"]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "textProcessor": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["pattern"],
+      "properties": {
+        "pattern": {
+          "description": "Rust regex pattern to match text.",
+          "type": "string"
+        },
+        "replace": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Replacement text."
+        },
+        "replace_command": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Command used to transform the matched text."
+        }
+      }
+    },
+    "commitParser": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "sha": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Commit SHA to match."
+        },
+        "message": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern matched against the commit message."
+        },
+        "body": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern matched against the commit body."
+        },
+        "footer": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern matched against the commit footer."
+        },
+        "group": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Changelog group assigned to matching commits."
+        },
+        "default_scope": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Default scope assigned when a matching commit has no scope."
+        },
+        "scope": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Scope assigned to matching commits."
+        },
+        "skip": {
+          "$ref": "#/definitions/optionalBoolean",
+          "description": "Whether to skip matching commits."
+        },
+        "field": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Commit context field to match."
+        },
+        "pattern": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Rust regex pattern matched against the configured field."
+        }
+      }
+    },
+    "linkParser": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["pattern", "href"],
+      "properties": {
+        "pattern": {
+          "description": "Rust regex pattern used to find links in commit messages.",
+          "type": "string"
+        },
+        "href": {
+          "description": "URL template for generated links.",
+          "type": "string"
+        },
+        "text": {
+          "$ref": "#/definitions/optionalString",
+          "description": "Optional text template for generated links."
+        }
+      }
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "optionalString": {
+      "type": ["string", "null"]
+    },
+    "optionalBoolean": {
+      "type": ["boolean", "null"]
+    }
+  }
+}

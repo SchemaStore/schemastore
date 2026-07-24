@@ -6,15 +6,18 @@
     "Description": {
       "type": "string",
       "description": "Free text commenting on or summarizing this configuration. Optional",
-      "default": ""
+      "default": "",
+      "examples": ["My simulation configuration"]
     },
     "Name": {
       "type": "string",
-      "description": "Name of the endpoint"
+      "description": "Name of the endpoint",
+      "examples": ["Endpoint1"]
     },
     "Network": {
       "type": "string",
-      "description": "Name of the network. Optional; Defaults to the endpoint name"
+      "description": "Name of the network. Optional; Defaults to the endpoint name",
+      "examples": ["Network1"]
     },
     "UseTraceSinks": {
       "type": "array",
@@ -377,6 +380,20 @@
           "maximum": 2,
           "description": "Number of samples per microtick (values 1, 2)",
           "examples": [2]
+        },
+        "pSecondKeySlotId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1023,
+          "description": "Second Key Slot ID of the key slot (range 0-1023, value 0 means that there is no key slot)",
+          "examples": [0]
+        },
+        "pTwoKeySlotMode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Second Key slot is used for startup with a single cold start node (range 0, 1)",
+          "examples": [0]
         }
       }
     },
@@ -439,7 +456,8 @@
           "examples": ["FlexRay1"]
         },
         "Network": {
-          "$ref": "#/definitions/Network"
+          "$ref": "#/definitions/Network",
+          "examples": ["FlexRay1"]
         },
         "UseTraceSinks": {
           "$ref": "#/definitions/UseTraceSinks"
@@ -469,11 +487,78 @@
     },
     "Topic": {
       "type": "string",
-      "description": "Name of the communication channel between DataPublisher and DataSubscribers"
+      "description": "Name of the communication channel between DataPublisher and DataSubscribers",
+      "examples": ["Temperature"]
     },
     "RpcFunctionName": {
       "type": "string",
-      "description": "Name of the RPC function called by RpcClients on RpcServers"
+      "description": "Name of the RPC function called by RpcClients on RpcServers",
+      "examples": ["Function1"]
+    },
+    "MatchingLabel": {
+      "type": "object",
+      "properties": {
+        "Key": {
+          "type": "string",
+          "description": "Label key",
+          "examples": ["Instance"]
+        },
+        "Value": {
+          "type": "string",
+          "description": "Label value",
+          "examples": ["Vehicle1"]
+        },
+        "Kind": {
+          "type": "string",
+          "description": "Label kind",
+          "enum": ["Mandatory", "Optional"],
+          "examples": ["Mandatory", "Optional"]
+        }
+      }
+    },
+    "Labels": {
+      "type": "array",
+      "description": "Override the matching labels assigned to the controller",
+      "items": {
+        "$ref": "#/definitions/MatchingLabel"
+      }
+    },
+    "History": {
+      "type": "integer",
+      "description": "Override the history length (must be `0` or `1`)",
+      "minimum": 0,
+      "maximum": 1,
+      "examples": [1]
+    },
+    "LoggingTopic": {
+      "type": "string",
+      "description": "Name of a logging topic used to filter log messages",
+      "examples": ["User"],
+      "enum": [
+        "None",
+        "User",
+        "LifeCycle",
+        "SystemState",
+        "MessageTracing",
+        "ServiceDiscovery",
+        "Asio",
+        "TimeSync",
+        "Participant",
+        "TimeConfig",
+        "RequestReply",
+        "SystemMonitor",
+        "Can",
+        "Ethernet",
+        "Flexray",
+        "Lin",
+        "Metrics",
+        "Pubsub",
+        "Rpc",
+        "Tracing",
+        "Dashboard",
+        "NetSim",
+        "Extension"
+      ]
     },
     "Logging": {
       "type": "object",
@@ -482,8 +567,8 @@
         "LogFromRemotes": {
           "type": "boolean",
           "description": "Enables receiving of remote log messages from other participants",
-          "examples": [false, true],
-          "default": false
+          "default": false,
+          "examples": [false, true]
         },
         "FlushLevel": {
           "type": "string",
@@ -516,6 +601,12 @@
                 "enum": ["Remote", "File", "Stdout"],
                 "examples": ["Remote", "File", "Stdout"]
               },
+              "Format": {
+                "type": "string",
+                "enum": ["Simple", "Json"],
+                "default": "Simple",
+                "examples": ["Simple", "Json"]
+              },
               "Level": {
                 "type": "string",
                 "enum": [
@@ -541,8 +632,30 @@
               "LogName": {
                 "type": "string",
                 "description": "Log name; Results in the following filename: <LogName>_%y-%m-%dT%h-%m-%s.txt",
-                "examples": ["MyLog1"],
-                "default": "MyLog1"
+                "examples": ["MyLog1"]
+              },
+              "Experimental": {
+                "type": "object",
+                "description": "Experimental settings to filter log messages of this sink by topic",
+                "properties": {
+                  "EnabledTopics": {
+                    "type": "array",
+                    "description": "Only log messages of these topics are passed to this sink. Optional; if empty, all topics except those in DisabledTopics are passed",
+                    "items": {
+                      "$ref": "#/definitions/LoggingTopic"
+                    },
+                    "examples": ["User", "LifeCycle"]
+                  },
+                  "DisabledTopics": {
+                    "type": "array",
+                    "description": "Log messages of these topics are not passed to this sink",
+                    "items": {
+                      "$ref": "#/definitions/LoggingTopic"
+                    },
+                    "examples": ["Asio", "MessageTracing"]
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false,
@@ -552,6 +665,50 @@
       },
       "additionalProperties": false,
       "required": ["Sinks"]
+    },
+    "MetricsSink": {
+      "type": "object",
+      "description": "Configures a sink to which collected metrics are written",
+      "properties": {
+        "Type": {
+          "type": "string",
+          "enum": ["JsonFile", "Remote"],
+          "description": "Type of the metrics sink",
+          "examples": ["JsonFile", "Remote"]
+        },
+        "Name": {
+          "type": "string",
+          "description": "Name of the metrics sink; used e.g. as the output file name for a JsonFile sink",
+          "examples": ["MyMetrics1"]
+        }
+      },
+      "additionalProperties": false,
+      "required": ["Type"]
+    },
+    "Metrics": {
+      "type": "object",
+      "description": "Configures the collection and publication of participant metrics",
+      "properties": {
+        "Sinks": {
+          "type": "array",
+          "description": "Sinks to which collected metrics are written",
+          "items": {
+            "$ref": "#/definitions/MetricsSink"
+          }
+        },
+        "CollectFromRemote": {
+          "type": "boolean",
+          "description": "Enables collecting metrics from other participants. Cannot be combined with a 'Remote' metrics sink",
+          "examples": [true]
+        },
+        "UpdateInterval": {
+          "type": "integer",
+          "description": "Interval in seconds at which metrics are updated",
+          "default": 1,
+          "examples": [1]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "description": "JSON schema for SIL Kit Participant configuration files",
@@ -562,24 +719,24 @@
       "default": "",
       "examples": ["./ParticipantConfiguration.schema.json"]
     },
-    "schemaVersion": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "string"
-        }
-      ],
+    "SchemaVersion": {
+      "enum": [1, "1"],
       "default": 0,
-      "description": "Version of the schema used to validate this document"
+      "description": "Version of the schema used to validate this document",
+      "examples": ["1"]
+    },
+    "schemaVersion": {
+      "enum": [1, "1"],
+      "default": 0,
+      "description": "Legacy lowercase alias for SchemaVersion, kept for backwards compatibility. Prefer 'SchemaVersion'"
     },
     "Description": {
       "$ref": "#/definitions/Description"
     },
     "ParticipantName": {
       "type": "string",
-      "description": "Name of the participant"
+      "description": "Name of the participant",
+      "examples": ["Participant1"]
     },
     "CanControllers": {
       "type": "array",
@@ -645,7 +802,8 @@
             "examples": ["ETH0"]
           },
           "Network": {
-            "$ref": "#/definitions/Network"
+            "$ref": "#/definitions/Network",
+            "examples": ["ETH0"]
           },
           "UseTraceSinks": {
             "$ref": "#/definitions/UseTraceSinks"
@@ -672,9 +830,18 @@
             "$ref": "#/definitions/Topic",
             "examples": ["Temperature"]
           },
+          "Labels": {
+            "$ref": "#/definitions/Labels"
+          },
+          "History": {
+            "$ref": "#/definitions/History"
+          },
           "UseTraceSinks": {
             "$ref": "#/definitions/UseTraceSinks",
             "examples": ["Sink1"]
+          },
+          "Replay": {
+            "$ref": "#/definitions/Replay"
           }
         },
         "additionalProperties": false,
@@ -695,9 +862,15 @@
             "$ref": "#/definitions/Topic",
             "examples": ["Temperature"]
           },
+          "Labels": {
+            "$ref": "#/definitions/Labels"
+          },
           "UseTraceSinks": {
             "$ref": "#/definitions/UseTraceSinks",
             "examples": ["Sink1"]
+          },
+          "Replay": {
+            "$ref": "#/definitions/Replay"
           }
         },
         "additionalProperties": false,
@@ -711,13 +884,21 @@
         "type": "object",
         "properties": {
           "Name": {
-            "$ref": "#/definitions/Name"
+            "$ref": "#/definitions/Name",
+            "examples": ["Client1"]
           },
           "FunctionName": {
-            "$ref": "#/definitions/RpcFunctionName"
+            "$ref": "#/definitions/RpcFunctionName",
+            "examples": ["Function1"]
+          },
+          "Labels": {
+            "$ref": "#/definitions/Labels"
           },
           "UseTraceSinks": {
             "$ref": "#/definitions/UseTraceSinks"
+          },
+          "Replay": {
+            "$ref": "#/definitions/Replay"
           }
         },
         "additionalProperties": false,
@@ -738,8 +919,14 @@
             "$ref": "#/definitions/RpcFunctionName",
             "examples": ["Function1"]
           },
+          "Labels": {
+            "$ref": "#/definitions/Labels"
+          },
           "UseTraceSinks": {
             "$ref": "#/definitions/UseTraceSinks"
+          },
+          "Replay": {
+            "$ref": "#/definitions/Replay"
           }
         },
         "additionalProperties": false,
@@ -789,8 +976,7 @@
                 "type": "string",
                 "enum": ["PcapFile", "PcapPipe", "Mdf4File"],
                 "description": "File format specifier",
-                "examples": ["PcapFile", "PcapPipe", "Mdf4File"],
-                "default": "Mdf4File"
+                "examples": ["PcapFile", "PcapPipe", "Mdf4File"]
               }
             },
             "additionalProperties": false
@@ -815,8 +1001,7 @@
                 "type": "string",
                 "enum": ["PcapFile", "PcapPipe", "Mdf4File"],
                 "description": "File format specifier",
-                "examples": ["PcapFile", "PcapPipe", "Mdf4File"],
-                "default": "Mdf4File"
+                "examples": ["PcapFile", "PcapPipe", "Mdf4File"]
               }
             },
             "additionalProperties": false
@@ -873,20 +1058,23 @@
       "properties": {
         "RegistryUri": {
           "type": "string",
-          "examples": ["silkit://0.0.0.0:8501", "silkit://localhost:8500"],
-          "default": "silkit://localhost:8500"
+          "default": "silkit://localhost:8500",
+          "examples": ["silkit://0.0.0.0:8501", "silkit://localhost:8500"]
         },
         "ConnectAttempts": {
           "type": "integer",
-          "default": 1
+          "default": 1,
+          "examples": [1]
         },
         "TcpNoDelay": {
           "type": "boolean",
-          "default": true
+          "default": true,
+          "examples": [true]
         },
         "TcpQuickAck": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "examples": [false]
         },
         "TcpSendBufferSize": {
           "type": "integer",
@@ -895,10 +1083,79 @@
         "TcpReceiveBufferSize": {
           "type": "integer",
           "examples": [3456]
+        },
+        "EnableDomainSockets": {
+          "type": "boolean",
+          "default": true,
+          "examples": [true]
+        },
+        "AcceptorUris": {
+          "type": "array",
+          "description": "Explicit list of endpoints this participant will accept connections on",
+          "items": {
+            "type": "string"
+          },
+          "examples": ["silkit://localhost:0"]
+        },
+        "RegistryAsFallbackProxy": {
+          "type": "boolean",
+          "description": "Enables communication with other participants using the registry as a proxy",
+          "default": true,
+          "examples": [true]
+        },
+        "ConnectTimeoutSeconds": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 5.0,
+          "examples": [5.0]
+        },
+        "ExperimentalRemoteParticipantConnection": {
+          "type": "boolean",
+          "description": "By default, requesting connection of other participants, and honoring these requests by other participants is enabled",
+          "default": true,
+          "examples": [true]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Experimental": {
+      "type": "object",
+      "description": "Experimental configuration",
+      "properties": {
+        "TimeSynchronization": {
+          "type": "object",
+          "description": "Configuration related to time synchronization",
+          "properties": {
+            "AnimationFactor": {
+              "type": "number",
+              "description": "The animation factor describes how fast the simulation is allowed to run, relative to the local wall clock. For example, if the value is 0.1, SIL Kit will try to run the simulation 10 times faster than the wall clock. The default value 0.0 runs the simulation as fast as possible, i.e., the current behavior.",
+              "minimum": 0.0,
+              "default": 0.0,
+              "examples": [0.1]
+            },
+            "EnableMessageAggregation": {
+              "type": "string",
+              "enum": ["Off", "On", "Auto"],
+              "description": "Decide for simulations with time synchronization, if a message aggregation is performed. In case of the Auto mode, the message aggregation is enabled for simulations using the synchronous simulation step handler.",
+              "default": "Off",
+              "examples": ["Off", "On", "Auto"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Metrics": {
+          "$ref": "#/definitions/Metrics"
         }
       },
       "additionalProperties": false
     }
+  },
+  "not": {
+    "properties": {
+      "SchemaVersion": { "$ref": "#/properties/SchemaVersion" },
+      "schemaVersion": { "$ref": "#/properties/schemaVersion" }
+    },
+    "required": ["SchemaVersion", "schemaVersion"]
   },
   "type": "object"
 }
