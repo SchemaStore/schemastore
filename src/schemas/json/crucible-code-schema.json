@@ -30,6 +30,11 @@
           "minimum": 0,
           "type": "integer"
         },
+        "recap": {
+          "description": "Maximum tokens a structured compaction recap may produce; ordinary recaps stop earlier",
+          "minimum": 0,
+          "type": "integer"
+        },
         "reserve": {
           "description": "Tokens to keep free for the next answer and the tools it calls, instead of the room crucible works out from the model",
           "minimum": 0,
@@ -41,6 +46,7 @@
           "type": "integer"
         },
         "when": {
+          "default": "full",
           "description": "Whether a full window is answered by compacting the session, or by letting the turn fail",
           "enum": ["full", "never"],
           "type": "string"
@@ -49,20 +55,33 @@
       "type": "object"
     },
     "env": {
-      "additionalProperties": false,
-      "description": "Environment variables for the commands crucible runs. A file under the working directory may set only crucible's own CRUCIBLE_CODE_ names",
-      "patternProperties": {
-        "^[^$]": {
-          "type": "string"
-        }
+      "additionalProperties": {
+        "type": "string"
       },
+      "description": "Environment variables for the commands crucible runs. A file under the working directory may set only crucible's own CRUCIBLE_CODE_ names",
       "properties": {
         "$schema": {
           "type": "string"
         },
         "$comment": {
           "type": "string"
+        },
+        "CRUCIBLE_CODE_MOUSE_SCROLL_SPEED": {
+          "default": "6",
+          "description": "How many rows of the transcript one notch of the wheel moves",
+          "pattern": "^\\+?0*(?:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30)$",
+          "type": "string"
         }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "pattern": "^[^$]"
+          },
+          {
+            "enum": ["$schema", "$comment"]
+          }
+        ]
       },
       "type": "object"
     },
@@ -77,6 +96,7 @@
           "type": "string"
         },
         "send": {
+          "default": "enter",
           "description": "Which press sends a prompt: enter sends and Shift+Enter, Alt+Enter or Ctrl+J opens a line; altEnter swaps the two, for a terminal that keeps Enter for itself",
           "enum": ["enter", "altEnter"],
           "type": "string"
@@ -95,26 +115,25 @@
           "type": "string"
         },
         "color": {
+          "default": "auto",
           "description": "Whether to write colour: auto follows the terminal and NO_COLOR, always and never override it",
           "enum": ["auto", "always", "never"],
           "type": "string"
         },
         "glyphs": {
+          "default": "unicode",
           "description": "Which characters crucible draws with: unicode for box drawing, ascii for a font that lacks it",
           "enum": ["unicode", "ascii"],
           "type": "string"
         },
-        "mouse": {
-          "description": "off leaves the mouse to the terminal, so the wheel scrolls it; click lets you place the cursor in the prompt and open a result that was cut short, and the wheel stops scrolling",
-          "enum": ["off", "click"],
-          "type": "string"
-        },
         "syntaxTheme": {
+          "default": "Monokai Extended",
           "description": "Which theme fenced code is drawn in — a name from /theme, such as Monokai Extended, GitHub, Dracula or Nord",
           "examples": ["Monokai Extended", "GitHub"],
           "type": "string"
         },
         "theme": {
+          "default": "auto",
           "description": "Which colours crucible draws with: auto follows the terminal's own background, ansi spends only the sixteen it already has",
           "enum": [
             "auto",
@@ -127,6 +146,7 @@
           "type": "string"
         },
         "toolDetail": {
+          "default": "compact",
           "description": "How much of a tool call and its result one line shows",
           "enum": ["compact", "full"],
           "type": "string"
@@ -184,6 +204,7 @@
           "uniqueItems": true
         },
         "mode": {
+          "default": "ask",
           "description": "What happens to a call no rule mentions: ask about every change and command, allow changes to files, or allow everything. Read only from the configuration file in your home directory",
           "enum": ["ask", "allowEdits", "fullAccess"],
           "type": "string"
@@ -196,64 +217,68 @@
       "type": "string"
     },
     "providers": {
-      "additionalProperties": false,
-      "description": "Per-provider defaults, keyed by provider name",
-      "patternProperties": {
-        "^[^$]": {
-          "additionalProperties": false,
-          "properties": {
-            "$schema": {
-              "type": "string"
-            },
-            "$comment": {
-              "type": "string"
-            },
-            "apiKeyEnv": {
-              "description": "Name of the environment variable holding this provider's API key — the name, never the key",
-              "type": "string"
-            },
-            "baseUrl": {
-              "description": "Address to send this provider's requests to instead of the vendor's, for a gateway or a proxy",
-              "examples": ["https://gateway.example/v1/messages"],
-              "type": "string"
-            },
-            "contextWindow": {
-              "additionalProperties": false,
-              "description": "How many tokens a model accepts at once, keyed by the model name, where crucible cannot ask the provider or has it wrong",
-              "patternProperties": {
-                "^[^$]": {
-                  "minimum": 0,
-                  "type": "integer"
-                }
-              },
-              "properties": {
-                "$schema": {
-                  "type": "string"
-                },
-                "$comment": {
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            },
-            "defaultContextWindow": {
-              "description": "How many tokens to assume any model of this provider accepts, where it is not named above",
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "type": "string"
+          },
+          "$comment": {
+            "type": "string"
+          },
+          "apiKeyEnv": {
+            "description": "Name of the environment variable holding this provider's API key — the name, never the key",
+            "type": "string"
+          },
+          "baseUrl": {
+            "description": "Address to send this provider's requests to instead of the vendor's, for a gateway or a proxy",
+            "examples": ["https://gateway.example/v1/messages"],
+            "type": "string"
+          },
+          "contextWindow": {
+            "additionalProperties": {
               "minimum": 0,
               "type": "integer"
             },
-            "effort": {
-              "description": "How hard to think before answering, when --effort does not say. Left off, the vendor's own default for whichever model is being asked",
-              "enum": ["low", "medium", "high", "xhigh", "max"],
-              "type": "string"
+            "description": "How many tokens a model accepts at once, keyed by the model name, where crucible cannot ask the provider or has it wrong",
+            "properties": {
+              "$schema": {
+                "type": "string"
+              },
+              "$comment": {
+                "type": "string"
+              }
             },
-            "model": {
-              "description": "The model to ask when --model does not name one",
-              "type": "string"
-            }
+            "propertyNames": {
+              "anyOf": [
+                {
+                  "pattern": "^[^$]"
+                },
+                {
+                  "enum": ["$schema", "$comment"]
+                }
+              ]
+            },
+            "type": "object"
           },
-          "type": "object"
-        }
+          "defaultContextWindow": {
+            "description": "How many tokens to assume any model of this provider accepts, where it is not named above",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "effort": {
+            "description": "How hard to think before answering, when --effort does not say. Left off, the vendor's own default for whichever model is being asked",
+            "enum": ["low", "medium", "high", "xhigh", "max"],
+            "type": "string"
+          },
+          "model": {
+            "description": "The model to ask when --model does not name one",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
+      "description": "Per-provider defaults, keyed by provider name",
       "properties": {
         "$schema": {
           "type": "string"
@@ -261,6 +286,16 @@
         "$comment": {
           "type": "string"
         }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "pattern": "^[^$]"
+          },
+          {
+            "enum": ["$schema", "$comment"]
+          }
+        ]
       },
       "type": "object"
     },
@@ -275,6 +310,7 @@
           "type": "string"
         },
         "check": {
+          "default": "auto",
           "description": "Whether crucible asks GitHub which release is newest, and says so when this one is behind",
           "enum": ["auto", "never"],
           "type": "string"
