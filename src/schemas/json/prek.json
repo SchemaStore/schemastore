@@ -9,6 +9,17 @@
       "$ref": "#/definitions/UpdateOptions",
       "description": "Default settings for `prek update` in this project."
     },
+    "priorities": {
+      "description": "Configuration-local aliases for numeric hook priorities.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\S+$": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "repos": {
       "type": "array",
       "items": {
@@ -27,73 +38,79 @@
       "type": "object",
       "properties": {
         "bun": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "conda": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "coursier": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "dart": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "deno": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "docker": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "docker_image": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "dotnet": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "fail": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "golang": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "haskell": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "julia": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "lua": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
+        },
+        "mise": {
+          "$ref": "#/definitions/LanguageVersion"
         },
         "node": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "perl": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
+        },
+        "php": {
+          "$ref": "#/definitions/LanguageVersion"
         },
         "pygrep": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "python": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "r": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "ruby": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "rust": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "script": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "swift": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         },
         "system": {
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion"
         }
       },
       "additionalProperties": false
@@ -132,10 +149,6 @@
     "orphan": {
       "description": "Set to true to isolate this project from parent configurations in workspace mode.\nWhen true, files in this project are \"consumed\" by this project and will not be processed\nby parent projects.\nWhen false (default), files in subprojects are processed by both the subproject and\nany parent projects that contain them.",
       "type": "boolean"
-    },
-    "auto_update": {
-      "$ref": "#/definitions/UpdateOptions",
-      "description": "Compatibility alias for `update`. Prefer `update` in new configs."
     }
   },
   "required": ["repos"],
@@ -150,6 +163,47 @@
           "type": "integer",
           "maximum": 255,
           "minimum": 0
+        },
+        "freeze": {
+          "type": "boolean"
+        },
+        "include_tags": {
+          "$ref": "#/definitions/StringOrList"
+        },
+        "exclude_tags": {
+          "$ref": "#/definitions/StringOrList"
+        },
+        "repos": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/RepoTagFilterOptions"
+          }
+        }
+      }
+    },
+    "StringOrList": {
+      "description": "A configuration value that accepts either one string or a list of strings.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "RepoTagFilterOptions": {
+      "description": "Overrides tag selection for one repository during `prek update`.",
+      "type": "object",
+      "properties": {
+        "include_tags": {
+          "$ref": "#/definitions/StringOrList"
+        },
+        "exclude_tags": {
+          "$ref": "#/definitions/StringOrList"
         }
       }
     },
@@ -217,16 +271,15 @@
           "description": "Override the language. Not documented in the official docs but works."
         },
         "priority": {
-          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.\n\nThis is only allowed in project config files (e.g. `.pre-commit-config.yaml`).\nIt is not allowed in manifests (e.g. `.pre-commit-hooks.yaml`).",
-          "type": "integer",
-          "minimum": 0
+          "$ref": "#/definitions/Priority",
+          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.\n\nThis is only allowed in project config files (e.g. `.pre-commit-config.yaml`).\nIt is not allowed in manifests (e.g. `.pre-commit-hooks.yaml`)."
         },
         "groups": {
-          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty, contain whitespace, or start with `@`.",
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^\\S+$"
+            "pattern": "^[^@\\s]\\S*$"
           }
         },
         "alias": {
@@ -299,12 +352,12 @@
           "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
-          "description": "A description of the hook. For metadata only.",
+          "description": "A description of the hook.",
           "type": "string"
         },
         "language_version": {
-          "description": "Run the hook on a specific version of the language.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>.",
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion",
+          "description": "Select a language version and optionally configure the toolchain source preference.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>."
         },
         "log_file": {
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
@@ -335,8 +388,7 @@
           "type": "string"
         }
       },
-      "required": ["id"],
-      "additionalProperties": true
+      "required": ["id"]
     },
     "Language": {
       "type": "string",
@@ -354,8 +406,10 @@
         "haskell",
         "julia",
         "lua",
+        "mise",
         "node",
         "perl",
+        "php",
         "pygrep",
         "python",
         "r",
@@ -365,6 +419,21 @@
         "swift",
         "system"
       ]
+    },
+    "Priority": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "$ref": "#/definitions/PriorityAlias"
+        }
+      ]
+    },
+    "PriorityAlias": {
+      "type": "string",
+      "pattern": "^\\S+$"
     },
     "FilePattern": {
       "description": "A file pattern, either a regex or glob pattern(s).",
@@ -407,6 +476,31 @@
           "exclusiveMinimum": 0
         }
       ]
+    },
+    "LanguageVersion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "request": {
+              "description": "A language-specific version request. Defaults to `default`.",
+              "type": "string"
+            },
+            "preference": {
+              "$ref": "#/definitions/ToolchainPreference",
+              "description": "Which toolchain sources to prefer or require. Defaults to `managed`."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ToolchainPreference": {
+      "type": "string",
+      "enum": ["only-managed", "managed", "system", "only-system"]
     },
     "Shell": {
       "description": "A predefined shell adapter used to run hook entries as shell source.",
@@ -469,16 +563,15 @@
           "description": "The language of the hook. Tells prek how to install and run the hook."
         },
         "priority": {
-          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.",
-          "type": "integer",
-          "minimum": 0
+          "$ref": "#/definitions/Priority",
+          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel."
         },
         "groups": {
-          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty, contain whitespace, or start with `@`.",
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^\\S+$"
+            "pattern": "^[^@\\s]\\S*$"
           }
         },
         "alias": {
@@ -551,12 +644,12 @@
           "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
-          "description": "A description of the hook. For metadata only.",
+          "description": "A description of the hook.",
           "type": "string"
         },
         "language_version": {
-          "description": "Run the hook on a specific version of the language.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>.",
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion",
+          "description": "Select a language version and optionally configure the toolchain source preference.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>."
         },
         "log_file": {
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
@@ -587,8 +680,7 @@
           "type": "string"
         }
       },
-      "required": ["id", "name", "entry", "language"],
-      "additionalProperties": true
+      "required": ["id", "name", "entry", "language"]
     },
     "MetaRepo": {
       "type": "object",
@@ -630,16 +722,15 @@
           "enum": ["system"]
         },
         "priority": {
-          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.\n\nThis is only allowed in project config files (e.g. `.pre-commit-config.yaml`).\nIt is not allowed in manifests (e.g. `.pre-commit-hooks.yaml`).",
-          "type": "integer",
-          "minimum": 0
+          "$ref": "#/definitions/Priority",
+          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.\n\nThis is only allowed in project config files (e.g. `.pre-commit-config.yaml`).\nIt is not allowed in manifests (e.g. `.pre-commit-hooks.yaml`)."
         },
         "groups": {
-          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty, contain whitespace, or start with `@`.",
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^\\S+$"
+            "pattern": "^[^@\\s]\\S*$"
           }
         },
         "alias": {
@@ -712,12 +803,12 @@
           "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
-          "description": "A description of the hook. For metadata only.",
+          "description": "A description of the hook.",
           "type": "string"
         },
         "language_version": {
-          "description": "Run the hook on a specific version of the language.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>.",
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion",
+          "description": "Select a language version and optionally configure the toolchain source preference.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>."
         },
         "log_file": {
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
@@ -748,8 +839,7 @@
           "type": "string"
         }
       },
-      "required": ["id"],
-      "additionalProperties": true
+      "required": ["id"]
     },
     "MetaHooks": {
       "type": "string",
@@ -795,16 +885,15 @@
           "enum": ["system"]
         },
         "priority": {
-          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.\n\nThis is only allowed in project config files (e.g. `.pre-commit-config.yaml`).\nIt is not allowed in manifests (e.g. `.pre-commit-hooks.yaml`).",
-          "type": "integer",
-          "minimum": 0
+          "$ref": "#/definitions/Priority",
+          "description": "Priority used by the scheduler to determine ordering and concurrency.\nHooks with the same priority can run in parallel.\n\nThis is only allowed in project config files (e.g. `.pre-commit-config.yaml`).\nIt is not allowed in manifests (e.g. `.pre-commit-hooks.yaml`)."
         },
         "groups": {
-          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty or contain whitespace.",
+          "description": "User-defined hook groups used by `prek run --group` and `--no-group`.\nGroup names cannot be empty, contain whitespace, or start with `@`.",
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^\\S+$"
+            "pattern": "^[^@\\s]\\S*$"
           }
         },
         "alias": {
@@ -877,12 +966,12 @@
           "description": "Append filenames that would be checked to the hook entry as arguments.\nDefault is true."
         },
         "description": {
-          "description": "A description of the hook. For metadata only.",
+          "description": "A description of the hook.",
           "type": "string"
         },
         "language_version": {
-          "description": "Run the hook on a specific version of the language.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>.",
-          "type": "string"
+          "$ref": "#/definitions/LanguageVersion",
+          "description": "Select a language version and optionally configure the toolchain source preference.\nDefault is `default`.\nSee <https://pre-commit.com/#overriding-language-version>."
         },
         "log_file": {
           "description": "Write the output of the hook to a file when the hook fails or verbose is enabled.",
@@ -913,8 +1002,7 @@
           "type": "string"
         }
       },
-      "required": ["id"],
-      "additionalProperties": true
+      "required": ["id"]
     },
     "BuiltinHooks": {
       "type": "string",
@@ -932,6 +1020,8 @@
         "check-vcs-permalinks",
         "check-xml",
         "check-yaml",
+        "deny-filename-pattern",
+        "deny-pattern",
         "destroyed-symlinks",
         "detect-private-key",
         "end-of-file-fixer",
@@ -941,6 +1031,9 @@
         "mixed-line-ending",
         "no-commit-to-branch",
         "pretty-format-json",
+        "require-filename-pattern",
+        "require-pattern",
+        "requirements-txt-fixer",
         "trailing-whitespace"
       ]
     },
