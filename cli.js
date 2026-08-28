@@ -983,7 +983,7 @@ async function taskBuildWebsite() {
     'The open-source catalog of JSON schemas for editors and tools, with support for JSON, YAML, and TOML files.'
   const body = `<section id="intro" class="hero">
   <p class="eyebrow">Open source JSON Schema catalog</p>
-  <h2>Reliable configuration help,<br /><span>right in your editor.</span></h2>
+  <h2>Reliable configuration help, <br /><span>right in your editor.</span></h2>
   <p class="lede">
     SchemaStore is the central catalog for JSON, YAML, and TOML schemas.
     Editors and tools use it for validation, completion, and in-context documentation.
@@ -993,8 +993,8 @@ async function taskBuildWebsite() {
     <a class="button secondary" href="https://github.com/SchemaStore/schemastore">Contribute on GitHub</a>
   </div>
   <dl class="stats">
-    <div><dt>${SchemasToBeTested.length.toLocaleString('en-US')}+</dt><dd>schemas</dd></div>
-    <div><dt>1+ TB</dt><dd>served daily</dd></div>
+    <div><dt id="schema-count">…</dt><dd>schemas</dd></div>
+    <div><dt>2 TB</dt><dd>served daily</dd></div>
     <div><dt>Open source</dt><dd>maintained by contributors</dd></div>
   </dl>
   <div class="shots" aria-label="SchemaStore features">
@@ -1190,7 +1190,7 @@ async function taskBuildWebsite() {
 	<header role="banner">
 		<div class="container">
 			<div class="header-inner">
-				<h1><a href="/" itemprop="name"><img src="/img/json-schema-logo-blue.svg" width="28" height="28" alt="" />${siteName}</a></h1>
+				<h1><a href="/" itemprop="name"><img src="/img/json-logo.png" width="28" height="28" alt="" />${siteName}</a></h1>
 				<nav aria-label="Main navigation">
 					<a href="#schemalist">Catalog</a>
 					<a href="#api">API</a>
