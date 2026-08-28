@@ -1014,7 +1014,7 @@ async function taskBuildWebsite() {
 <article>
   <h3 id="api">Public API</h3>
   <p>
-    <img src="/img/api.png" width="256" height="88" alt="Public API for JSON Schemas" class="left" />
+    <img src="/img/json-schema-logo-blue.svg" width="192" height="192" alt="Public API for JSON Schemas" class="left" />
     The JSON <a href="/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
     Each schema file can be used in tooling such as command line validators, editor auto-completion etc.
   </p>
@@ -1105,7 +1105,7 @@ async function taskBuildWebsite() {
 <article>
     <h3 id="contribute">Contribute</h3>
     <p>
-        <img src="/img/octocat.png" width="250" height="208" alt="Hosted on GitHub" class="left" />
+        <img src="/img/octocat.svg" width="250" height="208" alt="Hosted on GitHub" class="left octocat" />
         The goal of this API is to include schemas for all commonly
         known JSON file formats. To do that we encourage contributions in terms of new schemas,
         modifications and test files.
