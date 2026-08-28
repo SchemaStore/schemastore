@@ -980,24 +980,24 @@ async function taskBuildWebsite() {
   )
 
   const siteName = 'SchemaStore'
-  const pageTitle = 'SchemaStore | JSON Schemas for Editors and Tools'
+  const pageTitle = 'SchemaStore | JSON Schema Catalog for Editors and Tools'
   const pageDescription =
-    'The largest collection of JSON schemas for editors and tools, with support for JSON, YAML, and TOML files.'
+    'The open-source catalog of JSON schemas for editors and tools, with support for JSON, YAML, and TOML files.'
   const body = `<section id="intro" class="hero">
-  <p class="eyebrow">The community schema registry</p>
-  <h2>Better configuration files,<br /><span>right in your editor.</span></h2>
+  <p class="eyebrow">Open source JSON Schema catalog</p>
+  <h2>Reliable configuration help,<br /><span>right in your editor.</span></h2>
   <p class="lede">
-    SchemaStore provides schemas for JSON, YAML, and TOML files. Editors use them
-    to offer validation, completion, and documentation as you work.
+    SchemaStore is the central catalog for JSON, YAML, and TOML schemas.
+    Editors and tools use it for validation, completion, and in-context documentation.
   </p>
   <div class="hero-actions">
-    <a class="button primary" href="#schemalist">Browse schemas</a>
+    <a class="button primary" href="#schemalist">Explore the catalog</a>
     <a class="button secondary" href="https://github.com/SchemaStore/schemastore">Contribute on GitHub</a>
   </div>
   <dl class="stats">
     <div><dt>${SchemasToBeTested.length.toLocaleString('en-US')}+</dt><dd>schemas</dd></div>
     <div><dt>1+ TB</dt><dd>served daily</dd></div>
-    <div><dt>Open source</dt><dd>and community maintained</dd></div>
+    <div><dt>Open source</dt><dd>maintained by contributors</dd></div>
   </dl>
   <div class="shots" aria-label="SchemaStore features">
     <figure>
@@ -1133,7 +1133,11 @@ async function taskBuildWebsite() {
 	<meta name="color-scheme" content="light dark" />
 	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f9" />
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111418" />
-	<meta name="robots" content="index, follow" />
+	<meta name="application-name" content="${siteName}" />
+	<meta name="author" content="SchemaStore contributors" />
+	<meta name="referrer" content="strict-origin-when-cross-origin" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
 	<link href="/css/site.css" rel="stylesheet" />
 	<link rel="canonical" href="https://www.schemastore.org/" />
@@ -1169,12 +1173,18 @@ async function taskBuildWebsite() {
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://www.schemastore.org/" />
 	<meta property="og:site_name" content="${siteName}" />
+	<meta property="og:locale" content="en_US" />
 	<meta property="og:image" content="https://www.schemastore.org/img/json-logo.png" />
-	<meta property="og:image:width" content="160" />
-	<meta property="og:image:height" content="160" />
+	<meta property="og:image:secure_url" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta property="og:image:type" content="image/png" />
+	<meta property="og:image:width" content="512" />
+	<meta property="og:image:height" content="512" />
 	<meta property="og:image:alt" content="SchemaStore logo" />
 	<script type="application/ld+json">
 		{"@context":"https://schema.org","@type":"WebSite","name":"${siteName}","url":"https://www.schemastore.org/","description":"${pageDescription}"}
+	</script>
+	<script type="application/ld+json">
+		{"@context":"https://schema.org","@type":"Organization","name":"${siteName}","url":"https://www.schemastore.org/","logo":"https://www.schemastore.org/img/json-logo.png","sameAs":["https://github.com/SchemaStore/schemastore","https://github.com/sponsors/SchemaStore"]}
 	</script>
 </head>
 <body>
