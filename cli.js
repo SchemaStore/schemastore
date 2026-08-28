@@ -11,6 +11,7 @@ import { Ajv as AjvDraft06And07 } from 'ajv'
 import _Ajv2019 from 'ajv/dist/2019.js'
 import _Ajv2020 from 'ajv/dist/2020.js'
 import _addFormats from 'ajv-formats'
+import _ajvKeywords from 'ajv-keywords'
 import { ajvFormatsDraft2019 } from '@hyperupcall/ajv-formats-draft2019'
 import schemasafe from '@exodus/schemasafe'
 import TOML from 'smol-toml'
@@ -54,6 +55,9 @@ const Ajv2019 = /** @type {any} */ (_Ajv2019)
 
 /** @type {typeof _Ajv2020.default} */
 const Ajv2020 = /** @type {any} */ (_Ajv2020)
+
+/** @type {any} */
+const ajvKeywords = _ajvKeywords
 
 /** @type {typeof _addFormats.default} */
 const addFormats = /** @type {any} */ (_addFormats)
@@ -190,7 +194,12 @@ async function readJsonFile(/** @type {string} */ filename) {
 }
 
 function isIgnoredFile(/** @type {string} */ file) {
-  return file === '.DS_Store'
+  return (
+    file === '.DS_Store' ||
+    file.startsWith('#') ||
+    file.startsWith('.#') ||
+    file.endsWith('~')
+  )
 }
 
 async function forEachCatalogUrl(
@@ -486,6 +495,8 @@ async function ajvFactory(
     default:
       throw new Error('No JSON Schema version specified')
   }
+
+  ajvKeywords(ajv, 'uniqueItemProperties')
 
   /**
    * In strict mode, Ajv will throw an error if it does not
@@ -1187,6 +1198,9 @@ async function taskBuildWebsite() {
   await fs.cp('./src/img', './website/img', { recursive: true })
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp('./src/js', './website/js', { recursive: true })
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp('./src/.well-known', './website/.well-known', { recursive: true })
+  await fs.copyFile('./src/favicon.ico', './website/favicon.ico')
 }
 
 async function assertFileSystemIsValid() {
