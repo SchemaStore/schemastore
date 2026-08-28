@@ -979,7 +979,8 @@ async function taskBuildWebsite() {
     }),
   )
 
-  const pageTitle = 'SchemaStore'
+  const siteName = 'SchemaStore'
+  const pageTitle = 'SchemaStore | JSON Schemas for Editors and Tools'
   const pageDescription =
     'The largest collection of JSON schemas for editors and tools, with support for JSON, YAML, and TOML files.'
   const body = `<section id="intro" class="hero">
@@ -1157,7 +1158,7 @@ async function taskBuildWebsite() {
 	<meta name="msapplication-TileImage" content="/img/favicon/mstile-144x144.png" />
 	<meta name="msapplication-config" content="/img/favicon/browserconfig.xml" />
 
-	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:card" content="summary" />
 	<meta name="twitter:title" content="${pageTitle}" />
 	<meta name="twitter:description" content="${pageDescription}" />
 	<meta name="twitter:image" content="https://www.schemastore.org/img/json-logo.png" />
@@ -1167,13 +1168,13 @@ async function taskBuildWebsite() {
 	<meta property="og:description" content="${pageDescription}" />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://www.schemastore.org/" />
-	<meta property="og:site_name" content="SchemaStore" />
+	<meta property="og:site_name" content="${siteName}" />
 	<meta property="og:image" content="https://www.schemastore.org/img/json-logo.png" />
-	<meta property="og:image:width" content="512" />
-	<meta property="og:image:height" content="512" />
+	<meta property="og:image:width" content="160" />
+	<meta property="og:image:height" content="160" />
 	<meta property="og:image:alt" content="SchemaStore logo" />
 	<script type="application/ld+json">
-		{"@context":"https://schema.org","@type":"WebSite","name":"SchemaStore","url":"https://www.schemastore.org/","description":"${pageDescription}"}
+		{"@context":"https://schema.org","@type":"WebSite","name":"${siteName}","url":"https://www.schemastore.org/","description":"${pageDescription}"}
 	</script>
 </head>
 <body>
@@ -1181,7 +1182,7 @@ async function taskBuildWebsite() {
 	<header role="banner">
 		<div class="container">
 			<div class="header-inner">
-				<h1><a href="/" itemprop="name"><img src="/img/json-schema-logo-blue.svg" width="28" height="28" alt="" />${pageTitle}</a></h1>
+				<h1><a href="/" itemprop="name"><img src="/img/json-schema-logo-blue.svg" width="28" height="28" alt="" />${siteName}</a></h1>
 				<nav aria-label="Main navigation">
 					<a href="#schemalist">Catalog</a>
 					<a href="#api">API</a>
