@@ -980,35 +980,75 @@ async function taskBuildWebsite() {
   )
 
   const pageTitle = 'JSON Schema Store'
-  const pageDescription = 'JSON Schemas for common JSON file formats'
-  const body = `<article id="schemalist">
-  <h3 id="count">JSON Schemas are available for the following {0} files:</h3>
+  const pageDescription =
+    'JSON, YAML, and TOML schemas used by Visual Studio, VS Code, JetBrains, and other editors'
+  const body = `<article id="intro">
+  <h2>SchemaStore.org powers JSON, YAML, and TOML in the major IDEs</h2>
+  <p class="lede">
+    Visual Studio, Visual Studio Code, JetBrains, Neovim, Emacs, and Sublime Text
+    all use this catalog. Open a GitHub workflow, <code>docker-compose.yaml</code>,
+    <code>tsconfig.json</code>, or <code>Cargo.toml</code>, and completion, validation,
+    and tooltips are already there. One public catalog, used worldwide.
+  </p>
+  <p class="lede">
+    About 1400 schemas. Over a terabyte of schema files served every day.
+  </p>
+  <div class="shots">
+    <figure>
+      <img src="/img/autocomplete.png" width="354" height="171" alt="JSON schema auto completion" />
+      <figcaption>Auto completion</figcaption>
+    </figure>
+    <figure>
+      <img src="/img/tooltip.png" width="411" height="98" alt="JSON schema tooltip" />
+      <figcaption>Tooltips</figcaption>
+    </figure>
+  </div>
+</article>
 
+<article id="sponsor">
+  <h3>Sponsorships <span class="heart">♡</span></h3>
+  <p>
+    That traffic is carried by volunteers. If your editor, product, or company
+    depends on SchemaStore.org, please consider sponsoring so it stays online.
+  </p>
+  <ul class="tiers">
+    <li><strong>$10 / month</strong>: Individual, with thanks</li>
+    <li><strong>$500 / month</strong>: company name on this site</li>
+    <li><strong>$2000 / month</strong>: logo on this site</li>
+  </ul>
+  <p><a href="https://github.com/sponsors/SchemaStore">GitHub Sponsors</a></p>
+</article>
+
+<article id="schemalist">
+  <h3 id="count">Find a schema ({0} files)</h3>
   <input type="search" placeholder="Search schemas" id="search" />
   <ul id="schemas" class="columns" role="directory" data-api="/api/json/catalog.json"></ul>
 </article>
 
 <article>
-  <h3 id="auto-completion">Auto completion</h3>
+  <h3 id="editors">Supporting editors</h3>
   <p>
-    <img src="/img/autocomplete.png" width="354" height="171" alt="JSON schema auto completion" class="left" />
-    In supported JSON editors like Visual Studio and Visual Studio Code,
-    schema files can offer auto-completion and validation to make sure your JSON document is correct.
+    These editors load SchemaStore automatically for JSON, YAML, and TOML. A schema merged here shows up in the next sync.
   </p>
 
-  <p>
-    See <a href="https://json-schema.org/tools">a list</a>
-    of editors, validators and other software supporting JSON schemas.
-  </p>
-</article>
-
-<article>
-  <h3 id="tooltips">Tooltips</h3>
-  <p>
-    <img src="/img/tooltip.png" width="411" height="98" alt="JSON schema tooltip" class="right" />
-    When a JSON editor supports schemas, tooltips can help inform the user
-    about the various properties and values.
-  </p>
+  <ul id="editorlist" class="columns">
+    <li>Android Studio</li>
+    <li>CLion</li>
+    <li>Emacs via <a href="https://github.com/joaotavora/eglot" target="_blank">eglot</a></li>
+    <li>IntelliJ IDEA</li>
+    <li>JSONBuddy</li>
+    <li>Neovim via <a href="https://github.com/b0o/SchemaStore.nvim" target="_blank">SchemaStore.nvim</a></li>
+    <li>PhpStorm</li>
+    <li>PyCharm</li>
+    <li>ReSharper</li>
+    <li>Rider</li>
+    <li>RubyMine</li>
+    <li>SublimeText via <a href="https://packagecontrol.io/packages/LSP-json" target="_blank">LSP-json</a>,<a href="https://packagecontrol.io/packages/LSP-yaml" target="_blank">LSP-yaml</a></li>
+    <li>Visual Studio</li>
+    <li>Visual Studio Code (<a href="https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml" target="_blank">YAML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml" target="_blank">TOML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=remcohaszing.schemastore" target="_blank">JSON</a>)</li>
+    <li>Visual Studio for Mac</li>
+    <li>WebStorm</li>
+  </ul>
 </article>
 
 <article>
@@ -1041,81 +1081,29 @@ async function taskBuildWebsite() {
 </article>
 
 <article>
-    <h3 id="editors">Supporting editors</h3>
-    <p>
-        Various editors and IDEs have direct support for schemas hosted on SchemaStore.org.
-    </p>
-
-    <ul id="editorlist" class="columns">
-        <li>Android Studio</li>
-    <li>CLion</li>
-    <li>Emacs via <a href="https://github.com/joaotavora/eglot" target="_blank">eglot</a></li>
-    <li>IntelliJ IDEA</li>
-        <li>JSONBuddy</li>
-        <li>Neovim via <a href="https://github.com/b0o/SchemaStore.nvim" target="_blank">SchemaStore.nvim</a></li>
-        <li>PhpStorm</li>
-        <li>PyCharm</li>
-    <li>ReSharper</li>
-        <li>Rider</li>
-        <li>RubyMine</li>
-    <li>SublimeText via <a href="https://packagecontrol.io/packages/LSP-json" target="_blank">LSP-json</a>,<a href="https://packagecontrol.io/packages/LSP-yaml" target="_blank">LSP-yaml</a></li>
-        <li>Visual Studio</li>
-        <li>Visual Studio Code (<a href="https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml" target="_blank">YAML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml" target="_blank">TOML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=remcohaszing.schemastore" target="_blank">JSON</a>)</li>
-        <li>Visual Studio for Mac</li>
-        <li>WebStorm</li>
-    </ul>
-
-    <p>Any schema on SchemaStore.org will automatically be synchronized to the supporting editors.</p>
-</article>
-
-<article>
-    <h3 id="sponsor">Sponsorships <span style="color:mediumvioletred">♡</span></h3>
-    <p>
-        <img src="/img/sponsor.png" width="160" height="192" alt="Sponsor SchemaStore.org now" class="right" />
-    Over 1 TB of JSON Schema files are served each day from SchemaStore.org. It's a big effort to maintain
-    and keep running, and it's all done by JSON Schema loving volunteers.
-
-        If your business gets value from SchemaStore.org, please consider sponsoring to keep the project alive and healthy.
-    </p>
-
-    <p>Premium sponsors:</p>
-
-  <ul>
-    <li>Your business?</li>
-  </ul>
-
-    <p>
-    Do you build IDEs or editors that integrate with SchemaStore.org, or host a schema for your paying customers, consider a sponsorship.
+  <h3 id="ci">Supporting Continuous Integration tools</h3>
+  <p>
+    CI/CD applications can detect all JSON and YAML files and validate them if a matching schema is found on SchemaStore.org
   </p>
 
-  <p><a href="https://github.com/sponsors/SchemaStore">SchemaStore.org sponsorships <span style="color:mediumvioletred">♡</span></a></p>
+  <ul>
+    <li><a href="https://megalinter.github.io" target="_blank">MegaLinter</a></li>
+  </ul>
 </article>
 
 <article>
-    <h3 id="ci">Supporting Continuous Integration tools</h3>
-    <p>
-        CI/CD applications can detect all JSON and YAML files and validate them if a matching schema is found on SchemaStore.org
-    </p>
+  <h3 id="contribute">Contribute</h3>
+  <p>
+    <img src="/img/octocat.svg" width="250" height="208" alt="Hosted on GitHub" class="left octocat" />
+    The goal of this API is to include schemas for JSON, YAML, and TOML files people actually use.
+    To do that we encourage contributions in terms of new schemas, modifications and test files.
+  </p>
 
-    <ul>
-        <li><a href="https://megalinter.github.io" target="_blank">MegaLinter</a></li>
-    </ul>
-</article>
-
-<article>
-    <h3 id="contribute">Contribute</h3>
-    <p>
-        <img src="/img/octocat.svg" width="250" height="208" alt="Hosted on GitHub" class="left octocat" />
-        The goal of this API is to include schemas for all commonly
-        known JSON file formats. To do that we encourage contributions in terms of new schemas,
-        modifications and test files.
-    </p>
-
-    <p>
-        SchemaStore.org is owned by the community, and we have a history of accepting most pull requests.
-        Even if you're new to JSON Schemas, please submit new schemas anyway. We have many contributors that
-        will help turn the schemas into perfection.
-    </p>
+  <p>
+    SchemaStore.org is owned by the community, and we have a history of accepting most pull requests.
+    Even if you're new to JSON Schemas, please submit new schemas anyway. We have many contributors that
+    will help turn the schemas into perfection.
+  </p>
 </article>`
 
   await fs.writeFile(
@@ -1167,7 +1155,15 @@ async function taskBuildWebsite() {
 
 	<header role="banner">
 		<div class="container">
-			<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
+			<div class="header-inner">
+				<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
+				<nav>
+					<a href="#schemalist">Catalog</a>
+					<a href="#api">API</a>
+					<a href="#contribute">Contribute</a>
+					<a class="sponsor" href="#sponsor">Sponsor ♡</a>
+				</nav>
+			</div>
 		</div>
 	</header>
 
