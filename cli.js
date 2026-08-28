@@ -1081,8 +1081,6 @@ async function taskBuildWebsite() {
     <p>Premium sponsors:</p>
 
   <ul>
-    <li><strong>Microsoft</strong></li>
-        <li><strong>JetBrains</strong></li>
     <li>Your business?</li>
   </ul>
 
@@ -1090,7 +1088,7 @@ async function taskBuildWebsite() {
     Do you build IDEs or editors that integrate with SchemaStore.org, or host a schema for your paying customers, consider a sponsorship.
   </p>
 
-  <p><a href="https://github.com/sponsors/madskristensen">SchemaStore.org sponsorships <span style="color:mediumvioletred">♡</span></a></p>
+  <p><a href="https://github.com/sponsors/SchemaStore">SchemaStore.org sponsorships <span style="color:mediumvioletred">♡</span></a></p>
 </article>
 
 <article>
