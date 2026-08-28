@@ -194,7 +194,12 @@ async function readJsonFile(/** @type {string} */ filename) {
 }
 
 function isIgnoredFile(/** @type {string} */ file) {
-  return file === '.DS_Store'
+  return (
+    file === '.DS_Store' ||
+    file.startsWith('#') ||
+    file.startsWith('.#') ||
+    file.endsWith('~')
+  )
 }
 
 async function forEachCatalogUrl(
