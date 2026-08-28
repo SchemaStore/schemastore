@@ -2133,7 +2133,9 @@ EXAMPLES:
       console.info('Building xRegistry from catalog.json...')
       await runStreamingCommand('node', ['scripts/build-xregistry.js'])
       await runStreamingCommand('sh', ['scripts/build_xregistry_site.sh'])
-      await runStreamingCommand('node', ['scripts/postprocess-xregistry-site.js'])
+      await runStreamingCommand('node', [
+        'scripts/postprocess-xregistry-site.js',
+      ])
 
       return true
     } catch (error) {
