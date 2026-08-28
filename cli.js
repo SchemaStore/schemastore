@@ -993,7 +993,7 @@ async function taskBuildWebsite() {
     <a class="button secondary" href="https://github.com/SchemaStore/schemastore">Contribute on GitHub</a>
   </div>
   <dl class="stats">
-    <div><dt id="schema-count">${SchemasToBeTested.length.toLocaleString('en-US')}+</dt><dd>schemas</dd></div>
+    <div><dt id="schema-count">…</dt><dd>schemas</dd></div>
     <div><dt>2 TB</dt><dd>served daily</dd></div>
     <div><dt>Open source</dt><dd>maintained by contributors</dd></div>
   </dl>
