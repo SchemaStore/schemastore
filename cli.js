@@ -977,53 +977,64 @@ async function taskBuildWebsite() {
     }),
   )
 
-  const pageTitle = 'JSON Schema Store'
+  const siteName = 'SchemaStore'
+  const pageTitle = 'SchemaStore | JSON Schema Catalog for Editors and Tools'
   const pageDescription =
-    'JSON, YAML, and TOML schemas used by Visual Studio, VS Code, JetBrains, and other editors'
-  const body = `<article id="intro">
-  <h2>SchemaStore.org powers JSON, YAML, and TOML in the major IDEs</h2>
+    'The open-source catalog of JSON schemas for editors and tools, with support for JSON, YAML, and TOML files.'
+  const body = `<section id="intro" class="hero">
+  <p class="eyebrow">Open source JSON Schema catalog</p>
+  <h2>Reliable configuration help,<br /><span>right in your editor.</span></h2>
   <p class="lede">
-    Visual Studio, Visual Studio Code, JetBrains, Neovim, Emacs, and Sublime Text
-    all use this catalog. Open a GitHub workflow, <code>docker-compose.yaml</code>,
-    <code>tsconfig.json</code>, or <code>Cargo.toml</code>, and completion, validation,
-    and tooltips are already there. One public catalog, used worldwide.
+    SchemaStore is the central catalog for JSON, YAML, and TOML schemas.
+    Editors and tools use it for validation, completion, and in-context documentation.
   </p>
-  <p class="lede">
-    About 1400 schemas. Over a terabyte of schema files served every day.
-  </p>
-  <div class="shots">
+  <div class="hero-actions">
+    <a class="button primary" href="#schemalist">Explore the catalog</a>
+    <a class="button secondary" href="https://github.com/SchemaStore/schemastore">Contribute on GitHub</a>
+  </div>
+  <dl class="stats">
+    <div><dt>${SchemasToBeTested.length.toLocaleString('en-US')}+</dt><dd>schemas</dd></div>
+    <div><dt>1+ TB</dt><dd>served daily</dd></div>
+    <div><dt>Open source</dt><dd>maintained by contributors</dd></div>
+  </dl>
+  <div class="shots" aria-label="SchemaStore features">
     <figure>
       <img src="/img/autocomplete.png" width="354" height="171" alt="JSON schema auto completion" />
-      <figcaption>Auto completion</figcaption>
+      <figcaption><strong>Complete with confidence</strong><span>Discover valid properties and values.</span></figcaption>
     </figure>
     <figure>
       <img src="/img/tooltip.png" width="411" height="98" alt="JSON schema tooltip" />
-      <figcaption>Tooltips</figcaption>
+      <figcaption><strong>Documentation in context</strong><span>Understand settings without leaving your editor.</span></figcaption>
     </figure>
   </div>
-</article>
+</section>
 
-<article id="sponsor">
-  <h3>Sponsorships <span class="heart">♡</span></h3>
+<div class="feature-grid">
+<article id="sponsor" class="panel sponsor-panel">
+  <p class="eyebrow">Keep it available</p>
+  <h3>Sponsor SchemaStore <span class="heart" aria-hidden="true">♡</span></h3>
   <p>
-    That traffic is carried by volunteers. If your editor, product, or company
-    depends on SchemaStore.org, please consider sponsoring so it stays online.
+    SchemaStore is maintained by volunteers and serves more than a terabyte each day.
+    Sponsorship helps keep the service fast, free, and reliable.
   </p>
   <ul class="tiers">
-    <li><strong>$10 / month</strong>: Individual, with thanks</li>
-    <li><strong>$500 / month</strong>: company name on this site</li>
-    <li><strong>$2000 / month</strong>: logo on this site</li>
+    <li><strong>$10 / month</strong><span>Individual supporter</span></li>
+    <li><strong>$500 / month</strong><span>Company name on this site</span></li>
+    <li><strong>$2,000 / month</strong><span>Company logo on this site</span></li>
   </ul>
-  <p><a href="https://github.com/sponsors/SchemaStore">GitHub Sponsors</a></p>
+  <p><a class="text-link" href="https://github.com/sponsors/SchemaStore">Become a sponsor <span aria-hidden="true">→</span></a></p>
 </article>
 
-<article id="schemalist">
-  <h3 id="count">Find a schema ({0} files)</h3>
-  <input type="search" placeholder="Search schemas" id="search" />
+<article id="schemalist" class="panel catalog-panel">
+  <p class="eyebrow">Public catalog</p>
+  <h3 id="count">Find a schema <span>{0} files</span></h3>
+  <label class="search-label" for="search">Search by name</label>
+  <input type="search" placeholder="Try package.json or GitHub Actions" id="search" autocomplete="off" />
   <ul id="schemas" class="columns" role="directory" data-api="/api/json/catalog.json"></ul>
 </article>
+</div>
 
-<article>
+<article class="panel editors-panel">
   <h3 id="editors">Supporting editors</h3>
   <p>
     These editors load SchemaStore automatically for JSON, YAML, and TOML. A schema merged here shows up in the next sync.
@@ -1049,7 +1060,7 @@ async function taskBuildWebsite() {
   </ul>
 </article>
 
-<article>
+<article class="panel api-panel">
   <h3 id="api">Public API</h3>
   <p>
     <img src="/img/json-schema-logo-blue.svg" width="192" height="192" alt="Public API for JSON Schemas" class="left" />
@@ -1078,7 +1089,8 @@ async function taskBuildWebsite() {
   </p>
 </article>
 
-<article>
+<div class="feature-grid lower-grid">
+<article class="panel">
   <h3 id="ci">Supporting Continuous Integration tools</h3>
   <p>
     CI/CD applications can detect all JSON and YAML files and validate them if a matching schema is found on SchemaStore.org
@@ -1089,7 +1101,7 @@ async function taskBuildWebsite() {
   </ul>
 </article>
 
-<article>
+<article class="panel">
   <h3 id="contribute">Contribute</h3>
   <p>
     <img src="/img/octocat.svg" width="250" height="208" alt="Hosted on GitHub" class="left octocat" />
@@ -1102,21 +1114,31 @@ async function taskBuildWebsite() {
     Even if you're new to JSON Schemas, please submit new schemas anyway. We have many contributors that
     will help turn the schemas into perfection.
   </p>
-</article>`
+</article>
+</div>`
 
   await fs.writeFile(
     './website/index.html',
     `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head prefix="og: http://ogp.me/ns#">
 	<title>${pageTitle}</title>
 	<!-- Generated from cli.js -->
 
 	<meta charset="utf-8" />
 	<meta name="description" content="${pageDescription}" />
-	<meta name="viewport" content="initial-scale=1.0" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="color-scheme" content="light dark" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f9" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111418" />
+	<meta name="application-name" content="${siteName}" />
+	<meta name="author" content="SchemaStore contributors" />
+	<meta name="referrer" content="strict-origin-when-cross-origin" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
 	<link href="/css/site.css" rel="stylesheet" />
+	<link rel="canonical" href="https://www.schemastore.org/" />
 
 	<link rel="apple-touch-icon" sizes="57x57" href="/img/favicon/apple-touch-icon-57x57.png" />
 	<link rel="apple-touch-icon" sizes="114x114" href="/img/favicon/apple-touch-icon-114x114.png" />
@@ -1141,21 +1163,35 @@ async function taskBuildWebsite() {
 	<meta name="twitter:card" content="summary" />
 	<meta name="twitter:title" content="${pageTitle}" />
 	<meta name="twitter:description" content="${pageDescription}" />
-	<meta name="twitter:image" content="http://schemastore.org/img/json-logo.png" />
+	<meta name="twitter:image" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta name="twitter:image:alt" content="SchemaStore logo" />
 
 	<meta property="og:title" content="${pageTitle}" />
 	<meta property="og:description" content="${pageDescription}" />
 	<meta property="og:type" content="website" />
-	<meta property="og:url" content="http://schemastore.org" />
-	<meta property="og:image" content="http://schemastore.org/img/json-logo.png" />
+	<meta property="og:url" content="https://www.schemastore.org/" />
+	<meta property="og:site_name" content="${siteName}" />
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:image" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta property="og:image:secure_url" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta property="og:image:type" content="image/png" />
+	<meta property="og:image:width" content="512" />
+	<meta property="og:image:height" content="512" />
+	<meta property="og:image:alt" content="SchemaStore logo" />
+	<script type="application/ld+json">
+		{"@context":"https://schema.org","@type":"WebSite","name":"${siteName}","url":"https://www.schemastore.org/","description":"${pageDescription}"}
+	</script>
+	<script type="application/ld+json">
+		{"@context":"https://schema.org","@type":"Organization","name":"${siteName}","url":"https://www.schemastore.org/","logo":"https://www.schemastore.org/img/json-logo.png","sameAs":["https://github.com/SchemaStore/schemastore","https://github.com/sponsors/SchemaStore"]}
+	</script>
 </head>
 <body>
 
 	<header role="banner">
 		<div class="container">
 			<div class="header-inner">
-				<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
-				<nav>
+				<h1><a href="/" itemprop="name"><img src="/img/json-schema-logo-blue.svg" width="28" height="28" alt="" />${siteName}</a></h1>
+				<nav aria-label="Main navigation">
 					<a href="#schemalist">Catalog</a>
 					<a href="#api">API</a>
 					<a href="#contribute">Contribute</a>
