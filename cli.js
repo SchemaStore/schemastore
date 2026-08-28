@@ -33,9 +33,7 @@ import {
 } from './src/helpers/coverage.js'
 import minimist from 'minimist'
 import fetch, { FetchError } from 'node-fetch'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-const execFileAsync = promisify(execFile)
+import { spawn } from 'node:child_process'
 
 /**
  * @import { Ora } from 'ora'
@@ -2106,35 +2104,41 @@ EXAMPLES:
   /**
    * Executes the xRegistry build process
    */
+  async function runStreamingCommand(
+    /** @type {string} */ command,
+    /** @type {string[]} */ args,
+  ) {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command, args, { stdio: 'inherit' })
+      child.on('error', reject)
+      child.on('close', (code, signal) => {
+        if (code === 0) {
+          resolve(undefined)
+          return
+        }
+
+        reject(
+          new Error(
+            signal
+              ? `${command} ${args.join(' ')} exited with signal ${signal}`
+              : `${command} ${args.join(' ')} exited with code ${code}`,
+          ),
+        )
+      })
+    })
+  }
+
   async function buildXRegistry() {
     try {
       console.info('Building xRegistry from catalog.json...')
-      const { stdout, stderr } = await execFileAsync('node', [
-        'scripts/build-xregistry.js',
-      ])
-      if (stdout) console.log(stdout)
-      if (stderr) console.error(stderr)
-
-      const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync(
-        'sh',
-        ['scripts/build_xregistry_site.sh'],
-      )
-      if (siteStdout) console.log(siteStdout)
-      if (siteStderr) console.error(siteStderr)
-
-      const { stdout: postStdout, stderr: postStderr } = await execFileAsync(
-        'node',
-        ['scripts/postprocess-xregistry-site.js'],
-      )
-      if (postStdout) console.log(postStdout)
-      if (postStderr) console.error(postStderr)
+      await runStreamingCommand('node', ['scripts/build-xregistry.js'])
+      await runStreamingCommand('sh', ['scripts/build_xregistry_site.sh'])
+      await runStreamingCommand('node', ['scripts/postprocess-xregistry-site.js'])
 
       return true
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error executing xRegistry build:', error.message)
-        if ('stdout' in error) console.log(error.stdout)
-        if ('stderr' in error) console.error(error.stderr)
       } else {
         console.error('Unknown error occurred during xRegistry build:', error)
       }
