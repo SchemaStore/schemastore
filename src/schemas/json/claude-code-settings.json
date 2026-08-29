@@ -2011,6 +2011,43 @@
         }
       ]
     },
+    "modelPicker": {
+      "type": "object",
+      "description": "Curate the /model picker: an ordered list of models with your own labels, independent of the built-in lineup and of Claude Code releases. availableModels still applies to these rows. Honored from managed, --settings/SDK, and user settings only (not from a project checkout); the highest-precedence of those that defines modelPicker wins outright (no merging across sources). Typically set in managed settings by enterprise administrators",
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Model to select, taken verbatim: an alias (\"opus\"), an Anthropic model ID, or a provider-format ID (Vertex, Bedrock, gateway). Same values --model accepts"
+              },
+              "label": {
+                "type": "string",
+                "description": "Row title. Defaults to the model name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Row subtitle. Defaults to a generic description"
+              }
+            },
+            "required": ["model"],
+            "additionalProperties": false
+          },
+          "description": "Rows to show in the /model picker, in order"
+        },
+        "replaceBuiltInOptions": {
+          "type": "boolean",
+          "description": "When true, the picker shows only the Default row and these options - the built-in lineup, gateway-discovered models and ANTHROPIC_CUSTOM_MODEL_OPTION are hidden. When false or unset, these options are added after the built-in lineup",
+          "default": false
+        }
+      },
+      "required": ["options"],
+      "additionalProperties": false
+    },
     "effortLevel": {
       "type": "string",
       "enum": ["low", "medium", "high", "xhigh"],
@@ -3346,7 +3383,7 @@
     },
     "spinnerTipsOverride": {
       "type": "object",
-      "description": "Customize the tips displayed in the spinner while Claude is working. See https://code.claude.com/docs/en/settings#available-settings",
+      "description": "Add your own tips to the spinner tip rotation shown while Claude is working. See https://code.claude.com/docs/en/settings#available-settings",
       "properties": {
         "excludeDefault": {
           "type": "boolean",
@@ -3356,14 +3393,57 @@
         "tips": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "description": "A tip, as a plain string. Maximum 500 characters, one line"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                    "description": "Stable id (letters, digits, \".\", \"_\", \"-\"; max 64). Used to deduplicate tips and to track when each was last shown"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "The tip. Maximum 500 characters, one line"
+                  },
+                  "cooldownSessions": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Sessions to wait before showing this tip again",
+                    "default": 0
+                  },
+                  "priority": {
+                    "type": "number",
+                    "description": "Tie-break weight among never-shown tips",
+                    "default": 0
+                  }
+                },
+                "required": ["id", "text"],
+                "additionalProperties": false
+              }
+            ]
           },
-          "description": "Custom tip strings to display in the spinner",
-          "minItems": 1
+          "minItems": 1,
+          "description": "Custom tips to display in the spinner. Each entry is either a plain string or a tip object"
+        },
+        "tipsFile": {
+          "type": "string",
+          "description": "Absolute or ~/ local path to a JSON file holding an array of tips (same shapes as `tips`); honored from user, --settings and on-disk managed settings only. Read once per CLI process (restart to pick up edits)"
+        },
+        "label": {
+          "type": "string",
+          "description": "Prefix shown before your tips in the spinner",
+          "default": "Tip"
         }
       },
-      "required": ["tips"],
       "additionalProperties": false
     },
     "terminalProgressBarEnabled": {
