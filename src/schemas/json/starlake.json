@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/starlake.json",
-  "title": "Starlake Data Pipeline",
-  "description": "JSON Schema for Starlake Data Pipeline",
+  "title": "Starflow Data Pipeline",
+  "description": "JSON Schema for Starflow Data Pipeline",
   "type": "object",
   "properties": {
     "version": {
@@ -156,7 +156,7 @@
         },
         "selectSql": {
           "$ref": "#/definitions/ConvertibleToString",
-          "description": "Override the default select defined by Starlake"
+          "description": "Override the default select defined by Starflow"
         }
       },
       "required": ["createSql"]
@@ -314,6 +314,19 @@
         "options": {
           "$ref": "#/definitions/MapString",
           "description": "Connection options"
+        },
+        "_transpileDialect": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "ANY",
+            "AMAZON_REDSHIFT",
+            "DATABRICKS",
+            "DUCK_DB",
+            "GOOGLE_BIG_QUERY",
+            "SNOWFLAKE"
+          ],
+          "description": "Source SQL dialect of the transform statements executed over this connection. When set, SELECT statements are transpiled from this dialect to the connection engine dialect at run time (e.g. run BigQuery-dialect SQL locally on DuckDB). ANY stands for generic SQL"
         }
       },
       "required": ["type"]
@@ -1477,7 +1490,7 @@
         },
         "filter": {
           "$ref": "#/definitions/ConvertibleToString",
-          "description": "Optional SQL WHERE clause to filter data. This is used to exclude part of the data. This is not related to incremental extraction which is handled automatically by Starlake. Scope: Data extraction."
+          "description": "Optional SQL WHERE clause to filter data. This is used to exclude part of the data. This is not related to incremental extraction which is handled automatically by Starflow. Scope: Data extraction."
         },
         "stringPartitionFunc": {
           "$ref": "#/definitions/ConvertibleToString",
@@ -1974,6 +1987,10 @@
           "items": {
             "$ref": "#/definitions/ConvertibleToString"
           }
+        },
+        "errorPath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "JSONPath to check for error indicators in 200 responses (e.g. $.error). If the value at this path is non-null, the response is treated as an error."
         }
       },
       "required": ["path"]
@@ -2006,6 +2023,93 @@
         }
       }
     },
+    "RestAPIRetryV1": {
+      "type": "object",
+      "description": "Retry configuration for REST API requests",
+      "properties": {
+        "maxRetries": {
+          "type": "integer",
+          "description": "Maximum number of retry attempts. Defaults to 3.",
+          "default": 3
+        },
+        "initialBackoffMs": {
+          "type": "integer",
+          "description": "Initial backoff in milliseconds before first retry. Doubles on each subsequent retry. Defaults to 1000.",
+          "default": 1000
+        },
+        "maxBackoffMs": {
+          "type": "integer",
+          "description": "Maximum backoff in milliseconds. Defaults to 30000.",
+          "default": 30000
+        }
+      }
+    },
+    "RestAPITimeoutV1": {
+      "type": "object",
+      "description": "Timeout configuration for REST API connections",
+      "properties": {
+        "connectTimeoutMs": {
+          "type": "integer",
+          "description": "Connection timeout in milliseconds. Defaults to 30000.",
+          "default": 30000
+        },
+        "readTimeoutMs": {
+          "type": "integer",
+          "description": "Read timeout in milliseconds. Defaults to 60000.",
+          "default": 60000
+        }
+      }
+    },
+    "RestAPIProxyV1": {
+      "type": "object",
+      "description": "HTTP proxy configuration",
+      "properties": {
+        "host": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Proxy hostname."
+        },
+        "port": {
+          "type": "integer",
+          "description": "Proxy port."
+        },
+        "username": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Proxy authentication username (optional). Supports {{ENV_VAR}}."
+        },
+        "password": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Proxy authentication password (optional). Supports {{ENV_VAR}}."
+        }
+      },
+      "required": ["host", "port"]
+    },
+    "RestAPITlsV1": {
+      "type": "object",
+      "description": "TLS/SSL configuration for mTLS or custom certificates",
+      "properties": {
+        "trustStorePath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Path to the trust store file (JKS format). Supports {{ENV_VAR}}."
+        },
+        "trustStorePassword": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Trust store password. Supports {{ENV_VAR}}."
+        },
+        "keyStorePath": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Path to the key store file for client certificates (JKS format). Supports {{ENV_VAR}}."
+        },
+        "keyStorePassword": {
+          "$ref": "#/definitions/ConvertibleToString",
+          "description": "Key store password. Supports {{ENV_VAR}}."
+        },
+        "insecure": {
+          "type": "boolean",
+          "description": "Trust all certificates (development only). Defaults to false.",
+          "default": false
+        }
+      }
+    },
     "RestAPIV1": {
       "type": "object",
       "description": "REST API extraction configuration",
@@ -2025,6 +2129,22 @@
         "rateLimit": {
           "$ref": "#/definitions/RestAPIRateLimitV1",
           "description": "Rate limiting configuration."
+        },
+        "retry": {
+          "$ref": "#/definitions/RestAPIRetryV1",
+          "description": "Retry configuration with exponential backoff."
+        },
+        "timeout": {
+          "$ref": "#/definitions/RestAPITimeoutV1",
+          "description": "Connection and read timeout configuration."
+        },
+        "proxy": {
+          "$ref": "#/definitions/RestAPIProxyV1",
+          "description": "HTTP proxy configuration for corporate environments."
+        },
+        "tls": {
+          "$ref": "#/definitions/RestAPITlsV1",
+          "description": "TLS/SSL configuration for mTLS or custom CA certificates."
         },
         "defaults": {
           "$ref": "#/definitions/RestAPIDefaultsV1",
@@ -2209,19 +2329,6 @@
         "transform": {
           "$ref": "#/definitions/ConvertibleToString",
           "description": "Dag config to use for transform tasks. May be redefined at the task level"
-        }
-      }
-    },
-    "GizmoV1": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string",
-          "description": "Gizmo server URL. Default is 'http://localhost:10900'"
-        },
-        "apiKey": {
-          "type": "string",
-          "description": "API key for authenticating with the Gizmo server"
         }
       }
     },
@@ -2549,7 +2656,7 @@
         },
         "http": {
           "$ref": "#/definitions/HttpV1",
-          "description": "HTTP server configuration for the Starlake REST API"
+          "description": "HTTP server configuration for the Starflow REST API"
         },
         "timezone": {
           "$ref": "#/definitions/ConvertibleToString",
@@ -2608,10 +2715,6 @@
         "pythonLibsDir": {
           "description": "Directory containing python libraries to use instead of pip install",
           "type": "string"
-        },
-        "gizmosql": {
-          "$ref": "#/definitions/GizmoV1",
-          "description": "Gizmo server configuration"
         }
       }
     },
