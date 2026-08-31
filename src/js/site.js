@@ -14,6 +14,7 @@
 
   let ul = document.querySelector('#schemalist ul')
   let p = document.getElementById('count')
+  let schemaCount = document.getElementById('schema-count')
   let schemas = document.getElementById('schemas')
   let search = document.getElementById('search')
   let data = []
@@ -25,6 +26,9 @@
 
     get(api, true, function (catalog) {
       p.innerHTML = p.innerHTML.replace('{0}', catalog.schemas.length)
+      if (schemaCount) {
+        schemaCount.textContent = `${catalog.schemas.length.toLocaleString('en-US')}+`
+      }
       data = catalog.schemas.sort(function (a, b) {
         return a.name.localeCompare(b.name)
       })
