@@ -1,0 +1,417 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.schemastore.org/litertlm_manifest.json",
+  "$comment": "Mirror of manifest/litertlm_manifest.schema.json in the hf-to-litertlm repository, for the manifest_schema 0.1 line. Keep the two in sync.",
+  "title": "litertlm deployment manifest",
+  "description": "litertlm_manifest.json sits at the root of a Hugging Face model repo that ships .litertlm bundles for the LiteRT-LM runtime. It describes every bundle in the repo: the backends each file is verified on, which file a device should pick, what it requires, and how fast it measured.\nhttps://github.com/john-rocky/hf-to-litertlm/blob/main/manifest/SCHEMA.md",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["manifest_schema", "repo", "generated", "model", "variants"],
+  "properties": {
+    "manifest_schema": {
+      "description": "Version of the manifest format. The 0.1 line is the compatibility line: a 0.1.x release only adds optional fields, so a 0.2 manifest is rejected rather than half-parsed.",
+      "type": "string",
+      "pattern": "^0\\.1\\.[0-9]+$",
+      "examples": ["0.1.0", "0.1.1", "0.1.2"]
+    },
+    "repo": {
+      "description": "Hugging Face repo id (owner/name) the manifest lives in. Together with a variant's file name this is the download address.",
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+$"
+    },
+    "generated": {
+      "description": "Date the manifest was generated (YYYY-MM-DD).",
+      "type": "string",
+      "format": "date"
+    },
+    "generator": {
+      "description": "Tool that produced the manifest.",
+      "type": "string"
+    },
+    "model": {
+      "$ref": "#/definitions/model"
+    },
+    "variants": {
+      "description": "One entry per .litertlm file in the repo.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/variant"
+      }
+    }
+  },
+  "definitions": {
+    "backend": {
+      "description": "LiteRT-LM execution backend.",
+      "type": "string",
+      "enum": ["cpu", "gpu", "npu"]
+    },
+    "platform": {
+      "description": "Target platform of a recommendation.",
+      "type": "string",
+      "enum": ["android", "ios", "macos", "windows", "linux"]
+    },
+    "speed": {
+      "description": "A measured value: a number, or a \"lo-hi\" range string when the runs spread (CPU rows on phones spread with thermal throttling).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "channelMarkers": {
+      "description": "Exact marker strings of a channel, whitespace included.",
+      "type": "object",
+      "properties": {
+        "start": {
+          "description": "Opening marker, e.g. \"<think>\".",
+          "type": "string"
+        },
+        "end": {
+          "description": "Closing marker, e.g. \"</think>\".",
+          "type": "string"
+        }
+      }
+    },
+    "declaredChannel": {
+      "description": "One entry of the bundle's declared channel set (manifest 0.1.1 and later).",
+      "type": "object",
+      "required": ["name", "start", "end"],
+      "properties": {
+        "name": {
+          "description": "Channel name as declared in the bundle header.",
+          "type": "string"
+        },
+        "start": {
+          "description": "Opening marker, whitespace included.",
+          "type": "string"
+        },
+        "end": {
+          "description": "Closing marker, whitespace included.",
+          "type": "string"
+        },
+        "is_reasoning": {
+          "description": "True when the bundle marks this channel as its reasoning channel.",
+          "type": "boolean"
+        }
+      }
+    },
+    "capabilities": {
+      "description": "Capability flags derived from the bundle header, so they are readable before download.",
+      "type": "object",
+      "properties": {
+        "vision": {
+          "description": "Derived: the bundle declares image input.",
+          "type": "boolean"
+        },
+        "audio": {
+          "description": "Derived: the bundle declares audio input.",
+          "type": "boolean"
+        },
+        "thinking": {
+          "description": "Derived: whether the bundle declares a thinking channel, and its markers. Mirrors the first declared channel.",
+          "type": "object",
+          "properties": {
+            "declared": {
+              "description": "True when the bundle declares a channel.",
+              "type": "boolean"
+            },
+            "channel": {
+              "$ref": "#/definitions/channelMarkers"
+            }
+          }
+        },
+        "channels": {
+          "description": "Derived (manifest 0.1.1 and later): the bundle's full declared channel set, whether thinking, tool-call, or anything else the model declares.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/declaredChannel"
+          }
+        }
+      }
+    },
+    "sessionDefaults": {
+      "description": "Curated session knobs a wrapper should set that the engine cannot infer. An open object: readers take keys by name and ignore what they do not consume.",
+      "type": "object",
+      "properties": {
+        "max_output_tokens_min": {
+          "description": "A floor on the output-token budget (e.g. 2048 for reasoning models), never a cap.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "notes": {
+          "description": "Curated guidance worth surfacing to the app developer.",
+          "type": "string"
+        },
+        "temperature": {
+          "description": "Sampler hint.",
+          "type": "number"
+        },
+        "top_k": {
+          "description": "Sampler hint.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "top_p": {
+          "description": "Sampler hint.",
+          "type": "number"
+        }
+      }
+    },
+    "model": {
+      "description": "Model-level facts. Fields marked Derived are read out of the bundle header by the generator; the rest are curated.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["display_name"],
+      "properties": {
+        "display_name": {
+          "description": "Human-readable model name.",
+          "type": "string"
+        },
+        "base_model": {
+          "description": "Hugging Face id of the source model.",
+          "type": "string"
+        },
+        "architecture": {
+          "description": "Free-text architecture label, e.g. \"lfm2-hybrid\" or \"qwen3-dense\".",
+          "type": "string"
+        },
+        "parameters_b": {
+          "description": "Parameter count in billions.",
+          "type": "number"
+        },
+        "license": {
+          "description": "SPDX identifier, or a pointer to the license file.",
+          "type": "string"
+        },
+        "context_length": {
+          "description": "Derived: the bundle's max_num_tokens.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "capabilities": {
+          "$ref": "#/definitions/capabilities"
+        },
+        "session_defaults": {
+          "$ref": "#/definitions/sessionDefaults"
+        }
+      }
+    },
+    "recommendation": {
+      "description": "The fastest verified backend for a platform, optionally narrowed to a device class.",
+      "type": "object",
+      "required": ["platform", "backend"],
+      "properties": {
+        "platform": {
+          "$ref": "#/definitions/platform"
+        },
+        "device_class": {
+          "description": "Free-text device class the recommendation applies to, e.g. \"midrange\" or \"flagship\".",
+          "type": "string"
+        },
+        "backend": {
+          "$ref": "#/definitions/backend",
+          "description": "Backend to use on this platform. Must be one of the variant's verified backends; resolvers ignore a recommendation naming an unlisted backend."
+        },
+        "reason": {
+          "description": "Why this backend wins on this platform, in words that carry the evidence.",
+          "type": "string"
+        }
+      }
+    },
+    "requirements": {
+      "description": "What the variant needs beyond the runtime version.",
+      "type": "object",
+      "properties": {
+        "peak_ram_mb": {
+          "description": "Peak resident memory observed while generating, in megabytes.",
+          "type": "integer"
+        },
+        "platform_notes": {
+          "description": "Platform caveats to surface to the app developer.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "measuredRow": {
+      "description": "One measured performance row. Every row states its conditions and its provenance; rows come from generation-verified backends only.",
+      "type": "object",
+      "required": ["device", "backend", "runtime", "date", "source"],
+      "properties": {
+        "device": {
+          "description": "Device the row was measured on, e.g. \"Pixel 8a (Tensor G3)\".",
+          "type": "string"
+        },
+        "os": {
+          "description": "Operating system of the device.",
+          "type": "string"
+        },
+        "backend": {
+          "$ref": "#/definitions/backend",
+          "description": "Backend the row was measured on."
+        },
+        "runtime": {
+          "description": "LiteRT-LM release and build the row was measured with.",
+          "type": "string"
+        },
+        "prompt_tokens": {
+          "description": "Prompt length in tokens.",
+          "type": "integer"
+        },
+        "decode_tokens": {
+          "description": "Number of generated tokens.",
+          "type": "integer"
+        },
+        "prefill_tps": {
+          "$ref": "#/definitions/speed",
+          "description": "Prefill throughput in tokens per second."
+        },
+        "decode_tps": {
+          "$ref": "#/definitions/speed",
+          "description": "Decode throughput in tokens per second."
+        },
+        "ttft_s": {
+          "$ref": "#/definitions/speed",
+          "description": "Time to first token in seconds."
+        },
+        "max_num_tokens": {
+          "description": "Context budget (max_num_tokens) the run used.",
+          "type": "integer"
+        },
+        "cache": {
+          "description": "Whether a compiled-model cache was in use. \"no\" means a cold compile; caches mask load regressions and inflate disk cost.",
+          "type": "string"
+        },
+        "runs": {
+          "description": "Number of runs the row summarizes.",
+          "type": "integer"
+        },
+        "load_s": {
+          "description": "Engine load time in seconds under the row's cache condition (manifest 0.1.2 and later).",
+          "type": "number",
+          "minimum": 0
+        },
+        "peak_memory_mb": {
+          "description": "Peak resident memory during the run, in megabytes (manifest 0.1.2 and later).",
+          "type": "number",
+          "minimum": 0
+        },
+        "date": {
+          "description": "Date of the measurement (YYYY-MM-DD).",
+          "type": "string",
+          "format": "date"
+        },
+        "source": {
+          "description": "Provenance of the numbers: which log or model-card table they come from.",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Pointer to the primary log. Stripped from published manifests and kept in the converter's own records.",
+          "type": "string"
+        }
+      }
+    },
+    "section": {
+      "description": "Derived: one row of the bundle's section table.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Section data type as named in the bundle header, e.g. \"LlmMetadataProto\", \"HF_Tokenizer_Zlib\" or \"TFLiteModel\".",
+          "type": "string"
+        },
+        "size_bytes": {
+          "description": "Section size in bytes.",
+          "type": "integer"
+        },
+        "model_type": {
+          "description": "The section's model_type item when present, e.g. \"tf_lite_prefill_decode\" or \"tf_lite_embedder\".",
+          "type": "string"
+        },
+        "backend_constraint": {
+          "description": "The section's backend_constraint item when present: a comma-separated list of backends the engine will load it on.",
+          "type": "string"
+        }
+      }
+    },
+    "variant": {
+      "description": "One .litertlm file. Fields marked Derived are read from Hub metadata or the bundle header; the rest are curated and carry evidence.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["file", "quantization", "backends"],
+      "properties": {
+        "file": {
+          "description": "File name inside the repo.",
+          "type": "string",
+          "pattern": "\\.litertlm$"
+        },
+        "sha256": {
+          "description": "Derived: SHA-256 of the file from Hub LFS metadata. Verify after download.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size_bytes": {
+          "description": "Derived: file size in bytes.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "quantization": {
+          "description": "Quantization recipe, stated honestly, e.g. \"int4 block-32 linears, fp32 activations\".",
+          "type": "string"
+        },
+        "backends": {
+          "description": "Backends this file is verified to generate on, not merely load. A resolver never returns a backend absent from this list.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/backend"
+          }
+        },
+        "default_backend": {
+          "$ref": "#/definitions/backend",
+          "description": "Backend to pick with no device knowledge."
+        },
+        "min_runtime_version": {
+          "description": "Earliest LiteRT-LM release the file is verified on, e.g. \"0.15.0\".",
+          "type": "string"
+        },
+        "recommended": {
+          "description": "The fastest verified choice per platform and device class.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/recommendation"
+          }
+        },
+        "requirements": {
+          "$ref": "#/definitions/requirements"
+        },
+        "measured": {
+          "description": "Measured performance rows with conditions and provenance.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/measuredRow"
+          }
+        },
+        "known_issues": {
+          "description": "Short, factual known issues, with upstream links where they exist.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sections": {
+          "description": "Derived: the bundle's section table.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/section"
+          }
+        }
+      }
+    }
+  }
+}
