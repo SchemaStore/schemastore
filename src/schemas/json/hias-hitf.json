@@ -11,175 +11,294 @@
       "properties": {
         "locales": {
           "type": "array",
-          "description": "Language codes. First element is source language, rest are target languages",
+          "description": "RFC 5646 language codes. First element is source language, rest are target languages. Examples: \"zh-CN\" (Chinese Simplified), \"zh-TW\" (Chinese Traditional), \"en-US\" (English US), \"en-GB\" (English UK), \"ja-JP\" (Japanese), \"ko-KR\" (Korean), \"fr-FR\" (French), \"de-DE\" (German), \"es-ES\" (Spanish), \"ar-SA\" (Arabic), \"ru-RU\" (Russian), \"pt-BR\" (Portuguese), \"it-IT\" (Italian), \"nl-NL\" (Dutch), \"pl-PL\" (Polish), \"th-TH\" (Thai), \"vi-VN\" (Vietnamese), \"id-ID\" (Indonesian), \"ms-MY\" (Malay)",
           "items": {
             "type": "string"
           },
           "minItems": 2,
-          "default": ["zh-CN", "en-US"],
+          "default": [
+            "zh-CN",
+            "en-US"
+          ],
           "examples": [
-            ["zh-CN", "en-US"],
-            ["zh-CN", "en-US", "ja-JP"]
+            [
+              "zh-CN",
+              "en-US"
+            ],
+            [
+              "zh-CN",
+              "zh-TW",
+              "en-US",
+              "ja-JP"
+            ]
           ]
         },
         "outDir": {
           "oneOf": [
             {
               "type": "string",
-              "description": "Output directory for locale files"
+              "description": "Output directory for locale JSON files (relative to project root)"
             },
             {
               "type": "object",
-              "description": "Map project name to output directory",
+              "description": "Map project name to output directory (for monorepo)",
               "additionalProperties": {
                 "type": "string"
               }
             }
           ],
-          "default": ".hitf/lang"
+          "default": ".hitf/lang",
+          "examples": [
+            "src/locales",
+            "src/locale/module",
+            {
+              "frontend": "src/locales",
+              "admin": "admin/src/locales"
+            }
+          ]
         },
         "fallbackToKey": {
           "type": "boolean",
-          "description": "Use translation key as fallback when translation is unavailable",
+          "description": "When true, use i18n key as fallback text if translation is unavailable. When false, keep original source text",
           "default": true
         },
         "replaceOriginalFile": {
           "type": "boolean",
-          "description": "Replace Chinese text in source files with $t() calls",
+          "description": "When true, replace source text in original files with $t() calls. When false, generate translated files in outDir only",
           "default": false
         },
         "i18nCallTemplate": {
           "oneOf": [
             {
               "type": "string",
-              "description": "i18n function call template"
+              "description": "i18n function call template. Use {key} as placeholder for translation key"
             },
             {
               "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "description": "Array of i18n function call templates (first match wins)"
             }
           ],
           "default": "$t",
-          "examples": ["$t", ["$t", "i18n.t"]]
+          "examples": [
+            "$t",
+            "i18n.t",
+            "t",
+            "$t('{key}')",
+            [
+              "$t",
+              "i18n.t"
+            ]
+          ]
         },
         "i18nImport": {
           "oneOf": [
             {
               "type": "string",
-              "description": "Import statement for i18n function"
+              "description": "Import statement for i18n function (injected at top of script section)"
             },
             {
               "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "description": "Array of import statements to inject"
             }
           ],
           "default": "",
           "examples": [
             "import i18n from '@/i18n'",
-            "import { useI18n } from 'vue-i18n'"
+            "import { t } from '@/locales'",
+            "import { $t } from '@/locales'",
+            [
+              "import i18n from '@/i18n'",
+              "const { t } = useI18n()"
+            ]
           ]
         },
         "extensions": {
           "type": "array",
-          "description": "Custom file extensions to process (empty = use defaults)",
+          "description": "Custom file extensions to process. Empty array uses defaults: .vue, .nvue, .uvue, .js, .ts, .jsx, .tsx, .json",
           "items": {
             "type": "string"
           },
-          "default": []
+          "default": [],
+          "examples": [
+            [
+              ".vue",
+              ".tsx"
+            ],
+            [
+              ".js",
+              ".ts",
+              ".jsx",
+              ".tsx",
+              ".json",
+              ".svelte"
+            ]
+          ]
         },
         "capitalizeTranslations": {
           "type": "boolean",
-          "description": "Capitalize first letter of translations for target languages",
+          "description": "Capitalize first letter of each word in English translations (e.g., 'save success' → 'Save Success')",
           "default": false
         },
         "capitalizeMaxWords": {
           "type": "number",
-          "description": "Maximum words to capitalize (0 = all)",
+          "description": "Maximum word count to apply capitalization. 0 = capitalize all words regardless of count",
           "minimum": 0,
-          "default": 0
+          "default": 0,
+          "examples": [
+            0,
+            3,
+            5
+          ]
         },
         "pruneUnusedKeys": {
           "type": "boolean",
-          "description": "Remove unused keys from locale files",
+          "description": "Remove keys from locale files that are no longer referenced in source code",
           "default": false
         },
         "keyStrategy": {
           "type": "object",
-          "description": "Key generation strategy",
+          "description": "Key generation strategy for i18n keys",
           "properties": {
             "maxLength": {
               "type": "number",
-              "description": "Maximum key length",
-              "default": 40
+              "description": "Maximum key length. Longer keys will be truncated",
+              "default": 40,
+              "examples": [
+                30,
+                40,
+                50
+              ]
             },
             "collision": {
               "type": "string",
-              "enum": ["number", "hash"],
-              "description": "Strategy for handling key collisions",
+              "enum": [
+                "number",
+                "hash"
+              ],
+              "description": "Strategy for handling key collisions: 'number' appends _1, _2, etc. 'hash' appends short hash suffix",
               "default": "number"
             },
             "hashLength": {
               "type": "number",
-              "description": "Length of hash suffix when collision strategy is 'hash'",
-              "default": 6
+              "description": "Length of hash suffix when collision strategy is 'hash' (4-8 chars recommended)",
+              "default": 6,
+              "examples": [
+                4,
+                6,
+                8
+              ]
             }
           }
         },
         "translationService": {
           "type": "string",
-          "enum": ["baidu", "tencent", "openai", "google"],
-          "description": "Primary translation service",
-          "default": "tencent"
+          "enum": [
+            "baidu",
+            "tencent",
+            "openai",
+            "google"
+          ],
+          "description": "Primary translation service provider. Supported: 'baidu' (Baidu Translate), 'tencent' (Tencent Cloud), 'openai' (OpenAI GPT), 'google' (Google Cloud Translation)",
+          "default": "tencent",
+          "examples": [
+            "tencent",
+            "baidu",
+            "openai",
+            "google"
+          ]
         },
         "servicePriority": {
           "type": "array",
-          "description": "Fallback order when primary service fails",
+          "description": "Fallback order when primary translation service fails. Services are tried in order",
           "items": {
             "type": "string",
-            "enum": ["baidu", "tencent", "openai", "google"]
+            "enum": [
+              "baidu",
+              "tencent",
+              "openai",
+              "google"
+            ]
           },
-          "default": ["tencent", "baidu", "openai", "google"]
+          "default": [
+            "tencent",
+            "baidu",
+            "openai",
+            "google"
+          ],
+          "examples": [
+            [
+              "tencent",
+              "baidu",
+              "openai",
+              "google"
+            ],
+            [
+              "openai",
+              "google",
+              "tencent",
+              "baidu"
+            ],
+            [
+              "baidu",
+              "tencent"
+            ]
+          ]
         },
         "services": {
           "type": "object",
-          "description": "Translation service credentials and options",
+          "description": "Translation service credentials and configuration options",
           "properties": {
             "openai": {
               "type": "object",
+              "description": "OpenAI / compatible API configuration",
               "properties": {
                 "apiKey": {
                   "type": "string",
-                  "description": "OpenAI API key",
+                  "description": "OpenAI API key (sk-xxx...)",
                   "default": ""
                 },
                 "baseUrl": {
                   "type": "string",
-                  "description": "API base URL (for custom endpoints)",
-                  "default": "https://api.openai.com"
+                  "description": "API base URL. Use custom endpoint for compatible APIs (e.g., Azure OpenAI, Moonshot)",
+                  "default": "https://api.openai.com",
+                  "examples": [
+                    "https://api.openai.com",
+                    "https://api.moonshot.cn/v1"
+                  ]
                 },
                 "model": {
                   "type": "string",
-                  "description": "Model name",
-                  "default": "gpt-3.5-turbo"
+                  "description": "Model name for translation",
+                  "default": "gpt-3.5-turbo",
+                  "examples": [
+                    "gpt-3.5-turbo",
+                    "gpt-4",
+                    "gpt-4o",
+                    "moonshot-v1-8k"
+                  ]
                 }
               }
             },
             "google": {
               "type": "object",
+              "description": "Google Cloud Translation API configuration",
               "properties": {
                 "apiKey": {
                   "type": "string",
-                  "description": "Google Cloud Translation API key",
+                  "description": "Google Cloud API key (AIza...)",
                   "default": ""
                 }
               }
             },
             "baidu": {
               "type": "object",
+              "description": "Baidu Translate API configuration",
               "properties": {
                 "appId": {
                   "type": "string",
@@ -195,6 +314,7 @@
             },
             "tencent": {
               "type": "object",
+              "description": "Tencent Cloud Translation API configuration",
               "properties": {
                 "secretId": {
                   "type": "string",
@@ -208,8 +328,13 @@
                 },
                 "region": {
                   "type": "string",
-                  "description": "Tencent Cloud region",
-                  "default": "ap-guangzhou"
+                  "description": "Tencent Cloud service region",
+                  "default": "ap-guangzhou",
+                  "examples": [
+                    "ap-guangzhou",
+                    "ap-beijing",
+                    "ap-shanghai"
+                  ]
                 }
               }
             }
@@ -219,33 +344,48 @@
     },
     "gitRepoSetting": {
       "type": "object",
-      "description": "Git repository sync configuration",
+      "description": "Git repository sync configuration for shared translation resources",
       "properties": {
         "gitRepoAutoUpdate": {
           "type": "boolean",
-          "description": "Auto-update git repositories on translation",
+          "description": "Auto-pull latest changes from git repositories before translation",
           "default": false
         },
         "gitRepoMode": {
           "type": "string",
-          "enum": ["merge", "overwrite"],
-          "description": "How to handle repository sync conflicts",
+          "enum": [
+            "merge",
+            "overwrite"
+          ],
+          "description": "Sync conflict resolution: 'merge' keeps local changes, 'overwrite' replaces with remote",
           "default": "merge"
         },
         "gitRepo": {
           "type": "object",
-          "description": "Map project name to git repository URL",
+          "description": "Map project name to git repository URL for shared translation resources",
           "additionalProperties": {
             "type": "string"
-          }
+          },
+          "examples": [
+            {
+              "vue2-vuex-demo": "https://gitee.com/AnsStory/vue2-vuex-demo.git"
+            }
+          ]
         }
       }
     },
     "language": {
       "type": "string",
-      "description": "CLI interface language (global config only)",
-      "enum": ["zh-CN", "en-US"],
-      "default": "zh-CN"
+      "description": "CLI interface display language (global config only, not project config)",
+      "enum": [
+        "zh-CN",
+        "en-US"
+      ],
+      "default": "zh-CN",
+      "examples": [
+        "zh-CN",
+        "en-US"
+      ]
     }
   }
 }
