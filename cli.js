@@ -33,9 +33,7 @@ import {
 } from './src/helpers/coverage.js'
 import minimist from 'minimist'
 import fetch, { FetchError } from 'node-fetch'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-const execFileAsync = promisify(execFile)
+import { spawn } from 'node:child_process'
 
 /**
  * @import { Ora } from 'ora'
@@ -979,42 +977,93 @@ async function taskBuildWebsite() {
     }),
   )
 
-  const pageTitle = 'JSON Schema Store'
-  const pageDescription = 'JSON Schemas for common JSON file formats'
-  const body = `<article id="schemalist">
-  <h3 id="count">JSON Schemas are available for the following {0} files:</h3>
+  const siteName = 'SchemaStore'
+  const pageTitle = 'SchemaStore | JSON Schema Catalog for Editors and Tools'
+  const pageDescription =
+    'The open-source catalog of JSON schemas for editors and tools, with support for JSON, YAML, and TOML files.'
+  const body = `<section id="intro" class="hero">
+  <p class="eyebrow">Open source JSON Schema catalog</p>
+  <h2>Reliable configuration help, <br /><span>right in your editor.</span></h2>
+  <p class="lede">
+    SchemaStore is the central catalog for JSON, YAML, and TOML schemas.
+    Editors and tools use it for validation, completion, and in-context documentation.
+  </p>
+  <div class="hero-actions">
+    <a class="button primary" href="#schemalist">Explore the catalog</a>
+    <a class="button secondary" href="https://github.com/SchemaStore/schemastore">Contribute on GitHub</a>
+  </div>
+  <dl class="stats">
+    <div><dt id="schema-count">…</dt><dd>schemas</dd></div>
+    <div><dt>2 TB</dt><dd>served daily</dd></div>
+    <div><dt>Open source</dt><dd>maintained by contributors</dd></div>
+  </dl>
+  <div class="shots" aria-label="SchemaStore features">
+    <figure>
+      <img src="/img/autocomplete.png" width="354" height="171" alt="JSON schema auto completion" />
+      <figcaption><strong>Complete with confidence</strong><span>Discover valid properties and values.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="/img/tooltip.png" width="411" height="98" alt="JSON schema tooltip" />
+      <figcaption><strong>Documentation in context</strong><span>Understand settings without leaving your editor.</span></figcaption>
+    </figure>
+  </div>
+</section>
 
-  <input type="search" placeholder="Search schemas" id="search" />
+<div class="feature-grid">
+<article id="sponsor" class="panel sponsor-panel">
+  <p class="eyebrow">Keep it available</p>
+  <h3>Sponsor SchemaStore <span class="heart" aria-hidden="true">♡</span></h3>
+  <p>
+    SchemaStore is maintained by volunteers and serves more than a terabyte each day.
+    Sponsorship helps keep the service fast, free, and reliable.
+  </p>
+  <ul class="tiers">
+    <li><strong>$10 / month</strong><span>Individual supporter</span></li>
+    <li><strong>$500 / month</strong><span>Company name on this site</span></li>
+    <li><strong>$2,000 / month</strong><span>Company logo on this site</span></li>
+  </ul>
+  <p><a class="text-link" href="https://github.com/sponsors/SchemaStore">Become a sponsor <span aria-hidden="true">→</span></a></p>
+</article>
+
+<article id="schemalist" class="panel catalog-panel">
+  <p class="eyebrow">Public catalog</p>
+  <h3 id="count">Find a schema <span>{0} files</span></h3>
+  <label class="search-label" for="search">Search by name</label>
+  <input type="search" placeholder="Try package.json or GitHub Actions" id="search" autocomplete="off" />
   <ul id="schemas" class="columns" role="directory" data-api="/api/json/catalog.json"></ul>
 </article>
+</div>
 
-<article>
-  <h3 id="auto-completion">Auto completion</h3>
+<article class="panel editors-panel">
+  <h3 id="editors">Supporting editors</h3>
   <p>
-    <img src="/img/autocomplete.png" width="354" height="171" alt="JSON schema auto completion" class="left" />
-    In supported JSON editors like Visual Studio and Visual Studio Code,
-    schema files can offer auto-completion and validation to make sure your JSON document is correct.
+    These editors load SchemaStore automatically for JSON, YAML, and TOML. A schema merged here shows up in the next sync.
   </p>
 
-  <p>
-    See <a href="https://json-schema.org/tools">a list</a>
-    of editors, validators and other software supporting JSON schemas.
-  </p>
+  <ul id="editorlist" class="columns">
+    <li>Android Studio</li>
+    <li>CLion</li>
+    <li>Emacs via <a href="https://github.com/joaotavora/eglot" target="_blank">eglot</a></li>
+    <li>IntelliJ IDEA</li>
+    <li>JSONBuddy</li>
+    <li>Neovim via <a href="https://github.com/b0o/SchemaStore.nvim" target="_blank">SchemaStore.nvim</a></li>
+    <li>PhpStorm</li>
+    <li>PyCharm</li>
+    <li>ReSharper</li>
+    <li>Rider</li>
+    <li>RubyMine</li>
+    <li>SublimeText via <a href="https://packagecontrol.io/packages/LSP-json" target="_blank">LSP-json</a>,<a href="https://packagecontrol.io/packages/LSP-yaml" target="_blank">LSP-yaml</a></li>
+    <li>Visual Studio</li>
+    <li>Visual Studio Code (<a href="https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml" target="_blank">YAML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml" target="_blank">TOML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=remcohaszing.schemastore" target="_blank">JSON</a>)</li>
+    <li>Visual Studio for Mac</li>
+    <li>WebStorm</li>
+  </ul>
 </article>
 
-<article>
-  <h3 id="tooltips">Tooltips</h3>
-  <p>
-    <img src="/img/tooltip.png" width="411" height="98" alt="JSON schema tooltip" class="right" />
-    When a JSON editor supports schemas, tooltips can help inform the user
-    about the various properties and values.
-  </p>
-</article>
-
-<article>
+<article class="panel api-panel">
   <h3 id="api">Public API</h3>
   <p>
-    <img src="/img/api.png" width="256" height="88" alt="Public API for JSON Schemas" class="left" />
+    <img src="/img/json-schema-logo-blue.svg" width="192" height="192" alt="Public API for JSON Schemas" class="left" />
     The JSON <a href="/api/json/catalog.json">API</a> contains a list of JSON Schema files for known JSON file formats.
     Each schema file can be used in tooling such as command line validators, editor auto-completion etc.
   </p>
@@ -1040,99 +1089,56 @@ async function taskBuildWebsite() {
   </p>
 </article>
 
-<article>
-    <h3 id="editors">Supporting editors</h3>
-    <p>
-        Various editors and IDEs have direct support for schemas hosted on SchemaStore.org.
-    </p>
-
-    <ul id="editorlist" class="columns">
-        <li>Android Studio</li>
-    <li>CLion</li>
-    <li>Emacs via <a href="https://github.com/joaotavora/eglot" target="_blank">eglot</a></li>
-    <li>IntelliJ IDEA</li>
-        <li>JSONBuddy</li>
-        <li>Neovim via <a href="https://github.com/b0o/SchemaStore.nvim" target="_blank">SchemaStore.nvim</a></li>
-        <li>PhpStorm</li>
-        <li>PyCharm</li>
-    <li>ReSharper</li>
-        <li>Rider</li>
-        <li>RubyMine</li>
-    <li>SublimeText via <a href="https://packagecontrol.io/packages/LSP-json" target="_blank">LSP-json</a>,<a href="https://packagecontrol.io/packages/LSP-yaml" target="_blank">LSP-yaml</a></li>
-        <li>Visual Studio</li>
-        <li>Visual Studio Code (<a href="https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml" target="_blank">YAML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml" target="_blank">TOML</a>,<a href="https://marketplace.visualstudio.com/items?itemName=remcohaszing.schemastore" target="_blank">JSON</a>)</li>
-        <li>Visual Studio for Mac</li>
-        <li>WebStorm</li>
-    </ul>
-
-    <p>Any schema on SchemaStore.org will automatically be synchronized to the supporting editors.</p>
-</article>
-
-<article>
-    <h3 id="sponsor">Sponsorships <span style="color:mediumvioletred">♡</span></h3>
-    <p>
-        <img src="/img/sponsor.png" width="160" height="192" alt="Sponsor SchemaStore.org now" class="right" />
-    Over 1 TB of JSON Schema files are served each day from SchemaStore.org. It's a big effort to maintain
-    and keep running, and it's all done by JSON Schema loving volunteers.
-
-        If your business gets value from SchemaStore.org, please consider sponsoring to keep the project alive and healthy.
-    </p>
-
-    <p>Premium sponsors:</p>
-
-  <ul>
-    <li><strong>Microsoft</strong></li>
-        <li><strong>JetBrains</strong></li>
-    <li>Your business?</li>
-  </ul>
-
-    <p>
-    Do you build IDEs or editors that integrate with SchemaStore.org, or host a schema for your paying customers, consider a sponsorship.
+<div class="feature-grid lower-grid">
+<article class="panel">
+  <h3 id="ci">Supporting Continuous Integration tools</h3>
+  <p>
+    CI/CD applications can detect all JSON and YAML files and validate them if a matching schema is found on SchemaStore.org
   </p>
 
-  <p><a href="https://github.com/sponsors/madskristensen">SchemaStore.org sponsorships <span style="color:mediumvioletred">♡</span></a></p>
+  <ul>
+    <li><a href="https://megalinter.github.io" target="_blank">MegaLinter</a></li>
+  </ul>
 </article>
 
-<article>
-    <h3 id="ci">Supporting Continuous Integration tools</h3>
-    <p>
-        CI/CD applications can detect all JSON and YAML files and validate them if a matching schema is found on SchemaStore.org
-    </p>
+<article class="panel">
+  <h3 id="contribute">Contribute</h3>
+  <p>
+    <img src="/img/octocat.svg" width="250" height="208" alt="Hosted on GitHub" class="left octocat" />
+    The goal of this API is to include schemas for JSON, YAML, and TOML files people actually use.
+    To do that we encourage contributions in terms of new schemas, modifications and test files.
+  </p>
 
-    <ul>
-        <li><a href="https://megalinter.github.io" target="_blank">MegaLinter</a></li>
-    </ul>
+  <p>
+    SchemaStore.org is owned by the community, and we have a history of accepting most pull requests.
+    Even if you're new to JSON Schemas, please submit new schemas anyway. We have many contributors that
+    will help turn the schemas into perfection.
+  </p>
 </article>
-
-<article>
-    <h3 id="contribute">Contribute</h3>
-    <p>
-        <img src="/img/octocat.png" width="250" height="208" alt="Hosted on GitHub" class="left" />
-        The goal of this API is to include schemas for all commonly
-        known JSON file formats. To do that we encourage contributions in terms of new schemas,
-        modifications and test files.
-    </p>
-
-    <p>
-        SchemaStore.org is owned by the community, and we have a history of accepting most pull requests.
-        Even if you're new to JSON Schemas, please submit new schemas anyway. We have many contributors that
-        will help turn the schemas into perfection.
-    </p>
-</article>`
+</div>`
 
   await fs.writeFile(
     './website/index.html',
     `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head prefix="og: http://ogp.me/ns#">
 	<title>${pageTitle}</title>
 	<!-- Generated from cli.js -->
 
 	<meta charset="utf-8" />
 	<meta name="description" content="${pageDescription}" />
-	<meta name="viewport" content="initial-scale=1.0" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="color-scheme" content="light dark" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f9" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111418" />
+	<meta name="application-name" content="${siteName}" />
+	<meta name="author" content="SchemaStore contributors" />
+	<meta name="referrer" content="strict-origin-when-cross-origin" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
 	<link href="/css/site.css" rel="stylesheet" />
+	<link rel="canonical" href="https://www.schemastore.org/" />
 
 	<link rel="apple-touch-icon" sizes="57x57" href="/img/favicon/apple-touch-icon-57x57.png" />
 	<link rel="apple-touch-icon" sizes="114x114" href="/img/favicon/apple-touch-icon-114x114.png" />
@@ -1157,19 +1163,41 @@ async function taskBuildWebsite() {
 	<meta name="twitter:card" content="summary" />
 	<meta name="twitter:title" content="${pageTitle}" />
 	<meta name="twitter:description" content="${pageDescription}" />
-	<meta name="twitter:image" content="http://schemastore.org/img/json-logo.png" />
+	<meta name="twitter:image" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta name="twitter:image:alt" content="SchemaStore logo" />
 
 	<meta property="og:title" content="${pageTitle}" />
 	<meta property="og:description" content="${pageDescription}" />
 	<meta property="og:type" content="website" />
-	<meta property="og:url" content="http://schemastore.org" />
-	<meta property="og:image" content="http://schemastore.org/img/json-logo.png" />
+	<meta property="og:url" content="https://www.schemastore.org/" />
+	<meta property="og:site_name" content="${siteName}" />
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:image" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta property="og:image:secure_url" content="https://www.schemastore.org/img/json-logo.png" />
+	<meta property="og:image:type" content="image/png" />
+	<meta property="og:image:width" content="512" />
+	<meta property="og:image:height" content="512" />
+	<meta property="og:image:alt" content="SchemaStore logo" />
+	<script type="application/ld+json">
+		{"@context":"https://schema.org","@type":"WebSite","name":"${siteName}","url":"https://www.schemastore.org/","description":"${pageDescription}"}
+	</script>
+	<script type="application/ld+json">
+		{"@context":"https://schema.org","@type":"Organization","name":"${siteName}","url":"https://www.schemastore.org/","logo":"https://www.schemastore.org/img/json-logo.png","sameAs":["https://github.com/SchemaStore/schemastore","https://github.com/sponsors/SchemaStore"]}
+	</script>
 </head>
 <body>
 
 	<header role="banner">
 		<div class="container">
-			<h1><a href="/" itemprop="name">${pageTitle}</a></h1>
+			<div class="header-inner">
+				<h1><a href="/" itemprop="name"><img src="/img/json-logo.png" width="28" height="28" alt="" />${siteName}</a></h1>
+				<nav aria-label="Main navigation">
+					<a href="#schemalist">Catalog</a>
+					<a href="#api">API</a>
+					<a href="#contribute">Contribute</a>
+					<a class="sponsor" href="#sponsor">Sponsor ♡</a>
+				</nav>
+			</div>
 		</div>
 	</header>
 
@@ -2112,35 +2140,43 @@ EXAMPLES:
   /**
    * Executes the xRegistry build process
    */
+  async function runStreamingCommand(
+    /** @type {string} */ command,
+    /** @type {string[]} */ args,
+  ) {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command, args, { stdio: 'inherit' })
+      child.on('error', reject)
+      child.on('close', (code, signal) => {
+        if (code === 0) {
+          resolve(undefined)
+          return
+        }
+
+        reject(
+          new Error(
+            signal
+              ? `${command} ${args.join(' ')} exited with signal ${signal}`
+              : `${command} ${args.join(' ')} exited with code ${code}`,
+          ),
+        )
+      })
+    })
+  }
+
   async function buildXRegistry() {
     try {
       console.info('Building xRegistry from catalog.json...')
-      const { stdout, stderr } = await execFileAsync('node', [
-        'scripts/build-xregistry.js',
+      await runStreamingCommand('node', ['scripts/build-xregistry.js'])
+      await runStreamingCommand('sh', ['scripts/build_xregistry_site.sh'])
+      await runStreamingCommand('node', [
+        'scripts/postprocess-xregistry-site.js',
       ])
-      if (stdout) console.log(stdout)
-      if (stderr) console.error(stderr)
-
-      const { stdout: siteStdout, stderr: siteStderr } = await execFileAsync(
-        'sh',
-        ['scripts/build_xregistry_site.sh'],
-      )
-      if (siteStdout) console.log(siteStdout)
-      if (siteStderr) console.error(siteStderr)
-
-      const { stdout: postStdout, stderr: postStderr } = await execFileAsync(
-        'node',
-        ['scripts/postprocess-xregistry-site.js'],
-      )
-      if (postStdout) console.log(postStdout)
-      if (postStderr) console.error(postStderr)
 
       return true
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error executing xRegistry build:', error.message)
-        if ('stdout' in error) console.log(error.stdout)
-        if ('stderr' in error) console.error(error.stderr)
       } else {
         console.error('Unknown error occurred during xRegistry build:', error)
       }
