@@ -27,6 +27,36 @@
         }
       ]
     },
+    "Bindings": {
+      "description": "The kind of bindings to use.",
+      "oneOf": [
+        {
+          "description": "PyO3 bindings",
+          "type": "string",
+          "const": "pyo3"
+        },
+        {
+          "description": "pyo3-ffi (raw FFI) bindings",
+          "type": "string",
+          "const": "pyo3-ffi"
+        },
+        {
+          "description": "CFFI bindings",
+          "type": "string",
+          "const": "cffi"
+        },
+        {
+          "description": "UniFFI bindings",
+          "type": "string",
+          "const": "uniffi"
+        },
+        {
+          "description": "Rust binary",
+          "type": "string",
+          "const": "bin"
+        }
+      ]
+    },
     "CargoCrateType": {
       "description": "Supported cargo crate types",
       "oneOf": [
@@ -83,6 +113,10 @@
         }
       },
       "required": ["name"]
+    },
+    "CompatibilityTag": {
+      "description": "Parsed `--compatibility` / `[tool.maturin] compatibility` value.\n\nAccepts platform tags such as `linux`, `manylinux2014`, `manylinux_2_17`, `musllinux_1_2`, or the `pypi` pseudo-option (PyPI filename validation; not a real platform tag).",
+      "type": "string"
     },
     "FeatureSpec": {
       "description": "A cargo feature specification that can be either a plain feature name\nor a conditional feature that is only enabled for certain Python versions.\n\n# Examples\n\n```toml\n[tool.maturin]\nfeatures = [\n  \"some-feature\",\n  { feature = \"pyo3/abi3-py311\", python-version = \">=3.11\" },\n  { feature = \"pyo3/abi3-py38\", python-version = \"<3.11\" },\n  { feature = \"pyo3/abi3-py311\", python-version = \">=3.11\", python-implementation = \"cpython\" },\n  { feature = \"pypy-compat\", python-implementation = \"pypy\" },\n]\n```",
@@ -223,12 +257,20 @@
             }
           ]
         },
+        "publishing-environment": {
+          "description": "Name of the GitHub Actions environment to use for the release job\n(typically used together with `trusted-publishing = true`)",
+          "type": ["string", "null"]
+        },
         "pytest": {
           "description": "Enable pytest",
           "type": ["boolean", "null"]
         },
         "skip-attestation": {
           "description": "Skip artifact attestation",
+          "type": ["boolean", "null"]
+        },
+        "trusted-publishing": {
+          "description": "Use PyPI trusted publishing (OpenID Connect) instead of an API token",
           "type": ["boolean", "null"]
         },
         "windows": {
@@ -331,7 +373,7 @@
           "type": ["string", "null"]
         },
         "runner": {
-          "description": "Default runner for this platform",
+          "description": "Runner override",
           "type": ["string", "null"]
         },
         "rust-toolchain": {
@@ -357,77 +399,6 @@
           }
         }
       }
-    },
-    "PlatformTag": {
-      "description": "Decides how to handle manylinux and musllinux compliance",
-      "oneOf": [
-        {
-          "description": "Use the `manylinux_<major>_<minor>` tag",
-          "type": "object",
-          "properties": {
-            "Manylinux": {
-              "type": "object",
-              "properties": {
-                "major": {
-                  "description": "GLIBC version major",
-                  "type": "integer",
-                  "format": "uint16",
-                  "maximum": 65535,
-                  "minimum": 0
-                },
-                "minor": {
-                  "description": "GLIBC version minor",
-                  "type": "integer",
-                  "format": "uint16",
-                  "maximum": 65535,
-                  "minimum": 0
-                }
-              },
-              "required": ["major", "minor"]
-            }
-          },
-          "additionalProperties": false,
-          "required": ["Manylinux"]
-        },
-        {
-          "description": "Use the `musllinux_<major>_<minor>` tag",
-          "type": "object",
-          "properties": {
-            "Musllinux": {
-              "type": "object",
-              "properties": {
-                "major": {
-                  "description": "musl libc version major",
-                  "type": "integer",
-                  "format": "uint16",
-                  "maximum": 65535,
-                  "minimum": 0
-                },
-                "minor": {
-                  "description": "musl libc version minor",
-                  "type": "integer",
-                  "format": "uint16",
-                  "maximum": 65535,
-                  "minimum": 0
-                }
-              },
-              "required": ["major", "minor"]
-            }
-          },
-          "additionalProperties": false,
-          "required": ["Musllinux"]
-        },
-        {
-          "description": "Use the native linux tag",
-          "type": "string",
-          "const": "Linux"
-        },
-        {
-          "description": "Ensure that a PyPI-compatible tag is used, error if the target is not supported by PyPI.",
-          "type": "string",
-          "const": "Pypi"
-        }
-      ]
     },
     "SbomConfig": {
       "description": "SBOM configuration",
@@ -478,31 +449,31 @@
           "type": ["string", "null"]
         },
         "before-script-linux": {
-          "description": "Before-script-linux override",
+          "description": "Script to run before build on Linux",
           "type": ["string", "null"]
         },
         "container": {
-          "description": "Container image override",
+          "description": "Container image to use",
           "type": ["string", "null"]
         },
         "docker-options": {
-          "description": "Docker options override",
+          "description": "Docker options",
           "type": ["string", "null"]
         },
         "manylinux": {
-          "description": "Manylinux version override",
+          "description": "Manylinux version (e.g. \"auto\", \"2_28\", \"musllinux_1_2\")",
           "type": ["string", "null"]
         },
         "runner": {
-          "description": "Runner override for this target",
+          "description": "Runner override",
           "type": ["string", "null"]
         },
         "rust-toolchain": {
-          "description": "Rust toolchain override",
+          "description": "Rust toolchain (e.g. \"nightly\", \"stable\")",
           "type": ["string", "null"]
         },
         "rustup-components": {
-          "description": "Rustup components override",
+          "description": "Rustup components to install",
           "type": ["string", "null"]
         }
       },
@@ -541,13 +512,20 @@
     },
     "bindings": {
       "description": "Bindings type",
-      "type": ["string", "null"]
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Bindings"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "compatibility": {
       "description": "Platform compatibility",
       "anyOf": [
         {
-          "$ref": "#/$defs/PlatformTag"
+          "$ref": "#/$defs/CompatibilityTag"
         },
         {
           "type": "null"
@@ -625,6 +603,10 @@
     "no-default-features": {
       "description": "Do not activate the `default` feature",
       "type": ["boolean", "null"]
+    },
+    "pgo-command": {
+      "description": "Command to run for PGO profile generation.\nExecuted in a temporary virtualenv with the instrumented wheel installed.\nExample: `python -m pytest tests/benchmarks`",
+      "type": ["string", "null"]
     },
     "profile": {
       "description": "Build artifacts with the specified Cargo profile",
