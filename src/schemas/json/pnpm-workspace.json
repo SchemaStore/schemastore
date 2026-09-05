@@ -721,11 +721,47 @@
       "type": "number"
     },
     "sideEffectsCache": {
-      "description": "Use and cache the results of (pre/post)install hooks.",
-      "type": "boolean"
+      "description": "Use and cache the results of (pre/post)install hooks.\nWhen a pre/post install script modify the contents of a package (e.g. build output), pnpm saves the modified package in the global store. On future installs on the same machine, pnpm reuses this cached, prebuilt version.\nAn object is the canonical way to declare the remote tier; `sideEffectsCache: true` is the shorthand for reading and writing.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read": {
+              "description": "Restore a build from the cache when one is present. Default true.",
+              "type": "boolean"
+            },
+            "write": {
+              "description": "Save a package's build output to the cache. Default true.",
+              "type": "boolean"
+            },
+            "remote": {
+              "description": "Reuse builds across machines by restoring signed, organization-scoped artifacts through a pnpr server instead of running the package's lifecycle scripts locally. Added in pnpm v11.25.0 and v12.0.0. Fields describing the act of signing (publish, keyId, builderId, imageDigest, architectureBaseline, buildEnv, trustedKeys, privateKey) are refused in pnpm-workspace.yaml and read from the global configuration file or the environment instead.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "org": {
+                  "description": "The organization scope of the artifacts.",
+                  "type": "string"
+                },
+                "packages": {
+                  "description": "An eligibility list of packages that may be restored from the remote cache. A package is only a candidate when it also passes allowBuilds, has requiresBuild: true, and has a verified source integrity.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "sideEffectsCacheReadonly": {
-      "description": "Only use the side effects cache if present, do not create it for new packages.",
+      "description": "Only use the side effects cache if present, do not create it for new packages. The older spelling of sideEffectsCache: { read: true, write: false }.",
       "type": "boolean"
     },
     "unsafePerm": {
@@ -821,6 +857,28 @@
       "description": "Set the maximum number of tasks to run simultaneously. For unlimited concurrency use Infinity. You can set the value to <= 0 and it will use amount of CPU cores of the host minus the absolute value of the provided number as: max(1, (number of cores) - abs(workspaceConcurrency)).",
       "type": "number",
       "default": 4
+    },
+    "tasks": {
+      "description": "Configure dependency relationships and per-task concurrency limits for recursive runs (`pnpm -r run <script>`). A task is a script in one workspace project; it becomes ready after every task it depends on completes successfully. A task with no entry under tasks defaults to depending on the same task in its workspace dependencies, but once a task has an entry, an omitted dependsOn is the same as `dependsOn: []`.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dependsOn": {
+            "description": "Tasks this task depends on. Each entry is either the task in the same project (e.g. `build`) or the task in each selected workspace dependency of the project (e.g. `^build`).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "concurrency": {
+            "description": "A positive integer limiting how many instances of this named task may run across workspace projects at once. This limit is separate from workspaceConcurrency.",
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
     },
     "failIfNoMatch": {
       "type": "boolean",
