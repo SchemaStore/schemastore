@@ -1,0 +1,1287 @@
+{
+  "$id": "https://cfgd.io/schemas/cfgd-source.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "AptSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `apt`: a package list, a file listing packages, or both.\nA bare list of names folds into `packages`.",
+      "properties": {
+        "file": {
+          "default": null,
+          "description": "Path to a package-list file to install from, one name per line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packages": {
+          "default": [],
+          "description": "APT package names to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "BrewSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `brew`: taps, formulae and casks, or a Brewfile. A bare\nlist of names folds into `formulae`.",
+      "properties": {
+        "casks": {
+          "default": [],
+          "description": "Homebrew casks (GUI applications) to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "file": {
+          "default": null,
+          "description": "Path to a Brewfile to apply instead of (or alongside) `taps`,\n`formulae` and `casks`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "formulae": {
+          "default": [],
+          "description": "Homebrew formulae (CLI packages) to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "taps": {
+          "default": [],
+          "description": "Third-party taps to add before installing formulae/casks.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CargoSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `cargo`: crates to install, a `Cargo.toml` to install\nfrom, or both. A bare list of names folds into `packages`.",
+      "properties": {
+        "file": {
+          "description": "Path to a `Cargo.toml` whose binaries to install instead of `packages`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packages": {
+          "default": [],
+          "description": "Crate names to install (`cargo install`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ConfigSourceMetadata": {
+      "additionalProperties": false,
+      "description": "`metadata`: identifying information for a config source.",
+      "properties": {
+        "description": {
+          "default": null,
+          "description": "A one-line human summary of what this source provides.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The source's published name, as its maintainer spells it. Shown wherever\nthe manifest is displayed (`cfgd source show`, the summary a subscriber\napproves before trusting the source) and carried in `-o json` output.\nRequired. A subscriber registers the source under a local name of their\nown choosing, so this value identifies the source to a reader rather\nthan keying anything cfgd stores.",
+          "type": "string"
+        },
+        "version": {
+          "default": null,
+          "description": "The source manifest's own version, shown to subscribers.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ConfigSourcePolicy": {
+      "additionalProperties": false,
+      "description": "`spec.policy`: the four acceptance tiers a config source offers items\nunder, plus the constraints it enforces on every subscriber.\n\n```yaml\npolicy:\n  required:\n    packages:\n      apt: [git]\n  recommended:\n    modules: [nvim]\n  optional:\n    modules: [tmux]\n  locked:\n    env:\n      - name: COMPANY_PROXY\n        value: http://proxy.internal:3128\n  constraints:\n    noScripts: true\n```",
+      "properties": {
+        "constraints": {
+          "$ref": "#/definitions/SourceConstraints",
+          "default": {
+            "allowSystemChanges": false,
+            "allowedTargetPaths": [],
+            "noScripts": true,
+            "noSecretsRead": true,
+            "requireSignedCommits": false
+          },
+          "description": "Restrictions this source imposes on how subscribers may compose it."
+        },
+        "locked": {
+          "$ref": "#/definitions/PolicyItems",
+          "default": {
+            "aliases": [],
+            "env": [],
+            "files": [],
+            "modules": [],
+            "packages": null,
+            "profiles": [],
+            "secrets": [],
+            "system": {}
+          },
+          "description": "Items every subscriber receives and cannot override locally."
+        },
+        "optional": {
+          "$ref": "#/definitions/PolicyItems",
+          "default": {
+            "aliases": [],
+            "env": [],
+            "files": [],
+            "modules": [],
+            "packages": null,
+            "profiles": [],
+            "secrets": [],
+            "system": {}
+          },
+          "description": "Items a subscriber must explicitly name in `subscription.optIn` to receive."
+        },
+        "recommended": {
+          "$ref": "#/definitions/PolicyItems",
+          "default": {
+            "aliases": [],
+            "env": [],
+            "files": [],
+            "modules": [],
+            "packages": null,
+            "profiles": [],
+            "secrets": [],
+            "system": {}
+          },
+          "description": "Items a subscriber receives when `subscription.acceptRecommended` is set."
+        },
+        "required": {
+          "$ref": "#/definitions/PolicyItems",
+          "default": {
+            "aliases": [],
+            "env": [],
+            "files": [],
+            "modules": [],
+            "packages": null,
+            "profiles": [],
+            "secrets": [],
+            "system": {}
+          },
+          "description": "Items every subscriber receives unconditionally."
+        }
+      },
+      "type": "object"
+    },
+    "ConfigSourceProfileEntry": {
+      "additionalProperties": false,
+      "description": "Detailed profile entry in a ConfigSource manifest.\nWhen present, provides richer info than the flat `profiles` list.",
+      "properties": {
+        "description": {
+          "default": null,
+          "description": "A one-line human summary of the profile.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inherits": {
+          "default": [],
+          "description": "Names of other published profiles this one inherits from.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Name the profile is published under, and the value `cfgd profile\nswitch` takes to activate it.",
+          "type": "string"
+        },
+        "path": {
+          "default": null,
+          "description": "Path to the profile's manifest within the source repository, if not at\nthe conventional location.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ConfigSourceProvides": {
+      "additionalProperties": false,
+      "description": "`spec.provides`: what a config source makes available to subscribers.",
+      "properties": {
+        "modules": {
+          "default": [],
+          "description": "Names of modules this source publishes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "platformProfiles": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Maps a platform/distro tag (`macos`, `debian`, …) to the profile name\nto use on that platform.",
+          "type": "object"
+        },
+        "profileDetails": {
+          "default": [],
+          "description": "Published profiles with descriptions, paths, and inheritance — richer\nthan the flat `profiles` list.",
+          "items": {
+            "$ref": "#/definitions/ConfigSourceProfileEntry"
+          },
+          "type": "array"
+        },
+        "profiles": {
+          "default": [],
+          "description": "Flat list of published profile names. Superseded by `profileDetails`\nwhen that list is non-empty.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ConfigSourceSpec": {
+      "additionalProperties": false,
+      "description": "`spec`: the body of a config source manifest.",
+      "properties": {
+        "policy": {
+          "$ref": "#/definitions/ConfigSourcePolicy",
+          "default": {
+            "constraints": {
+              "allowSystemChanges": false,
+              "allowedTargetPaths": [],
+              "noScripts": true,
+              "noSecretsRead": true,
+              "requireSignedCommits": false
+            },
+            "locked": {
+              "aliases": [],
+              "env": [],
+              "files": [],
+              "modules": [],
+              "packages": null,
+              "profiles": [],
+              "secrets": [],
+              "system": {}
+            },
+            "optional": {
+              "aliases": [],
+              "env": [],
+              "files": [],
+              "modules": [],
+              "packages": null,
+              "profiles": [],
+              "secrets": [],
+              "system": {}
+            },
+            "recommended": {
+              "aliases": [],
+              "env": [],
+              "files": [],
+              "modules": [],
+              "packages": null,
+              "profiles": [],
+              "secrets": [],
+              "system": {}
+            },
+            "required": {
+              "aliases": [],
+              "env": [],
+              "files": [],
+              "modules": [],
+              "packages": null,
+              "profiles": [],
+              "secrets": [],
+              "system": {}
+            }
+          },
+          "description": "Policy tiers (required/recommended/optional/locked) and constraints\nthis source enforces on subscribers."
+        },
+        "provides": {
+          "$ref": "#/definitions/ConfigSourceProvides",
+          "default": {
+            "modules": [],
+            "platformProfiles": {},
+            "profileDetails": [],
+            "profiles": []
+          },
+          "description": "Profiles and modules this source publishes."
+        }
+      },
+      "type": "object"
+    },
+    "CustomManagerSpec": {
+      "additionalProperties": false,
+      "description": "A user-defined package manager under `spec.packages.custom[]`, driven\nentirely by shell commands.\n\n```yaml\ncustom:\n  - name: asdf\n    check: \"command -v asdf\"\n    listInstalled: \"asdf list\"\n    install: \"asdf install {package}\"\n    uninstall: \"asdf uninstall {package}\"\n    packages: [nodejs]\n```",
+      "properties": {
+        "check": {
+          "description": "Command that exits zero when this manager is available on the machine.",
+          "type": "string"
+        },
+        "install": {
+          "description": "Command template to install a package; `{package}` is substituted.",
+          "type": "string"
+        },
+        "listInstalled": {
+          "description": "Command whose stdout lists installed package names, one per line.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Manager name, used in `prefer:`/`deny:` lists and status output.",
+          "type": "string"
+        },
+        "packages": {
+          "default": [],
+          "description": "Package names to install with this manager.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "uninstall": {
+          "description": "Command template to uninstall a package; `{package}` is substituted.",
+          "type": "string"
+        },
+        "update": {
+          "default": null,
+          "description": "Command to refresh the manager's own package index/cache before installs.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "check",
+        "listInstalled",
+        "install",
+        "uninstall"
+      ],
+      "type": "object"
+    },
+    "EncryptionConstraint": {
+      "additionalProperties": false,
+      "description": "Encryption constraint applied to files from a config source.",
+      "properties": {
+        "backend": {
+          "description": "If set, restrict which backend is acceptable.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EncryptionMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "If set, restrict which encryption mode is acceptable."
+        },
+        "requiredTargets": {
+          "default": [],
+          "description": "Glob patterns or explicit paths that must be encrypted.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "EncryptionMode": {
+      "description": "Controls when encryption is required for a managed file.",
+      "oneOf": [
+        {
+          "const": "InRepo",
+          "description": "File must be encrypted when stored in the repository.",
+          "type": "string"
+        },
+        {
+          "const": "Always",
+          "description": "File must always be encrypted, including at rest on disk.",
+          "type": "string"
+        }
+      ]
+    },
+    "EncryptionSpec": {
+      "additionalProperties": false,
+      "description": "Encryption settings for a managed file.",
+      "properties": {
+        "backend": {
+          "description": "The encryption backend to use (e.g. \"sops\", \"age\").",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/EncryptionMode",
+          "default": "InRepo",
+          "description": "When encryption must be enforced. Defaults to `InRepo`."
+        }
+      },
+      "required": [
+        "backend"
+      ],
+      "type": "object"
+    },
+    "EnvVar": {
+      "description": "A single `NAME=VALUE` environment variable entry.",
+      "properties": {
+        "name": {
+          "description": "Variable name. Must be shell-safe and not a reserved `CFGD_*` name.",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platform tags gating this entry alone. Empty means every platform the\ndeclaring module or profile is not already gated off of. Tags are\nmatched against the machine's OS, distro, and arch; use `macos` for\nmacOS. An entry gated off this host is not part of its desired state at\nall: it appears on no surface, exactly as a platform-filtered package\ndoes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "value": {
+          "description": "Value assigned to the variable, exported verbatim into the shell\nenvironment.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "FileStrategy": {
+      "description": "File deployment strategy.",
+      "oneOf": [
+        {
+          "const": "Symlink",
+          "description": "Create a symbolic link from target to source (default).",
+          "type": "string"
+        },
+        {
+          "const": "Copy",
+          "description": "Copy source content to target.",
+          "type": "string"
+        },
+        {
+          "const": "Template",
+          "description": "Render a Tera template and write the output (auto-selected for .tera files).",
+          "type": "string"
+        },
+        {
+          "const": "Hardlink",
+          "description": "Create a hard link from target to source.",
+          "type": "string"
+        },
+        {
+          "const": "Patch",
+          "description": "Merge structured keys/values into the target, or pipe it through a\nscript, leaving everything else untouched. Requires a `patch:` block.",
+          "type": "string"
+        }
+      ]
+    },
+    "FlatpakSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `flatpak`: application ids and the remote to install\nthem from. A bare list of ids folds into `packages`.",
+      "properties": {
+        "packages": {
+          "default": [],
+          "description": "Flatpak application ids to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "remote": {
+          "default": null,
+          "description": "Remote to install from (e.g. `flathub`). Falls back to Flatpak's\nconfigured default remote when omitted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ManagedFileSpec": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.files.managed[]`: a file this profile deploys.\n\n```yaml\nfiles:\n  managed:\n    - source: files/gitconfig\n      target: ~/.gitconfig\n      permissions: \"644\"\n```",
+      "properties": {
+        "encryption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EncryptionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Encryption settings for this file."
+        },
+        "patch": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PatchSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Structured merge or script configuration for `strategy: Patch`.\nRequired when `strategy` is `Patch`, rejected otherwise."
+        },
+        "permissions": {
+          "description": "Unix permission bits (e.g. \"600\", \"644\") to apply after deployment.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private": {
+          "description": "When true, the source file is local-only: auto-added to .gitignore,\nsilently skipped on machines where it doesn't exist.",
+          "type": "boolean"
+        },
+        "source": {
+          "default": "",
+          "description": "Path to the source file. Not required when `strategy` is `Patch`;\nrequired otherwise.",
+          "type": "string"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FileStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Per-file deployment strategy override. Omitted, the profile-wide\ndefault applies."
+        },
+        "target": {
+          "description": "Destination path on the machine. A leading `~` expands to the home\ndirectory.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "type": "object"
+    },
+    "NpmSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `npm`: global packages, a `package.json` to install\nfrom, or both. A bare list of names folds into `global`.",
+      "properties": {
+        "file": {
+          "default": null,
+          "description": "Path to a `package.json` to install dependencies from.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "global": {
+          "default": [],
+          "description": "Package names to install globally (`npm install -g`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PackageListSpec": {
+      "additionalProperties": false,
+      "description": "The map form of a bare-list manager (`pipx`, `dnf`, `apk`, …): the same\nlist under a `packages` key.",
+      "properties": {
+        "packages": {
+          "default": [],
+          "description": "Package names.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PackagesSpec": {
+      "additionalProperties": false,
+      "description": "`spec.packages`: packages to install, grouped by package manager.\n\nEvery manager field accepts either a bare list of names or (for the\nmanagers with options of their own) a mapping:\n\n```yaml\npackages:\n  brew:\n    formulae: [ripgrep, fzf]\n    casks: [alacritty]\n  apt: [curl, git]\n  cargo: [ripgrep]\n```",
+      "properties": {
+        "apk": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "APK packages (Alpine)."
+        },
+        "apt": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/AptSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "APT packages (Debian/Ubuntu)."
+        },
+        "brew": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/BrewSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Homebrew packages (macOS/Linux)."
+        },
+        "cargo": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/CargoSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cargo packages (`cargo install`)."
+        },
+        "chocolatey": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Chocolatey packages (Windows)."
+        },
+        "custom": {
+          "default": [],
+          "description": "User-defined package managers not built into cfgd, each with its own\ncheck/install/uninstall commands.",
+          "items": {
+            "$ref": "#/definitions/CustomManagerSpec"
+          },
+          "type": "array"
+        },
+        "dnf": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "DNF packages (Fedora/RHEL)."
+        },
+        "flatpak": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/FlatpakSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flatpak packages (Linux)."
+        },
+        "go": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Go packages (`go install`)."
+        },
+        "nix": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Nix packages (`nix-env` / `nix profile`)."
+        },
+        "npm": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/NpmSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "npm global packages."
+        },
+        "pacman": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Pacman packages (Arch)."
+        },
+        "pipx": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "pipx-installed Python applications."
+        },
+        "pkg": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "pkg packages (FreeBSD)."
+        },
+        "scoop": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Scoop packages (Windows)."
+        },
+        "snap": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/SnapSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Snap packages (Linux)."
+        },
+        "winget": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Winget packages (Windows)."
+        },
+        "yum": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Yum packages (legacy RHEL/CentOS)."
+        },
+        "zypper": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Zypper packages (openSUSE)."
+        }
+      },
+      "type": "object"
+    },
+    "PatchFormat": {
+      "description": "File format used to interpret and re-serialize a `Patch`-strategy target.",
+      "oneOf": [
+        {
+          "const": "Ini",
+          "description": "INI sections/keys, edited line-by-line to preserve comments and layout.",
+          "type": "string"
+        },
+        {
+          "const": "Json",
+          "description": "JSON, re-serialized on write (no comments to preserve).",
+          "type": "string"
+        },
+        {
+          "const": "Yaml",
+          "description": "YAML; comments are NOT preserved across a merge (see docs for the caveat).",
+          "type": "string"
+        },
+        {
+          "const": "Toml",
+          "description": "TOML, edited in place to preserve comments and layout.",
+          "type": "string"
+        }
+      ]
+    },
+    "PatchSpec": {
+      "additionalProperties": false,
+      "description": "Configuration for the `Patch` file strategy: a structured merge (`ensure`)\nor a content-rewriting script, applied on top of the target's current\ncontent.",
+      "properties": {
+        "ensure": {
+          "description": "Keys/values to deep-merge into the target, leaving unmentioned keys\nuntouched. Values are literal (no template rendering). Mutually\nexclusive with `script`."
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PatchFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "File format to parse the target as. Inferred from the target's\nextension when omitted."
+        },
+        "script": {
+          "description": "A script path or an inline command that receives the target's current\ncontent on stdin and writes the new content to stdout. A relative path\nresolves against the module directory for a module file\n(`spec.files[]`) and against the config directory for a profile file\n(`spec.files.managed[]`); a value that resolves to no file is run as an\ninline command. Mutually exclusive with `ensure`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "PolicyItems": {
+      "additionalProperties": false,
+      "description": "The content a config source offers under one policy tier\n(`required`/`recommended`/`optional`/`locked`).",
+      "properties": {
+        "aliases": {
+          "default": [],
+          "description": "Shell aliases offered at this tier.",
+          "items": {
+            "$ref": "#/definitions/ShellAlias"
+          },
+          "type": "array"
+        },
+        "env": {
+          "default": [],
+          "description": "Environment variables offered at this tier.",
+          "items": {
+            "$ref": "#/definitions/EnvVar"
+          },
+          "type": "array"
+        },
+        "files": {
+          "default": [],
+          "description": "Files offered at this tier.",
+          "items": {
+            "$ref": "#/definitions/ManagedFileSpec"
+          },
+          "type": "array"
+        },
+        "modules": {
+          "default": [],
+          "description": "Module names offered at this tier.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PackagesSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Packages offered at this tier."
+        },
+        "profiles": {
+          "default": [],
+          "description": "Profile names this tier recommends composing in.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secrets": {
+          "default": [],
+          "description": "Secrets offered at this tier.",
+          "items": {
+            "$ref": "#/definitions/SecretSpec"
+          },
+          "type": "array"
+        },
+        "system": {
+          "additionalProperties": true,
+          "default": {},
+          "description": "System configurator settings offered at this tier.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "SecretSpec": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.secrets[]`: a secret resolved into a file, into\nenvironment variables, or both. At least one of `target` / `envs` must be\nset; an entry carrying both writes the file AND exports the variables from\none resolution.\n\n```yaml\nsecrets:\n  - source: op://Personal/GitHub/token\n    envs: [GITHUB_TOKEN]\n  - source: ssh_key\n    target: ~/.ssh/id_ed25519\n  - source: vault://secret/data/api#key\n    target: ~/.config/api-key\n    envs: [API_KEY]\n```",
+      "properties": {
+        "backend": {
+          "description": "Secret backend name to resolve `source` with. Falls back to\n`spec.secrets.backend` from `cfgd.yaml` when omitted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "envs": {
+          "description": "Environment variable names to export the decrypted value under. May be\ncombined with `target`.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Backend-specific reference to the secret (a 1Password `op://` URI, a\nVault path, a sops-encrypted file key, …).",
+          "type": "string"
+        },
+        "target": {
+          "description": "File path to write the decrypted secret to. May be combined with `envs`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "template": {
+          "description": "Template rendered around the resolved value before it is written to\n`target` or exported under `envs`: every `${secret:value}` in it is\nreplaced by the value (`template: \"token: ${secret:value}\"`). Only a\nprovider reference (`op://`, `vault://`, …) resolves to a single value,\nso `template` is rejected on a sops-encrypted file source.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "ShellAlias": {
+      "description": "A single shell alias entry.",
+      "properties": {
+        "command": {
+          "description": "Command the alias expands to, written in the syntax of the shell it is\ngenerated for. It may carry arguments, pipes and quotes: cfgd quotes the\nwhole value per dialect when it writes the alias definition, so the text\nreaches the shell exactly as declared. Required — an alias with no\ncommand has nothing to expand to.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Alias name, as typed at the shell prompt.",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platform tags gating this entry alone. Empty means every platform the\ndeclaring module or profile is not already gated off of. Tags are\nmatched against the machine's OS, distro, and arch; use `macos` for\nmacOS. An entry gated off this host is not part of its desired state at\nall: it appears on no surface, exactly as a platform-filtered package\ndoes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "command"
+      ],
+      "type": "object"
+    },
+    "SnapSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `snap`: strict and classic-confinement snaps. A bare\nlist of names folds into `packages`.",
+      "properties": {
+        "classic": {
+          "default": [],
+          "description": "Snap names installed with `--classic` confinement.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "default": [],
+          "description": "Snap names installed with default (strict) confinement.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "SourceConstraints": {
+      "additionalProperties": false,
+      "description": "`spec.policy.constraints`: restrictions a config source imposes on every\nsubscriber, independent of which tier delivered an item.",
+      "properties": {
+        "allowSystemChanges": {
+          "default": false,
+          "description": "Allow this source to deliver `system:` configurator settings. Default: `false`.",
+          "type": "boolean"
+        },
+        "allowedTargetPaths": {
+          "default": [],
+          "description": "Glob patterns restricting which file targets this source may deploy to.\nEmpty means no restriction.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "encryption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EncryptionConstraint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Encryption requirements imposed on files delivered by this source."
+        },
+        "noScripts": {
+          "default": true,
+          "description": "Reject lifecycle scripts (profile-layer and module `run:` bodies) this\nsource delivers, unless a subscriber opts in via\n`subscription.allowScripts`. Default: `true`.",
+          "type": "boolean"
+        },
+        "noSecretsRead": {
+          "default": true,
+          "description": "Reject `${secret:…}` references this source's delivered content\nresolves. Default: `true`.",
+          "type": "boolean"
+        },
+        "requireSignedCommits": {
+          "default": false,
+          "description": "Require that the HEAD commit in this source's git repo has a valid\nGPG or SSH signature. ORed with the subscriber's\n`subscription.requireSignedCommits`, so either side asking is enough.\nSubscribers can bypass both with `spec.security.allowUnsigned`.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "description": "ConfigSource manifest published by teams for multi-source config management (cfgd-source.yaml)",
+  "properties": {
+    "apiVersion": {
+      "description": "API group/version, e.g. `cfgd.io/v1alpha1`.",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Document kind. Always `ConfigSource` for this file.",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/definitions/ConfigSourceMetadata",
+      "description": "Identifying metadata for this source."
+    },
+    "spec": {
+      "$ref": "#/definitions/ConfigSourceSpec",
+      "description": "What the source publishes and its policy tiers."
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "title": "cfgd ConfigSource",
+  "type": "object"
+}

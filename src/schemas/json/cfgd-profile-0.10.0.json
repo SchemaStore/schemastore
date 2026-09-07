@@ -1,0 +1,1268 @@
+{
+  "$id": "https://cfgd.io/schemas/cfgd-profile.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "AptSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `apt`: a package list, a file listing packages, or both.\nA bare list of names folds into `packages`.",
+      "properties": {
+        "file": {
+          "default": null,
+          "description": "Path to a package-list file to install from, one name per line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packages": {
+          "default": [],
+          "description": "APT package names to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "BackupSpec": {
+      "additionalProperties": false,
+      "description": "A declarative backup: snapshot `source` (a file or directory) into\n`destination`, retaining the newest `retention` snapshots.\n\nThe shape is validated at parse time and run by the backup engine.\nSchedule-less backups (no `schedule`) run automatically on every\n`cfgd apply`; every backup — scheduled or not — can also be run directly\nwith `cfgd backup run [name]`.",
+      "properties": {
+        "destination": {
+          "description": "Where snapshots are written. Defaults to `<state_dir>/backups/<name>/`\nwhen omitted — resolved by the backup engine, not at parse time, since\nthe state dir depends on runtime scope/overrides.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Unique identifier for this backup within `spec.backups`, unique across\nthe list. Keys the `destination` default, run records, and CLI\nselection. Becomes a directory component (`<state_dir>/backups/<name>/`)\nand a lock filename (`<state_dir>/locks/backup-<name>.lock`), so it must\nbe non-empty, non-blank, a single segment (no `/` or `\\`), not a\ndirectory reference (`.`, `..`), not rooted (`/daily`, `C:/daily`), and\nfree of `:` anywhere — a drive and NTFS data-stream separator on Windows.\nWindows shapes are rejected on every platform so a name written on one\nOS stays valid on the others.",
+          "type": "string"
+        },
+        "namePattern": {
+          "default": "{filename}.{timestamp}",
+          "description": "Filename template for each snapshot. Supports `{name}`, `{filename}`,\nand `{timestamp}` (UTC, `%Y%m%dT%H%M%SZ`). Unknown `{var}` tokens are\nrejected at parse time. A literal `/` nests the snapshot in a\nsubdirectory of the destination. At run time the rendered value must be\nrelative and every segment must name something: `.` and `..` segments,\nempty segments (`a//b`, `daily/`), rooted values (`/daily`, `C:/daily`,\n`C:daily`, `\\\\server\\share`), and `:` anywhere are all rejected. Windows\nshapes are rejected on every platform, so a pattern is valid everywhere\nor nowhere. A rejection names the `{filename}` it interpolated, so a\ncolon in the source filename points at itself. Defaults to\n`\"{filename}.{timestamp}\"`.",
+          "type": "string"
+        },
+        "postBackup": {
+          "default": [],
+          "description": "Scripts run after the copy step (e.g. restart the service stopped by\n`preBackup`). Always attempted, including after a failed `preBackup` or\na failed copy.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preBackup": {
+          "default": [],
+          "description": "Scripts run before the snapshot is taken (e.g. stop a service that\nholds `source` open so the snapshot is consistent). A failure skips the\nsnapshot and records a failed run; `postBackup` still runs.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "retention": {
+          "default": 10,
+          "description": "Number of newest snapshots to keep for this backup; older snapshots are\npruned from disk and from the run history. Must be at least 1 (`0` would\nkeep no backups, which is a misconfiguration rather than a supported\n\"unlimited\" mode). Defaults to 10.",
+          "format": "uint32",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "schedule": {
+          "description": "When to run this backup: a duration interval (e.g. `\"6h\"`) or a cron\nexpression, validated at parse time. Cron expressions may be 5-field\n(`minute hour day month weekday`, e.g. `\"0 3 * * *\"`) or 6-field with a\nleading seconds field (`second minute hour day month weekday`, e.g.\n`\"30 0 3 * * *\"`), and are evaluated in the machine's LOCAL timezone,\nlike a crontab entry. An interval is measured from the unit's last\nrecorded run, so a `\"1d\"` backup on a machine rebooted daily still fires\ndaily. Setting this hands the backup to the daemon's timers and takes it\nout of apply; omitted means \"run on every apply\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "File or directory to snapshot. A leading `~` expands to the home\ndirectory. Must not contain, or sit inside, the resolved `destination` —\na nested pair is rejected before any copy, with symlinks resolved on both\nsides. Its filename is what `{filename}` interpolates, so a source whose\nfilename contains `:` (legal on Unix, a drive and data-stream separator\non Windows) needs an explicit `namePattern` that leaves `{filename}` out.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "BrewSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `brew`: taps, formulae and casks, or a Brewfile. A bare\nlist of names folds into `formulae`.",
+      "properties": {
+        "casks": {
+          "default": [],
+          "description": "Homebrew casks (GUI applications) to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "file": {
+          "default": null,
+          "description": "Path to a Brewfile to apply instead of (or alongside) `taps`,\n`formulae` and `casks`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "formulae": {
+          "default": [],
+          "description": "Homebrew formulae (CLI packages) to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "taps": {
+          "default": [],
+          "description": "Third-party taps to add before installing formulae/casks.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CargoSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `cargo`: crates to install, a `Cargo.toml` to install\nfrom, or both. A bare list of names folds into `packages`.",
+      "properties": {
+        "file": {
+          "description": "Path to a `Cargo.toml` whose binaries to install instead of `packages`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packages": {
+          "default": [],
+          "description": "Crate names to install (`cargo install`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CustomManagerSpec": {
+      "additionalProperties": false,
+      "description": "A user-defined package manager under `spec.packages.custom[]`, driven\nentirely by shell commands.\n\n```yaml\ncustom:\n  - name: asdf\n    check: \"command -v asdf\"\n    listInstalled: \"asdf list\"\n    install: \"asdf install {package}\"\n    uninstall: \"asdf uninstall {package}\"\n    packages: [nodejs]\n```",
+      "properties": {
+        "check": {
+          "description": "Command that exits zero when this manager is available on the machine.",
+          "type": "string"
+        },
+        "install": {
+          "description": "Command template to install a package; `{package}` is substituted.",
+          "type": "string"
+        },
+        "listInstalled": {
+          "description": "Command whose stdout lists installed package names, one per line.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Manager name, used in `prefer:`/`deny:` lists and status output.",
+          "type": "string"
+        },
+        "packages": {
+          "default": [],
+          "description": "Package names to install with this manager.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "uninstall": {
+          "description": "Command template to uninstall a package; `{package}` is substituted.",
+          "type": "string"
+        },
+        "update": {
+          "default": null,
+          "description": "Command to refresh the manager's own package index/cache before installs.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "check",
+        "listInstalled",
+        "install",
+        "uninstall"
+      ],
+      "type": "object"
+    },
+    "EncryptionMode": {
+      "description": "Controls when encryption is required for a managed file.",
+      "oneOf": [
+        {
+          "const": "InRepo",
+          "description": "File must be encrypted when stored in the repository.",
+          "type": "string"
+        },
+        {
+          "const": "Always",
+          "description": "File must always be encrypted, including at rest on disk.",
+          "type": "string"
+        }
+      ]
+    },
+    "EncryptionSpec": {
+      "additionalProperties": false,
+      "description": "Encryption settings for a managed file.",
+      "properties": {
+        "backend": {
+          "description": "The encryption backend to use (e.g. \"sops\", \"age\").",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/EncryptionMode",
+          "default": "InRepo",
+          "description": "When encryption must be enforced. Defaults to `InRepo`."
+        }
+      },
+      "required": [
+        "backend"
+      ],
+      "type": "object"
+    },
+    "EnvScope": {
+      "description": "How far `spec.env` exports reach across the current user's environment.\n\nThe two env fields differ by *scope of affected users*: `spec.env` targets\nthe current user, `spec.system.environment` targets all users (privileged).\nThis knob narrows the *current-user* reach; it never widens beyond the user.",
+      "oneOf": [
+        {
+          "const": "All",
+          "description": "Every standard user entry point cfgd can safely touch: interactive +\nlogin shells, `systemd --user` / Wayland GUI sessions, macOS GUI apps,\nand an immediate live-session refresh. The default — no gotchas.",
+          "type": "string"
+        },
+        {
+          "const": "Login",
+          "description": "Interactive shells plus login shells (`~/.zshenv`, `~/.profile`, and an\nexisting `~/.bash_profile`). Excludes the GUI / `systemd --user` session\nsurfaces and the live-session refresh.",
+          "type": "string"
+        },
+        {
+          "const": "Interactive",
+          "description": "Interactive shells only (`~/.bashrc` / `~/.zshrc`, fish conf.d) — the\nhistorical behavior before full reach.",
+          "type": "string"
+        }
+      ]
+    },
+    "EnvVar": {
+      "description": "A single `NAME=VALUE` environment variable entry.",
+      "properties": {
+        "name": {
+          "description": "Variable name. Must be shell-safe and not a reserved `CFGD_*` name.",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platform tags gating this entry alone. Empty means every platform the\ndeclaring module or profile is not already gated off of. Tags are\nmatched against the machine's OS, distro, and arch; use `macos` for\nmacOS. An entry gated off this host is not part of its desired state at\nall: it appears on no surface, exactly as a platform-filtered package\ndoes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "value": {
+          "description": "Value assigned to the variable, exported verbatim into the shell\nenvironment.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "FileStrategy": {
+      "description": "File deployment strategy.",
+      "oneOf": [
+        {
+          "const": "Symlink",
+          "description": "Create a symbolic link from target to source (default).",
+          "type": "string"
+        },
+        {
+          "const": "Copy",
+          "description": "Copy source content to target.",
+          "type": "string"
+        },
+        {
+          "const": "Template",
+          "description": "Render a Tera template and write the output (auto-selected for .tera files).",
+          "type": "string"
+        },
+        {
+          "const": "Hardlink",
+          "description": "Create a hard link from target to source.",
+          "type": "string"
+        },
+        {
+          "const": "Patch",
+          "description": "Merge structured keys/values into the target, or pipe it through a\nscript, leaving everything else untouched. Requires a `patch:` block.",
+          "type": "string"
+        }
+      ]
+    },
+    "FilesSpec": {
+      "additionalProperties": false,
+      "description": "`spec.files`: files this profile deploys and their permission overrides.\n\n```yaml\nfiles:\n  managed:\n    - source: files/gitconfig\n      target: ~/.gitconfig\n  permissions:\n    ~/.ssh/id_ed25519: \"0600\"\n```",
+      "properties": {
+        "managed": {
+          "default": [],
+          "description": "Files this profile deploys, each pairing a source in the config\ndirectory with a target on the machine. Empty, no files are managed.",
+          "items": {
+            "$ref": "#/definitions/ManagedFileSpec"
+          },
+          "type": "array"
+        },
+        "permissions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Octal permission strings (`\"0600\"`) keyed by target path, applied after\ndeployment.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "FlatpakSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `flatpak`: application ids and the remote to install\nthem from. A bare list of ids folds into `packages`.",
+      "properties": {
+        "packages": {
+          "default": [],
+          "description": "Flatpak application ids to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "remote": {
+          "default": null,
+          "description": "Remote to install from (e.g. `flathub`). Falls back to Flatpak's\nconfigured default remote when omitted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ManagedFileSpec": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.files.managed[]`: a file this profile deploys.\n\n```yaml\nfiles:\n  managed:\n    - source: files/gitconfig\n      target: ~/.gitconfig\n      permissions: \"644\"\n```",
+      "properties": {
+        "encryption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EncryptionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Encryption settings for this file."
+        },
+        "patch": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PatchSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Structured merge or script configuration for `strategy: Patch`.\nRequired when `strategy` is `Patch`, rejected otherwise."
+        },
+        "permissions": {
+          "description": "Unix permission bits (e.g. \"600\", \"644\") to apply after deployment.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private": {
+          "description": "When true, the source file is local-only: auto-added to .gitignore,\nsilently skipped on machines where it doesn't exist.",
+          "type": "boolean"
+        },
+        "source": {
+          "default": "",
+          "description": "Path to the source file. Not required when `strategy` is `Patch`;\nrequired otherwise.",
+          "type": "string"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FileStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Per-file deployment strategy override. Omitted, the profile-wide\ndefault applies."
+        },
+        "target": {
+          "description": "Destination path on the machine. A leading `~` expands to the home\ndirectory.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "type": "object"
+    },
+    "NpmSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `npm`: global packages, a `package.json` to install\nfrom, or both. A bare list of names folds into `global`.",
+      "properties": {
+        "file": {
+          "default": null,
+          "description": "Path to a `package.json` to install dependencies from.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "global": {
+          "default": [],
+          "description": "Package names to install globally (`npm install -g`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PackageListSpec": {
+      "additionalProperties": false,
+      "description": "The map form of a bare-list manager (`pipx`, `dnf`, `apk`, …): the same\nlist under a `packages` key.",
+      "properties": {
+        "packages": {
+          "default": [],
+          "description": "Package names.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PackagesSpec": {
+      "additionalProperties": false,
+      "description": "`spec.packages`: packages to install, grouped by package manager.\n\nEvery manager field accepts either a bare list of names or (for the\nmanagers with options of their own) a mapping:\n\n```yaml\npackages:\n  brew:\n    formulae: [ripgrep, fzf]\n    casks: [alacritty]\n  apt: [curl, git]\n  cargo: [ripgrep]\n```",
+      "properties": {
+        "apk": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "APK packages (Alpine)."
+        },
+        "apt": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/AptSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "APT packages (Debian/Ubuntu)."
+        },
+        "brew": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/BrewSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Homebrew packages (macOS/Linux)."
+        },
+        "cargo": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/CargoSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cargo packages (`cargo install`)."
+        },
+        "chocolatey": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Chocolatey packages (Windows)."
+        },
+        "custom": {
+          "default": [],
+          "description": "User-defined package managers not built into cfgd, each with its own\ncheck/install/uninstall commands.",
+          "items": {
+            "$ref": "#/definitions/CustomManagerSpec"
+          },
+          "type": "array"
+        },
+        "dnf": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "DNF packages (Fedora/RHEL)."
+        },
+        "flatpak": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/FlatpakSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flatpak packages (Linux)."
+        },
+        "go": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Go packages (`go install`)."
+        },
+        "nix": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Nix packages (`nix-env` / `nix profile`)."
+        },
+        "npm": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/NpmSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "npm global packages."
+        },
+        "pacman": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Pacman packages (Arch)."
+        },
+        "pipx": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "pipx-installed Python applications."
+        },
+        "pkg": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "pkg packages (FreeBSD)."
+        },
+        "scoop": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Scoop packages (Windows)."
+        },
+        "snap": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/SnapSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Snap packages (Linux)."
+        },
+        "winget": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Winget packages (Windows)."
+        },
+        "yum": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Yum packages (legacy RHEL/CentOS)."
+        },
+        "zypper": {
+          "anyOf": [
+            {
+              "description": "Package names, as a bare list.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/PackageListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "description": "Zypper packages (openSUSE)."
+        }
+      },
+      "type": "object"
+    },
+    "PatchFormat": {
+      "description": "File format used to interpret and re-serialize a `Patch`-strategy target.",
+      "oneOf": [
+        {
+          "const": "Ini",
+          "description": "INI sections/keys, edited line-by-line to preserve comments and layout.",
+          "type": "string"
+        },
+        {
+          "const": "Json",
+          "description": "JSON, re-serialized on write (no comments to preserve).",
+          "type": "string"
+        },
+        {
+          "const": "Yaml",
+          "description": "YAML; comments are NOT preserved across a merge (see docs for the caveat).",
+          "type": "string"
+        },
+        {
+          "const": "Toml",
+          "description": "TOML, edited in place to preserve comments and layout.",
+          "type": "string"
+        }
+      ]
+    },
+    "PatchSpec": {
+      "additionalProperties": false,
+      "description": "Configuration for the `Patch` file strategy: a structured merge (`ensure`)\nor a content-rewriting script, applied on top of the target's current\ncontent.",
+      "properties": {
+        "ensure": {
+          "description": "Keys/values to deep-merge into the target, leaving unmentioned keys\nuntouched. Values are literal (no template rendering). Mutually\nexclusive with `script`."
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PatchFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "File format to parse the target as. Inferred from the target's\nextension when omitted."
+        },
+        "script": {
+          "description": "A script path or an inline command that receives the target's current\ncontent on stdin and writes the new content to stdout. A relative path\nresolves against the module directory for a module file\n(`spec.files[]`) and against the config directory for a profile file\n(`spec.files.managed[]`); a value that resolves to no file is run as an\ninline command. Mutually exclusive with `ensure`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ProfileMetadata": {
+      "additionalProperties": false,
+      "description": "`metadata`: identifying information for a profile.",
+      "properties": {
+        "name": {
+          "description": "The profile's name, referenced by `spec.profile` in `cfgd.yaml` and by\n`inherits:` in another profile.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ProfileSpec": {
+      "additionalProperties": false,
+      "description": "`spec`: the declared surface of a profile.",
+      "properties": {
+        "aliases": {
+          "default": [],
+          "description": "Shell aliases this profile sets.",
+          "items": {
+            "$ref": "#/definitions/ShellAlias"
+          },
+          "type": "array"
+        },
+        "backups": {
+          "default": [],
+          "description": "Declarative backup jobs this profile schedules.",
+          "items": {
+            "$ref": "#/definitions/BackupSpec"
+          },
+          "type": "array"
+        },
+        "env": {
+          "default": [],
+          "description": "Environment variables this profile sets.",
+          "items": {
+            "$ref": "#/definitions/EnvVar"
+          },
+          "type": "array"
+        },
+        "envScope": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EnvScope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How far `spec.env` exports reach across the current user's environment.\nOmitted means \"inherit\" (a parent layer's value survives); the resolved\ndefault when no layer sets it is `All` — every standard user entry point\ncfgd can safely touch. Narrow it to `Login` or `Interactive` to opt out\nof the broader session surfaces."
+        },
+        "files": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FilesSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Files this profile deploys."
+        },
+        "inherits": {
+          "default": [],
+          "description": "Names of base profiles to merge under this one. Later fields in this\nprofile override an inherited base's; lists are unioned.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "modules": {
+          "default": [],
+          "description": "Names of modules this profile includes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PackagesSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Packages this profile installs, grouped by manager."
+        },
+        "scripts": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ScriptSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lifecycle scripts (`preApply`, `postApply`, …) this profile runs."
+        },
+        "secrets": {
+          "default": [],
+          "description": "Secrets this profile resolves into files or environment variables.",
+          "items": {
+            "$ref": "#/definitions/SecretSpec"
+          },
+          "type": "array"
+        },
+        "system": {
+          "additionalProperties": true,
+          "default": {},
+          "description": "System configurator settings (`macosDefaults`, `systemd`, `sysctl`, …),\nkeyed by configurator name.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "ScriptCommand": {
+      "description": "The mapping form of a script entry: a command with a timeout, shell,\nguard condition or working directory.",
+      "properties": {
+        "continueOnError": {
+          "description": "Treat a non-zero exit as success and continue reconciliation instead\nof failing the run. Default: `false`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "creates": {
+          "description": "Skip the script if this path already exists. A leading `~` expands to\nthe home directory; a relative path resolves against the script's\nworking directory. Existence follows symlinks.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idleTimeout": {
+          "description": "Kill the script if it produces no stdout/stderr output for this duration.\nPrevents scripts from silently hanging on unresponsive resources.\nFormat: \"30s\", \"2m\", etc. If unset, no idle timeout is enforced.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "interactive": {
+          "description": "Run the script attached to the terminal (inherited stdin/stdout/stderr,\nno spinner, no output capture, no idle timeout) so it can prompt the\nuser — e.g. `echo \"press Enter when done\"; read`. Requires a TTY: when\nstdin is not a terminal (CI, piped input, or any daemon-run phase) the\nscript is skipped with a warning rather than hanging on instant EOF.",
+          "type": "boolean"
+        },
+        "onlyIf": {
+          "description": "Run the script only if this command exits zero. A non-zero exit skips\nthe script (the condition for running was not met). Evaluated with the\nsame shell, working directory, and environment as the body.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The command or script body to run.",
+          "type": "string"
+        },
+        "shell": {
+          "$ref": "#/definitions/ScriptShell",
+          "description": "Interpreter to use for inline commands. Ignored (and rejected) on file scripts."
+        },
+        "timeout": {
+          "description": "Kill the script if it runs longer than this duration (`\"30s\"`, `\"2m\"`).\nUnset means no timeout.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unless": {
+          "description": "Run the script only if this command exits NON-zero. A zero exit\n(success) skips the script (the guarded state already holds).\nEvaluated with the same shell, working directory, and environment as\nthe body.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workdir": {
+          "description": "Working directory for the script. By default every lifecycle script\nruns in the user's home directory — never the config source tree — so\na relative write can't pollute the user's GitOps repo. Set `workdir`\nto override: a leading `~` expands to home and `$VAR`/`${VAR}` expand\nagainst the script environment (which always carries `$CFGD_MODULE_DIR`\nand `$CFGD_CONFIG_DIR`), so `workdir: ~/.local/share/app`,\n`workdir: $CFGD_MODULE_DIR`, or an absolute path all work.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "ScriptEntry": {
+      "anyOf": [
+        {
+          "description": "A bare command string, run with the platform's default shell and no\ntimeout/guard.",
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/ScriptCommand",
+          "description": "The mapping form, carrying the body and its knobs."
+        }
+      ],
+      "description": "A lifecycle script entry: either a bare command string, or a mapping for\none that needs a timeout, shell, or guard condition.\n\n```yaml\npreApply: \"echo starting\"\n# or\npostApply:\n  run: brew update\n  timeout: 2m\n  onlyIf: command -v brew\n```"
+    },
+    "ScriptShell": {
+      "description": "Interpreter for inline lifecycle scripts.",
+      "oneOf": [
+        {
+          "enum": [
+            "sh",
+            "bash",
+            "zsh",
+            "pwsh",
+            "cmd"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "auto",
+          "description": "Platform default: `sh` on Unix, `cmd.exe` on Windows.",
+          "type": "string"
+        }
+      ]
+    },
+    "ScriptSpec": {
+      "additionalProperties": false,
+      "description": "`spec.scripts`: lifecycle hooks run at specific points in the reconcile cycle.\n\n```yaml\nscripts:\n  preApply: \"echo starting apply\"\n  postApply:\n    - run: brew cleanup\n      continueOnError: true\n  onDrift: \"notify-send 'cfgd: drift detected'\"\n```",
+      "properties": {
+        "onChange": {
+          "default": [],
+          "description": "Run when a watched file changes on disk (requires `daemon.reconcile.onChange`).",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "onDrift": {
+          "default": [],
+          "description": "Run when the daemon detects drift, before any auto-apply decision.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "postApply": {
+          "default": [],
+          "description": "Run once after every action in an apply completes.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "postReconcile": {
+          "default": [],
+          "description": "Run once after a daemon reconcile tick completes.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preApply": {
+          "default": [],
+          "description": "Run once before any action in an apply.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preReconcile": {
+          "default": [],
+          "description": "Run once before a daemon reconcile tick begins.",
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "SecretSpec": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.secrets[]`: a secret resolved into a file, into\nenvironment variables, or both. At least one of `target` / `envs` must be\nset; an entry carrying both writes the file AND exports the variables from\none resolution.\n\n```yaml\nsecrets:\n  - source: op://Personal/GitHub/token\n    envs: [GITHUB_TOKEN]\n  - source: ssh_key\n    target: ~/.ssh/id_ed25519\n  - source: vault://secret/data/api#key\n    target: ~/.config/api-key\n    envs: [API_KEY]\n```",
+      "properties": {
+        "backend": {
+          "description": "Secret backend name to resolve `source` with. Falls back to\n`spec.secrets.backend` from `cfgd.yaml` when omitted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "envs": {
+          "description": "Environment variable names to export the decrypted value under. May be\ncombined with `target`.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Backend-specific reference to the secret (a 1Password `op://` URI, a\nVault path, a sops-encrypted file key, …).",
+          "type": "string"
+        },
+        "target": {
+          "description": "File path to write the decrypted secret to. May be combined with `envs`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "template": {
+          "description": "Template rendered around the resolved value before it is written to\n`target` or exported under `envs`: every `${secret:value}` in it is\nreplaced by the value (`template: \"token: ${secret:value}\"`). Only a\nprovider reference (`op://`, `vault://`, …) resolves to a single value,\nso `template` is rejected on a sops-encrypted file source.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "ShellAlias": {
+      "description": "A single shell alias entry.",
+      "properties": {
+        "command": {
+          "description": "Command the alias expands to, written in the syntax of the shell it is\ngenerated for. It may carry arguments, pipes and quotes: cfgd quotes the\nwhole value per dialect when it writes the alias definition, so the text\nreaches the shell exactly as declared. Required — an alias with no\ncommand has nothing to expand to.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Alias name, as typed at the shell prompt.",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platform tags gating this entry alone. Empty means every platform the\ndeclaring module or profile is not already gated off of. Tags are\nmatched against the machine's OS, distro, and arch; use `macos` for\nmacOS. An entry gated off this host is not part of its desired state at\nall: it appears on no surface, exactly as a platform-filtered package\ndoes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "command"
+      ],
+      "type": "object"
+    },
+    "SnapSpec": {
+      "additionalProperties": false,
+      "description": "The object form of `snap`: strict and classic-confinement snaps. A bare\nlist of names folds into `packages`.",
+      "properties": {
+        "classic": {
+          "default": [],
+          "description": "Snap names installed with `--classic` confinement.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "default": [],
+          "description": "Snap names installed with default (strict) confinement.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "description": "Profile document for cfgd (profiles/*.yaml)",
+  "properties": {
+    "apiVersion": {
+      "description": "API group/version, e.g. `cfgd.io/v1alpha1`.",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Document kind. Always `Profile` for this file.",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/definitions/ProfileMetadata",
+      "description": "Identifying metadata for this profile."
+    },
+    "spec": {
+      "$ref": "#/definitions/ProfileSpec",
+      "description": "The profile's declared surface."
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "title": "cfgd Profile",
+  "type": "object"
+}
