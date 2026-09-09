@@ -1,0 +1,1055 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cfgd.io/schemas/cfgd-config.schema.json",
+  "additionalProperties": false,
+  "definitions": {
+    "AiConfig": {
+      "additionalProperties": false,
+      "description": "`spec.ai`: settings for `cfgd generate`'s AI-guided session.\n\n```yaml\nai:\n  provider: claude\n  model: claude-sonnet-5\n  apiKeyEnv: ANTHROPIC_API_KEY\n```",
+      "properties": {
+        "apiKeyEnv": {
+          "default": "ANTHROPIC_API_KEY",
+          "description": "Name of the environment variable holding the API key. Default: `ANTHROPIC_API_KEY`.",
+          "type": "string"
+        },
+        "model": {
+          "default": "claude-sonnet-5",
+          "description": "The model identifier to request. Default: `claude-sonnet-5`.",
+          "type": "string"
+        },
+        "provider": {
+          "default": "claude",
+          "description": "The AI provider name. Default: `claude`.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AutoApplyPolicyConfig": {
+      "additionalProperties": false,
+      "description": "`spec.daemon.reconcile.policy`: what the daemon does when a source recommends\na module change it did not previously know about.\n\n```yaml\npolicy:\n  newRecommended: Accept\n  newOptional: Ignore\n  lockedConflict: Notify\n```",
+      "properties": {
+        "lockedConflict": {
+          "$ref": "#/definitions/PolicyAction",
+          "default": "Notify",
+          "description": "Action when a source's recommendation conflicts with a locked version.\nDefault: `Notify`."
+        },
+        "newOptional": {
+          "$ref": "#/definitions/PolicyAction",
+          "default": "Ignore",
+          "description": "Action for a newly available optional module. Default: `Ignore`."
+        },
+        "newRecommended": {
+          "$ref": "#/definitions/PolicyAction",
+          "default": "Notify",
+          "description": "Action for a newly recommended module. Default: `Notify`."
+        }
+      },
+      "type": "object"
+    },
+    "ComplianceConfig": {
+      "additionalProperties": false,
+      "description": "`spec.compliance`: periodic snapshotting of machine state for drift/audit history.\n\n```yaml\ncompliance:\n  enabled: true\n  interval: 1h\n  retention: 30d\n  scope:\n    files: true\n    packages: true\n  export:\n    format: Json\n    path: ~/.local/state/cfgd/compliance/\n```",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Whether the daemon takes compliance snapshots on its tick. Default: `false`.",
+          "type": "boolean"
+        },
+        "export": {
+          "$ref": "#/definitions/ComplianceExport",
+          "default": {
+            "format": "Json",
+            "path": "~/.local/state/cfgd/compliance/"
+          },
+          "description": "Where and in what format a snapshot is exported."
+        },
+        "interval": {
+          "default": "1h",
+          "description": "How often a snapshot is taken, as a duration string. Default: `1h`.",
+          "type": "string"
+        },
+        "retention": {
+          "default": "30d",
+          "description": "How long a snapshot is kept before being pruned, as a duration string.\nDefault: `30d`.",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/definitions/ComplianceScope",
+          "default": {
+            "files": true,
+            "packages": true,
+            "secrets": true,
+            "system": true,
+            "watchPackageManagers": [],
+            "watchPaths": []
+          },
+          "description": "Which surfaces a snapshot covers."
+        }
+      },
+      "type": "object"
+    },
+    "ComplianceExport": {
+      "additionalProperties": false,
+      "description": "`spec.compliance.export`: where a compliance snapshot is written.\n\n```yaml\nexport:\n  format: Yaml\n  path: ~/.local/state/cfgd/compliance/\n```",
+      "properties": {
+        "format": {
+          "$ref": "#/definitions/ComplianceFormat",
+          "default": "Json",
+          "description": "Export file format. Default: `Json`."
+        },
+        "path": {
+          "default": "~/.local/state/cfgd/compliance/",
+          "description": "Directory a snapshot file is written into. Default:\n`~/.local/state/cfgd/compliance/`.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ComplianceFormat": {
+      "description": "Serialization format for a compliance export: `Json` or `Yaml`\n(case-insensitive on read; `PascalCase` in generated YAML).",
+      "enum": ["Json", "Yaml"],
+      "type": "string"
+    },
+    "ComplianceScope": {
+      "additionalProperties": false,
+      "description": "`spec.compliance.scope`: which managed surfaces a snapshot covers.\n\n```yaml\nscope:\n  files: true\n  packages: true\n  system: true\n  secrets: false\n  watchPaths: [/etc/hosts]\n  watchPackageManagers: [apt]\n```",
+      "properties": {
+        "files": {
+          "default": true,
+          "description": "Include declared files' content/permission state. Default: `true`.",
+          "type": "boolean"
+        },
+        "packages": {
+          "default": true,
+          "description": "Include declared packages' installed state. Default: `true`.",
+          "type": "boolean"
+        },
+        "secrets": {
+          "default": true,
+          "description": "Include declared secrets' presence/hash state (never plaintext). Default: `true`.",
+          "type": "boolean"
+        },
+        "system": {
+          "default": true,
+          "description": "Include system configurator settings. Default: `true`.",
+          "type": "boolean"
+        },
+        "watchPackageManagers": {
+          "default": [],
+          "description": "Extra package managers to watch beyond those a module declares against.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "watchPaths": {
+          "default": [],
+          "description": "Extra filesystem paths to watch for drift beyond declared files.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ConfigMetadata": {
+      "additionalProperties": false,
+      "description": "`metadata`: identifying information for a `cfgd.yaml` document.",
+      "properties": {
+        "name": {
+          "description": "A human-chosen name for this machine's config, shown in status output.",
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
+    "ConfigSpec": {
+      "additionalProperties": false,
+      "description": "`spec`: the body of a `cfgd.yaml` document.",
+      "properties": {
+        "ai": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AiConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "AI assistant configuration: provider, model, and API key env var."
+        },
+        "aliases": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "CLI aliases: map of alias name → command string.\nBuilt-in defaults (add, remove) can be overridden or extended.",
+          "type": "object"
+        },
+        "compliance": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ComplianceConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Periodic snapshots of machine state, for drift history and audit.\nOmitted, no snapshots are taken and `cfgd compliance` reports only\nwhat it collects on the spot."
+        },
+        "daemon": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DaemonConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The background daemon that watches for drift between reconciles.\nOmitted, no daemon runs and every reconcile is an explicit\n`cfgd apply`."
+        },
+        "fileStrategy": {
+          "default": "Symlink",
+          "description": "Global default file deployment strategy. Per-file overrides take precedence.\n\n`Patch` is rejected here: it is defined by a per-file `patch:` block,\nwhich a file inheriting the global default cannot have.",
+          "enum": ["Symlink", "Copy", "Template", "Hardlink"],
+          "type": "string"
+        },
+        "modules": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ModulesConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module configuration: registries and security."
+        },
+        "origin": {
+          "default": [],
+          "description": "Git origins this config's changes may be pushed to / pulled from.",
+          "items": {
+            "$ref": "#/definitions/OriginSpec"
+          },
+          "type": "array"
+        },
+        "profile": {
+          "default": null,
+          "description": "Name of the active `ProfileSpec` to reconcile against.",
+          "type": ["string", "null"]
+        },
+        "secrets": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SecretsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Which backend resolves a `${secret:…}` reference, and how it is\nreached. Omitted, no backend is configured and a declared secret\nreference fails to resolve."
+        },
+        "security": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SecurityConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Security settings for source signature verification."
+        },
+        "sources": {
+          "default": [],
+          "description": "Additional config sources this machine subscribes to.",
+          "items": {
+            "$ref": "#/definitions/SourceSpec"
+          },
+          "type": "array"
+        },
+        "theme": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThemeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Colours and glyphs cfgd renders with: a named preset (`default`,\n`dracula`, `solarized-dark`, `solarized-light`, `nord`, `monokai`,\n`adventure-time`, `catppuccin-mocha`, `gruvbox-dark`, `tokyo-night`,\n`one-dark`, `minimal`) plus per-slot overrides. Omitted, the\n`default` preset applies."
+        },
+        "update": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UpdateConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Update policy for the cfgd binary and authored skills."
+        },
+        "usageHints": {
+          "default": null,
+          "description": "Whether closing `→` usage hints render. Omitted, hints render.",
+          "type": ["boolean", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "DaemonConfig": {
+      "additionalProperties": false,
+      "description": "`spec.daemon`: settings for `cfgd daemon`'s background reconcile loop.\n\n```yaml\ndaemon:\n  enabled: true\n  reconcile:\n    interval: 5m\n    autoApply: false\n  sync:\n    autoPull: true\n  notify:\n    drift: true\n```",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Whether the daemon runs at all. Default: `false`.",
+          "type": "boolean"
+        },
+        "notify": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NotifyConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How the daemon reports detected drift."
+        },
+        "reconcile": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReconcileConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How often the daemon looks for drift and what it does when it finds\nsome. Omitted, the daemon reconciles on the built-in defaults: every\n`5m`, notifying rather than applying."
+        },
+        "sync": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SyncConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether the daemon keeps the config directory in step with its git\nremote, and how often. Omitted, the daemon never touches git and every\npull or push stays a manual `cfgd sync`."
+        },
+        "windowsEventLog": {
+          "default": false,
+          "description": "Mirror daemon log output into the Windows Event Log under the `cfgd`\nsource, in addition to the default file appender at\n`%LOCALAPPDATA%\\cfgd\\daemon.log`. No effect on Unix. Read by\n`cfgd daemon install` to bake `--enable-event-log` into the service\nbinPath; changes require reinstalling the service to take effect.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "DriftPolicy": {
+      "description": "Daemon drift reconciliation policy. Values are PascalCase, matching\nKubernetes API conventions.",
+      "oneOf": [
+        {
+          "const": "Auto",
+          "description": "Apply drift corrections automatically (current behavior, now opt-in).",
+          "type": "string"
+        },
+        {
+          "const": "NotifyOnly",
+          "description": "Notify and record drift, but do not apply. User must run `cfgd apply`.",
+          "type": "string"
+        },
+        {
+          "const": "Prompt",
+          "description": "Future: notify with actionable prompt.",
+          "type": "string"
+        }
+      ]
+    },
+    "ModuleRegistryEntry": {
+      "additionalProperties": false,
+      "description": "A module registry — a git repo containing modules in `modules/<name>/module.yaml` structure.",
+      "properties": {
+        "name": {
+          "description": "Short name / alias for this source (defaults to GitHub org name).",
+          "type": "string"
+        },
+        "url": {
+          "description": "Git URL of the registry repository, in any form git accepts — an HTTPS\nor SSH clone URL, or a GitHub `owner/repo` shorthand cfgd expands to the\nfull URL. Required. The repository is cloned into the local cache and\nscanned for `modules/<name>/module.yaml` entries, which is what\n`cfgd module search` and `cfgd module add` resolve against.",
+          "type": "string"
+        }
+      },
+      "required": ["name", "url"],
+      "type": "object"
+    },
+    "ModuleSecurityConfig": {
+      "additionalProperties": false,
+      "description": "`spec.modules.security`: signature requirements for modules pulled from a registry.",
+      "properties": {
+        "requireSignatures": {
+          "default": false,
+          "description": "Require GPG/SSH signatures on all remote module tags.\nWhen true, unsigned modules are rejected unless `--allow-unsigned` is passed.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ModulesConfig": {
+      "additionalProperties": false,
+      "description": "`spec.modules`: module registries and their security requirements.\n\n```yaml\nmodules:\n  registries:\n    - name: acme\n      url: https://github.com/acme/cfgd-modules\n  security:\n    requireSignatures: true\n```",
+      "properties": {
+        "registries": {
+          "default": [],
+          "description": "Module registries — git repos containing modules in a prescribed directory structure.",
+          "items": {
+            "$ref": "#/definitions/ModuleRegistryEntry"
+          },
+          "type": "array"
+        },
+        "security": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ModuleSecurityConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Signature requirements for modules pulled from these registries.\nOmitted, signatures are not required and an unsigned module tag is\naccepted."
+        }
+      },
+      "type": "object"
+    },
+    "NotifyConfig": {
+      "additionalProperties": false,
+      "description": "`spec.notify`: how the daemon reports detected drift.\n\n```yaml\nnotify:\n  drift: true\n  method: Webhook\n  webhookUrl: https://example.com/hook\n```",
+      "properties": {
+        "drift": {
+          "default": false,
+          "description": "Send a notification whenever the daemon detects drift. Default: `false`.",
+          "type": "boolean"
+        },
+        "method": {
+          "$ref": "#/definitions/NotifyMethod",
+          "default": "Desktop",
+          "description": "Where a drift notification is delivered. Default: `Desktop`."
+        },
+        "webhookUrl": {
+          "description": "Webhook URL to POST to when `method` is `Webhook`. Required only for that method.",
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "NotifyMethod": {
+      "description": "Delivery method for a `notify.method` value: `Desktop`, `Stdout`, or `Webhook`\n(case-insensitive on read; case-sensitive `PascalCase` in generated YAML).",
+      "oneOf": [
+        {
+          "const": "Desktop",
+          "description": "A native desktop notification.",
+          "type": "string"
+        },
+        {
+          "const": "Stdout",
+          "description": "A line written to the daemon's own stdout/log.",
+          "type": "string"
+        },
+        {
+          "const": "Webhook",
+          "description": "A JSON POST to `webhookUrl`.",
+          "type": "string"
+        }
+      ]
+    },
+    "OriginSpec": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.origin[]`: a remote this machine's config can sync with.\n\n```yaml\norigin:\n  - type: Git\n    url: git@github.com:me/dotfiles.git\n    branch: main\n```",
+      "properties": {
+        "auth": {
+          "description": "Auth method override for this origin (e.g. a credential-helper name).\nOmitted uses the ambient git/SSH credential configuration.",
+          "type": ["string", "null"]
+        },
+        "branch": {
+          "default": "master",
+          "description": "Branch to sync against. Default: `master`.",
+          "type": "string"
+        },
+        "sshStrictHostKeyChecking": {
+          "$ref": "#/definitions/SshHostKeyPolicy",
+          "default": "AcceptNew",
+          "description": "SSH `StrictHostKeyChecking` policy for git operations.\n`AcceptNew` (default): accept first-seen keys, reject changed keys.\n`Yes`: require keys to already exist in known_hosts (high-security).\n`No`: accept any key (insecure, not recommended)."
+        },
+        "type": {
+          "$ref": "#/definitions/OriginType",
+          "description": "Kind of origin: `Git` (a git remote) or `Server` (the device gateway)."
+        },
+        "url": {
+          "description": "The origin's URL (a git remote, or the gateway's base URL).",
+          "type": "string"
+        }
+      },
+      "required": ["type", "url"],
+      "type": "object"
+    },
+    "OriginType": {
+      "description": "Kind of an origin: `Git` (a plain git remote) or `Server` (the device\ngateway's enrollment/check-in API).",
+      "enum": ["Git", "Server"],
+      "type": "string"
+    },
+    "PolicyAction": {
+      "description": "An `AutoApplyPolicyConfig` decision: `Notify` (record, don't act), `Accept`\n(apply automatically), `Reject` (never apply), or `Ignore` (skip entirely).",
+      "enum": ["Notify", "Accept", "Reject", "Ignore"],
+      "type": "string"
+    },
+    "ReconcileConfig": {
+      "additionalProperties": false,
+      "description": "`spec.daemon.reconcile`: how often and how aggressively the daemon reconciles.\n\n```yaml\nreconcile:\n  interval: 5m\n  onChange: true\n  autoApply: false\n  driftPolicy: NotifyOnly\n```",
+      "properties": {
+        "autoApply": {
+          "default": false,
+          "description": "Apply new/changed source-recommended modules automatically. Default:\n`false`. Independent of `driftPolicy`, which governs already-declared\ndrift instead.",
+          "type": "boolean"
+        },
+        "driftPolicy": {
+          "$ref": "#/definitions/DriftPolicy",
+          "default": "NotifyOnly",
+          "description": "Policy for daemon auto-reconciliation of detected drift.\n`Auto` = silently apply (must opt-in), `NotifyOnly` = notify but don't\napply (safe default), `Prompt` = future interactive approval."
+        },
+        "interval": {
+          "default": "5m",
+          "description": "How often the daemon checks for drift, as a duration string. Default: `5m`.",
+          "type": "string"
+        },
+        "onChange": {
+          "default": false,
+          "description": "Trigger an immediate reconcile when a watched file changes, in addition to\nthe timed interval. Default: `false`.",
+          "type": "boolean"
+        },
+        "patches": {
+          "default": [],
+          "description": "Per-module or per-profile reconcile overrides (kustomize-style patches).\nEach patch targets a specific Module or Profile by name and overrides\nindividual reconcile fields. Precedence: Module patch > Profile patch > global.",
+          "items": {
+            "$ref": "#/definitions/ReconcilePatch"
+          },
+          "type": "array"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AutoApplyPolicyConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Auto-apply decisions for new/changed module recommendations."
+        }
+      },
+      "type": "object"
+    },
+    "ReconcilePatch": {
+      "additionalProperties": false,
+      "description": "A kustomize-style reconcile patch targeting a specific module or profile.\nWhen `name` is omitted, the patch applies to all entities of the given kind.",
+      "properties": {
+        "autoApply": {
+          "description": "Overrides the global `autoApply` for the targeted entity.",
+          "type": ["boolean", "null"]
+        },
+        "driftPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DriftPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Overrides the global `driftPolicy` for the targeted entity."
+        },
+        "interval": {
+          "description": "Overrides the global reconcile interval for the targeted entity.",
+          "type": ["string", "null"]
+        },
+        "kind": {
+          "$ref": "#/definitions/ReconcilePatchKind",
+          "description": "Whether this patch targets a `Module` or a `Profile`."
+        },
+        "name": {
+          "description": "Name of the module/profile this patch targets. Omitted to target every\nentity of `kind`.",
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["kind"],
+      "type": "object"
+    },
+    "ReconcilePatchKind": {
+      "description": "What a `ReconcilePatch` targets: `Module` or `Profile`.",
+      "enum": ["Module", "Profile"],
+      "type": "string"
+    },
+    "SecretIntegration": {
+      "additionalProperties": true,
+      "description": "One named secret backend integration under `spec.secrets.integrations[]`.\n\nEvery field beyond `name` is backend-specific and captured verbatim into\n`extra`, so it accepts arbitrary per-backend keys (`vault`/`item` for\n1Password, `mount`/`path` for Vault, and so on).\n\n```yaml\nintegrations:\n  - name: 1password\n    vault: Personal\n    item: GitHub Token\n```",
+      "properties": {
+        "name": {
+          "description": "Integration name (`1password`, `bitwarden`, `vault`), referenced by\n`${secret:<name>:<ref>}`.",
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
+    "SecretsConfig": {
+      "additionalProperties": false,
+      "description": "`spec.secrets`: the default secret backend and its integrations.\n\n```yaml\nsecrets:\n  backend: sops\n  sops:\n    ageKey: ~/.config/sops/age/keys.txt\n  integrations:\n    - name: 1password\n      vault: Personal\n```",
+      "properties": {
+        "backend": {
+          "default": "sops",
+          "description": "Default secret backend name (`sops`, `1password`, `bitwarden`, `vault`, `age`).\nDefault: `sops`.",
+          "type": "string"
+        },
+        "integrations": {
+          "default": [],
+          "description": "Named backend integrations a `${secret:<name>:<ref>}` reference can select.",
+          "items": {
+            "$ref": "#/definitions/SecretIntegration"
+          },
+          "type": "array"
+        },
+        "sops": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SopsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "sops-specific settings, used when `backend` is `sops`."
+        }
+      },
+      "type": "object"
+    },
+    "SecurityConfig": {
+      "additionalProperties": false,
+      "description": "`spec.security`: source signature-verification settings.\n\n```yaml\nsecurity:\n  allowUnsigned: false\n```",
+      "properties": {
+        "allowUnsigned": {
+          "default": false,
+          "description": "Allow unsigned source content even when the source requires signed commits.\nIntended for development/testing environments.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SkillUpdateConfig": {
+      "additionalProperties": false,
+      "description": "Update configuration specific to authored skills.",
+      "properties": {
+        "policy": {
+          "$ref": "#/definitions/SkillUpdatePolicy",
+          "default": "Inherit",
+          "description": "How skill update checks behave. Defaults to `Inherit` (defer to the\nbinary-level policy)."
+        }
+      },
+      "type": "object"
+    },
+    "SkillUpdatePolicy": {
+      "description": "Per-skill update policy. Mirrors `UpdatePolicy` but adds `Inherit`, which\ndefers to the binary-level `update.policy`.",
+      "oneOf": [
+        {
+          "const": "Inherit",
+          "description": "Defer to the binary-level update policy (`update.policy`).",
+          "type": "string"
+        },
+        {
+          "const": "Auto",
+          "description": "Apply skill updates automatically without prompting.",
+          "type": "string"
+        },
+        {
+          "const": "Prompt",
+          "description": "Ask before applying an available skill update.",
+          "type": "string"
+        },
+        {
+          "const": "Notify",
+          "description": "Report that a skill update is available, but take no action.",
+          "type": "string"
+        },
+        {
+          "const": "Manual",
+          "description": "Disable automatic skill update checks; the user updates manually.",
+          "type": "string"
+        }
+      ]
+    },
+    "SopsConfig": {
+      "additionalProperties": false,
+      "description": "sops backend settings under `spec.secrets.sops`.\n\n```yaml\nsops:\n  ageKey: ~/.config/sops/age/keys.txt\n```",
+      "properties": {
+        "ageKey": {
+          "description": "Path to the age private key file sops decrypts with. Falls back to sops's\nown default search path when omitted.",
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "SourceSpec": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.sources[]`: a remote config source this machine\nsubscribes to.\n\n```yaml\nsources:\n  - name: team-baseline\n    origin:\n      type: Git\n      url: git@github.com:acme/cfgd-baseline.git\n    subscription:\n      acceptRecommended: true\n    sync:\n      interval: 1h\n```",
+      "properties": {
+        "name": {
+          "description": "Local name for this source, used in `cfgd source` commands and status output.",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/definitions/OriginSpec",
+          "description": "Where the source's manifest is fetched from."
+        },
+        "subscription": {
+          "$ref": "#/definitions/SubscriptionSpec",
+          "default": {
+            "acceptRecommended": false,
+            "allowScripts": false,
+            "optIn": [],
+            "overrides": null,
+            "priority": 500,
+            "reject": null,
+            "requireSignedCommits": false
+          },
+          "description": "What this machine accepts from the source and how it applies."
+        },
+        "sync": {
+          "$ref": "#/definitions/SourceSyncSpec",
+          "default": {
+            "autoApply": false,
+            "interval": "1h",
+            "required": false
+          },
+          "description": "How often and under what conditions the source is refreshed."
+        }
+      },
+      "required": ["name", "origin"],
+      "type": "object"
+    },
+    "SourceSyncSpec": {
+      "additionalProperties": false,
+      "description": "`spec.sources[].sync`: how a source is refreshed and pinned.",
+      "properties": {
+        "autoApply": {
+          "default": false,
+          "description": "After a refresh that CHANGED this source, reconcile the whole profile\nimmediately and apply, forcing `Auto` for that tick regardless of\n`spec.daemon.reconcile.driftPolicy`. The source-decision gate is\nuntouched: an item awaiting a decision is withheld exactly as it would\nbe on any other tick. Default: `false`, which records the change and\nleaves the apply to the ordinary reconcile tick or to `cfgd sync`.",
+          "type": "boolean"
+        },
+        "interval": {
+          "default": "1h",
+          "description": "How often to fetch and re-resolve the source, as a duration string.\nDefault: `1h`.",
+          "type": "string"
+        },
+        "pinVersion": {
+          "description": "Pin to a specific git tag/branch/commit instead of tracking the origin's\ndefault branch.",
+          "type": ["string", "null"]
+        },
+        "required": {
+          "default": false,
+          "description": "Fail-closed marker. When `true`, a failure to load this source (fetch,\nmanifest, signature, or an unresolvable `pinVersion`) is fatal — apply /\nplan / compose abort rather than silently dropping the source. Default\n`false` keeps the best-effort warn-and-continue behaviour for optional\nsources. Use it for security or team baselines that must always be\ncomposed in.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SshHostKeyPolicy": {
+      "description": "SSH `StrictHostKeyChecking` policy for git operations over SSH.",
+      "oneOf": [
+        {
+          "const": "AcceptNew",
+          "description": "Accept first-seen keys, reject changed keys (safe default for automation).",
+          "type": "string"
+        },
+        {
+          "const": "Yes",
+          "description": "Require keys to already exist in known_hosts (high-security environments).",
+          "type": "string"
+        },
+        {
+          "const": "No",
+          "description": "Accept any key without verification (insecure, not recommended).",
+          "type": "string"
+        }
+      ]
+    },
+    "SubscriptionSpec": {
+      "additionalProperties": false,
+      "description": "`spec.sources[].subscription`: the subscriber's own policy toward one source.",
+      "properties": {
+        "acceptRecommended": {
+          "default": false,
+          "description": "Automatically accept the source's `recommended` policy tier without\nprompting. Default: `false`.",
+          "type": "boolean"
+        },
+        "allowScripts": {
+          "default": false,
+          "description": "Subscriber opt-in to run lifecycle scripts (profile-layer and\nsource-delivered module bodies) from this source even when the source's\n`constraints.noScripts` would otherwise reject them. Default `false`:\nthe source's own `noScripts` constraint governs.",
+          "type": "boolean"
+        },
+        "optIn": {
+          "default": [],
+          "description": "Names from the source's `optional` policy tier to accept.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "overrides": {
+          "default": null,
+          "description": "Local values to deep-merge on top of what the source delivers, applied\nafter composition."
+        },
+        "priority": {
+          "default": 500,
+          "description": "Merge priority against other sources and the local profile; higher wins\non conflicting leaf values. Default: `500`. Capped at\n`MAX_SOURCE_PRIORITY`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "profile": {
+          "description": "Which of the source's published profiles to compose against. Omitted\ncomposes every profile the source provides.",
+          "type": ["string", "null"]
+        },
+        "reject": {
+          "default": null,
+          "description": "Items from the source's `recommended` tier to drop entirely rather than\naccept. A mapping under `packages`, `env`, `aliases`, and/or `modules`;\nany other top-level key is rejected as a typo."
+        },
+        "requireSignedCommits": {
+          "default": false,
+          "description": "Subscriber-side demand that this source's HEAD commit carry a valid GPG\nor SSH signature.\n\nThe trust anchor for the check. `constraints.requireSignedCommits` says\nthe same thing, but it is read from the source's manifest INSIDE the\ncached clone, so whoever can write the cache can also clear it. This\nflag is read from the subscriber's own config, which the cache cannot\nreach.\n\nORed with the manifest's flag, so it only ever ADDS strictness: a\nmanifest `true` is never weakened by a subscriber `false`. Default\n`false`. `spec.security.allowUnsigned` still bypasses both.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SyncConfig": {
+      "additionalProperties": false,
+      "description": "`spec.sync`: automatic push/pull settings for the daemon's git sync loop.\n\n```yaml\nsync:\n  autoPush: true\n  autoPull: true\n  interval: 5m\n```",
+      "properties": {
+        "autoPull": {
+          "default": false,
+          "description": "Automatically pull upstream config changes. Default: `false`.",
+          "type": "boolean"
+        },
+        "autoPush": {
+          "default": false,
+          "description": "Automatically commit and push local config changes. Default: `false`.",
+          "type": "boolean"
+        },
+        "interval": {
+          "default": "1h",
+          "description": "How often the daemon runs the sync loop, as a duration string (`\"5m\"`, `\"1h\"`).\nDefault: `1h`.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ThemeConfig": {
+      "description": "`spec.theme`: the active output preset and any per-color/icon overrides.\n\nAccepts either a bare string (the preset name) or a mapping:\n\n```yaml\ntheme: dracula\n# or\ntheme:\n  name: dracula\n  overrides:\n    header: \"#ff0000\"\n    iconOk: \"Y\"\n```",
+      "properties": {
+        "name": {
+          "default": "default",
+          "description": "Preset name (`default`, `dracula`, `solarized-dark`, `solarized-light`,\n`nord`, `monokai`, `adventure-time`, `catppuccin-mocha`, `gruvbox-dark`,\n`tokyo-night`, `one-dark`, `minimal`). Default: `default`.",
+          "type": "string"
+        },
+        "overrides": {
+          "$ref": "#/definitions/ThemeOverrides",
+          "description": "Per-color and per-icon overrides applied on top of the named preset."
+        }
+      },
+      "type": "object"
+    },
+    "ThemeOverrides": {
+      "properties": {
+        "accent": {
+          "description": "Color for accent status lines: attention without alarm. Hex color.",
+          "type": ["string", "null"]
+        },
+        "diffAdd": {
+          "description": "Color for an added diff line. Hex color.",
+          "type": ["string", "null"]
+        },
+        "diffContext": {
+          "description": "Color for an unchanged diff context line. Hex color.",
+          "type": ["string", "null"]
+        },
+        "diffRemove": {
+          "description": "Color for a removed diff line. Hex color.",
+          "type": ["string", "null"]
+        },
+        "error": {
+          "description": "Color for failure status lines. Hex color.",
+          "type": ["string", "null"]
+        },
+        "header": {
+          "description": "Color for a top-level heading. Hex color (`\"#ff0000\"`).",
+          "type": ["string", "null"]
+        },
+        "iconArrow": {
+          "description": "Glyph rendered for an `old -> new` relationship (e.g. `→`).",
+          "type": ["string", "null"]
+        },
+        "iconFail": {
+          "description": "Glyph for failure status lines. Default varies by preset (e.g. `✗`).",
+          "type": ["string", "null"]
+        },
+        "iconInfo": {
+          "description": "Glyph for informational status lines. Default varies by preset.",
+          "type": ["string", "null"]
+        },
+        "iconOk": {
+          "description": "Glyph for success status lines. Default varies by preset (e.g. `✓`).",
+          "type": ["string", "null"]
+        },
+        "iconPending": {
+          "description": "Glyph for pending status lines. Default varies by preset.",
+          "type": ["string", "null"]
+        },
+        "iconRunning": {
+          "description": "Glyph for in-progress status lines. Default varies by preset.",
+          "type": ["string", "null"]
+        },
+        "iconSkipped": {
+          "description": "Glyph for skipped status lines. Default varies by preset.",
+          "type": ["string", "null"]
+        },
+        "iconWarn": {
+          "description": "Glyph for warning status lines. Default varies by preset (e.g. `⚠`).",
+          "type": ["string", "null"]
+        },
+        "info": {
+          "description": "Color for informational status lines. Hex color.",
+          "type": ["string", "null"]
+        },
+        "muted": {
+          "description": "Color for de-emphasized text (hints, notes, qualifiers). Hex color.",
+          "type": ["string", "null"]
+        },
+        "primary": {
+          "description": "Color for action lines at the deepest nesting level of a run. Hex color\n(`\"#ff0000\"`). Presets that carry no palette foreground of their own\nleave it unset.",
+          "type": ["string", "null"]
+        },
+        "running": {
+          "description": "Color for in-progress status lines and spinner labels. Hex color.",
+          "type": ["string", "null"]
+        },
+        "secondary": {
+          "description": "Color for secondary status lines: structural pivots, labels, and\nidentifiers. Hex color.",
+          "type": ["string", "null"]
+        },
+        "success": {
+          "description": "Color for success status lines. Hex color.",
+          "type": ["string", "null"]
+        },
+        "typeHint": {
+          "description": "Color for schema type annotations in explain output. Hex color\n(`\"#8be9fd\"`).",
+          "type": ["string", "null"]
+        },
+        "warning": {
+          "description": "Color for warning status lines. Hex color.",
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "UpdateConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for cfgd self-update checks and authored-skill updates.",
+      "properties": {
+        "channel": {
+          "description": "Release channel to track (e.g. `stable`, `beta`). When unset, cfgd uses\nits built-in default channel.",
+          "type": ["string", "null"]
+        },
+        "interval": {
+          "default": "24h",
+          "description": "How often to check for updates, as a duration string (e.g. `24h`, `7d`,\n`30m`) or a plain number of seconds. Defaults to `24h`.",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/definitions/UpdatePolicy",
+          "default": "Prompt",
+          "description": "How update checks for the cfgd binary behave. Defaults to `Prompt`."
+        },
+        "skills": {
+          "$ref": "#/definitions/SkillUpdateConfig",
+          "default": {
+            "policy": "Inherit"
+          },
+          "description": "Update policy for authored skills. Defaults to inheriting `policy`."
+        }
+      },
+      "type": "object"
+    },
+    "UpdatePolicy": {
+      "description": "Update policy governing how cfgd self-update checks behave.\n\n`Auto` applies updates without prompting, `Prompt` asks before applying,\n`Notify` only reports that an update is available, and `Manual` disables\nautomatic checks entirely (the user runs `cfgd upgrade` themselves).",
+      "oneOf": [
+        {
+          "const": "Auto",
+          "description": "Apply updates automatically without prompting.",
+          "type": "string"
+        },
+        {
+          "const": "Prompt",
+          "description": "Ask before applying an available update.",
+          "type": "string"
+        },
+        {
+          "const": "Notify",
+          "description": "Report that an update is available, but take no action.",
+          "type": "string"
+        },
+        {
+          "const": "Manual",
+          "description": "Disable automatic update checks; the user upgrades manually.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "description": "Root configuration file for cfgd (cfgd.yaml)",
+  "properties": {
+    "apiVersion": {
+      "description": "API group/version, e.g. `cfgd.io/v1alpha1`. See `API_VERSION`.",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Document kind. Always `CfgdConfig` for this file.",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/definitions/ConfigMetadata",
+      "description": "Identifying metadata for this config document."
+    },
+    "spec": {
+      "$ref": "#/definitions/ConfigSpec",
+      "description": "The body of the document: everything cfgd reads to decide what this\nmachine should look like."
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "title": "cfgd Config",
+  "type": "object"
+}
