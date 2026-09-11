@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.schemastore.org/onyx-v1.json",
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "description": "RFC 3339 carrying the subject's local offset at that moment. Not normalised to UTC: 'Z' keeps the instant and discards the local wall clock, which is what answers which day a meal belonged to.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?[+-]\\d{2}:\\d{2}$"
+    },
+    "quantity": {
+      "type": "object",
+      "description": "A value with a UCUM unit code. Never a bare number.",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "description": "UCUM code: kcal, kJ, g, mg, ug, mL, kg, [lb_av], cm, [in_i], a, %, 1.",
+          "examples": ["kcal", "g", "kg", "[lb_av]", "cm", "a"]
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "sex": {
+          "type": "string",
+          "examples": ["male", "female", "other", "unknown"],
+          "description": " Not exhaustive: a consumer treats a value it does not recognise as absent, never as an error."
+        },
+        "age": {
+          "$ref": "#/$defs/duration",
+          "description": "UCUM 'a' (years)."
+        },
+        "height": {
+          "$ref": "#/$defs/length"
+        },
+        "preferredUnits": {
+          "type": "object",
+          "description": "Units the subject prefers to read. NOT the units used in this file.",
+          "properties": {
+            "mass": {
+              "type": "string"
+            },
+            "energy": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "goal": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "examples": ["targetWeight", "weightDirection"]
+        },
+        "value": {
+          "$ref": "#/$defs/quantity"
+        },
+        "direction": {
+          "type": "string",
+          "examples": ["loss", "maintain", "gain"],
+          "description": " Not exhaustive: a consumer treats a value it does not recognise as absent, never as an error."
+        }
+      }
+    },
+    "day": {
+      "type": "object",
+      "required": ["date"],
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "LOCAL calendar date. MUST NOT be derived by converting a timestamp to UTC."
+        },
+        "energyTarget": {
+          "$ref": "#/$defs/energy"
+        },
+        "energyConsumed": {
+          "$ref": "#/$defs/energy",
+          "description": "As recorded. May legitimately differ from the sum of entries."
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/foodEntry"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "foodEntry": {
+      "type": "object",
+      "required": ["loggedAt"],
+      "properties": {
+        "loggedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "mealType": {
+          "type": "string",
+          "examples": ["breakfast", "lunch", "dinner", "snack"],
+          "description": "Which meal this entry belongs to. Not exhaustive: a consumer treats a value it does not recognise as absent, never as an error."
+        },
+        "name": {
+          "type": "string",
+          "description": "Plain text. The fallback identity when no identifier resolves."
+        },
+        "identifiers": {
+          "type": "object",
+          "description": "Any subset. A consumer resolves whichever it knows.",
+          "properties": {
+            "gtin": {
+              "type": "string",
+              "description": "Barcode: GTIN-8/12/13/14."
+            },
+            "fdcId": {
+              "type": "integer",
+              "description": "USDA FoodData Central id."
+            },
+            "offId": {
+              "type": "string",
+              "description": "Open Food Facts product code."
+            }
+          }
+        },
+        "quantity": {
+          "$ref": "#/$defs/portion",
+          "description": "The amount consumed. A mass or volume is that amount directly; the dimensionless code '1' is a count of the servings named by servingDescription, so 2 with \"slice\" means two slices."
+        },
+        "servingDescription": {
+          "type": "string",
+          "examples": ["1 cup", "2 slices"]
+        },
+        "nutrients": {
+          "type": "object",
+          "description": "FOR THE PORTION CONSUMED. Never per 100 g, never per serving.",
+          "properties": {
+            "energy": {
+              "$ref": "#/$defs/energy"
+            },
+            "protein": {
+              "$ref": "#/$defs/mass"
+            },
+            "carbohydrate": {
+              "$ref": "#/$defs/mass"
+            },
+            "fat": {
+              "$ref": "#/$defs/mass"
+            }
+          }
+        },
+        "source": {
+          "type": "string",
+          "examples": ["manual", "barcode", "database", "estimated"],
+          "description": "How the nutrition data was obtained, not how it was typed. Not exhaustive: a consumer treats a value it does not recognise as absent, never as an error."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Only meaningful when source is 'estimated'."
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "required": ["observedAt", "type", "value"],
+      "properties": {
+        "observedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "type": {
+          "type": "string",
+          "examples": ["bodyMass"]
+        },
+        "value": {
+          "$ref": "#/$defs/quantity"
+        }
+      }
+    },
+    "energy": {
+      "type": "object",
+      "description": "A quantity of energy with a UCUM code. Never a bare number.",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["kcal", "kJ"]
+        }
+      }
+    },
+    "mass": {
+      "type": "object",
+      "description": "A mass with a UCUM code. Never a bare number.",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["g", "mg", "ug", "kg", "[lb_av]", "[oz_av]"]
+        }
+      }
+    },
+    "length": {
+      "type": "object",
+      "description": "A length with a UCUM code. Never a bare number.",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["mm", "cm", "m", "[in_i]", "[ft_i]"]
+        }
+      }
+    },
+    "duration": {
+      "type": "object",
+      "description": "A duration with a UCUM code. UCUM 'a' is years.",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["a", "mo", "d"]
+        }
+      }
+    },
+    "portion": {
+      "type": "object",
+      "description": "A portion with a UCUM code. A mass, a volume, or the dimensionless code '1' meaning a count of the servings named by servingDescription.",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "g",
+            "mg",
+            "ug",
+            "kg",
+            "[lb_av]",
+            "[oz_av]",
+            "mL",
+            "L",
+            "[foz_us]",
+            "1",
+            "%"
+          ]
+        }
+      }
+    }
+  },
+  "title": "Onyx",
+  "description": "A portable personal food and body-weight diary. Consumers MUST ignore members they do not recognise; no object in this schema is closed, which is what allows a minor version to add members without breaking existing readers.",
+  "type": "object",
+  "required": ["format", "specVersion", "exportedAt", "producer"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "format": {
+      "const": "onyx",
+      "description": "Identifies the format independently of file name or location."
+    },
+    "specVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver. Consumers accept any MINOR of a MAJOR they know and refuse a newer MAJOR."
+    },
+    "exportedAt": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "timeZone": {
+      "type": "string",
+      "description": "IANA zone name (e.g. Europe/Berlin). Offsets alone cannot resolve which local day an instant belongs to."
+    },
+    "producer": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        }
+      }
+    },
+    "subject": {
+      "$ref": "#/$defs/subject"
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/goal"
+      }
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/day"
+      }
+    },
+    "bodyMeasurements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/measurement"
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Vendor-private data keyed by reverse-DNS namespace (e.g. ltd.bein.burnin). Consumers MUST ignore namespaces they do not own.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$"
+      }
+    }
+  }
+}
