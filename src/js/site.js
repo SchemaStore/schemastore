@@ -57,7 +57,7 @@
   search.addEventListener(
     'input',
     () => {
-      let value = search.value.toLowerCase().trim()
+      let value = search.value.trim().toLowerCase()
       clearTimeout(searchTimeout)
 
       searchTimeout = setTimeout(() => {
