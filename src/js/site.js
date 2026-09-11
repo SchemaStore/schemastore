@@ -61,11 +61,11 @@
       clearTimeout(searchTimeout)
 
       searchTimeout = setTimeout(() => {
-        if (value !== search.value.toLowerCase()) return
+        if (value !== search.value.trim().toLowerCase()) return
 
         for (const li of ul.childNodes) {
           li.style.display =
-            li.textContent.toLowerCase().indexOf(value) > -1 ? 'block' : 'none'
+            li.textContent.trim().toLowerCase().indexOf(value) > -1 ? 'block' : 'none'
         }
       }, 300)
     },
