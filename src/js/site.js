@@ -18,6 +18,7 @@
   let schemas = document.getElementById('schemas')
   let search = document.getElementById('search')
   let data = []
+  let searchTimeout
 
   if (!ul || !p) return
 
@@ -38,6 +39,7 @@
   }
 
   function populate(data) {
+    let fragment = document.createDocumentFragment()
     for (const element of data) {
       let schema = element
       let li = document.createElement('li')
@@ -47,16 +49,18 @@
       a.innerText = schema.name
 
       li.appendChild(a)
-      ul.appendChild(li)
+      fragment.appendChild(li)
     }
+    ul.appendChild(fragment)
   }
 
   search.addEventListener(
     'input',
     () => {
-      let value = search.value.toLowerCase()
+      let value = search.value.toLowerCase().trim()
+      clearTimeout(searchTimeout)
 
-      setTimeout(() => {
+      searchTimeout = setTimeout(() => {
         if (value !== search.value.toLowerCase()) return
 
         for (const li of ul.childNodes) {
