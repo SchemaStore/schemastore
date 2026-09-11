@@ -65,7 +65,7 @@
 
         for (const li of ul.childNodes) {
           li.style.display =
-            li.textContent.trim().toLowerCase().indexOf(value) > -1 ? 'block' : 'none'
+            li.textContent.toLowerCase().indexOf(value) > -1 ? 'block' : 'none'
         }
       }, 300)
     },
