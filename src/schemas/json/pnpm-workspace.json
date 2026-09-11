@@ -61,6 +61,53 @@
       "description": "Define dependency version ranges as reusable constants,\nfor later reference in package.json files.\nThis (singular) field creates a catalog named default.\n",
       "type": "object",
       "minProperties": 1
+    },
+    "packageConfig": {
+      "description": "Per-package pnpm configuration applied to workspace projects matched by package name or selector.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "hoist": {
+          "description": "When true, all dependencies are hoisted to node_modules/.pnpm/node_modules.",
+          "type": "boolean"
+        },
+        "hoistPattern": {
+          "description": "Tells pnpm which packages should be hoisted to node_modules/.pnpm/node_modules",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "match": {
+          "description": "Workspace project names or selectors matched by this package configuration.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "modulesDir": {
+          "description": "The directory in which dependencies will be installed.",
+          "type": "string"
+        },
+        "overrides": {
+          "description": "Used to override any dependency in the dependency graph.",
+          "type": "object"
+        },
+        "saveExact": {
+          "description": "Saved dependencies will be configured with an exact version rather than using pnpm's default semver range operator.",
+          "type": "boolean"
+        },
+        "savePrefix": {
+          "description": "Configure how versions of packages installed to a package.json file get prefixed.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["^", "~", "", "="]
+            }
+          ]
+        }
+      }
     }
   },
   "properties": {
@@ -100,6 +147,10 @@
       "description": "When set to `true`, pnpm will remove unused catalog entries during installation.",
       "type": "boolean"
     },
+    "catalogPrune": {
+      "description": "When set to true, pnpm will remove unused catalog entries during installation. `cleanupUnusedCatalogs` is the deprecated spelling of this setting and continues to work; when both are set, `catalogPrune` wins.",
+      "type": "boolean"
+    },
     "onlyBuiltDependencies": {
       "description": "A list of package names that are allowed to be executed during installation.",
       "type": "array",
@@ -135,6 +186,23 @@
         }
       },
       "additionalProperties": false
+    },
+    "packageConfigs": {
+      "description": "Per-workspace-project pnpm settings that replace project-specific .npmrc files.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/packageConfig"
+          }
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/packageConfig"
+          }
+        }
+      ]
     },
     "peerDependencyRules": {
       "type": "object",
@@ -208,6 +276,33 @@
       "description": "Default is undefined. Errors out when a patch with an exact version or version range fails. Ignores failures from name-only patches. When true, prints a warning instead of failing when any patch cannot be applied. When false, errors out for any patch failure.",
       "type": "boolean"
     },
+    "update": {
+      "type": "object",
+      "properties": {
+        "ignoreDeps": {
+          "description": "A list of dependency name patterns that pnpm update and pnpm outdated should skip.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "changeset": {
+          "description": "When true, pnpm update writes a change intent after updating workspace manifests.",
+          "type": "boolean",
+          "default": false
+        },
+        "githubActions": {
+          "description": "When true, pnpm update and pnpm outdated also check the GitHub Actions referenced by the repository's workflow files.",
+          "type": "boolean",
+          "default": false
+        },
+        "githubActionsServer": {
+          "description": "The base URL of the GitHub server that hosts the repositories of the GitHub Actions referenced by the workflow files.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "updateConfig": {
       "type": "object",
       "properties": {
@@ -224,6 +319,31 @@
     "configDependencies": {
       "type": "object",
       "description": "Config dependencies allow you to share and centralize configuration files, settings, and hooks across multiple projects. They are installed before all regular dependencies ('dependencies', 'devDependencies', 'optionalDependencies'), making them ideal for setting up custom hooks, patches, and catalog entries."
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Only print advisories with severity greater than or equal to this level.",
+          "type": "string",
+          "enum": ["low", "moderate", "high", "critical"],
+          "default": "low"
+        },
+        "ignore": {
+          "description": "A list of GHSA codes that will be ignored by pnpm audit.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$"
+          }
+        },
+        "ignorePrune": {
+          "description": "When `true`, `pnpm audit --fix` removes the `audit.ignore` entries whose GHSA no longer appears in the audit report, so a list of tolerated advisories doesn't accumulate entries for dependencies that are long gone. Added in: v11.25.0 and v12.0.0.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
     },
     "auditConfig": {
       "type": "object",
@@ -335,6 +455,15 @@
         }
       ]
     },
+    "nodeExperimentalPackageMap": {
+      "description": "When true, pnpm injects the generated node_modules/.package-map.json into pnpm-managed Node.js script environments by adding Node's --experimental-package-map option to NODE_OPTIONS. see https://pnpm.io/settings/node-modules#nodeexperimentalpackagemap",
+      "type": "boolean"
+    },
+    "nodePackageMapType": {
+      "description": "Controls how node_modules/.package-map.json is generated. standard - only declared dependencies are available through the package map. loose - also maps packages that are reachable through the installed node_modules layout, which can allow undeclared hoisted dependencies to resolve.",
+      "type": "string",
+      "enum": ["standard", "loose"]
+    },
     "symlink": {
       "description": "When symlink is set to false, pnpm creates a virtual store directory without any symlinks. It is a useful setting together with nodeLinker=pnp.",
       "type": "boolean"
@@ -343,6 +472,11 @@
       "description": "When false, pnpm will not write any files to the modules directory (node_modules).",
       "type": "boolean"
     },
+    "confirmModulesPurge": {
+      "description": "Controls whether pnpm asks for confirmation before removing and reinstalling a modules directory that is incompatible with the current install settings. Confirmation is disabled in CI. Supported by pnpm v11.",
+      "type": "boolean",
+      "default": true
+    },
     "virtualStoreDir": {
       "description": "The directory with links to the store.",
       "type": "string"
@@ -350,6 +484,15 @@
     "virtualStoreDirMaxLength": {
       "description": "Sets the maximum allowed length of directory names inside the virtual store directory (node_modules/.pnpm).",
       "type": "number"
+    },
+    "virtualStoreType": {
+      "description": "Determines where the virtual store is located. When set to project, a separate virtual store is created in each project's node_modules/.pnpm. When set to global, a single store is shared by every project on the machine, with each project's node_modules holding only symlinks into it. Added in pnpm v11.23.0.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["project", "global"]
+        }
+      ]
     },
     "packageImportMethod": {
       "description": "Controls the way packages are imported from the store (if you want to disable symlinks inside node_modules, then you need to change the nodeLinker setting, not this one).",
@@ -374,6 +517,14 @@
     },
     "verifyStoreIntegrity": {
       "description": "By default, if a file in the store has been modified, the content of this file is checked before linking it to a project's node_modules. ",
+      "type": "boolean"
+    },
+    "useRunningStoreServer": {
+      "description": "Deprecated. Only allows installation with a store server. If no store server is running, installation will fail.",
+      "type": "boolean"
+    },
+    "frozenStore": {
+      "description": "Makes pnpm install work against a read-only package store (such as a Nix store or OCI image layer). When enabled, pnpm opens the store's SQLite database in immutable mode and never writes to the store. Works best together with --offline and --frozen-lockfile; incompatible with --force. Added in pnpm v11.7.0.",
       "type": "boolean"
     },
     "strictStorePkgContentCheck": {
@@ -439,8 +590,12 @@
       "description": "A proxy to use for outgoing HTTPS requests. If the HTTPS_PROXY, https_proxy, HTTP_PROXY or http_proxy environment variables are set, their values will be used instead.",
       "type": "string"
     },
+    "httpProxy": {
+      "description": "A proxy to use for outgoing HTTP requests. If the HTTP_PROXY or http_proxy environment variables are set, proxy settings will be honored by the underlying request library.",
+      "type": "string"
+    },
     "proxy": {
-      "description": "A proxy to use for outgoing http requests. If the HTTP_PROXY or http_proxy environment variables are set, proxy settings will be honored by the underlying request library.",
+      "description": "npm's legacy proxy setting, used as the fallback for both httpsProxy and httpProxy. If the HTTP_PROXY or http_proxy environment variables are set, proxy settings will be honored by the underlying request library.",
       "type": "string"
     },
     "localAddress": {
@@ -451,7 +606,7 @@
       "description": "The maximum number of connections to use per origin (protocol/host/port combination).",
       "type": "number"
     },
-    "noproxy": {
+    "noProxy": {
       "description": "A comma-separated string of domain extensions that a proxy should not be used for.",
       "type": "string"
     },
@@ -481,6 +636,14 @@
     },
     "fetchTimeout": {
       "description": "The maximum amount of time to wait for HTTP requests to complete.",
+      "type": "number"
+    },
+    "fetchWarnTimeoutMs": {
+      "description": "A warning message is displayed if a metadata request to the registry takes longer than the specified threshold (in milliseconds). Added in pnpm v10.18.0.",
+      "type": "number"
+    },
+    "fetchMinSpeedKiBps": {
+      "description": "A warning message is displayed if the download speed of a tarball from the registry falls below the specified threshold (in KiB/s). Added in pnpm v10.18.0.",
       "type": "number"
     },
     "autoInstallPeers": {
@@ -563,11 +726,47 @@
       "type": "number"
     },
     "sideEffectsCache": {
-      "description": "Use and cache the results of (pre/post)install hooks.",
-      "type": "boolean"
+      "description": "Use and cache the results of (pre/post)install hooks.\nWhen a pre/post install script modify the contents of a package (e.g. build output), pnpm saves the modified package in the global store. On future installs on the same machine, pnpm reuses this cached, prebuilt version.\nAn object is the canonical way to declare the remote tier; `sideEffectsCache: true` is the shorthand for reading and writing.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read": {
+              "description": "Restore a build from the cache when one is present. Default true.",
+              "type": "boolean"
+            },
+            "write": {
+              "description": "Save a package's build output to the cache. Default true.",
+              "type": "boolean"
+            },
+            "remote": {
+              "description": "Reuse builds across machines by restoring signed, organization-scoped artifacts through a pnpr server instead of running the package's lifecycle scripts locally. Added in pnpm v11.25.0 and v12.0.0. Fields describing the act of signing (publish, keyId, builderId, imageDigest, architectureBaseline, buildEnv, trustedKeys, privateKey) are refused in pnpm-workspace.yaml and read from the global configuration file or the environment instead.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "org": {
+                  "description": "The organization scope of the artifacts.",
+                  "type": "string"
+                },
+                "packages": {
+                  "description": "An eligibility list of packages that may be restored from the remote cache. A package is only a candidate when it also passes allowBuilds, has requiresBuild: true, and has a verified source integrity.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "sideEffectsCacheReadonly": {
-      "description": "Only use the side effects cache if present, do not create it for new packages.",
+      "description": "Only use the side effects cache if present, do not create it for new packages. The older spelling of sideEffectsCache: { read: true, write: false }.",
       "type": "boolean"
     },
     "unsafePerm": {
@@ -664,6 +863,28 @@
       "type": "number",
       "default": 4
     },
+    "tasks": {
+      "description": "Configure dependency relationships and per-task concurrency limits for recursive runs (`pnpm -r run <script>`). A task is a script in one workspace project; it becomes ready after every task it depends on completes successfully. A task with no entry under tasks defaults to depending on the same task in its workspace dependencies, but once a task has an entry, an omitted dependsOn is the same as `dependsOn: []`.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dependsOn": {
+            "description": "Tasks this task depends on. Each entry is either the task in the same project (e.g. `build`) or the task in each selected workspace dependency of the project (e.g. `^build`).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "concurrency": {
+            "description": "A positive integer limiting how many instances of this named task may run across workspace projects at once. This limit is separate from workspaceConcurrency.",
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
     "failIfNoMatch": {
       "type": "boolean",
       "description": "If true, pnpm will fail if no packages match the filter",
@@ -678,7 +899,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["^", "~", ""]
+          "enum": ["^", "~", "", "="]
         }
       ]
     },
@@ -694,6 +915,28 @@
       "description": "Allows to set the target directory for the bin files of globally installed packages.",
       "type": "string"
     },
+    "globalShims": {
+      "description": "Controls which globally installed packages get project-aware shims, which are global commands that run the version specified by the current project instead of the globally installed one. A boolean disables (false) or resets to the defaults (true), while an object maps package names to a policy: \"auto\" (or true) to switch automatically when publisher-authenticated, \"prompt\" to confirm on each use, \"always\" to switch unconditionally, or false to disable. Object entries merge with the built-in defaults ({\"node\": \"auto\", \"deno\": \"auto\", \"bun\": \"auto\"}). Added in pnpm v12.0.0-rc.2.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": ["auto", "prompt", "always"]
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      ]
+    },
     "stateDir": {
       "description": "The location where all the packages are saved on the disk.",
       "type": "string"
@@ -708,6 +951,10 @@
     },
     "updateNotifier": {
       "description": "When true, pnpm will check for updates to the installed packages and notify the user.",
+      "type": "boolean"
+    },
+    "ci": {
+      "description": "Explicitly tells pnpm whether the current environment is a Continuous Integration system, overriding pnpm's automatic CI detection. Added in pnpm v10.12.1.",
       "type": "boolean"
     },
     "preferSymlinkedExecutables": {
@@ -763,6 +1010,76 @@
       "description": "The primary branch of the repository which is used for publishing the latest changes.",
       "type": "string"
     },
+    "versioning": {
+      "description": "Versioning settings for pnpm's native workspace release management, used by `pnpm change` and recursive `pnpm version`.",
+      "type": "object",
+      "properties": {
+        "fixed": {
+          "description": "Groups of workspace projects that always release together at one shared version. The shared version is the highest current version in the group, bumped by the largest bump any member needs.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "ignore": {
+          "description": "Workspace projects permanently excluded from versioning and dependent propagation.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maxBump": {
+          "description": "Caps the bump that a release from the current checkout may apply, after dependent propagation and fixed-group resolution.",
+          "type": "string",
+          "enum": ["patch", "minor", "major"]
+        },
+        "lanes": {
+          "description": "Maps a workspace project to a release lane. Unlisted projects are on the reserved `main` lane and release stable versions.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "epics": {
+          "description": "Ties member projects to a lead project and constrains their major versions to the lead's major-version band.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "lead": {
+                "description": "Lead workspace project name or a `./`-prefixed workspace-relative directory.",
+                "type": "string"
+              },
+              "packages": {
+                "description": "Project selectors matched in order, supporting name globs, `./`-prefixed directory globs, and `!`-prefixed negations.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["lead", "packages"],
+            "additionalProperties": false
+          }
+        },
+        "changelog": {
+          "description": "Controls where release changelog content is stored.",
+          "type": "object",
+          "properties": {
+            "storage": {
+              "description": "Changelog storage mode. `registry` composes changelog entries at publish time, while `repository` commits CHANGELOG.md files in packages.",
+              "type": "string",
+              "enum": ["registry", "repository"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "provenance": {
       "description": "When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.",
       "type": "boolean"
@@ -815,6 +1132,10 @@
       "description": "Controls how pnpm behaves when no version of a dependency satisfies the minimumReleaseAge constraint within the requested range.\nhttps://pnpm.io/settings#minimumreleaseagestrict",
       "type": "boolean"
     },
+    "minimumReleaseAgeExcludePrune": {
+      "description": "When set to true, pnpm add, pnpm update, and pnpm remove prune the entries of minimumReleaseAgeExclude in pnpm-workspace.yaml that the freshly written lockfile no longer resolves: a version that is gone is dropped (an entry is removed once none of its versions remain), and an entry for a package that is no longer in the lockfile is removed too. Name patterns (@myorg/*) are always kept.",
+      "type": "boolean"
+    },
     "preferOffline": {
       "description": "Bypass staleness checks for cached data. Missing data will still be requested from the server.",
       "type": "boolean"
@@ -835,6 +1156,10 @@
       "items": {
         "type": "string"
       }
+    },
+    "trustPolicyExcludePrune": {
+      "description": "When set to `true`, `pnpm add`, `pnpm update`, and `pnpm remove` prune the entries of [`trustPolicyExclude`](#trustpolicyexclude) in `pnpm-workspace.yaml` that the freshly written lockfile no longer resolves: a version that is gone is dropped (an entry is removed once none of its versions remain), and an entry for a package that is no longer in the lockfile is removed too. Name patterns (`@myorg/*`) are always kept.",
+      "type": "boolean"
     },
     "allowBuilds": {
       "description": "A map of package matchers to explicitly allow (`true`) or disallow (`false`) script execution. This field replaces `onlyBuiltDependencies` and `ignoredBuiltDependencies` (which are also deprecated by this new setting), providing a single source of truth.",
@@ -870,10 +1195,56 @@
       "type": "boolean"
     },
     "registries": {
-      "description": "Configure registries for scoped packages in `pnpm-workspace.yaml`. The `default` key sets the main registry (equivalent to the `registry` `.npmrc` setting). Scoped keys configure registries for specific package scopes.",
+      "description": "Configures the registries packages resolve from, in one of two shapes. The declaration shape keys each registry by its URL and states everything about it in one place: which scopes and bare-specifier prefix are routed to it, how it lays out tarball URLs, and whether its abbreviated metadata carries the `time` field. The older shape maps the `default` registry and `@`-prefixed scopes straight to registry URLs. The two shapes cannot be mixed.\nhttps://pnpm.io/settings#registries",
+      "anyOf": [
+        {
+          "description": "Registries keyed by URL, each declaring the routes that reach it and how it serves packages.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Declares one registry: the routes that reach it and how it serves packages.",
+            "properties": {
+              "scopes": {
+                "description": "The `@`-prefixed scopes routed to this registry. A bare `@` makes this the default registry — the one packages resolve from when no scope matches.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^@"
+                }
+              },
+              "prefix": {
+                "description": "The bare-specifier prefix this registry answers to, as in `pnpm add work:^1.0.0`.",
+                "type": "string"
+              },
+              "serverType": {
+                "description": "The software serving this registry: `npm` behaves like registry.npmjs.org, which serves a scoped package from the percent-encoded path as well as the unencoded one; `artifactory` repeats the scope in a scoped package's tarball filename.",
+                "type": "string",
+                "enum": ["npm", "artifactory"]
+              },
+              "supportsTimeField": {
+                "description": "Whether this registry's abbreviated metadata carries the `time` field. registry.npmjs.org does not; Verdaccio and several proxies do.",
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "description": "The older `scope: url` shape. The `default` key sets the main registry (equivalent to the `registry` `.npmrc` setting); each other key routes a scope to a registry URL.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      ]
+    },
+    "namedRegistries": {
+      "description": "Defines named registry aliases that can be used as a prefix when installing packages, e.g. `pnpm add work:@corp/lib@^2.0.0` resolves `@corp/lib@^2.0.0` against the configured URL. Built-in aliases `gh:` (https://npm.pkg.github.com/) and `npmjs:` (https://registry.npmjs.org/) work without any configuration and can be overridden. An alias must start with a letter and contain only letters, digits, `.`, `_`, and `-`. Added in pnpm 11.1.0.",
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "type": "string",
+        "format": "uri"
       }
     },
     "virtualStoreOnly": {
@@ -888,6 +1259,10 @@
           "enum": ["download", "error", "warn", "ignore"]
         }
       ]
+    },
+    "runtime": {
+      "description": "Controls whether pnpm installs runtime entries declared in `devEngines.runtime`. Set to false when the runtime is provisioned separately, such as in a CI matrix.",
+      "type": "boolean"
     },
     "runtimeOnFail": {
       "description": "Overrides the `onFail` field of `devEngines.runtime` (and `engines.runtime`) in the root project's `package.json`. This is useful when you want a different local behavior than what is written in the manifest — for instance, forcing pnpm to download the declared runtime even when the manifest sets `onFail: \"warn\"`.",
@@ -914,7 +1289,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["node", "workspaces", "dependencies"]
+          "enum": ["none", "workspaces", "dependencies"]
         }
       ]
     }

@@ -60,4 +60,4 @@ And here’s the thing: for-profit organizations are among the biggest beneficia
 
 Your support would help cover hosting, maintenance, and development costs, ensuring this resource remains free and open for the entire community. It’s a small way to give back to something that likely saves you (and your team) time and effort every day.
 
-You can find [sponsorship details on the site](https://github.com/sponsors/madskristensen), or feel free to reach out to me directly.
+You can find [sponsorship details on the site](https://github.com/sponsors/SchemaStore), or feel free to reach out to me directly.

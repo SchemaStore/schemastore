@@ -1,0 +1,450 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/tfpowershell-resource.json",
+  "title": "Terraform PowerShell provider resource manifest",
+  "description": "A resource.tfps.json manifest, declaring the typed Terraform attributes of one resource in a provider built on terraform-provider-powershell. It sits in provider/resources/<name>/ next to the create.ps1, read.ps1, delete.ps1, and optional update.ps1 scripts that implement it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "attributes"],
+  "properties": {
+    "$schema": {
+      "description": "Link to this document. The provider engine accepts and ignores it.",
+      "type": "string",
+      "format": "uri"
+    },
+    "version": {
+      "description": "Manifest format version. Only 1 exists; the engine rejects any other value rather than half-applying a manifest written for a newer format.",
+      "const": 1
+    },
+    "description": {
+      "description": "What the resource manages. Surfaced in the Terraform Registry docs and in `terraform providers schema`.",
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "description": "Per-operation timeout for this resource's scripts. Omit to inherit the provider's timeout attribute.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "attributes": {
+      "description": "The resource's attributes, keyed by attribute name. At least one is required.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "properties": {
+        "id": {
+          "description": "Reserved. Every resource automatically gets a computed `id` populated from the value create.ps1 emits, so declaring one is a load error.",
+          "not": true
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/attribute"
+      }
+    }
+  },
+  "definitions": {
+    "attribute": {
+      "description": "One attribute declaration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "description": "The attribute's Terraform type. `json` is a string attribute validated as a JSON object, decoded into a real object in $InputData, and re-encoded on the way out.",
+          "enum": [
+            "string",
+            "bool",
+            "int",
+            "number",
+            "list",
+            "set",
+            "map",
+            "json"
+          ]
+        },
+        "element_type": {
+          "description": "Element type of a list, set, or map attribute. Required for those three types and not allowed on any other.",
+          "enum": ["string", "bool", "int", "number"]
+        },
+        "required": {
+          "description": "The practitioner must set this attribute. Exactly one of required, optional, or computed must be true.",
+          "type": "boolean"
+        },
+        "optional": {
+          "description": "The practitioner may set this attribute. Exactly one of required, optional, or computed must be true.",
+          "type": "boolean"
+        },
+        "computed": {
+          "description": "The scripts supply this attribute; it never appears in configuration. Exactly one of required, optional, or computed must be true.",
+          "type": "boolean"
+        },
+        "sensitive": {
+          "description": "Redact the value in CLI output and plans.",
+          "type": "boolean"
+        },
+        "description": {
+          "description": "What the attribute means. Surfaced in the Terraform Registry docs and in `terraform providers schema`.",
+          "type": "string"
+        },
+        "requires_replace": {
+          "description": "Changing this attribute destroys and recreates the object instead of running update.ps1. Config attributes only.",
+          "type": "boolean"
+        },
+        "default": {
+          "description": "Value injected into $InputData when the practitioner leaves this optional attribute null. Terraform state still records null - the default is visible to your scripts, not to Terraform. Its JSON type must match the declared type."
+        },
+        "validators": {
+          "description": "Plan-time value constraints. Only string, int, and number config attributes can carry them.",
+          "type": "array",
+          "items": {
+            "description": "One validator. Each entry is an object with exactly one recognized key.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["one_of"],
+            "properties": {
+              "one_of": {
+                "description": "The permitted values. Each must match the attribute's declared type.",
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Exactly one of required, optional, or computed must be true.",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["required"],
+              "properties": {
+                "required": {
+                  "const": true
+                },
+                "optional": {
+                  "const": false
+                },
+                "computed": {
+                  "const": false
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["optional"],
+              "properties": {
+                "optional": {
+                  "const": true
+                },
+                "required": {
+                  "const": false
+                },
+                "computed": {
+                  "const": false
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["computed"],
+              "properties": {
+                "computed": {
+                  "const": true
+                },
+                "required": {
+                  "const": false
+                },
+                "optional": {
+                  "const": false
+                }
+              }
+            }
+          ]
+        },
+        {
+          "description": "list, set, and map attributes require an element_type; no other type may declare one.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["list", "set", "map"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["element_type"],
+            "properties": {
+              "element_type": true
+            }
+          },
+          "else": {
+            "not": {
+              "type": "object",
+              "required": ["element_type"],
+              "properties": {
+                "element_type": true
+              }
+            }
+          }
+        },
+        {
+          "description": "requires_replace cannot be set on a computed attribute.",
+          "if": {
+            "type": "object",
+            "required": ["requires_replace"],
+            "properties": {
+              "requires_replace": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "type": "object",
+              "required": ["computed"],
+              "properties": {
+                "computed": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A non-null default only applies to an optional attribute.",
+          "if": {
+            "type": "object",
+            "required": ["default"],
+            "properties": {
+              "default": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["optional"],
+            "properties": {
+              "optional": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "description": "Validators only apply to non-computed string, int, and number attributes.",
+          "if": {
+            "type": "object",
+            "required": ["validators"],
+            "properties": {
+              "validators": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["string", "int", "number"]
+              },
+              "computed": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "description": "one_of values on a string attribute must be strings.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "validators": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "one_of": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "one_of values on an int or number attribute must be numbers.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["int", "number"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "validators": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "one_of": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A string attribute's default must be a string.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": ["string", "null"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A bool attribute's default must be a boolean.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "const": "bool"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": ["boolean", "null"]
+              }
+            }
+          }
+        },
+        {
+          "description": "An int attribute's default must be a whole number.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "const": "int"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": ["integer", "null"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A number attribute's default must be a number.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "const": "number"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": ["number", "null"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A json or map attribute's default must be an object.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["json", "map"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": ["object", "null"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A list or set attribute's default must be an array.",
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["list", "set"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": ["array", "null"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

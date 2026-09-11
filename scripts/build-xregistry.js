@@ -28,6 +28,8 @@ const SOURCE_CATALOG = path.join(__dirname, '../src/api/json/catalog.json')
 const TARGET_DIR = './src/api/registry'
 const REGISTRY_ROOT = '/api/registry'
 const SCHEMAGROUPS_DIR = path.join(TARGET_DIR, 'schemagroups')
+const EXTERNAL_SCHEMA_FETCH_TIMEOUT_MS = 5000
+const PREFETCH_PROGRESS_INTERVAL = 100
 
 // File system helpers
 /**
@@ -131,6 +133,7 @@ function parseSchemaFormat(schemaUri) {
  * @returns {Promise<string>} - The schema format (e.g., JsonSchema/draft-07).
  */
 async function getSchemaFormat(schemaUrl) {
+  let timeout
   try {
     const parsed = new URL(schemaUrl)
     if (
@@ -148,17 +151,25 @@ async function getSchemaFormat(schemaUrl) {
       const data = JSON.parse(await fs.readFile(localPath, 'utf-8'))
       return parseSchemaFormat(data.$schema || '')
     }
-    const res = await fetch(schemaUrl)
+    const controller = new AbortController()
+    timeout = setTimeout(() => {
+      controller.abort()
+    }, EXTERNAL_SCHEMA_FETCH_TIMEOUT_MS)
+    const res = await fetch(schemaUrl, { signal: controller.signal })
     /** @type {any} */
     const data = await res.json()
     return parseSchemaFormat(data.$schema || '')
   } catch {
     return 'JsonSchema'
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout)
+    }
   }
 }
 
 /**
- * Pre-fetches schema formats for all catalog entries in parallel (batched).
+ * Pre-fetches schema formats for all catalog entries in parallel.
  * Using a concurrency of 20 balances speed against overwhelming remote servers.
  * @param {Array<{ url: string }>} schemas - Catalog schema entries.
  * @param {number} [concurrency=20] - Max simultaneous operations.
@@ -167,18 +178,29 @@ async function getSchemaFormat(schemaUrl) {
 async function prefetchSchemaFormats(schemas, concurrency = 20) {
   /** @type {Map<string, string>} */
   const formatMap = new Map()
-  for (let i = 0; i < schemas.length; i += concurrency) {
-    const batch = schemas.slice(i, i + concurrency)
-    const results = await Promise.all(
-      batch.map(async (schema) => ({
-        url: schema.url,
-        format: await getSchemaFormat(schema.url),
-      })),
-    )
-    for (const { url, format } of results) {
-      formatMap.set(url, format)
+  let nextIndex = 0
+  let processedCount = 0
+  const workerCount = Math.min(concurrency, schemas.length)
+
+  async function worker() {
+    while (nextIndex < schemas.length) {
+      const schema = schemas[nextIndex++]
+      const format = await getSchemaFormat(schema.url)
+      formatMap.set(schema.url, format)
+      processedCount++
+
+      if (
+        processedCount === schemas.length ||
+        processedCount % PREFETCH_PROGRESS_INTERVAL === 0
+      ) {
+        console.info(
+          `Schema format pre-fetch progress: ${processedCount}/${schemas.length}`,
+        )
+      }
     }
   }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()))
   return formatMap
 }
 

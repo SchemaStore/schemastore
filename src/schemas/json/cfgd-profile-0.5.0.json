@@ -1,0 +1,741 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cfgd.io/schemas/cfgd-profile.schema.json",
+  "additionalProperties": false,
+  "definitions": {
+    "AptSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "default": null,
+          "type": ["string", "null"]
+        },
+        "packages": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "BrewSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "casks": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "file": {
+          "default": null,
+          "type": ["string", "null"]
+        },
+        "formulae": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "taps": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CargoSpec": {
+      "additionalProperties": false,
+      "description": "Cargo package spec. Supports both list form (`cargo: [bat, ripgrep]`)\nand object form (`cargo: { file: Cargo.toml, packages: [...] }`) via the\nshared `list_or_struct` deserializer on the `PackagesSpec::cargo` field.",
+      "properties": {
+        "file": {
+          "type": ["string", "null"]
+        },
+        "packages": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CustomManagerSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "check": {
+          "type": "string"
+        },
+        "install": {
+          "type": "string"
+        },
+        "listInstalled": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "packages": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "uninstall": {
+          "type": "string"
+        },
+        "update": {
+          "default": null,
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["name", "check", "listInstalled", "install", "uninstall"],
+      "type": "object"
+    },
+    "EncryptionMode": {
+      "description": "Controls when encryption is required for a managed file.",
+      "oneOf": [
+        {
+          "const": "InRepo",
+          "description": "File must be encrypted when stored in the repository.",
+          "type": "string"
+        },
+        {
+          "const": "Always",
+          "description": "File must always be encrypted, including at rest on disk.",
+          "type": "string"
+        }
+      ]
+    },
+    "EncryptionSpec": {
+      "additionalProperties": false,
+      "description": "Encryption settings for a managed file.",
+      "properties": {
+        "backend": {
+          "description": "The encryption backend to use (e.g. \"sops\", \"age\").",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/EncryptionMode",
+          "default": "InRepo",
+          "description": "When encryption must be enforced. Defaults to `InRepo`."
+        }
+      },
+      "required": ["backend"],
+      "type": "object"
+    },
+    "EnvScope": {
+      "description": "How far `spec.env` exports reach across the current user's environment.\n\nThe two env fields differ by *scope of affected users*: `spec.env` targets\nthe current user, `spec.system.environment` targets all users (privileged).\nThis knob narrows the *current-user* reach; it never widens beyond the user.",
+      "oneOf": [
+        {
+          "const": "All",
+          "description": "Every standard user entry point cfgd can safely touch: interactive +\nlogin shells, `systemd --user` / Wayland GUI sessions, macOS GUI apps,\nand an immediate live-session refresh. The default — no gotchas.",
+          "type": "string"
+        },
+        {
+          "const": "Login",
+          "description": "Interactive shells plus login shells (`~/.zshenv`, `~/.profile`, and an\nexisting `~/.bash_profile`). Excludes the GUI / `systemd --user` session\nsurfaces and the live-session refresh.",
+          "type": "string"
+        },
+        {
+          "const": "Interactive",
+          "description": "Interactive shells only (`~/.bashrc` / `~/.zshrc`, fish conf.d) — the\nhistorical behavior before full reach.",
+          "type": "string"
+        }
+      ]
+    },
+    "EnvVar": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "value"],
+      "type": "object"
+    },
+    "FileStrategy": {
+      "description": "File deployment strategy.",
+      "oneOf": [
+        {
+          "const": "Symlink",
+          "description": "Create a symbolic link from target to source (default).",
+          "type": "string"
+        },
+        {
+          "const": "Copy",
+          "description": "Copy source content to target.",
+          "type": "string"
+        },
+        {
+          "const": "Template",
+          "description": "Render a Tera template and write the output (auto-selected for .tera files).",
+          "type": "string"
+        },
+        {
+          "const": "Hardlink",
+          "description": "Create a hard link from target to source.",
+          "type": "string"
+        }
+      ]
+    },
+    "FilesSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "managed": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ManagedFileSpec"
+          },
+          "type": "array"
+        },
+        "permissions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "FlatpakSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "remote": {
+          "default": null,
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "ManagedFileSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "encryption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EncryptionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Encryption settings for this file."
+        },
+        "permissions": {
+          "description": "Unix permission bits (e.g. \"600\", \"644\") to apply after deployment.",
+          "type": ["string", "null"]
+        },
+        "private": {
+          "description": "When true, the source file is local-only: auto-added to .gitignore,\nsilently skipped on machines where it doesn't exist.",
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FileStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Per-file deployment strategy override. If None, uses the global default."
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": ["source", "target"],
+      "type": "object"
+    },
+    "NpmSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "default": null,
+          "type": ["string", "null"]
+        },
+        "global": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PackagesSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "apk": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "apt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AptSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "brew": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BrewSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cargo": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CargoSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "chocolatey": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "custom": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/CustomManagerSpec"
+          },
+          "type": "array"
+        },
+        "dnf": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "flatpak": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FlatpakSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "go": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nix": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "npm": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NpmSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pacman": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pipx": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pkg": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scoop": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "snap": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SnapSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "winget": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "yum": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "zypper": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ProfileMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
+    "ProfileSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ShellAlias"
+          },
+          "type": "array"
+        },
+        "env": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/EnvVar"
+          },
+          "type": "array"
+        },
+        "envScope": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EnvScope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How far `spec.env` exports reach across the current user's environment.\nOmitted means \"inherit\" (a parent layer's value survives); the resolved\ndefault when no layer sets it is [`EnvScope::All`] — every standard user\nentry point cfgd can safely touch. Narrow it to `Login` or `Interactive`\nto opt out of the broader session surfaces."
+        },
+        "files": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FilesSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "inherits": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "modules": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PackagesSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "scripts": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ScriptSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "secrets": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/SecretSpec"
+          },
+          "type": "array"
+        },
+        "system": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "ScriptEntry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "properties": {
+            "continueOnError": {
+              "type": ["boolean", "null"]
+            },
+            "creates": {
+              "description": "Skip the script if this path already exists. A leading `~` expands to\nthe home directory; a relative path resolves against the script's\nworking directory. Existence follows symlinks.",
+              "type": ["string", "null"]
+            },
+            "idleTimeout": {
+              "description": "Kill the script if it produces no stdout/stderr output for this duration.\nPrevents scripts from silently hanging on unresponsive resources.\nFormat: \"30s\", \"2m\", etc. If unset, no idle timeout is enforced.",
+              "type": ["string", "null"]
+            },
+            "interactive": {
+              "description": "Run the script attached to the terminal (inherited stdin/stdout/stderr,\nno spinner, no output capture, no idle timeout) so it can prompt the\nuser — e.g. `echo \"press Enter when done\"; read`. Requires a TTY: when\nstdin is not a terminal (CI, piped input, or any daemon-run phase) the\nscript is skipped with a warning rather than hanging on instant EOF.",
+              "type": "boolean"
+            },
+            "onlyIf": {
+              "description": "Run the script only if this command exits zero. A non-zero exit skips\nthe script (the condition for running was not met). Evaluated with the\nsame shell, working directory, and environment as the body.",
+              "type": ["string", "null"]
+            },
+            "run": {
+              "type": "string"
+            },
+            "shell": {
+              "$ref": "#/definitions/ScriptShell",
+              "description": "Interpreter to use for inline commands. Ignored (and rejected) on file scripts."
+            },
+            "timeout": {
+              "type": ["string", "null"]
+            },
+            "unless": {
+              "description": "Run the script only if this command exits NON-zero. A zero exit\n(success) skips the script (the guarded state already holds).\nEvaluated with the same shell, working directory, and environment as\nthe body.",
+              "type": ["string", "null"]
+            },
+            "workdir": {
+              "description": "Working directory for the script. By default every lifecycle script\nruns in the user's home directory — never the config source tree — so\na relative write can't pollute the user's GitOps repo. Set `workdir`\nto override: a leading `~` expands to home and `$VAR`/`${VAR}` expand\nagainst the script environment (which always carries `$CFGD_MODULE_DIR`\nand `$CFGD_CONFIG_DIR`), so `workdir: ~/.local/share/app`,\n`workdir: $CFGD_MODULE_DIR`, or an absolute path all work.",
+              "type": ["string", "null"]
+            }
+          },
+          "required": ["run"],
+          "type": "object"
+        }
+      ]
+    },
+    "ScriptShell": {
+      "description": "Interpreter for inline lifecycle scripts.",
+      "oneOf": [
+        {
+          "enum": ["sh", "bash", "zsh", "pwsh", "cmd"],
+          "type": "string"
+        },
+        {
+          "const": "auto",
+          "description": "Platform default: `sh` on Unix, `cmd.exe` on Windows.",
+          "type": "string"
+        }
+      ]
+    },
+    "ScriptSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "onChange": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "onDrift": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "postApply": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "postReconcile": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preApply": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preReconcile": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ScriptEntry"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "SecretSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "type": ["string", "null"]
+        },
+        "envs": {
+          "items": {
+            "type": "string"
+          },
+          "type": ["array", "null"]
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": ["string", "null"]
+        },
+        "template": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["source"],
+      "type": "object"
+    },
+    "ShellAlias": {
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "command"],
+      "type": "object"
+    },
+    "SnapSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "classic": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "description": "Profile document for cfgd (profiles/*.yaml)",
+  "properties": {
+    "apiVersion": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/definitions/ProfileMetadata"
+    },
+    "spec": {
+      "$ref": "#/definitions/ProfileSpec"
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "title": "cfgd Profile",
+  "type": "object"
+}
