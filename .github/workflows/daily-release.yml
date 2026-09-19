@@ -1,0 +1,69 @@
+name: 'Create Daily Release'
+
+on:
+  schedule:
+    # Every day at 01:00 UTC.
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: 'write'
+
+# Allow only one concurrent release run, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production releases to complete.
+concurrency:
+  group: 'release'
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 10
+    if: ${{ github.repository_owner == 'SchemaStore' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: 'Determine whether a release is needed'
+        id: 'release'
+        run: |
+          tag="$(date +'%Y.%m.%d')"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "$(git tag --list "$tag")" ]]; then
+            echo "Release '$tag' already exists; skipping."
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last_tag="$(git tag --list '????.??.??' --sort=-v:refname | head -n 1)"
+          if [[ -n "$last_tag" ]] && git diff --quiet "$last_tag" HEAD -- src/schemas/json; then
+            echo "No changes to 'src/schemas/json' since '$last_tag'; skipping."
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: 'Package schemas'
+        if: ${{ steps.release.outputs.needed == 'true' }}
+        run: |
+          mkdir -p 'dist'
+          tar -czf "dist/schemas-$TAG.tar.gz" -C 'src' 'schemas/json'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+
+      - name: 'Create GitHub release'
+        if: ${{ steps.release.outputs.needed == 'true' }}
+        run: |
+          gh release create "$TAG" "dist/schemas-$TAG.tar.gz" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "SchemaStore $TAG" \
+            --notes "$(printf 'Snapshot of the JSON schemas at commit %s.\n\nThe tarball contains the schemas under schemas/json/; the paths match the URLs published on https://www.schemastore.org (e.g. https://www.schemastore.org/schemas/json/{name}.json).' "$GITHUB_SHA")"
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
