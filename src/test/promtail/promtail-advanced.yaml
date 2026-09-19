@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=../../schemas/json/promtail.json
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    tenant_id: my-tenant
+    external_labels:
+      cluster: prod
+    basic_auth:
+      username: promtail
+      password: secret
+
+scrape_configs:
+  - job_name: app-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          __path__: /var/log/app/*.log
+          app: web
+    pipeline_stages:
+      - regex:
+          expression: '(?P<level>INFO|ERROR|WARN)'
+      - labels:
+          level: level
+      - template:
+          source: level
+          template: '{{ if eq .Value "WARN" }}warning{{ end }}'
+      - metrics:
+          log_lines_total:
+            type: Counter
+            description: number of log lines
+            config:
+              action: inc
+          log_bytes_total:
+            type: Histogram
+            description: size of log lines
+            config:
+              action: inc
+              buckets:
+                - 100
+                - 1000
+                - 10000
+    relabel_configs:
+      - source_labels:
+          - __path__
+        target_label: path
+  - job_name: journal
+    journal:
+      max_age: 12h
+      labels:
+        job: systemd-journal
+    relabel_configs:
+      - source_labels:
+          - __journal__systemd_unit
+        target_label: unit
+  - job_name: syslog
+    syslog:
+      listen_address: 0.0.0.0:1514
+      labels:
+        job: syslog
+    relabel_configs:
+      - source_labels:
+          - __syslog_message_hostname
+        target_label: host
