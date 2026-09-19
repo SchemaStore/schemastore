@@ -52,6 +52,7 @@ module.exports = {
           missingCatalogUrl: null,
           skiptest: null,
           catalogEntryNoLintNameOrDescription: null,
+          remoteUrlCheckIgnore: null,
           options: null,
           externalSchema: null,
           unknownKeywords: null,
