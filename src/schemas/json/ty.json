@@ -75,29 +75,64 @@
       "properties": {
         "allowed-unresolved-imports": {
           "description": "A list of module glob patterns for which `unresolved-import` diagnostics should be suppressed.\n\nDetails on supported glob patterns:\n- `*` matches zero or more characters except `.`. For example, `foo.*` matches `foo.bar` but\n  not `foo.bar.baz`; `foo*` matches `foo` and `foobar` but not `foo.bar` or `barfoo`; and `*foo`\n  matches `foo` and `barfoo` but not `foo.bar` or `foobar`.\n- `**` matches any number of module components (e.g., `foo.**` matches `foo`, `foo.bar`, etc.)\n- Prefix a pattern with `!` to exclude matching modules\n\nWhen multiple patterns match, later entries take precedence.\n\nGlob patterns can be used in combinations with each other. For example, to suppress errors for\nany module where the first component contains the substring `test`, use `*test*.**`.",
-          "type": ["array", "null"],
-          "items": {
-            "$ref": "#/definitions/string"
-          }
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "replace-imports-with-any": {
           "description": "A list of module glob patterns whose imports should be replaced with `typing.Any`.\n\nUnlike `allowed-unresolved-imports`, this setting replaces the module's type information\nwith `typing.Any` even if the module can be resolved. Import diagnostics are\nunconditionally suppressed for matching modules.\n\n- Prefix a pattern with `!` to exclude matching modules\n\nWhen multiple patterns match, later entries take precedence.\n\nGlob patterns can be used in combinations with each other. For example, to suppress errors for\nany module where the first component contains the substring `test`, use `*test*.**`.\n\nWhen multiple patterns match, later entries take precedence.",
-          "type": ["array", "null"],
-          "items": {
-            "$ref": "#/definitions/string"
-          }
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "respect-type-ignore-comments": {
           "description": "Whether ty should respect `type: ignore` comments.\n\nWhen set to `false`, `type: ignore` comments are treated like any other normal\ncomment and can't be used to suppress ty errors (you have to use `ty: ignore` instead).\n\nSetting this option can be useful when using ty alongside other type checkers or when\nyou prefer using `ty: ignore` over `type: ignore`.\n\nDefaults to `true`.",
-          "type": ["boolean", "null"]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "strict-equality-semantics": {
           "description": "Configure ty's behavior regarding type inference and narrowing of equality\nchecks. Defaults to `false`.\n\nBy default, ty makes various assumptions about equality checks that match the\nintuitions of most Python programmers, but may not be fully sound in all situations.\nEnabling this option makes ty more conservative about these assumptions, making it\nless likely to infer `Literal[True]` or `Literal[False]` as the result of an\nequality check. This has various effects on type checking, including fewer type\nnarrowing opportunities and more conservative assumptions regarding control flow.\n\nOne way in which ty will by default make unsound assumptions is by narrowing an\nobject `x` of type `str` to `Literal[\"a\"]` after an `if x == \"a\"` check. This is\nunsound because a subclass of `str` with value `\"a\"` will (by default) compare equal\nto `\"a\"`, but will not be of type `Literal[\"a\"]`:\n\n```pycon\n>>> # `Literal[\"a\"]` can only be inhabited by instances of exactly `str`, not\n>>> # subclasses, but str subclasses compare equal by default:\n>>> class StringSubclass(str): ...\n...\n>>> StringSubclass(\"a\") == \"a\"\nTrue\n>>>\n>>> # This also applies to `StrEnum`s:\n>>> from enum import StrEnum\n>>> class MyEnum(StrEnum):\n...     A = \"a\"\n...\n>>> MyEnum.A == \"a\"\nTrue\n```\n\nEnabling this option prevents the unsound narrowing of `x` to `Literal[\"a\"]`,\nand instead keeps it as `str`:\n\n```python\nfrom typing import Literal\n\ndef parse(value: str) -> Literal[\"a\"] | None:\n    # with `strict-equality-semantics = true`, no narrowing will occur here,\n    # and an error will be emitted on the `return` statement.\n    if value == \"a\":\n        return value\n    return None\n```\n\nAnother assumption ty makes by default is that subclasses will never override `__eq__` or\n`__ne__`. This allows ty to narrow the following union based on an equality check, despite\nthe fact that an instance of a subclass of `Foo` could compare equal to `None`, and it's\nperfectly valid to pass an instance of a subclass into the `x` parameter of this function:\n\n```python\ndef narrow(x: Foo | None, other: Foo) -> None:\n    if x == other:\n        # with this option enabled, `x` will still have type `Foo | None` here,\n        # since it is legal to subclass `Foo` and override its `__eq__` method.\n        reveal_type(x)\n```\n\nMany operations in Python implicitly call `__eq__` under the hood; enabling this option\nwill also impact those operations. For example, this option will also impact narrowing from\n`in` checks, and narrowing in `match` statements that use value patterns:\n\n```python\ndef narrow_in(x: Foo | None, other: list[Foo]) -> None:\n    if x in other:\n        # with this option enabled, `x` will still have type `Foo | None` here,\n        # since the `in` operator implicitly calls `__eq__` on each element of `other`.\n        reveal_type(x)\n\n\ndef narrow_match(x: str) -> None:\n    match x:\n        case \"a\":\n            # with this option enabled, `x` will still have type `str` here,\n            # since this `case` branch will be taken by any object that compares\n            # equal to `\"a\"`, including subclasses of `str`.\n            reveal_type(x)\n```",
-          "type": ["boolean", "null"]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "strict-generic-narrowing": {
           "description": "Whether ty should use strict narrowing for unspecialized generic classes in\n`isinstance()` and `issubclass()` checks, as well as `match` class patterns.\n\nWhen enabled, ty narrows to the top materialization of the class. For example,\n`isinstance(value, list)` narrows a value of type `object` to `Top[list[Unknown]]`,\nrepresenting the (infinite) union of all possible `list` specializations. Iterating\nover the list would yield values of type `object`.\n\nWhen disabled, ty uses gradual generic narrowing, preserving compatible type\narguments from the original type where possible. For example,\n`isinstance(value, list)` narrows a value of type `Sequence[int]` to `list[int]`.\nIf no specialization is available, the same check narrows a value of type `object`\nto `list[Unknown]`; items of any type can then be appended to the list. Class\npatterns such as `case list():` follow the same behavior.\n\nDefaults to `false`.",
-          "type": ["boolean", "null"]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -113,10 +148,17 @@
       "properties": {
         "extra-paths": {
           "description": "User-provided paths that should take first priority in module resolution.\n\nThis is an advanced option that should usually only be used for first-party or third-party\nmodules that are not installed into your Python environment in a conventional way.\nUse the `python` option to specify the location of your Python environment.\n\nThis option is similar to mypy's `MYPYPATH` environment variable and pyright's `stubPath`\nconfiguration setting.",
-          "type": ["array", "null"],
-          "items": {
-            "$ref": "#/definitions/RelativePathBuf"
-          }
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RelativePathBuf"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "python": {
           "description": "Path to your project's Python environment or interpreter.\n\nty uses the `site-packages` directory of your project's Python environment\nto resolve third-party (and, in some cases, first-party) imports in your code.\n\nThis can be a path to:\n\n- A Python interpreter, e.g. `.venv/bin/python3`\n- A virtual environment directory, e.g. `.venv`\n- A system Python [`sys.prefix`] directory, e.g. `/usr`\n\nIf you're using a project management tool such as uv, you should not generally need to\nspecify this option, as commands such as `uv run` will set the `VIRTUAL_ENV` environment\nvariable to point to your project's virtual environment. ty can also infer the location of\nyour environment from an activated Conda environment, and will look for a `.venv` directory\nin the project root if none of the above apply. Failing that, ty will look for a `python3`\nor `python` binary available in `PATH`.\n\n[`sys.prefix`]: https://docs.python.org/3/library/sys.html#sys.prefix",
@@ -153,10 +195,17 @@
         },
         "root": {
           "description": "The root paths of the project, used for finding first-party modules.\n\nAccepts a list of directory paths searched in priority order (first has highest priority).\n\nIf left unspecified, ty will try to detect common project layouts and initialize `root` accordingly.\nThe project root (`.`) is always included. Additionally, the following directories are included\nif they exist and are not packages (i.e. they do not contain `__init__.py` or `__init__.pyi` files):\n\n* `./src`\n* `./<project-name>` (if a `./<project-name>/<project-name>` directory exists)\n* `./python`",
-          "type": ["array", "null"],
-          "items": {
-            "$ref": "#/definitions/RelativePathBuf"
-          }
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RelativePathBuf"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "typeshed": {
           "description": "Optional path to a \"typeshed\" directory on disk for us to use for standard-library types.\nIf this is not provided, we will fallback to our vendored typeshed stubs for the stdlib,\nbundled as a zip file in the binary",
@@ -1575,7 +1624,14 @@
         },
         "exclude-scripts": {
           "description": "Whether to exclude files containing PEP 723 inline script metadata unless they are\nexplicitly passed on the command line.",
-          "type": ["boolean", "null"]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "include": {
           "description": "A list of files and directories to check. The `include` option\nfollows a similar syntax to `.gitignore` but reversed:\nIncluding a file or directory will make it so that it (and its contents)\nare type checked.\n\n- `./src/` matches only a directory\n- `./src` matches both files and directories\n- `src` matches a file or directory named `src`\n- `*` matches any (possibly empty) sequence of characters (except `/`).\n- `**` matches zero or more path components.\n  This sequence **must** form a single path component, so both `**a` and `b**` are invalid and will result in an error.\n  A sequence of more than two consecutive `*` characters is also invalid.\n- `?` matches any single character except `/`\n- `[abc]` matches any character inside the brackets. Character sequences can also specify ranges of characters, as ordered by Unicode,\n  so e.g. `[0-9]` specifies any character between `0` and `9` inclusive. An unclosed bracket is invalid.\n\nAll paths are anchored relative to the project root (`src` only\nmatches `<project_root>/src` and not `<project_root>/test/src`).\n\n`exclude` takes precedence over `include`.",
@@ -1590,7 +1646,14 @@
         },
         "respect-ignore-files": {
           "description": "Whether to automatically exclude files that are ignored by `.ignore`,\n`.gitignore`, `.git/info/exclude`, and global `gitignore` files.\nEnabled by default.",
-          "type": ["boolean", "null"]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1654,7 +1717,14 @@
       "properties": {
         "error-on-warning": {
           "description": "Use exit code 1, even if all diagnostics only had `warning` severity.\n\nDefaults to `true`.",
-          "type": ["boolean", "null"]
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "output-format": {
           "description": "The format to use for printing diagnostic messages.\n\nDefaults to `full`.",
