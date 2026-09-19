@@ -32,7 +32,7 @@ import {
   printCoverageReport,
 } from './src/helpers/coverage.js'
 import minimist from 'minimist'
-import fetch, { FetchError } from 'node-fetch'
+import fetch from 'node-fetch'
 import { spawn } from 'node:child_process'
 
 /**
@@ -153,6 +153,7 @@ const argv = /** @type {any} */ (
  * @property {string[]} skiptest
  * @property {{schema: string, strict?: boolean}[]} coverage
  * @property {string[]} catalogEntryNoLintNameOrDescription
+ * @property {string[]} remoteUrlCheckIgnore
  * @property {Record<string, SchemaValidationJsonOption>} options
  */
 
@@ -846,8 +847,234 @@ async function taskCheckStrict() {
   await printSimpleStatistics()
 }
 
+const RemoteCheckTimeoutMs = 20_000
+const RemoteCheckConcurrencyLimit = 12
+
+/**
+ * Ajv error messages that describe limitations of Ajv itself or of a JS
+ * validator in general, rather than schemas that are actually invalid. These
+ * are not reported so that the check only fails on trustworthy signals:
+ * unreachable URLs and content that is not a parseable, structurally valid
+ * JSON Schema.
+ */
+const BenignRemoteCheckCompileErrors = [
+  /can't resolve reference/u,
+  /no schema with key or ref/u,
+  /NOT SUPPORTED:/u,
+  /Invalid regular expression/u,
+  /Maximum call stack size exceeded/u,
+  /resolves to more than one schema/u,
+]
+
+/**
+ * @typedef {Object} BrokenRemoteUrl
+ * @property {string} url
+ * @property {string} reason
+ */
+
+/**
+ * Fetches every external URL in the catalog and reports the ones that are
+ * either unreachable or do not deliver content that parses as a JSON Schema.
+ * URLs in "remoteUrlCheckIgnore" in "${SchemaValidationFile}" are skipped.
+ */
+async function getBrokenRemoteCatalogUrls() {
+  /** @type {string[]} */
+  const testableUrls = []
+
+  await forEachCatalogUrl((url) => {
+    if (
+      url.startsWith(SchemaStoreUrls[0]) ||
+      url.startsWith(SchemaStoreUrls[1])
+    ) {
+      return
+    }
+
+    if (SchemaValidation.remoteUrlCheckIgnore.includes(url)) {
+      return
+    }
+
+    testableUrls.push(url)
+  })
+
+  /** @type {BrokenRemoteUrl[]} */
+  const brokenUrls = []
+  let nextUrlIndex = 0
+
+  async function worker() {
+    while (nextUrlIndex < testableUrls.length) {
+      const url = testableUrls[nextUrlIndex++]
+      const reason = await checkRemoteUrl(url)
+      if (reason) {
+        brokenUrls.push({ url, reason })
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: RemoteCheckConcurrencyLimit }, () => worker()),
+  )
+
+  return brokenUrls
+}
+
+/**
+ * Checks that a single remote URL is reachable and returns content that parses
+ * as a JSON Schema. Returns a description of the problem, or `null` on success.
+ */
+async function checkRemoteUrl(/** @type {string} */ url) {
+  /** @type {import('node-fetch').Response} */
+  let res
+  try {
+    res = await fetch(url, {
+      signal: AbortSignal.timeout(RemoteCheckTimeoutMs),
+    })
+
+    if (res.status === 405) {
+      // Some servers reject GET requests with "405 Method Not Allowed".
+      // Retry once, as some CDNs respond to the second request.
+      res = await fetch(url, {
+        signal: AbortSignal.timeout(RemoteCheckTimeoutMs),
+      })
+    }
+  } catch (err) {
+    return `Request failed (${getRemoteErrorCode(err)})`
+  }
+
+  if (!res.ok) {
+    return `Request failed with status ${res.status}/${res.statusText}`
+  }
+
+  let text
+  try {
+    text = await res.text()
+  } catch (err) {
+    return `Failed to read response body (${getRemoteErrorCode(err)})`
+  }
+
+  return await getRemoteSchemaProblem(text)
+}
+
+/**
+ * Parses remote schema content and verifies it is a valid JSON Schema.
+ * Returns a description of the problem, or `null` on success.
+ */
+async function getRemoteSchemaProblem(/** @type {string} */ text) {
+  /** @type {unknown} */
+  let obj
+  try {
+    obj = JSON.parse(text)
+  } catch {
+    try {
+      obj = YAML.parse(text)
+    } catch {
+      return 'Response content is not parseable as JSON or YAML'
+    }
+  }
+
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+    return 'Response content is not a JSON Schema (expected a JSON object)'
+  }
+
+  const schemaDialect = getSchemaDialectSoft(
+    /** @type {JsonSchemaAny} */ (obj).$schema,
+  )
+  const ajv = await getRemoteCheckAjv(schemaDialect?.draftVersion ?? 'draft-07')
+  try {
+    ajv.compile(obj)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (
+      BenignRemoteCheckCompileErrors.some((pattern) => pattern.test(message))
+    ) {
+      // The schema references remote documents, uses an unsupported regex or
+      // keyword, etc. These are not necessarily invalid schemas.
+      return null
+    }
+
+    return `Response content is not a valid JSON Schema: ${message}`
+  }
+
+  return null
+}
+
+/**
+ * Matches a schema's "$schema" value to a known dialect, tolerating minor
+ * variations in scheme ("http"/"https") and a trailing fragment ("#"). Returns
+ * `undefined` when the value does not match any known dialect.
+ */
+function getSchemaDialectSoft(/** @type {unknown} */ schemaUrl) {
+  const normalized = (/** @type {string} */ url) => {
+    return url
+      .trim()
+      .replace(/^http:/u, 'https:')
+      .replace(/#$/u, '')
+  }
+
+  if (typeof schemaUrl !== 'string') {
+    return undefined
+  }
+
+  const normalizedSchemaUrl = normalized(schemaUrl)
+  return SchemaDialects.find(
+    (dialect) => normalized(dialect.url) === normalizedSchemaUrl,
+  )
+}
+
+/** @type {Map<string, Promise<import('ajv').Ajv>>} */
+const remoteCheckAjvs = new Map()
+
+async function getRemoteCheckAjv(/** @type {string} */ draftVersion) {
+  /** @type {Promise<import('ajv').Ajv> | undefined} */
+  let ajvPromise = remoteCheckAjvs.get(draftVersion)
+  if (!ajvPromise) {
+    ajvPromise = ajvFactory({
+      draftVersion,
+      fullStrictMode: false,
+      // Schemas are compiled against a shared instance, so do not register
+      // each compiled schema by its "$id". Otherwise, distinct catalog URLs
+      // that declare the same "$id" would be flagged as duplicates. "strict"
+      // is disabled because remote schemas commonly use custom keywords and
+      // formats that must not be treated as invalid.
+      options: {
+        logger: false,
+        addUsedSchema: false,
+        strict: false,
+      },
+    })
+    remoteCheckAjvs.set(draftVersion, ajvPromise)
+  }
+
+  return ajvPromise
+}
+
+function getRemoteErrorCode(/** @type {unknown} */ err) {
+  if (err instanceof Error) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return 'request timed out'
+    }
+
+    const errno = /** @type {NodeJS.ErrnoException} */ (err)
+    return errno.code ?? errno.name ?? errno.message
+  }
+
+  return String(err)
+}
+
 async function taskCheckRemote() {
-  console.info('TODO')
+  const brokenUrls = await getBrokenRemoteCatalogUrls()
+
+  if (brokenUrls.length > 0) {
+    console.warn('---')
+    for (const { url, reason } of brokenUrls) {
+      console.error(`${chalk.red('>>')} ${reason}: ${url}`)
+    }
+    console.warn('---')
+    process.exit(1)
+  }
+
+  console.info(
+    '✔️ All remote catalog URLs are reachable and return parseable JSON Schema content',
+  )
 }
 
 async function taskReport() {
@@ -857,71 +1084,10 @@ async function taskReport() {
 async function taskMaintenance() {
   {
     console.info(`===== BROKEN SCHEMAS =====`)
-    forEachCatalogUrl((url) => {
-      if (
-        url.startsWith(SchemaStoreUrls[0]) ||
-        url.startsWith(SchemaStoreUrls[1])
-      ) {
-        return
-      }
-
-      fetch(url)
-        .then(async (res) => {
-          if (res.ok) {
-            assertJsonOrYaml(url, await res.text())
-            return
-          }
-
-          if (
-            [
-              // https://github.com/SchemaStore/schemastore/pull/3926#issuecomment-2234102850
-              'https://deployments.allegrogroup.com/tycho/schema',
-            ].includes(url)
-          ) {
-            return
-          }
-
-          if (res.status === 405) {
-            try {
-              const res = await fetch(url)
-              if (res.ok) {
-                assertJsonOrYaml(url, await res.text())
-                return
-              }
-
-              console.info(
-                `NOT OK (${res.status}/${res.statusText}): ${url} (after 405 code)`,
-              )
-            } catch (err) {
-              console.info(
-                `NOT OK (${/** @type {FetchError} */ (err).code}): ${url} (after 405 code)`,
-              )
-            }
-            return
-          }
-          console.info(`NOT OK (${res.status}/${res.statusText}): ${url}`)
-        })
-        .catch((err) => {
-          console.info(`NOT OK (${err.code}): ${url}`)
-        })
-
-      function assertJsonOrYaml(
-        /** @type {string} */ url,
-        /** @type {string} */ str,
-      ) {
-        try {
-          JSON.parse(str)
-          return
-        } catch {}
-
-        try {
-          YAML.parse(str)
-          return
-        } catch {}
-
-        console.info(`NOT OK (Not JSON/YAML): ${url}`)
-      }
-    })
+    const brokenUrls = await getBrokenRemoteCatalogUrls()
+    for (const { url, reason } of brokenUrls) {
+      console.info(`NOT OK (${reason}): ${url}`)
+    }
   }
   // await printDowngradableSchemaVersions()
 }
@@ -1564,6 +1730,10 @@ async function assertSchemaValidationJsonReferencesNoNonexistentFiles() {
     SchemaValidation.catalogEntryNoLintNameOrDescription,
     'catalogEntryNoLintNameOrDescription',
   )
+  await schemaUrlsMustExist(
+    SchemaValidation.remoteUrlCheckIgnore,
+    'remoteUrlCheckIgnore',
+  )
 
   console.info(`✔️ schema-validation.jsonc has no invalid schema URLs`)
 }
@@ -2109,7 +2279,7 @@ TASKS:
   lint: Run less-important checks on schemas
   check: Run all build checks
   check-strict: Checks all or the given schema against the strict meta schema
-  check-remote: Run all build checks for remote schemas
+  check-remote: Check that all remote URLs in the catalog are reachable and return valid JSON Schema content
   maintenance: Run maintenance checks
   build-xregistry: Build the xRegistry from the catalog.json
   coverage: Run test coverage analysis on opted-in schemas
