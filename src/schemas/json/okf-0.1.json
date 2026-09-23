@@ -1,0 +1,192 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.schemastore.org/okf-0.1.json",
+  "definitions": {
+    "node": {
+      "type": "object",
+      "description": "A knowledge concept node.",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the concept (path without .md extension)."
+        },
+        "slug": {
+          "type": "string",
+          "description": "Short unique slug for the node (e.g. 'f', 'fc', 'fl'). Computed for compact/URL-friendly references (e.g. #fragments). Stable for a given set of concepts."
+        },
+        "type": {
+          "type": "string",
+          "description": "The concept type from frontmatter (e.g. 'BigQuery Table', 'Reference')."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title from frontmatter."
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description from frontmatter."
+        },
+        "resource": {
+          "type": "string",
+          "description": "Canonical URI for the underlying resource, if any."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags from frontmatter."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp from frontmatter."
+        },
+        "body": {
+          "type": "string",
+          "description": "Full markdown body (only present when --body / includeBody was used)."
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional display label (falls back to derived values)."
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path to the source .md file within the bundle."
+        },
+        "degree": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of connected edges (in + out)."
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of incoming edges."
+        },
+        "out": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of outgoing edges."
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "PageRank weight (0-1)."
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rank order by weight."
+        }
+      },
+      "additionalProperties": true
+    },
+    "edge": {
+      "type": "object",
+      "description": "A directed link from one concept to another.",
+      "required": ["source", "target", "id"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Source node id."
+        },
+        "target": {
+          "type": "string",
+          "description": "Target node id."
+        },
+        "id": {
+          "type": "string",
+          "description": "Short stable identifier for the edge."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable label for the edge (often link text or target title)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "navNode": {
+      "type": "object",
+      "description": "A node in the index-driven navigation tree. Directories are not concepts (reserved index.md).",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["group", "dir", "concept", "orphans"],
+          "description": "group/orphans are non-routeable grouping headers; dir and concept are navigable."
+        },
+        "id": {
+          "type": "string",
+          "description": "Concept id, or directory path relative to bundle root (empty string for root). Omitted for group and orphans."
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label (index link text, section heading, or derived title)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional short description from index entry or concept frontmatter."
+        },
+        "body": {
+          "type": "string",
+          "description": "Index markdown for kind=dir (authored after optional root frontmatter strip, or synthetic listing). Parallel to node.body."
+        },
+        "synthetic": {
+          "type": "boolean",
+          "description": "True when body/children were synthesized because index.md was missing."
+        },
+        "children": {
+          "type": "array",
+          "description": "Child nav nodes (groups, dirs, concepts, trailing orphans).",
+          "items": {
+            "$ref": "#/definitions/navNode"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "title": "OKF Knowledge Graph",
+  "description": "JSON graph representation of an Open Knowledge Format (OKF) bundle. Produced by the `okf graph` command.",
+  "type": "object",
+  "required": ["version", "nodes", "edges"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.1",
+      "description": "Schema version of this OKF graph format."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when the graph was generated."
+    },
+    "bundle": {
+      "type": "object",
+      "description": "Optional object containing custom properties passed via -p when generating the graph. Only present when such properties were provided.",
+      "additionalProperties": true
+    },
+    "nav": {
+      "$ref": "#/definitions/navNode",
+      "description": "Index-driven navigation tree reflecting SPEC §6 directory indexes (and synthetic listings when index.md is missing). Present only when the graph was produced with --nav / includeNav. Producer contract: root node has kind \"dir\" and id \"\"; kind \"dir\" always includes body; empty group/orphans nodes are never emitted; directories never appear in nodes[]."
+    },
+    "nodes": {
+      "type": "array",
+      "description": "List of concept nodes in the knowledge graph.",
+      "items": {
+        "$ref": "#/definitions/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Directed edges representing links between concepts.",
+      "items": {
+        "$ref": "#/definitions/edge"
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,1696 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/promtail.json",
+  "title": "Promtail",
+  "type": ["object", "null"],
+  "additionalProperties": false,
+  "definitions": {
+    "authorization": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Sets the authentication type. Default: Bearer."
+        },
+        "credentials": {
+          "type": "string",
+          "description": "Sets the credentials. It is mutually exclusive with `credentials_file`."
+        },
+        "credentials_file": {
+          "type": "string",
+          "description": "Sets the credentials to the credentials read from the configured file. It is mutually exclusive with `credentials`."
+        }
+      }
+    },
+    "azure_event_hubs": {
+      "type": "object",
+      "properties": {
+        "fully_qualified_namespace": {
+          "type": "string",
+          "description": "Event Hubs namespace host name. Typically looks like <your-namespace>.servicebus.windows.net:9093."
+        },
+        "event_hubs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Event Hubs to consume."
+        },
+        "connection_string": {
+          "type": "string",
+          "description": "Event Hubs connection string for authentication on Azure Cloud. Default: \"range\"."
+        },
+        "group_id": {
+          "type": "string",
+          "description": "The consumer group id. Default: \"promtail\"."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming message or not. When false Promtail assigns the current timestamp to the log when it is processed. Default: false."
+        },
+        "disallow_custom_messages": {
+          "type": "boolean",
+          "description": "If true, Promtail ignores messages that do not match the schema for Azure resource logs. Default: false."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Labels to associate with each log line."
+        }
+      },
+      "required": [
+        "fully_qualified_namespace",
+        "event_hubs",
+        "connection_string"
+      ]
+    },
+    "backoff_config": {
+      "type": "object",
+      "properties": {
+        "min_period": {
+          "$ref": "#/definitions/duration",
+          "description": "Initial backoff time between retries. Default: 500ms."
+        },
+        "max_period": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum backoff time between retries. Default: 5m."
+        },
+        "max_retries": {
+          "type": "integer",
+          "description": "Maximum number of retries to do. Default: 10."
+        }
+      }
+    },
+    "basic_auth": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "The username to use for basic auth."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password to use for basic auth."
+        },
+        "password_file": {
+          "type": "string",
+          "description": "The file containing the password for basic auth."
+        }
+      }
+    },
+    "cloudflare": {
+      "type": "object",
+      "properties": {
+        "api_token": {
+          "type": "string",
+          "description": "The Cloudflare API token to use."
+        },
+        "zone_id": {
+          "type": "string",
+          "description": "The Cloudflare zone id to pull logs for."
+        },
+        "pull_range": {
+          "$ref": "#/definitions/duration",
+          "description": "The time range to pull logs for. Default: 1m."
+        },
+        "workers": {
+          "type": "integer",
+          "description": "The quantity of workers that will pull logs. Default: 3."
+        },
+        "fields_type": {
+          "type": "string",
+          "enum": ["default", "minimal", "extended", "all", "custom"],
+          "description": "The type list of fields to fetch for logs. Supported values: default, minimal, extended, all, custom. Default: default."
+        },
+        "additional_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The additional list of fields to supplement those provided via `fields_type`."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log message."
+        }
+      },
+      "required": ["api_token", "zone_id"]
+    },
+    "client": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL where Loki is listening. If Loki is running in microservices mode, this is the HTTP URL for the Distributor. The path to the push API needs to be included. Example: http://example.com:3100/loki/api/v1/push"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Custom HTTP headers to be sent along with each push request. Headers that are set by Promtail itself (e.g. X-Scope-OrgID) cannot be overwritten."
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "The tenant ID used by default to push logs to Loki. If omitted or empty it assumes Loki is running in single-tenant mode and no X-Scope-OrgID header is sent."
+        },
+        "batchwait": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum amount of time to wait before sending a batch, even if that batch isn't full. Default: 1s."
+        },
+        "batchsize": {
+          "type": "integer",
+          "description": "Maximum batch size (in bytes) of logs to accumulate before sending the batch to Loki. Default: 1048576."
+        },
+        "basic_auth": {
+          "$ref": "#/definitions/basic_auth",
+          "description": "If using basic auth, configures the username and password sent."
+        },
+        "oauth2": {
+          "$ref": "#/definitions/oauth2",
+          "description": "Optional OAuth 2.0 configuration. Cannot be used at the same time as basic_auth or authorization."
+        },
+        "bearer_token": {
+          "type": "string",
+          "description": "Bearer token to send to the server."
+        },
+        "bearer_token_file": {
+          "type": "string",
+          "description": "File containing the bearer token to send to the server."
+        },
+        "proxy_url": {
+          "type": "string",
+          "description": "HTTP proxy server to use to connect to the server."
+        },
+        "tls_config": {
+          "$ref": "#/definitions/tls_config",
+          "description": "If connecting to a TLS server, configures how the TLS authentication handshake will operate."
+        },
+        "backoff_config": {
+          "$ref": "#/definitions/backoff_config",
+          "description": "Configures how to retry requests to Loki when a request fails."
+        },
+        "drop_rate_limited_batches": {
+          "type": "boolean",
+          "description": "Disables retries of batches that Loki responds to with a 429 status code (TooManyRequests). This reduces impacts on batches from other tenants. Default: false."
+        },
+        "external_labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Static labels to add to all logs being sent to Loki. These can also be specified from the command line with -client.external-labels."
+        },
+        "timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum time to wait for a server to respond to a request. Default: 10s."
+        }
+      }
+    },
+    "consul_sd_config": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "description": "The information to access the Consul Catalog API. Default: \"localhost:8500\"."
+        },
+        "token": {
+          "type": "string",
+          "description": "Consul ACL token."
+        },
+        "datacenter": {
+          "type": "string",
+          "description": "The datacenter to query."
+        },
+        "scheme": {
+          "type": "string",
+          "description": "The URL scheme to use. Default: \"http\"."
+        },
+        "username": {
+          "type": "string",
+          "description": "The username for Consul basic authentication."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password for Consul basic authentication."
+        },
+        "tls_config": {
+          "$ref": "#/definitions/tls_config",
+          "description": "Optional TLS configuration."
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of services for which targets are retrieved. If omitted, all services are scraped."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An optional list of tags used to filter nodes for a given service. Services must contain all tags in the list."
+        },
+        "node_meta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Node metadata key/value pairs to filter nodes for a given service."
+        },
+        "tag_separator": {
+          "type": "string",
+          "description": "The string by which Consul tags are joined into the tag label. Default: \",\"."
+        },
+        "allow_stale": {
+          "type": "boolean",
+          "description": "Allow stale Consul results. Will reduce load on Consul. Default: true."
+        },
+        "refresh_interval": {
+          "$ref": "#/definitions/duration",
+          "description": "The time after which the provided names are refreshed. On large setups it might be a good idea to increase this value because the catalog changes all the time. Default: 30s."
+        }
+      }
+    },
+    "consulagent_sd_config": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "description": "The information to access the Consul Agent API. Default: \"localhost:8500\"."
+        },
+        "token": {
+          "type": "string",
+          "description": "Consul ACL token."
+        },
+        "datacenter": {
+          "type": "string",
+          "description": "The datacenter to query."
+        },
+        "scheme": {
+          "type": "string",
+          "description": "The URL scheme to use. Default: \"http\"."
+        },
+        "username": {
+          "type": "string",
+          "description": "The username for Consul basic authentication."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password for Consul basic authentication."
+        },
+        "tls_config": {
+          "$ref": "#/definitions/tls_config",
+          "description": "Optional TLS configuration."
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of services for which targets are retrieved. If omitted, all services are scraped."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An optional list of tags used to filter nodes for a given service. Services must contain all tags in the list."
+        },
+        "node_meta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Node metadata key/value pairs to filter nodes for a given service."
+        },
+        "tag_separator": {
+          "type": "string",
+          "description": "The string by which Consul tags are joined into the tag label. Default: \",\"."
+        }
+      }
+    },
+    "counter_metric": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Counter"],
+          "description": "The metric type. Must be Counter."
+        },
+        "description": {
+          "type": "string",
+          "description": "Describes the metric."
+        },
+        "source": {
+          "type": "string",
+          "description": "Key from the extracted data map to use for the metric, defaulting to the metric's name if not present."
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "Filters down source data and only changes the metric if the targeted value exactly matches the provided string. If not present, all data will match."
+            },
+            "action": {
+              "type": "string",
+              "enum": ["inc", "add"],
+              "description": "Must be either \"inc\" or \"add\" (case insensitive). If inc is chosen, the metric value will increase by 1 for each log line received that passed the filter. If add is chosen, the extracted value must be convertible to a positive float and its value will be added to the metric."
+            }
+          }
+        }
+      }
+    },
+    "decompression": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether decompression should be tried or not. Default: false."
+        },
+        "initial_delay": {
+          "$ref": "#/definitions/duration",
+          "description": "Initial delay to wait before starting the decompression. Especially useful in scenarios where compressed files are found before the compression is finished. Default: 0s."
+        },
+        "format": {
+          "type": "string",
+          "description": "Compression format. Supported formats are: 'gz', 'bz2' and 'z'. Default: \"\"."
+        }
+      }
+    },
+    "docker_sd_config": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Address of the Docker daemon. Use unix:///var/run/docker.sock for a local setup."
+        },
+        "proxy_url": {
+          "type": "string",
+          "description": "Optional proxy URL."
+        },
+        "tls_config": {
+          "$ref": "#/definitions/tls_config",
+          "description": "Optional TLS configuration."
+        },
+        "port": {
+          "type": "integer",
+          "description": "The port to scrape metrics from, when `role` is nodes, and for discovered tasks and services that don't have published ports. Default: 80."
+        },
+        "host_networking_host": {
+          "type": "string",
+          "description": "The host to use if the container is in host networking mode. Default: \"localhost\"."
+        },
+        "match_first_network": {
+          "type": "boolean",
+          "description": "Sorts all non-nil networks in ascending order based on network name and gets the first network if the container has multiple networks defined, thus avoiding collecting duplicate targets. Default: true."
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The name of the filter."
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The values of the filter."
+              }
+            }
+          },
+          "description": "Optional filters to limit the discovery process to a subset of available resources."
+        },
+        "refresh_interval": {
+          "$ref": "#/definitions/duration",
+          "description": "The time after which the containers are refreshed. Default: 60s."
+        },
+        "basic_auth": {
+          "$ref": "#/definitions/basic_auth",
+          "description": "Optional HTTP basic authentication information."
+        },
+        "authorization": {
+          "$ref": "#/definitions/authorization",
+          "description": "Optional `Authorization` header configuration. Note that `basic_auth` and `authorization` options are mutually exclusive."
+        },
+        "oauth2": {
+          "$ref": "#/definitions/oauth2",
+          "description": "Optional OAuth 2.0 configuration. Cannot be used at the same time as basic_auth or authorization."
+        },
+        "follow_redirects": {
+          "type": "boolean",
+          "description": "Configure whether HTTP requests follow HTTP 3xx redirects. Default: true."
+        }
+      },
+      "required": ["host"]
+    },
+    "docker_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "docker": {
+          "type": "object",
+          "description": "The Docker stage parses the contents of logs from Docker containers. It automatically extracts the `time` into the logs timestamp, `stream` into a label, and `log` field into the output."
+        }
+      },
+      "required": ["docker"]
+    },
+    "cri_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cri": {
+          "type": "object",
+          "description": "The CRI stage parses the contents of logs from CRI containers. It automatically extracts the `time` into the logs timestamp, `stream` into a label, and the remaining message into the output."
+        }
+      },
+      "required": ["cri"]
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(ms|[smhdwy])?$",
+      "description": "A duration matching the regular expression [0-9]+(ms|[smhdwy])."
+    },
+    "file_sd_config": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Patterns for files from which target groups are extracted. The last path segment may contain a single `*` that matches any character sequence."
+        },
+        "refresh_interval": {
+          "$ref": "#/definitions/duration",
+          "description": "Refresh interval to re-read the files. Default: 5m."
+        }
+      }
+    },
+    "gauge_metric": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Gauge"],
+          "description": "The metric type. Must be Gauge."
+        },
+        "description": {
+          "type": "string",
+          "description": "Describes the metric."
+        },
+        "source": {
+          "type": "string",
+          "description": "Key from the extracted data map to use for the metric, defaulting to the metric's name if not present."
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "Filters down source data and only changes the metric if the targeted value exactly matches the provided string. If not present, all data will match."
+            },
+            "action": {
+              "type": "string",
+              "enum": ["set", "inc", "dec", "add", "sub"],
+              "description": "Must be \"set\", \"inc\", \"dec\", \"add\", or \"sub\". If add, set, or sub is chosen, the extracted value must be convertible to a positive float. inc and dec will increment or decrement the metric's value by 1 respectively."
+            }
+          }
+        }
+      }
+    },
+    "gcplog": {
+      "type": "object",
+      "properties": {
+        "subscription_type": {
+          "type": "string",
+          "enum": ["pull", "push"],
+          "description": "Type of subscription used to fetch logs from GCP. Can be either `pull` (default) or `push`. Default: \"pull\"."
+        },
+        "project_id": {
+          "type": "string",
+          "description": "If the subscription_type is pull, the GCP project ID."
+        },
+        "subscription": {
+          "type": "string",
+          "description": "If the subscription_type is pull, the GCP PubSub subscription from where Promtail will pull logs."
+        },
+        "server": {
+          "$ref": "#/definitions/server",
+          "description": "If the subscription_type is push, the server configuration options."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming GCP Log message. When false, or if no timestamp is present in the GCP Log message, Promtail will assign the current timestamp to the log when it was processed. Default: false."
+        },
+        "use_full_line": {
+          "type": "boolean",
+          "description": "Force Promtail to send the full line from Cloud Logging even if `textPayload` is available. By default, if `textPayload` is present in the line, then it is used as the log line. Default: false."
+        },
+        "push_timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "If the subscription_type is push, configures an HTTP handler timeout. If processing the incoming GCP Logs request takes longer than the configured duration, the server will abort and respond with a 503 HTTP status code. Default: 0 (no timeout)."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log message."
+        }
+      }
+    },
+    "gelf": {
+      "type": "object",
+      "properties": {
+        "listen_address": {
+          "type": "string",
+          "description": "UDP address to listen on. Has the format of \"host:port\". Default: 0.0.0.0:12201."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log message."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming GELF message. When false, or if no timestamp is present on the GELF message, Promtail will assign the current timestamp to the log when it was processed. Default: false."
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "properties": {
+        "file_watch_config": {
+          "$ref": "#/definitions/file_watch_config",
+          "description": "Configure how log files from disk are polled for changes."
+        }
+      }
+    },
+    "file_watch_config": {
+      "type": "object",
+      "properties": {
+        "min_poll_frequency": {
+          "$ref": "#/definitions/duration",
+          "description": "Minimum frequency to poll for files. Any time file changes are detected, the poll frequency gets reset to this duration. Default: 250ms."
+        },
+        "max_poll_frequency": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum frequency to poll for files. Any time no file changes are detected, the poll frequency doubles in value up to this value. Default: 250ms."
+        }
+      }
+    },
+    "heroku_drain": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "$ref": "#/definitions/server",
+          "description": "The Heroku drain server configuration options."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log message."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming Heroku drain message. When false, or if no timestamp is present in the syslog message, Promtail assigns the current timestamp to the log when it was processed. Default: false."
+        }
+      }
+    },
+    "histogram_metric": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Histogram"],
+          "description": "The metric type. Must be Histogram."
+        },
+        "description": {
+          "type": "string",
+          "description": "Describes the metric."
+        },
+        "source": {
+          "type": "string",
+          "description": "Key from the extracted data map to use for the metric, defaulting to the metric's name if not present."
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "Filters down source data and only changes the metric if the targeted value exactly matches the provided string. If not present, all data will match."
+            },
+            "action": {
+              "type": "string",
+              "enum": ["inc", "add"],
+              "description": "Must be either \"inc\" or \"add\" (case insensitive). If inc is chosen, the metric value will increase by 1 for each log line received that passed the filter. If add is chosen, the extracted value must be convertible to a positive float and its value will be added to the metric."
+            },
+            "buckets": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Holds all the numbers in which to bucket the metric."
+            }
+          }
+        }
+      }
+    },
+    "journal": {
+      "type": "object",
+      "properties": {
+        "json": {
+          "type": "boolean",
+          "description": "When true, log messages from the journal are passed through the pipeline as a JSON message with all of the journal entries' original fields. When false, the log message is the text content of the MESSAGE field from the journal entry. Default: false."
+        },
+        "max_age": {
+          "$ref": "#/definitions/duration",
+          "description": "The oldest relative time from process start that will be read and sent to Loki. Default: 7h."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log coming out of the journal."
+        },
+        "relabel_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/relabel_config"
+          },
+          "description": "Get labels from the journal."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to a directory to read entries from. Defaults to system paths (/var/log/journal and /run/log/journal) when empty."
+        }
+      }
+    },
+    "json_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "json": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expressions": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Set of key/value pairs of JMESPath expressions. The key will be the key in the extracted data while the expression will be the value, evaluated as a JMESPath from the source data."
+            },
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data to parse. If empty, uses the log message."
+            }
+          }
+        }
+      },
+      "required": ["json"]
+    },
+    "kafka": {
+      "type": "object",
+      "properties": {
+        "brokers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The list of brokers to connect to Kafka."
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The list of Kafka topics to consume. If a topic starts with `^` then a regular expression (RE2) is used to match topics."
+        },
+        "group_id": {
+          "type": "string",
+          "description": "The Kafka consumer group id. Default: \"promtail\"."
+        },
+        "assignor": {
+          "type": "string",
+          "enum": ["range", "sticky", "roundrobin"],
+          "description": "The consumer group rebalancing strategy to use. Default: \"range\"."
+        },
+        "version": {
+          "type": "string",
+          "description": "Kafka version to connect to. Default: \"2.2.1\"."
+        },
+        "authentication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["none", "ssl", "sasl"],
+              "description": "Authentication type. Supported values: none, ssl, sasl. Default: \"none\"."
+            },
+            "tls_config": {
+              "$ref": "#/definitions/tls_config",
+              "description": "TLS configuration for authentication and encryption. It is used only when authentication type is ssl."
+            },
+            "sasl_config": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mechanism": {
+                  "type": "string",
+                  "enum": ["PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"],
+                  "description": "SASL mechanism. Supported values: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512. Default: \"PLAIN\"."
+                },
+                "user": {
+                  "type": "string",
+                  "description": "The user name to use for SASL authentication."
+                },
+                "password": {
+                  "type": "string",
+                  "description": "The password to use for SASL authentication."
+                },
+                "use_tls": {
+                  "type": "boolean",
+                  "description": "If true, SASL authentication is executed over TLS. Default: false."
+                },
+                "ca_file": {
+                  "type": "string",
+                  "description": "The CA file to use to verify the server."
+                },
+                "server_name": {
+                  "type": "string",
+                  "description": "Validates that the server name in the server's certificate is this value."
+                },
+                "insecure_skip_verify": {
+                  "type": "boolean",
+                  "description": "If true, ignores the server certificate being signed by an unknown CA. Default: false."
+                }
+              }
+            }
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log line read from Kafka."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming log or not. When false Promtail assigns the current timestamp to the log when it was processed. Default: false."
+        }
+      }
+    },
+    "kubernetes_sd_config": {
+      "type": "object",
+      "properties": {
+        "api_server": {
+          "type": "string",
+          "description": "The Kubernetes API server address. If left empty, Promtail is assumed to run inside the cluster and will discover the API server automatically and use the pod's CA certificate and bearer token file at /var/run/secrets/kubernetes.io/serviceaccount/."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["endpoints", "service", "pod", "node", "ingress"],
+          "description": "The Kubernetes role of entities that should be discovered."
+        },
+        "basic_auth": {
+          "$ref": "#/definitions/basic_auth",
+          "description": "Optional HTTP basic authentication information. Note that `basic_auth`, `bearer_token` and `bearer_token_file` options are mutually exclusive."
+        },
+        "bearer_token": {
+          "type": "string",
+          "description": "Optional bearer token authentication information."
+        },
+        "bearer_token_file": {
+          "type": "string",
+          "description": "Optional bearer token file authentication information."
+        },
+        "proxy_url": {
+          "type": "string",
+          "description": "Optional proxy URL."
+        },
+        "tls_config": {
+          "$ref": "#/definitions/tls_config",
+          "description": "Optional TLS configuration."
+        },
+        "namespaces": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional namespace discovery. If omitted, all namespaces are used."
+            }
+          }
+        },
+        "selectors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "role": {
+                "type": "string",
+                "description": "Optional label and field selectors to limit the discovery process to a subset of available resources."
+              },
+              "label": {
+                "type": "string",
+                "description": "Label selector."
+              },
+              "field": {
+                "type": "string",
+                "description": "Field selector."
+              }
+            }
+          },
+          "description": "Optional label and field selectors to limit the discovery process to a subset of available resources. The endpoints role supports pod, service, and endpoint selectors."
+        }
+      },
+      "required": ["role"]
+    },
+    "labels_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The labels stage takes data from the extracted map and sets additional labels on the log entry. The key is REQUIRED and the name for the label that will be created. The value is optional and will be the name from extracted data whose value will be used for the value of the label. If empty, the value will be inferred to be the same as the key."
+        }
+      },
+      "required": ["labels"]
+    },
+    "limits_config": {
+      "type": "object",
+      "properties": {
+        "readline_rate_enabled": {
+          "type": "boolean",
+          "description": "When true, enforces rate limiting on this instance of Promtail. Default: false."
+        },
+        "readline_rate": {
+          "type": "integer",
+          "description": "The rate limit (in log lines per second) that this instance of Promtail may push to Loki. Default: 10000."
+        },
+        "readline_burst": {
+          "type": "integer",
+          "description": "The cap in the quantity of burst lines that this instance of Promtail may push to Loki. Default: 10000."
+        },
+        "readline_rate_drop": {
+          "type": "boolean",
+          "description": "When true, exceeding the rate limit causes this instance of Promtail to discard log lines. When false, Promtail temporarily holds off on sending the log lines and retries later. Default: true."
+        },
+        "max_streams": {
+          "type": "integer",
+          "description": "Limits the maximum number of active streams. Limiting the number of streams is useful as a mechanism to limit memory usage by Promtail, which helps to avoid OOM scenarios. 0 means it is disabled."
+        },
+        "max_line_size": {
+          "type": "integer",
+          "description": "Maximum log line byte size allowed without dropping. Example: 256kb, 2M. 0 to disable. If disabled, targets may apply default buffer size safety limits."
+        },
+        "max_line_size_truncate": {
+          "type": "boolean",
+          "description": "Whether to truncate lines that exceed max_line_size. No effect if max_line_size is disabled. Default: false."
+        }
+      }
+    },
+    "loki_push_api": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "$ref": "#/definitions/server",
+          "description": "The push server configuration options."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log line sent to the push API."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "If Promtail should pass on the timestamp from the incoming log or not. When false Promtail assigns the current timestamp to the log when it was processed. Does not apply to the plaintext endpoint on `/promtail/api/v1/raw`. Default: false."
+        }
+      }
+    },
+    "match_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "selector": {
+              "type": "string",
+              "description": "LogQL stream selector."
+            },
+            "pipeline_name": {
+              "type": "string",
+              "description": "Names the pipeline. When defined, creates an additional label in the pipeline_duration_seconds histogram, where the value is concatenated with job_name using an underscore."
+            },
+            "stages": {
+              "$ref": "#/definitions/pipeline_stages",
+              "description": "Nested set of pipeline stages executed only if the selector matches the labels of the log entries."
+            }
+          },
+          "required": ["selector"]
+        }
+      },
+      "required": ["match"]
+    },
+    "metric": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/counter_metric"
+        },
+        {
+          "$ref": "#/definitions/gauge_metric"
+        },
+        {
+          "$ref": "#/definitions/histogram_metric"
+        }
+      ]
+    },
+    "metrics_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/metric"
+          },
+          "description": "The metrics stage allows for defining metrics from the extracted data. The key is the name of the metric and the value is a specific metric type. Created metrics are not pushed to Loki and are instead exposed via Promtail's /metrics endpoint."
+        }
+      },
+      "required": ["metrics"]
+    },
+    "oauth2": {
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "type": "string",
+          "description": "Client id for OAuth 2.0."
+        },
+        "client_secret": {
+          "type": "string",
+          "description": "Client secret for OAuth 2.0. Mutually exclusive with `client_secret_file`."
+        },
+        "client_secret_file": {
+          "type": "string",
+          "description": "Read the client secret from a file. Mutually exclusive with `client_secret`."
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional scopes for the token request."
+        },
+        "token_url": {
+          "type": "string",
+          "description": "The URL to fetch the token from."
+        },
+        "endpoint_params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional parameters to append to the token URL."
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "description": "Configures additional Promtail configurations.",
+      "additionalProperties": true
+    },
+    "output_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data to use for the log entry."
+            }
+          },
+          "required": ["source"]
+        }
+      },
+      "required": ["output"]
+    },
+    "pipeline_stage": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/docker_stage"
+        },
+        {
+          "$ref": "#/definitions/cri_stage"
+        },
+        {
+          "$ref": "#/definitions/regex_stage"
+        },
+        {
+          "$ref": "#/definitions/json_stage"
+        },
+        {
+          "$ref": "#/definitions/template_stage"
+        },
+        {
+          "$ref": "#/definitions/match_stage"
+        },
+        {
+          "$ref": "#/definitions/timestamp_stage"
+        },
+        {
+          "$ref": "#/definitions/output_stage"
+        },
+        {
+          "$ref": "#/definitions/labels_stage"
+        },
+        {
+          "$ref": "#/definitions/metrics_stage"
+        },
+        {
+          "$ref": "#/definitions/tenant_stage"
+        },
+        {
+          "$ref": "#/definitions/replace_stage"
+        }
+      ]
+    },
+    "pipeline_stages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/pipeline_stage"
+      }
+    },
+    "positions": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "description": "Location of the positions file. Default: \"/var/log/positions.yaml\"."
+        },
+        "sync_period": {
+          "$ref": "#/definitions/duration",
+          "description": "How often to update the positions file. Default: 10s."
+        },
+        "ignore_invalid_yaml": {
+          "type": "boolean",
+          "description": "Whether to ignore and later overwrite positions files that are corrupted. Default: false."
+        }
+      }
+    },
+    "regex_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "regex": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expression": {
+              "type": "string",
+              "description": "The RE2 regular expression. Each capture group must be named."
+            },
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data to parse. If empty, uses the log message."
+            }
+          },
+          "required": ["expression"]
+        }
+      },
+      "required": ["regex"]
+    },
+    "relabel_config": {
+      "type": "object",
+      "properties": {
+        "source_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The source labels select values from existing labels. Their content is concatenated using the configured separator and matched against the configured regular expression for the replace, keep, and drop actions."
+        },
+        "separator": {
+          "type": "string",
+          "description": "Separator placed between concatenated source label values. Default: \";\"."
+        },
+        "target_label": {
+          "type": "string",
+          "description": "Label to which the resulting value is written in a replace action. It is mandatory for replace actions. Regex capture groups are available."
+        },
+        "regex": {
+          "type": "string",
+          "description": "Regular expression against which the extracted value is matched. Default: (.*)."
+        },
+        "modulus": {
+          "type": "number",
+          "description": "Modulus to take of the hash of the source label values. Required for the hashmod action."
+        },
+        "replacement": {
+          "type": "string",
+          "description": "Replacement value against which a regex replace is performed if the regular expression matches. Regex capture groups are available. Default: $1."
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "replace",
+            "keep",
+            "drop",
+            "hashmod",
+            "labelmap",
+            "labeldrop",
+            "labelkeep"
+          ],
+          "description": "Action to perform based on regex matching. Default: replace."
+        }
+      }
+    },
+    "replace_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "replace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expression": {
+              "type": "string",
+              "description": "The RE2 regular expression. Each named capture group will be added to extracted. Each capture group and named capture group will be replaced with the value given in `replace`."
+            },
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data to parse. If empty, uses the log message. The replaced value will be assigned back to the source key."
+            },
+            "replace": {
+              "type": "string",
+              "description": "Value to which the captured group will be replaced. An empty value will remove the captured group from the log line."
+            }
+          },
+          "required": ["expression"]
+        }
+      },
+      "required": ["replace"]
+    },
+    "scrape_config": {
+      "type": "object",
+      "properties": {
+        "job_name": {
+          "type": "string",
+          "description": "Name to identify this scrape config in the Promtail UI."
+        },
+        "pipeline_stages": {
+          "$ref": "#/definitions/pipeline_stages",
+          "description": "Describes how to transform logs from targets."
+        },
+        "decompression": {
+          "$ref": "#/definitions/decompression",
+          "description": "Defines decompression behavior for the given scrape target."
+        },
+        "journal": {
+          "$ref": "#/definitions/journal",
+          "description": "Describes how to scrape logs from the journal."
+        },
+        "encoding": {
+          "type": "string",
+          "description": "Describes from which encoding a scraped file should be converted. Accepts an IANA encoding name."
+        },
+        "syslog": {
+          "$ref": "#/definitions/syslog",
+          "description": "Describes how to receive logs from syslog."
+        },
+        "loki_push_api": {
+          "$ref": "#/definitions/loki_push_api",
+          "description": "Describes how to receive logs via the Loki push API, e.g. from other Promtails or the Docker Logging Driver."
+        },
+        "windows_events": {
+          "$ref": "#/definitions/windows_events",
+          "description": "Describes how to scrape logs from the Windows event logs."
+        },
+        "gcplog": {
+          "$ref": "#/definitions/gcplog",
+          "description": "Configuration describing how to pull/receive Google Cloud Platform (GCP) logs."
+        },
+        "azure_event_hubs": {
+          "$ref": "#/definitions/azure_event_hubs",
+          "description": "Configuration describing how to get Azure Event Hubs messages."
+        },
+        "kafka": {
+          "$ref": "#/definitions/kafka",
+          "description": "Describes how to fetch logs from Kafka via a consumer group."
+        },
+        "gelf": {
+          "$ref": "#/definitions/gelf",
+          "description": "Describes how to receive logs from a GELF client."
+        },
+        "cloudflare": {
+          "$ref": "#/definitions/cloudflare",
+          "description": "Configuration describing how to pull logs from Cloudflare."
+        },
+        "heroku_drain": {
+          "$ref": "#/definitions/heroku_drain",
+          "description": "Configuration describing how to pull logs from a Heroku LogPlex drain."
+        },
+        "relabel_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/relabel_config"
+          },
+          "description": "Describes how to relabel targets to determine if they should be processed."
+        },
+        "static_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/static_config"
+          },
+          "description": "Static targets to scrape."
+        },
+        "file_sd_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/file_sd_config"
+          },
+          "description": "Files containing targets to scrape."
+        },
+        "kubernetes_sd_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/kubernetes_sd_config"
+          },
+          "description": "Describes how to discover Kubernetes services running on the same host."
+        },
+        "consul_sd_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/consul_sd_config"
+          },
+          "description": "Describes how to use the Consul Catalog API to discover services registered with the consul cluster."
+        },
+        "consulagent_sd_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/consulagent_sd_config"
+          },
+          "description": "Describes how to use the Consul Agent API to discover services registered with the consul agent running on the same host as Promtail."
+        },
+        "docker_sd_configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/docker_sd_config"
+          },
+          "description": "Describes how to use the Docker daemon API to discover containers running on the same host as Promtail."
+        }
+      }
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "disable": {
+          "type": "boolean",
+          "description": "Disable the HTTP and gRPC server. Default: false."
+        },
+        "profiling_enabled": {
+          "type": "boolean",
+          "description": "Enable the /debug/fgprof and /debug/pprof endpoints for profiling. Default: false."
+        },
+        "http_listen_address": {
+          "type": "string",
+          "description": "HTTP server listen address."
+        },
+        "http_listen_port": {
+          "type": "integer",
+          "description": "HTTP server listen port (0 means a random port). Default: 80."
+        },
+        "grpc_listen_address": {
+          "type": "string",
+          "description": "gRPC server listen address."
+        },
+        "grpc_listen_port": {
+          "type": "integer",
+          "description": "gRPC server listen port (0 means a random port). Default: 9095."
+        },
+        "register_instrumentation": {
+          "type": "boolean",
+          "description": "Register instrumentation handlers (/metrics, etc.). Default: true."
+        },
+        "graceful_shutdown_timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Timeout for graceful shutdowns. Default: 30s."
+        },
+        "http_server_read_timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Read timeout for the HTTP server. Default: 30s."
+        },
+        "http_server_write_timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Write timeout for the HTTP server. Default: 30s."
+        },
+        "http_server_idle_timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Idle timeout for the HTTP server. Default: 120s."
+        },
+        "grpc_server_max_recv_msg_size": {
+          "type": "integer",
+          "description": "Maximum gRPC message size that can be received. Default: 4194304."
+        },
+        "grpc_server_max_send_msg_size": {
+          "type": "integer",
+          "description": "Maximum gRPC message size that can be sent. Default: 4194304."
+        },
+        "grpc_server_max_concurrent_streams": {
+          "type": "integer",
+          "description": "Limit on the number of concurrent streams for gRPC calls (0 = unlimited). Default: 100."
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "description": "Log only messages with the given severity or above. Default: \"info\"."
+        },
+        "http_path_prefix": {
+          "type": "string",
+          "description": "Base path to serve all API routes from (e.g., /v1/)."
+        },
+        "health_check_target": {
+          "type": "boolean",
+          "description": "Whether target managers are checked for Promtail readiness. If set to false the check is ignored. Default: true."
+        },
+        "enable_runtime_reload": {
+          "type": "boolean",
+          "description": "Enable configuration reload via HTTP request. Default: false."
+        }
+      }
+    },
+    "static_config": {
+      "type": "object",
+      "properties": {
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Configures the discovery to look on the current machine. This is required by the Prometheus service discovery code but doesn't really apply to Promtail which can only look at files on the local machine. As such it should only have the value of localhost, or it can be excluded entirely and a default value of localhost will be applied."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Defines a file to scrape and an optional set of additional labels to apply to all streams defined by the files from __path__."
+        }
+      }
+    },
+    "syslog": {
+      "type": "object",
+      "properties": {
+        "listen_address": {
+          "type": "string",
+          "description": "TCP address to listen on. Has the format of \"host:port\"."
+        },
+        "tls_config": {
+          "$ref": "#/definitions/tls_config",
+          "description": "Configure the receiver to use TLS."
+        },
+        "idle_timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "The idle timeout for tcp syslog connections. Default: 120 seconds."
+        },
+        "label_structured_data": {
+          "type": "boolean",
+          "description": "Whether to convert syslog structured data to labels. A structured data entry of [example@99999 test=\"yes\"] would become the label `__syslog_message_sd_example_99999_test` with the value \"yes\"."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log message."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming syslog message. When false, or if no timestamp is present on the syslog message, Promtail will assign the current timestamp to the log when it was processed. Default: false."
+        },
+        "max_message_length": {
+          "type": "integer",
+          "description": "Sets the maximum limit to the length of syslog messages."
+        },
+        "syslog_format": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Defines the used syslog format at the target. Default: \"rfc5424\"."
+            }
+          }
+        },
+        "use_rfc5424_message": {
+          "type": "boolean",
+          "description": "Defines whether the full RFC5424 formatted syslog message should be pushed to Loki."
+        }
+      }
+    },
+    "target_config": {
+      "type": "object",
+      "properties": {
+        "sync_period": {
+          "$ref": "#/definitions/duration",
+          "description": "Period to resync directories being watched and files being tailed to discover new ones or stop watching removed ones. Default: \"10s\"."
+        }
+      }
+    },
+    "template_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data to parse. If the key in extracted data doesn't exist, an entry for it will be created."
+            },
+            "template": {
+              "type": "string",
+              "description": "Go template string to use. In addition to normal template functions, ToLower, ToUpper, Replace, Trim, TrimLeft, TrimRight, TrimPrefix, TrimSuffix, and TrimSpace are available as functions."
+            }
+          },
+          "required": ["source", "template"]
+        }
+      },
+      "required": ["template"]
+    },
+    "tenant_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenant": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Name from labels whose value should be set as tenant ID. Mutually exclusive with `source` and `value`."
+            },
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data whose value should be set as tenant ID. Mutually exclusive with `label` and `value`."
+            },
+            "value": {
+              "type": "string",
+              "description": "Value to use to set the tenant ID when this stage is executed. Useful when this stage is included within a conditional pipeline with \"match\"."
+            }
+          }
+        }
+      },
+      "required": ["tenant"]
+    },
+    "timestamp_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timestamp": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "Name from extracted data to use for the timestamp."
+            },
+            "format": {
+              "type": "string",
+              "description": "Determines how to parse the time string. Can use pre-defined formats by name: ANSIC, UnixDate, RubyDate, RFC822, RFC822Z, RFC850, RFC1123, RFC1123Z, RFC3339, RFC3339Nano, Unix, UnixMs, UnixUs, UnixNs."
+            },
+            "location": {
+              "type": "string",
+              "description": "IANA Timezone Database string."
+            }
+          },
+          "required": ["source", "format"]
+        }
+      },
+      "required": ["timestamp"]
+    },
+    "tls_config": {
+      "type": "object",
+      "properties": {
+        "ca_file": {
+          "type": "string",
+          "description": "The CA file to use to verify the server."
+        },
+        "cert_file": {
+          "type": "string",
+          "description": "The cert file to send to the server for client auth."
+        },
+        "key_file": {
+          "type": "string",
+          "description": "The key file to send to the server for client auth."
+        },
+        "server_name": {
+          "type": "string",
+          "description": "Validates that the server name in the server's certificate is this value."
+        },
+        "insecure_skip_verify": {
+          "type": "boolean",
+          "description": "If true, ignores the server certificate being signed by an unknown CA. Default: false."
+        }
+      }
+    },
+    "tracing": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "When true, configures tracing for Jaeger. Currently, limited to configuration per environment variables only. Default: false."
+        }
+      }
+    },
+    "windows_events": {
+      "type": "object",
+      "properties": {
+        "locale": {
+          "type": "integer",
+          "description": "LCID (Locale ID) for event rendering. 1033 forces English language, 0 uses the default Windows locale. Default: 0."
+        },
+        "eventlog_name": {
+          "type": "string",
+          "description": "Name of the event log, used only if xpath_query is empty. Example: \"Application\"."
+        },
+        "xpath_query": {
+          "type": "string",
+          "description": "XPath query in short form like \"Event/System[EventID=999]\" or a full XML Query. Default: \"*\"."
+        },
+        "bookmark_path": {
+          "type": "string",
+          "description": "Sets the bookmark location on the filesystem. The bookmark contains the current position of the target in XML. When restarting or rolling out Promtail, the target will continue to scrape events where it left off based on the bookmark position."
+        },
+        "poll_interval": {
+          "$ref": "#/definitions/duration",
+          "description": "The interval at which Promtail looks for new events. Default: 3s."
+        },
+        "exclude_event_data": {
+          "type": "boolean",
+          "description": "Allows excluding the XML event data. Default: false."
+        },
+        "exclude_event_message": {
+          "type": "boolean",
+          "description": "Allows excluding the human-friendly event message. Default: false."
+        },
+        "exclude_user_data": {
+          "type": "boolean",
+          "description": "Allows excluding the user data of each Windows event. Default: false."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Label map to add to every log line read from the Windows event log."
+        },
+        "use_incoming_timestamp": {
+          "type": "boolean",
+          "description": "Whether Promtail should pass on the timestamp from the incoming log or not. When false Promtail assigns the current timestamp to the log when it was processed. Default: false."
+        }
+      }
+    }
+  },
+  "properties": {
+    "global": {
+      "$ref": "#/definitions/global",
+      "description": "Configures global settings which impact all targets."
+    },
+    "server": {
+      "$ref": "#/definitions/server",
+      "description": "Configures the server for Promtail."
+    },
+    "clients": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/client"
+      },
+      "description": "Describes how Promtail connects to multiple instances of Grafana Loki, sending logs to each. If one of the remote Loki servers fails to respond or responds with any error which is retryable, this will impact sending logs to any other configured remote Loki servers, because sending is done on a single thread. It is generally recommended to run multiple Promtail clients in parallel if you want to send to multiple remote Loki instances."
+    },
+    "positions": {
+      "$ref": "#/definitions/positions",
+      "description": "Describes how to save read file offsets to disk."
+    },
+    "scrape_configs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/scrape_config"
+      },
+      "description": "Describes how Promtail can scrape logs from a series of targets using a specified discovery method. Promtail uses the same scrape_configs as Prometheus."
+    },
+    "limits_config": {
+      "$ref": "#/definitions/limits_config",
+      "description": "Configures global limits for this instance of Promtail."
+    },
+    "target_config": {
+      "$ref": "#/definitions/target_config",
+      "description": "Configures how tailed targets will be watched."
+    },
+    "options": {
+      "$ref": "#/definitions/options",
+      "description": "Configures additional Promtail configurations."
+    },
+    "tracing": {
+      "$ref": "#/definitions/tracing",
+      "description": "Configures tracing support."
+    }
+  }
+}

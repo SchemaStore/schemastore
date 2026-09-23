@@ -1,0 +1,92 @@
+{
+  "commonLabels": {
+    "team": "platform"
+  },
+  "defaultInherit": ["base", "labels"],
+  "environments": {
+    "default": {
+      "mergeStrategy": "override",
+      "missingFileHandler": "Warn",
+      "values": ["env/default.yaml", { "replicaCount": 2 }]
+    }
+  },
+  "helmBinary": "helm",
+  "helmDefaults": {
+    "cascade": "foreground",
+    "forceConflicts": true,
+    "skipCRDs": false,
+    "syncArgs": ["--take-ownership"],
+    "timeout": 600,
+    "wait": true,
+    "waitForJobs": true
+  },
+  "helmfiles": [
+    "apps/*/helmfile.yaml",
+    {
+      "environment": {
+        "values": ["shared/values.yaml"]
+      },
+      "inherits": ["repositories", "helmDefaults"],
+      "path": "infra/helmfile.yaml",
+      "selectors": ["tier=infra"],
+      "selectorsInherited": true
+    }
+  ],
+  "hooks": [
+    {
+      "args": ["global hook"],
+      "command": "echo",
+      "events": ["prepare", "cleanup"],
+      "showlogs": true
+    }
+  ],
+  "kubeContext": "prod",
+  "kubeVersion": "1.29",
+  "kustomizeBinary": "kustomize",
+  "lockFilePath": "helmfile.lock",
+  "namespace": "default",
+  "releases": [
+    {
+      "cascade": "background",
+      "forceConflicts": true,
+      "hooks": [
+        {
+          "events": ["presync"],
+          "kubectlApply": { "manifest": "extra.yaml" }
+        }
+      ],
+      "inherit": [{ "except": ["values"], "template": "base" }],
+      "installed": true,
+      "name": "web",
+      "needs": ["cache"],
+      "set": [{ "name": "replicas", "value": "3" }],
+      "skipSchemaValidation": false,
+      "trackMode": "kubedog",
+      "values": ["web/values.yaml", { "image": { "tag": "latest" } }],
+      "version": "1.2.3",
+      "waitRetries": 3
+    },
+    {
+      "name": "cache"
+    }
+  ],
+  "repositories": [
+    {
+      "name": "bitnami",
+      "oci": true,
+      "plainHttp": false,
+      "skipTLSVerify": false,
+      "url": "registry-1.docker.io/bitnamicharts"
+    }
+  ],
+  "templates": {
+    "base": {
+      "chart": "bitnami/nginx",
+      "missingFileHandler": "Info",
+      "trackResources": [{ "kind": "Deployment", "name": "nginx" }]
+    },
+    "labels": {
+      "labels": { "managed-by": "helmfile" }
+    }
+  }
+}
