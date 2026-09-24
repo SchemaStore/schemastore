@@ -14,9 +14,11 @@
 
   let ul = document.querySelector('#schemalist ul')
   let p = document.getElementById('count')
+  let schemaCount = document.getElementById('schema-count')
   let schemas = document.getElementById('schemas')
   let search = document.getElementById('search')
   let data = []
+  let searchTimeout
 
   if (!ul || !p) return
 
@@ -25,6 +27,9 @@
 
     get(api, true, function (catalog) {
       p.innerHTML = p.innerHTML.replace('{0}', catalog.schemas.length)
+      if (schemaCount) {
+        schemaCount.textContent = `${catalog.schemas.length.toLocaleString('en-US')}+`
+      }
       data = catalog.schemas.sort(function (a, b) {
         return a.name.localeCompare(b.name)
       })
@@ -34,6 +39,7 @@
   }
 
   function populate(data) {
+    let fragment = document.createDocumentFragment()
     for (const element of data) {
       let schema = element
       let li = document.createElement('li')
@@ -43,21 +49,23 @@
       a.innerText = schema.name
 
       li.appendChild(a)
-      ul.appendChild(li)
+      fragment.appendChild(li)
     }
+    ul.appendChild(fragment)
   }
 
   search.addEventListener(
     'input',
     () => {
-      let value = search.value.toLowerCase()
+      let value = search.value.trim().toLowerCase()
+      clearTimeout(searchTimeout)
 
-      setTimeout(() => {
-        if (value !== search.value.toLowerCase()) return
+      searchTimeout = setTimeout(() => {
+        if (value !== search.value.trim().toLowerCase()) return
 
         for (const li of ul.childNodes) {
           li.style.display =
-            li.innerText.toLowerCase().indexOf(value) > -1 ? 'block' : 'none'
+            li.textContent.toLowerCase().indexOf(value) > -1 ? 'block' : 'none'
         }
       }, 300)
     },
