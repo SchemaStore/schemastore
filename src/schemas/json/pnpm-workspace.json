@@ -121,10 +121,8 @@
     },
     "catalog": {
       "$comment": "https://pnpm.io/catalogs",
-      "$ref": "#/definitions/dependency",
       "description": "Define dependency version ranges as reusable constants,\nfor later reference in package.json files.\nThis (singular) field creates a catalog named default.\n",
-      "type": ["object", "null"],
-      "minProperties": 1
+      "anyOf": [{ "$ref": "#/definitions/dependency" }, { "type": "null" }]
     },
     "catalogs": {
       "description": "Define arbitrarily named catalogs",
@@ -781,8 +779,12 @@
       "description": "This setting allows the checking of the state of dependencies before running scripts.",
       "oneOf": [
         {
-          "type": ["string", "boolean"],
-          "enum": ["install", "warn", "error", "prompt", false]
+          "type": "string",
+          "enum": ["install", "warn", "error", "prompt"]
+        },
+        {
+          "type": "boolean",
+          "enum": [false]
         }
       ]
     },
@@ -881,9 +883,83 @@
             "description": "A positive integer limiting how many instances of this named task may run across workspace projects at once. This limit is separate from workspaceConcurrency.",
             "type": "integer",
             "minimum": 1
+          },
+          "concurrencyGroup": {
+            "description": "Assigns this task to a named concurrency group whose machine-wide limit is configured under concurrencyGroups. Added in pnpm v12.5.0.",
+            "type": "string"
+          },
+          "priority": {
+            "description": "Waiting tasks take available slots in order of descending priority, with higher values running first. Ties are broken by arrival order. Added in pnpm v12.6.0.",
+            "type": "integer",
+            "default": 0
+          },
+          "outputs": {
+            "description": "Globs, relative to the project directory, naming the files the task produces. Their presence makes the task cacheable by `pnpm pipeline`; declaring `outputs: []` states the task produces no files. Read by pnpm pipeline only.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inputs": {
+            "description": "Globs narrowing what goes into the task's cache key. Without it, every tracked file of the project counts. An entry prefixed with `+` adds to that default instead of replacing it. Read by pnpm pipeline only.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "env": {
+            "description": "Environment variable names whose values take part in the task's cache key. The values are hashed, never stored. Read by pnpm pipeline only.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cache": {
+            "description": "Set to false to opt a task with declared outputs back out of the `pnpm pipeline` cache. Read by pnpm pipeline only.",
+            "type": "boolean"
+          },
+          "cargoTargetDir": {
+            "description": "Points Cargo's target and build directories at this path so a Cargo task keeps its local build state between runs and between git worktrees. The directory must be relative to the project and ignored by git. Read by pnpm pipeline only.",
+            "type": "string"
           }
         }
       }
+    },
+    "concurrencyGroups": {
+      "$comment": "https://pnpm.io/workspace-task-orchestration#concurrencygroups",
+      "description": "Machine-wide concurrency limits for named groups of tasks (assigned via `tasks.<name>.concurrencyGroup`). At most the given number of tasks in a group run at once across pnpm processes sharing the same stateDir, including pnpm pipeline. A missing or zero group limit does not restrict execution. Added in pnpm v12.5.0.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer"
+      }
+    },
+    "pipelines": {
+      "description": "Named sets of task names, keyed by pipeline name, run by `pnpm pipeline [name]`. A pipeline is a set, not a sequence: the order in which its tasks run comes from `tasks.<name>.dependsOn`. The pipeline named `default` runs when no name is given. Added in pnpm v12.4.0 (experimental, pnpm v12 only).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "pipelineBase": {
+      "description": "The git ref the affected selection of `pnpm pipeline` resolves its merge base against. Overridden by the `--base <ref>` option.",
+      "type": "string",
+      "default": "origin/main"
+    },
+    "cargo": {
+      "$comment": "https://pnpm.io/cargo",
+      "description": "Cargo (Rust) dependencies support: when enabled, `pnpm install` resolves and installs the workspace's Cargo dependencies next to the npm packages. Multi-ecosystem support is experimental. Added in: v12.4.0 (pnpm v12 only).",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether pnpm install resolves and installs the workspace's Cargo dependencies.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
     },
     "failIfNoMatch": {
       "type": "boolean",
@@ -1215,6 +1291,11 @@
               "prefix": {
                 "description": "The bare-specifier prefix this registry answers to, as in `pnpm add work:^1.0.0`.",
                 "type": "string"
+              },
+              "ecosystem": {
+                "description": "The package ecosystem this registry serves. Set to `cargo` to declare a custom Cargo sparse index (since pnpm v12.5.0); only one Cargo index may be declared. Without a declaration, pnpm uses https://index.crates.io.",
+                "type": "string",
+                "enum": ["cargo"]
               },
               "serverType": {
                 "description": "The software serving this registry: `npm` behaves like registry.npmjs.org, which serves a scoped package from the percent-encoded path as well as the unencoded one; `artifactory` repeats the scope in a scoped package's tarball filename.",

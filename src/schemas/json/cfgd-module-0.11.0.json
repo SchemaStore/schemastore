@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cfgd.io/schemas/cfgd-module.schema.json",
+  "$defs": {
+    "EncryptionMode": {
+      "description": "Controls when encryption is required for a managed file.",
+      "oneOf": [
+        {
+          "const": "InRepo",
+          "description": "File must be encrypted when stored in the repository.",
+          "type": "string"
+        },
+        {
+          "const": "Always",
+          "description": "File must always be encrypted, including at rest on disk.",
+          "type": "string"
+        }
+      ]
+    },
+    "EncryptionSpec": {
+      "additionalProperties": false,
+      "description": "Encryption settings for a managed file.",
+      "properties": {
+        "backend": {
+          "description": "The encryption backend to use (e.g. \"sops\", \"age\").",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/EncryptionMode",
+          "default": "InRepo",
+          "description": "When encryption must be enforced. Defaults to `InRepo`."
+        }
+      },
+      "required": ["backend"],
+      "type": "object"
+    },
+    "EnvVar": {
+      "description": "A single `NAME=VALUE` environment variable entry.",
+      "properties": {
+        "name": {
+          "description": "Variable name. Must be shell-safe and not a reserved `CFGD_*` name.",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platform tags gating this entry alone. Empty means every platform the\ndeclaring module or profile is not already gated off of. Tags are\nmatched against the machine's OS, distro, and arch; use `macos` for\nmacOS. An entry gated off this host is not part of its desired state at\nall: it appears on no surface, exactly as a platform-filtered package\ndoes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "value": {
+          "description": "Value assigned to the variable, exported verbatim into the shell\nenvironment.",
+          "type": "string"
+        }
+      },
+      "required": ["name", "value"],
+      "type": "object"
+    },
+    "FileStrategy": {
+      "description": "File deployment strategy.",
+      "oneOf": [
+        {
+          "const": "Symlink",
+          "description": "Create a symbolic link from target to source (default).",
+          "type": "string"
+        },
+        {
+          "const": "Copy",
+          "description": "Copy source content to target.",
+          "type": "string"
+        },
+        {
+          "const": "Template",
+          "description": "Render a Tera template and write the output (auto-selected for .tera files).",
+          "type": "string"
+        },
+        {
+          "const": "Hardlink",
+          "description": "Create a hard link from target to source.",
+          "type": "string"
+        },
+        {
+          "const": "Patch",
+          "description": "Merge structured keys/values into the target, or pipe it through a\nscript, leaving everything else untouched. Requires a `patch:` block.",
+          "type": "string"
+        }
+      ]
+    },
+    "ModuleFileEntry": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.files[]`: a file this module deploys.\n\n```yaml\nfiles:\n  - source: files/init.lua\n    target: ~/.config/nvim/init.lua\n```",
+      "properties": {
+        "encryption": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EncryptionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Encryption settings for this module file."
+        },
+        "patch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PatchSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Structured merge or script configuration for `strategy: Patch`.\nRequired when `strategy` is `Patch`, rejected otherwise."
+        },
+        "permissions": {
+          "description": "Unix permission bits (e.g. \"600\", \"644\") to apply after deployment.",
+          "type": ["string", "null"]
+        },
+        "private": {
+          "description": "When true, the source file is local-only: auto-added to .gitignore,\nsilently skipped on machines where it doesn't exist.",
+          "type": "boolean"
+        },
+        "source": {
+          "default": "",
+          "description": "Path to the source file, relative to the module directory. Not\nrequired when `strategy` is `Patch`; required otherwise.",
+          "type": "string"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Per-file deployment strategy override. Omitted, the module-wide default\napplies."
+        },
+        "target": {
+          "description": "Destination path on the machine. A leading `~` expands to the home\ndirectory.",
+          "type": "string"
+        }
+      },
+      "required": ["target"],
+      "type": "object"
+    },
+    "ModuleMetadata": {
+      "additionalProperties": false,
+      "description": "`metadata`: identifying information for a module.",
+      "properties": {
+        "description": {
+          "description": "A one-line human summary shown in `cfgd module list` / `cfgd module show`.",
+          "type": ["string", "null"]
+        },
+        "name": {
+          "description": "The module's name, referenced from a profile's `modules:` list.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The module's own release version, as `MAJOR.MINOR.PATCH` with optional\npre-release and build metadata (`1.2.0`, `2.0.0-rc.1`). It names the\n`<module>/v<version>` release tag that the workflow from\n`cfgd workflow generate` cuts when the module changes, so bumping it is\nwhat publishes a new release. Absent on modules that are not released\nindependently.",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
+    "ModulePackageEntry": {
+      "additionalProperties": false,
+      "description": "One entry of `spec.packages[]`: a package this module installs.\n\n```yaml\npackages:\n  - name: neovim\n    minVersion: \"0.9\"\n    prefer: [brew, apt]\n```",
+      "properties": {
+        "aliases": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Manager-specific package name aliases (e.g. `{apt: \"neovim\", brew:\n\"neovim\"}`) for a package named differently across managers.",
+          "type": "object"
+        },
+        "creates": {
+          "description": "Skip the install script if this path already exists. A leading `~`\nexpands to the home directory; a relative path resolves against the\nscript's working directory. Existence follows symlinks. Only meaningful\nfor a `prefer: [script]` install; ignored otherwise.",
+          "type": ["string", "null"]
+        },
+        "deny": {
+          "description": "Package managers to never use for this package, even if otherwise\navailable and preferred by the profile.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "minVersion": {
+          "description": "Minimum acceptable installed version, loosely parsed (`\"1.2\"`, `\"1\"`).\nA version below this is treated as not satisfying the module.",
+          "type": ["string", "null"]
+        },
+        "name": {
+          "default": "",
+          "description": "The package name as the chosen manager knows it.",
+          "type": "string"
+        },
+        "onlyIf": {
+          "description": "Run the install script only if this command exits zero. A non-zero exit\nskips the install (the condition for installing was not met). Only\nmeaningful for a `prefer: [script]` install; ignored for manager-backed\ninstalls (those are idempotent via the manager's installed-package query).",
+          "type": ["string", "null"]
+        },
+        "platforms": {
+          "description": "Platform tags gating this package alone. Empty means install on every\nplatform the module itself is not already gated off of.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "prefer": {
+          "description": "Manager preference order for this package, overriding the profile's\ndefault manager priority (e.g. `[brew, apt]`, or `[script]` to force\nthis entry's own `script`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "script": {
+          "description": "Shell script to run instead of a manager install, selected via\n`prefer: [script]`.",
+          "type": ["string", "null"]
+        },
+        "unless": {
+          "description": "Run the install script only if this command exits NON-zero. A zero exit\n(success) skips the install (the package already appears present). Only\nmeaningful for a `prefer: [script]` install; ignored otherwise.",
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "ModuleSpec": {
+      "additionalProperties": false,
+      "description": "`spec`: the declared surface of a module — everything it contributes to a\nprofile that includes it.",
+      "properties": {
+        "aliases": {
+          "description": "Shell aliases this module contributes.",
+          "items": {
+            "$ref": "#/$defs/ShellAlias"
+          },
+          "type": "array"
+        },
+        "depends": {
+          "description": "Names of other modules this one requires; cfgd resolves and applies them\nfirst.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "env": {
+          "description": "Environment variables this module contributes.",
+          "items": {
+            "$ref": "#/$defs/EnvVar"
+          },
+          "type": "array"
+        },
+        "files": {
+          "description": "Files this module deploys.",
+          "items": {
+            "$ref": "#/$defs/ModuleFileEntry"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "description": "Packages this module installs.",
+          "items": {
+            "$ref": "#/$defs/ModulePackageEntry"
+          },
+          "type": "array"
+        },
+        "platforms": {
+          "description": "Platform tags gating the whole module. When non-empty and the current\nplatform matches none of them, the module is skipped entirely (it\nappears as a skipped action rather than vanishing). Tags are matched\nagainst the machine's OS, distro, and arch; use `macos` for macOS.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scripts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScriptSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Lifecycle scripts (`preApply`, `postApply`, …) this module runs."
+        },
+        "system": {
+          "additionalProperties": true,
+          "description": "System configurator settings contributed by this module.\nDeep-merged into the profile system map; module values override profile values at leaf level.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "PatchFormat": {
+      "description": "File format used to interpret and re-serialize a `Patch`-strategy target.",
+      "oneOf": [
+        {
+          "const": "Ini",
+          "description": "INI sections/keys, edited line-by-line to preserve comments and layout.",
+          "type": "string"
+        },
+        {
+          "const": "Json",
+          "description": "JSON, re-serialized on write (no comments to preserve).",
+          "type": "string"
+        },
+        {
+          "const": "Yaml",
+          "description": "YAML; comments are NOT preserved across a merge (see docs for the caveat).",
+          "type": "string"
+        },
+        {
+          "const": "Toml",
+          "description": "TOML, edited in place to preserve comments and layout.",
+          "type": "string"
+        }
+      ]
+    },
+    "PatchSpec": {
+      "additionalProperties": false,
+      "description": "Configuration for the `Patch` file strategy: a structured merge (`ensure`)\nor a content-rewriting script, applied on top of the target's current\ncontent.",
+      "properties": {
+        "ensure": {
+          "description": "Keys/values to deep-merge into the target, leaving unmentioned keys\nuntouched. Values are literal (no template rendering). Mutually\nexclusive with `script`."
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PatchFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "File format to parse the target as. Inferred from the target's\nextension when omitted."
+        },
+        "script": {
+          "description": "A script path or an inline command that receives the target's current\ncontent on stdin and writes the new content to stdout. A relative path\nresolves against the module directory for a module file\n(`spec.files[]`) and against the config directory for a profile file\n(`spec.files.managed[]`); a value that resolves to no file is run as an\ninline command. Mutually exclusive with `ensure`.",
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "ScriptCommand": {
+      "description": "The mapping form of a script entry: a command with a timeout, shell,\nguard condition or working directory.",
+      "properties": {
+        "continueOnError": {
+          "description": "Treat a non-zero exit as success and continue reconciliation instead\nof failing the run. Default: `false`.",
+          "type": ["boolean", "null"]
+        },
+        "creates": {
+          "description": "Skip the script if this path already exists. A leading `~` expands to\nthe home directory; a relative path resolves against the script's\nworking directory. Existence follows symlinks.",
+          "type": ["string", "null"]
+        },
+        "idleTimeout": {
+          "description": "Kill the script if it produces no stdout/stderr output for this duration.\nPrevents scripts from silently hanging on unresponsive resources.\nFormat: \"30s\", \"2m\", etc. If unset, no idle timeout is enforced.",
+          "type": ["string", "null"]
+        },
+        "interactive": {
+          "description": "Run the script attached to the terminal (inherited stdin/stdout/stderr,\nno spinner, no output capture, no idle timeout) so it can prompt the\nuser — e.g. `echo \"press Enter when done\"; read`. Requires a TTY: when\nstdin is not a terminal (CI, piped input, or any daemon-run phase) the\nscript is skipped with a warning rather than hanging on instant EOF.",
+          "type": "boolean"
+        },
+        "onlyIf": {
+          "description": "Run the script only if this command exits zero. A non-zero exit skips\nthe script (the condition for running was not met). Evaluated with the\nsame shell, working directory, and environment as the body.",
+          "type": ["string", "null"]
+        },
+        "run": {
+          "description": "The command or script body to run.",
+          "type": "string"
+        },
+        "shell": {
+          "$ref": "#/$defs/ScriptShell",
+          "description": "Interpreter to use for inline commands. Ignored (and rejected) on file scripts."
+        },
+        "timeout": {
+          "description": "Kill the script if it runs longer than this duration (`\"30s\"`, `\"2m\"`).\nUnset means no timeout.",
+          "type": ["string", "null"]
+        },
+        "unless": {
+          "description": "Run the script only if this command exits NON-zero. A zero exit\n(success) skips the script (the guarded state already holds).\nEvaluated with the same shell, working directory, and environment as\nthe body.",
+          "type": ["string", "null"]
+        },
+        "workdir": {
+          "description": "Working directory for the script. By default every lifecycle script\nruns in the user's home directory — never the config source tree — so\na relative write can't pollute the user's GitOps repo. Set `workdir`\nto override: a leading `~` expands to home and `$VAR`/`${VAR}` expand\nagainst the script environment (which always carries `$CFGD_MODULE_DIR`\nand `$CFGD_CONFIG_DIR`), so `workdir: ~/.local/share/app`,\n`workdir: $CFGD_MODULE_DIR`, or an absolute path all work.",
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["run"],
+      "type": "object"
+    },
+    "ScriptEntry": {
+      "anyOf": [
+        {
+          "description": "A bare command string, run with the platform's default shell and no\ntimeout/guard.",
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/ScriptCommand",
+          "description": "The mapping form, carrying the body and its knobs."
+        }
+      ],
+      "description": "A lifecycle script entry: either a bare command string, or a mapping for\none that needs a timeout, shell, or guard condition.\n\n```yaml\npreApply: \"echo starting\"\n# or\npostApply:\n  run: brew update\n  timeout: 2m\n  onlyIf: command -v brew\n```"
+    },
+    "ScriptShell": {
+      "description": "Interpreter for inline lifecycle scripts.",
+      "oneOf": [
+        {
+          "enum": ["sh", "bash", "zsh", "pwsh", "cmd"],
+          "type": "string"
+        },
+        {
+          "const": "auto",
+          "description": "Platform default: `sh` on Unix, `cmd.exe` on Windows.",
+          "type": "string"
+        }
+      ]
+    },
+    "ScriptSpec": {
+      "additionalProperties": false,
+      "description": "`spec.scripts`: lifecycle hooks run at specific points in the reconcile cycle.\n\n```yaml\nscripts:\n  preApply: \"echo starting apply\"\n  postApply:\n    - run: brew cleanup\n      continueOnError: true\n  onDrift: \"notify-send 'cfgd: drift detected'\"\n```",
+      "properties": {
+        "onChange": {
+          "default": [],
+          "description": "Run when a watched file changes on disk (requires `daemon.reconcile.onChange`).",
+          "items": {
+            "$ref": "#/$defs/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "onDrift": {
+          "default": [],
+          "description": "Run when the daemon detects drift, before any auto-apply decision.",
+          "items": {
+            "$ref": "#/$defs/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "postApply": {
+          "default": [],
+          "description": "Run once after every action in an apply completes.",
+          "items": {
+            "$ref": "#/$defs/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "postReconcile": {
+          "default": [],
+          "description": "Run once after a daemon reconcile tick completes.",
+          "items": {
+            "$ref": "#/$defs/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preApply": {
+          "default": [],
+          "description": "Run once before any action in an apply.",
+          "items": {
+            "$ref": "#/$defs/ScriptEntry"
+          },
+          "type": "array"
+        },
+        "preReconcile": {
+          "default": [],
+          "description": "Run once before a daemon reconcile tick begins.",
+          "items": {
+            "$ref": "#/$defs/ScriptEntry"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ShellAlias": {
+      "description": "A single shell alias entry.",
+      "properties": {
+        "command": {
+          "description": "Command the alias expands to, written in the syntax of the shell it is\ngenerated for. It may carry arguments, pipes and quotes: cfgd quotes the\nwhole value per dialect when it writes the alias definition, so the text\nreaches the shell exactly as declared. Required — an alias with no\ncommand has nothing to expand to.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Alias name, as typed at the shell prompt.",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platform tags gating this entry alone. Empty means every platform the\ndeclaring module or profile is not already gated off of. Tags are\nmatched against the machine's OS, distro, and arch; use `macos` for\nmacOS. An entry gated off this host is not part of its desired state at\nall: it appears on no surface, exactly as a platform-filtered package\ndoes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["name", "command"],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Schema for cfgd Module documents (kind: Module)",
+  "properties": {
+    "apiVersion": {
+      "description": "API group/version, e.g. `cfgd.io/v1alpha1`.",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Document kind. Always `Module` for this file.",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/ModuleMetadata",
+      "description": "Identifying metadata for this module."
+    },
+    "spec": {
+      "$ref": "#/$defs/ModuleSpec",
+      "description": "The module's declared surface."
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "title": "cfgd Module",
+  "type": "object"
+}
