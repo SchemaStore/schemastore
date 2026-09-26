@@ -8,6 +8,7 @@
       "description": "This should be relative to the root of the project e.g. \"./source/app.js\"\n. Declared options may interpolate option keys in the path. e.g. ./path/{{options.optionName}}/file.ext. This allows you to include different files based on the options set by the customer."
     },
     "resource": {
+      "type": "object",
       "properties": {
         "type": {
           "type": "string",
@@ -29,16 +30,27 @@
       }
     },
     "optionDeclarationCommonProperties": {
+      "type": "object",
       "title": "An object containing your app's install options.",
       "description": "Each declaration will appear in your app's installer for end-user customization. Their choices will accessible in your app's JavaScript resources as the constant `INSTALL_OPTIONS`.",
       "additionalProperties": {
         "required": ["order", "type"],
         "oneOf": [
           {
-            "required": ["title"]
+            "not": {
+              "properties": {
+                "title": true
+              },
+              "required": ["title"]
+            }
           },
           {
-            "required": ["helpvalue"]
+            "not": {
+              "properties": {
+                "helpvalue": true
+              },
+              "required": ["helpvalue"]
+            }
           }
         ],
         "type": "object",
@@ -76,24 +88,42 @@
             }
           },
           "showIf": {
-            "type": ["string", "object"],
-            "title": "Conditionally show a field",
-            "description": "The `showIf` property can accept a boolean option property key:\n\n\n\t\"showIf\": \"optionName\"\n\nAn object with a property key, operator, and expected value can also be used for more complex matching:\n\t\"showIf\": {\"optionName\": {\"op\": \"==\", \"value\": \"foo\"}}\nThe showIf property can also accept multiple criteria, all of which must be matched for the field to be visible.\nYou can also use `showIf` to show options based on the current product the customer has elected to purchase:\n\t\"showIf\": {\"INSTALL_PRODUCT.id\": \"business\"}",
-            "additionalProperties": {
-              "title": "A string matching another defined option key, or `INSTALL_PRODUCT.id`",
-              "additionalProperties": false,
-              "properties": {
-                "op": {
-                  "type": "string",
-                  "title": "JavaScript operator",
-                  "enum": ["==", "!=", "<", ">", "<=", ">="]
-                },
-                "value": {
-                  "title": "Expected value",
-                  "type": ["string", "number", "null"]
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "title": "A string matching another defined option key, or `INSTALL_PRODUCT.id`",
+                  "additionalProperties": false,
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "title": "JavaScript operator",
+                      "enum": ["==", "!=", "<", ">", "<=", ">="]
+                    },
+                    "value": {
+                      "title": "Expected value",
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
-            }
+            ],
+            "title": "Conditionally show a field",
+            "description": "The `showIf` property can accept a boolean option property key:\n\n\n\t\"showIf\": \"optionName\"\n\nAn object with a property key, operator, and expected value can also be used for more complex matching:\n\t\"showIf\": {\"optionName\": {\"op\": \"==\", \"value\": \"foo\"}}\nThe showIf property can also accept multiple criteria, all of which must be matched for the field to be visible.\nYou can also use `showIf` to show options based on the current product the customer has elected to purchase:\n\t\"showIf\": {\"INSTALL_PRODUCT.id\": \"business\"}"
           },
           "required": {
             "type": "boolean",
@@ -140,16 +170,23 @@
             "type": "number"
           },
           "products": {
-            "type": ["array", "object"],
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "title": "An array containing a `productId` for each eligible product.",
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array"
+                }
+              }
+            ],
             "title": "Limit this option to a set of eligible products.",
-            "description": "Most option types can be limited to a set of eligible products with an array of qualifying product IDs:\n\t{\"products\": [\"pro\", \"enterprise\"]}\nRadio options can be limited to specific products with products. Much like `enumNames`, each key in the object is a string from the enum array. However the value is an array containing a string `productId` for each eligible product:\n\t\"{enumNames\":{\n\t\"announcement\": \"Just show a message\",\n\t\"cta\": \"Redirect them to a special page\",\n\t\"signup\": \"Gather emails to sign visitors up for your newsletter\"\n\t},\n\t\"products\": {\n\t\"cta\": [\"plus\", \"pro\"],\n\t\"signup\": [\"pro\"]\n\t}",
-            "items": {
-              "title": "An array containing a `productId` for each eligible product.",
-              "type": "string"
-            },
-            "additionalProperties": {
-              "type": "array"
-            }
+            "description": "Most option types can be limited to a set of eligible products with an array of qualifying product IDs:\n\t{\"products\": [\"pro\", \"enterprise\"]}\nRadio options can be limited to specific products with products. Much like `enumNames`, each key in the object is a string from the enum array. However the value is an array containing a string `productId` for each eligible product:\n\t\"{enumNames\":{\n\t\"announcement\": \"Just show a message\",\n\t\"cta\": \"Redirect them to a special page\",\n\t\"signup\": \"Gather emails to sign visitors up for your newsletter\"\n\t},\n\t\"products\": {\n\t\"cta\": [\"plus\", \"pro\"],\n\t\"signup\": [\"pro\"]\n\t}"
           },
           "units": {
             "title": "Declare which units the installer can choose. Used with {\"type\": \"object\", \"format\": \"number\"}",
@@ -181,6 +218,7 @@
             "description": "Many developers duplicate the placeholder content as a default text in their app. This allows customers to always have sane default labels that can be overridden for localization. If this proves cumbersome, we recommend importing the install.json contents into your app JavaScript with Webpack."
           },
           "default": {
+            "type": "object",
             "title": "A default value that appears the form field.",
             "description": "Ensure that your app renders correctly without the default value. Alternatively, use a \"placeholder\" property.",
             "properties": {
@@ -288,6 +326,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
+            "type": "object",
             "additionalProperties": false,
             "properties": {
               "src": {
@@ -299,6 +338,7 @@
       }
     },
     "preview": {
+      "type": "object",
       "title": "Configuration of the installer preview experience.",
       "description": "Preview options can be used to declare handlers that execute after an event has been triggered.",
       "default": {
@@ -314,6 +354,7 @@
           "type": "array",
           "title": "Declarations for each group of matching options and their executing function. Multiple update handlers are useful when an app has options that have different updating procedures.",
           "items": {
+            "type": "object",
             "properties": {
               "options": {
                 "type": "array",
