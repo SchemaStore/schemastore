@@ -1664,42 +1664,149 @@
         "servers": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AsyncApiServerDefinition"
+            "$ref": "#/definitions/AsyncApiRootServerDefinition"
           }
         },
         "schemaRegistry": {
           "$ref": "#/definitions/AsyncApiSchemaRegistry"
         },
         "specs": {
-          "$ref": "#/definitions/SpecificationRuntimeDefinitionArray"
+          "$ref": "#/definitions/AsyncApiTestSpecificationRuntimeDefinitionArray"
         }
       }
     },
+    "AsyncApiRootServerDefinition": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/AsyncApiWrappedInlineServerDefinition"
+        },
+        {
+          "$ref": "#/definitions/AsyncApiInlineServerDefinition"
+        }
+      ]
+    },
     "AsyncApiServerDefinition": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/AsyncApiWrappedServerDefinition"
+        },
+        {
+          "$ref": "#/definitions/AsyncApiInlineServerDefinition"
+        }
+      ]
+    },
+    "AsyncApiWrappedInlineServerDefinition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["host", "protocol"],
+      "required": ["server"],
+      "properties": {
+        "server": {
+          "$ref": "#/definitions/AsyncApiInlineServerDefinition"
+        }
+      }
+    },
+    "AsyncApiWrappedServerDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["server"],
+      "properties": {
+        "server": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/AsyncApiInlineServerDefinition"
+            },
+            {
+              "$ref": "#/definitions/AsyncApiServerReferenceDefinition"
+            }
+          ]
+        }
+      }
+    },
+    "AsyncApiInlineServerDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "protocol", "type"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "in-memory"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "protocol": {
+                "enum": ["amqp", "jms", "kafka"]
+              }
+            }
+          }
+        }
+      ],
       "properties": {
         "host": {
           "$ref": "#/definitions/SubstitutableString"
         },
         "protocol": {
-          "$ref": "#/definitions/SubstitutableString"
+          "type": "string",
+          "enum": [
+            "amqp",
+            "eventbridge",
+            "googlepubsub",
+            "ibmmq",
+            "jms",
+            "kafka",
+            "mqtt",
+            "sns",
+            "sqs",
+            "ws"
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/AsyncApiServerType"
         },
         "adminCredentials": {
           "$ref": "#/definitions/FreeFormObject"
         },
         "client": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "consumer": {
-              "$ref": "#/definitions/CertConfigurationOrRef"
-            },
-            "producer": {
-              "$ref": "#/definitions/CertConfigurationOrRef"
-            }
-          }
+          "$ref": "#/definitions/AsyncApiClientDefinition"
+        }
+      }
+    },
+    "AsyncApiServerReferenceDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$serverRef", "type"],
+      "properties": {
+        "$serverRef": {
+          "type": "string",
+          "pattern": "^#/servers/[^/]+$"
+        },
+        "type": {
+          "$ref": "#/definitions/AsyncApiServerType"
+        },
+        "adminCredentials": {
+          "$ref": "#/definitions/FreeFormObject"
+        },
+        "client": {
+          "$ref": "#/definitions/AsyncApiClientDefinition"
+        }
+      }
+    },
+    "AsyncApiServerType": {
+      "type": "string",
+      "enum": ["external", "in-memory"]
+    },
+    "AsyncApiClientDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "consumer": {
+          "$ref": "#/definitions/FreeFormObject"
+        },
+        "producer": {
+          "$ref": "#/definitions/FreeFormObject"
         }
       }
     },
@@ -1711,10 +1818,101 @@
           "const": "mock"
         },
         "specs": {
-          "$ref": "#/definitions/SpecificationRuntimeDefinitionArray"
+          "$ref": "#/definitions/AsyncApiMockSpecificationRuntimeDefinitionArray"
         },
         "servers": {
           "type": "array",
+          "items": {
+            "$ref": "#/definitions/AsyncApiRootServerDefinition"
+          }
+        },
+        "schemaRegistry": {
+          "$ref": "#/definitions/AsyncApiSchemaRegistry"
+        },
+        "inMemoryBroker": {
+          "$ref": "#/definitions/AsyncApiInMemoryBroker"
+        }
+      }
+    },
+    "AsyncApiTestSpecificationRuntimeDefinitionArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["spec"],
+        "properties": {
+          "spec": {
+            "$ref": "#/definitions/AsyncApiTestSpecificationRuntimeDefinition"
+          }
+        }
+      }
+    },
+    "AsyncApiTestSpecificationRuntimeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "host": {
+          "$ref": "#/definitions/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/definitions/SubstitutableInteger"
+        },
+        "overlayFilePath": {
+          "$ref": "#/definitions/SubstitutableString"
+        },
+        "replyTimeout": {
+          "$ref": "#/definitions/SubstitutableInteger"
+        },
+        "subscriberReadinessWaitTime": {
+          "$ref": "#/definitions/SubstitutableInteger"
+        },
+        "servers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/AsyncApiServerDefinition"
+          }
+        },
+        "schemaRegistry": {
+          "$ref": "#/definitions/AsyncApiSchemaRegistry"
+        }
+      }
+    },
+    "AsyncApiMockSpecificationRuntimeDefinitionArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["spec"],
+        "properties": {
+          "spec": {
+            "$ref": "#/definitions/AsyncApiMockSpecificationRuntimeDefinition"
+          }
+        }
+      }
+    },
+    "AsyncApiMockSpecificationRuntimeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "host": {
+          "$ref": "#/definitions/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/definitions/SubstitutableInteger"
+        },
+        "overlayFilePath": {
+          "$ref": "#/definitions/SubstitutableString"
+        },
+        "servers": {
+          "type": "array",
+          "minItems": 1,
           "items": {
             "$ref": "#/definitions/AsyncApiServerDefinition"
           }
@@ -1723,19 +1921,24 @@
           "$ref": "#/definitions/AsyncApiSchemaRegistry"
         },
         "inMemoryBroker": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "host": {
-              "$ref": "#/definitions/SubstitutableString"
-            },
-            "port": {
-              "$ref": "#/definitions/SubstitutableInteger"
-            },
-            "logDir": {
-              "$ref": "#/definitions/SubstitutableString"
-            }
-          }
+          "$ref": "#/definitions/AsyncApiInMemoryBroker"
+        }
+      }
+    },
+    "AsyncApiInMemoryBroker": {
+      "type": "object",
+      "additionalProperties": false,
+      "deprecated": true,
+      "description": "Deprecated. Configure an AsyncAPI server with type 'in-memory' instead.",
+      "properties": {
+        "host": {
+          "$ref": "#/definitions/SubstitutableString"
+        },
+        "port": {
+          "$ref": "#/definitions/SubstitutableInteger"
+        },
+        "logDir": {
+          "$ref": "#/definitions/SubstitutableString"
         }
       }
     },
