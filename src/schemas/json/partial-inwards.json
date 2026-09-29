@@ -1,0 +1,759 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/partial-inwards.json",
+  "$comment": "tool.inwards table in pyproject.toml. Copied on 2026-09-29 from https://sircypkowskyy.github.io/inwards/schema/tool-inwards.json (source: https://github.com/SirCypkowskyy/inwards/blob/develop/schema/tool-inwards.schema.json).",
+  "description": "Configuration of Inwards, the architecture linter for Python, in pyproject.toml. The schema checks structure, types, enums and syntax; the parser also checks relations between entries (unique names, context ownership) and required-version.",
+  "markdownDescription": "Configuration of Inwards, the architecture linter for Python, in pyproject.toml. The schema checks structure, types, enums and syntax; the parser also checks relations between entries (unique names, context ownership) and required-version.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#configuration-reference)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["layers"],
+  "properties": {
+    "root": {
+      "description": "Directory, relative to pyproject.toml, that module names are computed from.",
+      "markdownDescription": "Directory, relative to pyproject.toml, that module names are computed from.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#root)",
+      "type": "string",
+      "default": "."
+    },
+    "layers": {
+      "description": "The layers, innermost first. A module may import its own layer and any layer listed before it. A nested array holds independent siblings, which may not import each other.",
+      "markdownDescription": "The layers, innermost first. A module may import its own layer and any layer listed before it. A nested array holds independent siblings, which may not import each other.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#layers)",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/layer"
+          },
+          {
+            "$ref": "#/definitions/siblingLayers"
+          }
+        ]
+      }
+    },
+    "required-version": {
+      "description": "The oldest Inwards allowed to check this project, as \"MAJOR.MINOR.PATCH\". An older binary fails with a config error.",
+      "markdownDescription": "The oldest Inwards allowed to check this project, as \"MAJOR.MINOR.PATCH\". An older binary fails with a config error.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#required-version)",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "ignore": {
+      "description": "Module names left out of the INW006 unassigned-package warning, matched as whole segments anywhere in a module name, or at its start when the entry begins with /.",
+      "markdownDescription": "Module names left out of the INW006 unassigned-package warning, matched as whole segments anywhere in a module name, or at its start when the entry begins with /.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#ignore)",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "generated": {
+      "description": "Modules a build step writes, which INW010 treats as existing: dotted names whose segments may use * and ?. A list, even an empty one, replaces the default.",
+      "markdownDescription": "Modules a build step writes, which INW010 treats as existing: dotted names whose segments may use * and ?. A list, even an empty one, replaces the default.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#generated)",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[^.\\s/\\\\\\[\\]-]+(\\.[^.\\s/\\\\\\[\\]-]+)*$",
+        "not": {
+          "pattern": "^[*?.]+$"
+        }
+      },
+      "default": ["*_pb2", "*_pb2_grpc", "_version"]
+    },
+    "namespace-packages": {
+      "description": "Implicit namespace packages that installed distributions add to, such as acme.platform. INW010 doesn't report a missing module directly inside one; a missing module inside a subpackage that is in the project is still reported.",
+      "markdownDescription": "Implicit namespace packages that installed distributions add to, such as acme.platform. INW010 doesn't report a missing module directly inside one; a missing module inside a subpackage that is in the project is still reported.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#namespace-packages)",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/dottedName"
+      }
+    },
+    "escalate-after": {
+      "description": "How many attempts at the same violation before the hooks stop blocking and tell the agent to ask the user.",
+      "markdownDescription": "How many attempts at the same violation before the hooks stop blocking and tell the agent to ask the user.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#escalate-after)",
+      "type": "integer",
+      "minimum": 1,
+      "default": 3
+    },
+    "run-log": {
+      "description": "Write the opt-in run log .inwards/runs.jsonl.",
+      "markdownDescription": "Write the opt-in run log .inwards/runs.jsonl.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#run-log)",
+      "type": "boolean",
+      "default": false
+    },
+    "stop-gate": {
+      "description": "What the Claude Code Stop gate checks: \"changed\" (the files the session changed) or \"project\" (the whole project against its baseline).",
+      "markdownDescription": "What the Claude Code Stop gate checks: \"changed\" (the files the session changed) or \"project\" (the whole project against its baseline).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#stop-gate)",
+      "enum": ["changed", "project"],
+      "default": "changed"
+    },
+    "cycles": {
+      "description": "Which import cycles INW004 reports: between modules, between bounded contexts, both, or none ([]).",
+      "markdownDescription": "Which import cycles INW004 reports: between modules, between bounded contexts, both, or none ([]).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#cycles)",
+      "type": "array",
+      "items": {
+        "enum": ["modules", "contexts"]
+      },
+      "uniqueItems": true,
+      "default": ["contexts"]
+    },
+    "shape": {
+      "description": "Package shapes: which members a package may, must and must not hold (INW007, INW008). The first matching entry wins.",
+      "markdownDescription": "Package shapes: which members a package may, must and must not hold (INW007, INW008). The first matching entry wins.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/shape"
+      }
+    },
+    "names": {
+      "description": "Where a member name may appear (INW007).",
+      "markdownDescription": "Where a member name may appear (INW007).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/name"
+      }
+    },
+    "rules": {
+      "$ref": "#/definitions/rules"
+    },
+    "agent-suppressions": {
+      "description": "Whether the Claude Code hooks honour an inline suppression the agent added: \"deny\" treats it as absent, \"allow\" honours it.",
+      "markdownDescription": "Whether the Claude Code hooks honour an inline suppression the agent added: \"deny\" treats it as absent, \"allow\" honours it.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#agent-suppressions)",
+      "enum": ["deny", "allow"],
+      "default": "deny"
+    },
+    "contexts": {
+      "description": "Bounded contexts or slices: what each owns, which of its modules others may import, and which contexts it may depend on (INW002, INW003).",
+      "markdownDescription": "Bounded contexts or slices: what each owns, which of its modules others may import, and which contexts it may depend on (INW002, INW003).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/context"
+      }
+    },
+    "templates": {
+      "description": "Named templates: roles that expand into layers, shape keys and a context's public modules, used with template = \"<name>\" on layer, shape and context entries.",
+      "markdownDescription": "Named templates: roles that expand into layers, shape keys and a context's public modules, used with template = \"<name>\" on layer, shape and context entries.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/template"
+      }
+    }
+  },
+  "definitions": {
+    "dottedName": {
+      "description": "A dotted Python name such as shop.orders, with no wildcards.",
+      "type": "string",
+      "pattern": "^[^.\\s*?\\[\\]/\\\\-]+(\\.[^.\\s*?\\[\\]/\\\\-]+)*$"
+    },
+    "selector": {
+      "description": "A package selector: a.b (exact), a.* (one level) or a.** (any depth).",
+      "type": "string",
+      "pattern": "^(\\*\\*?|[^.\\s*?\\[\\]/\\\\-]+)(\\.(\\*\\*?|[^.\\s*?\\[\\]/\\\\-]+))*$"
+    },
+    "layerEntry": {
+      "description": "A layer entry: a module prefix such as shop.domain, or, with a *, a selector whose segments are identifiers, * (one segment) or ** (one or more), starting with a package name, such as shop.*.domain. Inwards also checks non-ASCII identifiers exactly.",
+      "type": "string",
+      "minLength": 1,
+      "anyOf": [
+        {
+          "pattern": "^[^*]+$"
+        },
+        {
+          "pattern": "^[A-Za-z_\\u0080-\\uffff][A-Za-z0-9_\\u0080-\\uffff]*(\\.(\\*\\*?|[A-Za-z_\\u0080-\\uffff][A-Za-z0-9_\\u0080-\\uffff]*))+$"
+        }
+      ]
+    },
+    "memberPattern": {
+      "description": "A member pattern: a name or fnmatch glob (*, ?, [seq], [!seq]), optionally ending in .py or /. Inwards also rejects a reversed range such as [z-a].",
+      "type": "string",
+      "pattern": "^(?:\\[(?:!(?:\\][^\\]/.]*|[^\\]/.][^\\]/.]*)|\\][^\\]/.]*|[^\\]/.!][^\\]/.]*)\\]|[^/.\\[])+(\\.py|/)?$"
+    },
+    "libraryList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/dottedName"
+      }
+    },
+    "ruleCode": {
+      "description": "A rule code this Inwards knows.",
+      "enum": [
+        "INW000",
+        "INW001",
+        "INW002",
+        "INW003",
+        "INW004",
+        "INW005",
+        "INW006",
+        "INW007",
+        "INW008",
+        "INW009",
+        "INW010",
+        "INW011",
+        "FAPI001",
+        "FAPI002",
+        "FAPI003"
+      ]
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "modules"],
+      "properties": {
+        "name": {
+          "description": "The layer's name, unique among layers.",
+          "markdownDescription": "The layer's name, unique among layers.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#layers)",
+          "type": "string",
+          "minLength": 1
+        },
+        "modules": {
+          "description": "Module prefixes and selectors that belong to the layer: shop.domain owns shop.domain.order, shop.*.domain owns shop.orders.domain.order.",
+          "markdownDescription": "Module prefixes and selectors that belong to the layer: shop.domain owns shop.domain.order, shop.*.domain owns shop.orders.domain.order.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#layers)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/layerEntry"
+          }
+        },
+        "allow-libraries": {
+          "description": "Libraries the layer may import; when set, any other third-party library is denied (INW005).",
+          "markdownDescription": "Libraries the layer may import; when set, any other third-party library is denied (INW005).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#layers)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/libraryList"
+            }
+          ]
+        },
+        "deny-libraries": {
+          "description": "Libraries the layer may not import, stdlib included (INW005).",
+          "markdownDescription": "Libraries the layer may not import, stdlib included (INW005).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#layers)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/libraryList"
+            }
+          ]
+        },
+        "extend-deny-libraries": {
+          "description": "Libraries added to the layer's deny list or to the innermost layer's default list (INW005).",
+          "markdownDescription": "Libraries added to the layer's deny list or to the innermost layer's default list (INW005).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#layers)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/libraryList"
+            }
+          ]
+        },
+        "template": {
+          "$ref": "#/definitions/templateName",
+          "description": "A template whose roles expand into one layer each, inside this entry's modules. The entry itself is no layer.",
+          "markdownDescription": "A template whose roles expand into one layer each, inside this entry's modules. The entry itself is no layer.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)"
+        }
+      }
+    },
+    "siblingLayers": {
+      "description": "Two or more independent sibling layers: they share a place in the order and may not import each other.",
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/definitions/layer"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "template": false
+            }
+          }
+        ]
+      }
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packages"],
+      "properties": {
+        "packages": {
+          "description": "Package selectors this shape applies to.",
+          "markdownDescription": "Package selectors this shape applies to.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/selector"
+          }
+        },
+        "allow": {
+          "description": "Members the package may hold; anything else is extra.",
+          "markdownDescription": "Members the package may hold; anything else is extra.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/memberPattern"
+          }
+        },
+        "require": {
+          "description": "Members the package must hold (INW008).",
+          "markdownDescription": "Members the package must hold (INW008).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/memberPattern"
+          }
+        },
+        "forbid": {
+          "description": "Members the package must not hold.",
+          "markdownDescription": "Members the package must not hold.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/memberPattern"
+          }
+        },
+        "extra": {
+          "description": "How an extra member is reported: \"error\" or \"warning\".",
+          "markdownDescription": "How an extra member is reported: \"error\" or \"warning\".\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "enum": ["error", "warning"],
+          "default": "error"
+        },
+        "hints": {
+          "$ref": "#/definitions/hints",
+          "description": "Project advice added to the fix steps of an INW007 finding for this shape.",
+          "markdownDescription": "Project advice added to the fix steps of an INW007 finding for this shape.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)"
+        },
+        "template": {
+          "$ref": "#/definitions/templateName",
+          "description": "A template that supplies allow, require, forbid, extra and hints; keys this entry sets win.",
+          "markdownDescription": "A template that supplies allow, require, forbid, extra and hints; keys this entry sets win.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)"
+        }
+      }
+    },
+    "name": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern", "only-in"],
+      "properties": {
+        "pattern": {
+          "description": "One member pattern, such as test_*.",
+          "markdownDescription": "One member pattern, such as test_*.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/memberPattern"
+            }
+          ]
+        },
+        "only-in": {
+          "description": "Package selectors where members matching the pattern may appear.",
+          "markdownDescription": "Package selectors where members matching the pattern may appear.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#shape)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/selector"
+          }
+        }
+      }
+    },
+    "rules": {
+      "description": "Which rules report and how loudly. ignore wins over select and extend-select; INW000 can't be ignored or re-levelled. A key named after a rule holds that rule's options.",
+      "markdownDescription": "Which rules report and how loudly. ignore wins over select and extend-select; INW000 can't be ignored or re-levelled. A key named after a rule holds that rule's options.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "select": {
+          "description": "Only these rules report, opt-in rules included. Must list at least one code.",
+          "markdownDescription": "Only these rules report, opt-in rules included. Must list at least one code.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/ruleCode"
+          }
+        },
+        "extend-select": {
+          "description": "These rules report too, on top of select or the rules that are on by default. Turns opt-in rules on. INW000 can't be listed.",
+          "markdownDescription": "These rules report too, on top of select or the rules that are on by default. Turns opt-in rules on. INW000 can't be listed.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ruleCode"
+              },
+              {
+                "not": {
+                  "const": "INW000"
+                }
+              }
+            ]
+          }
+        },
+        "ignore": {
+          "description": "These rules don't report. INW000 can't be listed.",
+          "markdownDescription": "These rules don't report. INW000 can't be listed.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ruleCode"
+              },
+              {
+                "not": {
+                  "const": "INW000"
+                }
+              }
+            ]
+          }
+        },
+        "severity": {
+          "description": "Per-rule severity, such as { INW006 = \"warning\" }. INW000 can't be listed.",
+          "markdownDescription": "Per-rule severity, such as { INW006 = \"warning\" }. INW000 can't be listed.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "object",
+          "propertyNames": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ruleCode"
+              },
+              {
+                "not": {
+                  "const": "INW000"
+                }
+              }
+            ]
+          },
+          "additionalProperties": {
+            "enum": ["error", "warning"]
+          }
+        },
+        "layer-dependency": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "context-independence": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "public-api-only": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "import-cycles": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "pure-domain": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "unassigned-module": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "package-shape": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "missing-member": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "suppression-comment": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "unknown-first-party": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "dynamic-import": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "endpoint-metadata": {
+          "$ref": "#/definitions/endpointMetadataOptions"
+        },
+        "undocumented-error-response": {
+          "$ref": "#/definitions/undocumentedErrorResponseOptions"
+        },
+        "router-wiring": {
+          "$ref": "#/definitions/routerWiringOptions"
+        }
+      }
+    },
+    "ruleOptions": {
+      "description": "A rule's options, [tool.inwards.rules.<rule-name>]. They don't turn the rule on: extend-select or select does.",
+      "markdownDescription": "A rule's options, [tool.inwards.rules.<rule-name>]. They don't turn the rule on: extend-select or select does.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "description": "Module prefixes or selectors, as in layers[].modules: the rule reports only in the modules they match.",
+          "markdownDescription": "Module prefixes or selectors, as in layers[].modules: the rule reports only in the modules they match.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/layerEntry"
+          }
+        }
+      }
+    },
+    "routerWiringOptions": {
+      "description": "FAPI003 router-wiring's options, [tool.inwards.rules.router-wiring]. They don't turn the rule on: extend-select or select does.",
+      "markdownDescription": "FAPI003 router-wiring's options, [tool.inwards.rules.router-wiring]. They don't turn the rule on: extend-select or select does.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "$ref": "#/definitions/ruleOptions/properties/modules"
+        },
+        "entrypoints": {
+          "description": "The apps unmounted routers are measured from, as module:name, where name is the app's variable or the top-level function that builds it. Default: every FastAPI() in the project.",
+          "markdownDescription": "The apps unmounted routers are measured from, as module:name, where name is the app's variable or the top-level function that builds it. Default: every FastAPI() in the project.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s*?\\[\\]/\\\\:-]+(\\.[^.\\s*?\\[\\]/\\\\:-]+)*:[^.\\s*?\\[\\]/\\\\:-]+$"
+          }
+        },
+        "allow-unmounted": {
+          "description": "Routers that may stay unmounted, as module prefixes or selectors of their qualified name, such as app.experimental.*.",
+          "markdownDescription": "Routers that may stay unmounted, as module prefixes or selectors of their qualified name, such as app.experimental.*.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/layerEntry"
+          }
+        },
+        "unresolved-includes": {
+          "description": "What an include_router call Inwards can't resolve does to unmounted routers: warn turns them into warnings, silent drops them.",
+          "markdownDescription": "What an include_router call Inwards can't resolve does to unmounted routers: warn turns them into warnings, silent drops them.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "enum": ["warn", "silent"],
+          "default": "warn"
+        },
+        "check-order": {
+          "description": "Whether to report an include_router call that runs above the included router's own routes in the same file.",
+          "markdownDescription": "Whether to report an include_router call that runs above the included router's own routes in the same file.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "modules"],
+      "properties": {
+        "name": {
+          "description": "The context's name: non-blank, case-sensitive, unique among contexts.",
+          "markdownDescription": "The context's name: non-blank, case-sensitive, unique among contexts.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "modules": {
+          "description": "Literal module prefixes the context owns, with their descendants. The longest matching prefix decides a module's one owning context.",
+          "markdownDescription": "Literal module prefixes the context owns, with their descendants. The longest matching prefix decides a module's one owning context.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/dottedName"
+          }
+        },
+        "public": {
+          "description": "Prefixes of this context's own modules that contexts depending on it may import. Absolute names, not relative to the context.",
+          "markdownDescription": "Prefixes of this context's own modules that contexts depending on it may import. Absolute names, not relative to the context.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/dottedName"
+          },
+          "default": []
+        },
+        "depends-on": {
+          "description": "Contexts this one may import from directly: not transitive, not reverse.",
+          "markdownDescription": "Contexts this one may import from directly: not transitive, not reverse.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "default": []
+        },
+        "template": {
+          "$ref": "#/definitions/templateName",
+          "description": "A template whose public modules, under each of this context's prefixes, join its public list.",
+          "markdownDescription": "A template whose public modules, under each of this context's prefixes, join its public list.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)"
+        }
+      }
+    },
+    "templateName": {
+      "description": "The name of a [tool.inwards.templates.<name>] table.",
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roles": {
+          "description": "Role modules, innermost first, relative to the layer entry's modules; \"a | b\" makes independent siblings.",
+          "markdownDescription": "Role modules, innermost first, relative to the layer entry's modules; \"a | b\" makes independent siblings.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^\\s*[^.\\s*?\\[\\]/\\\\|-]+(\\.[^.\\s*?\\[\\]/\\\\|-]+)*(\\s*\\|\\s*[^.\\s*?\\[\\]/\\\\|-]+(\\.[^.\\s*?\\[\\]/\\\\|-]+)*)*\\s*$"
+          }
+        },
+        "public": {
+          "description": "Modules, relative to a context's prefixes, that other contexts may import (INW003).",
+          "markdownDescription": "Modules, relative to a context's prefixes, that other contexts may import (INW003).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/dottedName"
+          }
+        },
+        "allow": {
+          "description": "Members a shaped package may hold besides require and __init__; the roles are added.",
+          "markdownDescription": "Members a shaped package may hold besides require and __init__; the roles are added.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/memberPattern"
+          }
+        },
+        "require": {
+          "description": "Members a shaped package must hold (INW008).",
+          "markdownDescription": "Members a shaped package must hold (INW008).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/memberPattern"
+          }
+        },
+        "forbid": {
+          "description": "Members a shaped package must not hold.",
+          "markdownDescription": "Members a shaped package must not hold.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/memberPattern"
+          }
+        },
+        "extra": {
+          "description": "How an extra member is reported: \"error\" or \"warning\".",
+          "markdownDescription": "How an extra member is reported: \"error\" or \"warning\".\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)",
+          "enum": ["error", "warning"]
+        },
+        "hints": {
+          "$ref": "#/definitions/hints",
+          "description": "Project advice added to the INW007 fix steps.",
+          "markdownDescription": "Project advice added to the INW007 fix steps.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#templates)"
+        }
+      }
+    },
+    "endpointMetadataOptions": {
+      "description": "FAPI001 endpoint-metadata's options, [tool.inwards.rules.endpoint-metadata]. They don't turn the rule on: extend-select or select does.",
+      "markdownDescription": "FAPI001 endpoint-metadata's options, [tool.inwards.rules.endpoint-metadata]. They don't turn the rule on: extend-select or select does.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "description": "Module prefixes or selectors, as in layers[].modules: the rule reports only in the modules they match.",
+          "markdownDescription": "Module prefixes or selectors, as in layers[].modules: the rule reports only in the modules they match.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/layerEntry"
+          }
+        },
+        "require-summary": {
+          "description": "Require summary= or a docstring (\"summary-or-docstring\"), summary= itself (\"summary\"), or nothing (false).",
+          "markdownDescription": "Require summary= or a docstring (\"summary-or-docstring\"), summary= itself (\"summary\"), or nothing (false).\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+          "enum": ["summary-or-docstring", "summary", false],
+          "default": "summary-or-docstring"
+        },
+        "require-response-model": {
+          "description": "Require response_model= or a return annotation FastAPI can use; a status_code=204 route is exempt.",
+          "markdownDescription": "Require response_model= or a return annotation FastAPI can use; a status_code=204 route is exempt.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+          "type": "boolean",
+          "default": true
+        },
+        "require-status-code": {
+          "description": "HTTP methods whose path operations must set status_code= explicitly.",
+          "markdownDescription": "HTTP methods whose path operations must set status_code= explicitly.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "get",
+              "post",
+              "put",
+              "delete",
+              "patch",
+              "options",
+              "head",
+              "trace"
+            ]
+          },
+          "default": ["post", "delete"]
+        },
+        "require-response-fields": {
+          "description": "Keys every entry in responses= must have.",
+          "markdownDescription": "Keys every entry in responses= must have.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["description", "model", "content"]
+          },
+          "default": ["description"]
+        },
+        "require-tags": {
+          "description": "Require tags= on the path operation, or on a router or include_router above it.",
+          "markdownDescription": "Require tags= on the path operation, or on a router or include_router above it.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+          "type": "boolean",
+          "default": false
+        },
+        "require-operation-id": {
+          "description": "Require an explicit operation_id=.",
+          "markdownDescription": "Require an explicit operation_id=.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI001/)",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "undocumentedErrorResponseOptions": {
+      "description": "FAPI002 undocumented-error-response's options, [tool.inwards.rules.undocumented-error-response]. They don't turn the rule on: extend-select or select does.",
+      "markdownDescription": "FAPI002 undocumented-error-response's options, [tool.inwards.rules.undocumented-error-response]. They don't turn the rule on: extend-select or select does.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI002/)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "description": "Module prefixes or selectors, as in layers[].modules: the rule reports only in the modules they match.",
+          "markdownDescription": "Module prefixes or selectors, as in layers[].modules: the rule reports only in the modules they match.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/layerEntry"
+          }
+        },
+        "codes": {
+          "description": "Which error codes must be declared: 4xx only, or 4xx and 5xx.",
+          "markdownDescription": "Which error codes must be declared: 4xx only, or 4xx and 5xx.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI002/)",
+          "enum": ["4xx", "4xx-5xx"],
+          "default": "4xx"
+        },
+        "max-depth": {
+          "description": "How many calls deep FAPI002 follows helpers and dependencies; 0 reads the endpoint's own body only.",
+          "markdownDescription": "How many calls deep FAPI002 follows helpers and dependencies; 0 reads the endpoint's own body only.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI002/)",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "default": 2
+        },
+        "report-direct-raises": {
+          "description": "Report codes raised with HTTPException in the endpoint's own body; false leaves them to Ruff FAST004.",
+          "markdownDescription": "Report codes raised with HTTPException in the endpoint's own body; false leaves them to Ruff FAST004.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI002/)",
+          "type": "boolean",
+          "default": true
+        },
+        "handled-counts-as-documented": {
+          "description": "Count a code that only comes from a custom exception with a registered handler as documented.",
+          "markdownDescription": "Count a code that only comes from a custom exception with a registered handler as documented.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI002/)",
+          "type": "boolean",
+          "default": false
+        },
+        "explicit-422": {
+          "description": "\"ignore\": a 422 counts as documented when the operation takes parameters, since FastAPI documents it; \"report\": it must be declared.",
+          "markdownDescription": "\"ignore\": a 422 counts as documented when the operation takes parameters, since FastAPI documents it; \"report\": it must be declared.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/FAPI002/)",
+          "enum": ["ignore", "report"],
+          "default": "ignore"
+        }
+      }
+    }
+  }
+}
