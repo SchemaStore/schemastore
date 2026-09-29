@@ -1,0 +1,84 @@
+#:schema ../../schemas/json/pyproject.json
+[project]
+name = "shop"
+version = "0.1.0"
+
+[tool.inwards]
+root = "src"
+required-version = "0.3.0"
+ignore = ["migrations", "/shop.scripts"]
+generated = ["*_pb2", "_version"]
+namespace-packages = ["acme.platform"]
+cycles = ["modules", "contexts"]
+escalate-after = 3
+run-log = true
+stop-gate = "project"
+agent-suppressions = "deny"
+layers = [
+  { name = "domain", modules = [
+    "shop.*.domain",
+  ] },
+  [
+    { name = "billing", modules = [
+      "shop.billing",
+    ] },
+    { name = "shipping", modules = [
+      "shop.shipping",
+    ] },
+  ],
+  { name = "api", modules = [
+    "shop.api",
+  ], deny-libraries = [
+    "sqlalchemy",
+  ] },
+  { name = "app", modules = [
+    "shop.*",
+  ], template = "fastapi-domain" },
+]
+
+[[tool.inwards.shape]]
+packages = ["shop.*"]
+require = ["__init__", "service.py"]
+forbid = ["utils/"]
+extra = "warning"
+hints = ["Put shared helpers in shop.common."]
+
+[[tool.inwards.names]]
+pattern = "test_*"
+only-in = ["tests.**"]
+
+[[tool.inwards.contexts]]
+name = "orders"
+modules = ["shop.orders"]
+public = ["shop.orders.api"]
+depends-on = ["users"]
+
+[[tool.inwards.contexts]]
+name = "users"
+modules = ["shop.users"]
+
+[tool.inwards.templates.fastapi-domain]
+roles = ["models | schemas", "service", "router"]
+public = ["router", "schemas"]
+require = ["__init__", "router"]
+
+[tool.inwards.rules]
+extend-select = ["INW010", "FAPI001", "FAPI002", "FAPI003"]
+ignore = ["INW009"]
+severity = { INW006 = "warning" }
+
+[tool.inwards.rules.pure-domain]
+modules = ["shop.*.domain"]
+
+[tool.inwards.rules.endpoint-metadata]
+require-summary = false
+require-status-code = ["post", "delete"]
+require-tags = true
+
+[tool.inwards.rules.undocumented-error-response]
+codes = "4xx-5xx"
+max-depth = 3
+
+[tool.inwards.rules.router-wiring]
+entrypoints = ["shop.main:app"]
+unresolved-includes = "silent"
