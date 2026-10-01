@@ -8,6 +8,24 @@
       "type": "object",
       "required": ["name", "type"],
       "additionalProperties": false,
+      "not": {
+        "anyOf": [
+          {
+            "properties": {
+              "readOnly": {},
+              "readonly": {}
+            },
+            "required": ["readOnly", "readonly"]
+          },
+          {
+            "properties": {
+              "readOnly": {},
+              "createOnly": {}
+            },
+            "required": ["readOnly", "createOnly"]
+          }
+        ]
+      },
       "properties": {
         "name": {
           "type": "string",
@@ -45,6 +63,7 @@
             "manyToMany",
             "password",
             "relationship",
+            "secret",
             "smallint",
             "text",
             "timestamp",
@@ -194,9 +213,17 @@
           "type": "boolean",
           "description": "Set number property as auto increment"
         },
+        "readOnly": {
+          "type": "boolean",
+          "description": "The system computes this property's value; the client never writes it, on any operation (create or update). Mutually exclusive with createOnly on the same property."
+        },
         "readonly": {
           "type": "boolean",
-          "description": "Set property as read only"
+          "description": "Deprecated alias for readOnly. core-back no longer reads it; the CLI loader still accepts it and normalises it to readOnly when loading a YAML schema. Use readOnly instead."
+        },
+        "createOnly": {
+          "type": "boolean",
+          "description": "The client chooses this property's value at creation and it is frozen afterwards: accepted on create, rejected on update. Does NOT belong here: a UI-only lock (use widget instead), a system-computed value (use readOnly instead), or a freeze conditioned on the record's state or a state machine (implement those by hand). Mutually exclusive with readOnly on the same property."
         },
         "applyTimezone": {
           "type": "boolean",
@@ -390,30 +417,79 @@
     },
     "excludedOperationDefinition": {
       "type": "array",
-      "description": "Operations to be excluded from the module",
+      "description": "Operations to be excluded from the module. A plain string excludes the operation from every layer; the object form { operation, layers } excludes it only from the listed layers: api (@api controller, resolver and SDL mutation), app (@app handler and service), ui (frontend route, button and mutation document)",
       "examples": [
         ["create", "update", "delete"],
-        ["create", "update", "delete", "findById"]
+        ["create", "update", "delete", "findById"],
+        [
+          "deleteById",
+          {
+            "operation": "create",
+            "layers": ["api", "ui"]
+          }
+        ]
       ],
       "items": {
-        "enum": [
-          "count",
-          "create",
-          "createBatch",
-          "deleteById",
-          "delete",
-          "findById",
-          "find",
-          "get",
-          "max",
-          "min",
-          "paginate",
-          "getRaw",
-          "sum",
-          "updateAndIncrement",
-          "updateById",
-          "update",
-          "upsert"
+        "oneOf": [
+          {
+            "enum": [
+              "count",
+              "create",
+              "createBatch",
+              "deleteById",
+              "delete",
+              "findById",
+              "find",
+              "get",
+              "max",
+              "min",
+              "paginate",
+              "getRaw",
+              "sum",
+              "updateAndIncrement",
+              "updateById",
+              "update",
+              "upsert"
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Excludes one operation from the listed layers only: api = @api controller, resolver and SDL mutation; app = @app handler and service; ui = frontend route, button and mutation document",
+            "required": ["operation", "layers"],
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "enum": [
+                  "count",
+                  "create",
+                  "createBatch",
+                  "deleteById",
+                  "delete",
+                  "findById",
+                  "find",
+                  "get",
+                  "max",
+                  "min",
+                  "paginate",
+                  "getRaw",
+                  "sum",
+                  "updateAndIncrement",
+                  "updateById",
+                  "update",
+                  "upsert"
+                ]
+              },
+              "layers": {
+                "type": "array",
+                "description": "Layers the operation is excluded from",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "enum": ["api", "app", "ui"]
+                }
+              }
+            }
+          }
         ]
       }
     },
@@ -487,6 +563,12 @@
           "type": "string",
           "description": "Detail view mode for the front application, define detail in a dialog or in a separated view",
           "enum": ["view", "dialog"]
+        },
+        "dialogWidth": {
+          "type": "string",
+          "description": "Width of the create/edit dialog when detailMode is 'dialog'. Named size tokens that map to a definite, responsive width (min(92vw, cap)) so the dialog never resizes with its selected content: sm=28rem, md=42rem, lg=56rem, xl=72rem, full=min(95vw,90rem). Use larger tokens for forms with more fields that need more screen from the start. Ignored when detailMode is 'view'. Defaults to 'md'.",
+          "enum": ["sm", "md", "lg", "xl", "full"],
+          "default": "md"
         },
         "embedSupport": {
           "type": "boolean",
@@ -601,6 +683,13 @@
       "description": "Enabled auditing for this module",
       "examples": [false],
       "default": false
+    },
+    "i18nStrategy": {
+      "type": "string",
+      "description": "Strategy the generator uses to persist translations for properties marked with isI18n. 'embedded' stores per-locale JSON in a <property>_i18n jsonb column alongside a <property>_i18n_search_text column on the same table (best for 1-2 translatable fields); 'table' derives a companion <aggregate>_i18n table with a FK to the parent (best for many translatable fields or fields expected to grow). Ignored when no property sets isI18n.",
+      "enum": ["embedded", "table"],
+      "examples": ["embedded"],
+      "default": "embedded"
     },
     "description": {
       "type": "string",
