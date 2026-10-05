@@ -1,0 +1,290 @@
+name: 'Maintenance: Sponsor thank-you'
+
+# After a human PR is merged, thank the author once if it adds a new
+# catalog entry in src/api/json/catalog.json. SchemaStore registers schemas
+# there (local files under src/schemas/json/ and remote schemas alike).
+#
+# pull_request_target, same as label-prs.yml and codeowners-merge.yml, so
+# GITHUB_TOKEN can comment on fork PRs. This job does not check out PR code.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: sponsor-thanks-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  thanks:
+    if: github.repository == 'SchemaStore/schemastore' && github.event.pull_request.merged == true && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Post sponsor thank-you'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const marker = '<!-- schemastore-sponsor-thanks -->'
+            const catalogPath = 'src/api/json/catalog.json'
+            const cooldownDays = 90
+            const pr = context.payload.pull_request
+            const { owner, repo } = context.repo
+            const issue_number = pr.number
+            const login = pr.user && pr.user.login ? pr.user.login : ''
+
+            function isBotAuthor(user) {
+              const name = user && user.login ? user.login : ''
+              return (
+                (user && user.type === 'Bot') ||
+                /\[bot\]$/i.test(name) ||
+                /^(dependabot|renovate)(\[bot\])?$/i.test(name)
+              )
+            }
+
+            // A new catalog entry is a JSON object added in full (opening brace
+            // through closing brace). Edits inside an existing object, including
+            // a new "versions" url, do not count. An object whose url is also
+            // deleted in the same diff was moved or rewritten, not added.
+            function newCatalogEntries(patch) {
+              const removedUrls = new Set()
+              const added = []
+              let run = []
+
+              function flush() {
+                if (run.length === 0) return
+                added.push(...objectsWithNameAndUrl(run.join('\n')))
+                run = []
+              }
+
+              for (const line of String(patch).split('\n')) {
+                if (
+                  line.startsWith('@@') ||
+                  line.startsWith('diff ') ||
+                  line.startsWith('index ') ||
+                  line.startsWith('---') ||
+                  line.startsWith('+++')
+                ) {
+                  flush()
+                  continue
+                }
+                if (line.startsWith('+')) {
+                  run.push(line.slice(1))
+                  continue
+                }
+                if (line.startsWith('-')) {
+                  flush()
+                  const match = line.match(/"url"\s*:\s*"([^"]+)"/)
+                  if (match) removedUrls.add(match[1])
+                  continue
+                }
+                flush()
+              }
+              flush()
+
+              const seen = new Set()
+              return added.filter((entry) => {
+                if (removedUrls.has(entry.url) || seen.has(entry.url)) return false
+                seen.add(entry.url)
+                return true
+              })
+            }
+
+            function objectsWithNameAndUrl(text) {
+              const found = []
+              let depth = 0
+              let start = -1
+              let inString = false
+              let escaped = false
+              for (let i = 0; i < text.length; i++) {
+                const ch = text[i]
+                if (inString) {
+                  if (escaped) escaped = false
+                  else if (ch === '\\') escaped = true
+                  else if (ch === '"') inString = false
+                  continue
+                }
+                if (ch === '"') {
+                  inString = true
+                  continue
+                }
+                if (ch === '{') {
+                  if (depth === 0) start = i
+                  depth++
+                  continue
+                }
+                if (ch === '}' && depth > 0) {
+                  depth--
+                  if (depth === 0 && start >= 0) {
+                    try {
+                      const value = JSON.parse(text.slice(start, i + 1))
+                      if (
+                        value &&
+                        typeof value.name === 'string' &&
+                        typeof value.url === 'string'
+                      ) {
+                        found.push({ name: value.name, url: value.url })
+                      }
+                    } catch {
+                      // Added braces that are not one catalog object.
+                    }
+                    start = -1
+                  }
+                }
+              }
+              return found
+            }
+
+            function catalogEntries(catalog) {
+              const schemas =
+                catalog && Array.isArray(catalog.schemas) ? catalog.schemas : []
+              return schemas
+                .filter(
+                  (entry) =>
+                    entry &&
+                    typeof entry.name === 'string' &&
+                    typeof entry.url === 'string',
+                )
+                .map((entry) => ({ name: entry.name, url: entry.url }))
+            }
+
+            if (isBotAuthor(pr.user)) {
+              core.info(`Skipping bot author ${login}`)
+              return
+            }
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            )
+            if (comments.some((comment) => (comment.body || '').includes(marker))) {
+              core.info('Sponsor thank-you already exists on this PR')
+              return
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: issue_number,
+              per_page: 100,
+            })
+            const catalogFile = files.find((file) => file.filename === catalogPath)
+            if (!catalogFile || catalogFile.status === 'removed') {
+              core.info('No catalog.json change; skipping')
+              return
+            }
+
+            let addedEntries = []
+            if (typeof catalogFile.patch === 'string') {
+              addedEntries = newCatalogEntries(catalogFile.patch)
+            } else {
+              // GitHub omits patches on very large diffs. Compare the merge
+              // commit with its first parent. A changed url on an existing
+              // name can look new in this fallback; the patch path above
+              // does not have that limitation.
+              core.info('Catalog patch omitted; comparing catalog JSON')
+              const mergeSha = pr.merge_commit_sha
+              if (!mergeSha) {
+                core.info('No merge commit SHA; skipping')
+                return
+              }
+              const commit = await github.rest.git.getCommit({
+                owner,
+                repo,
+                commit_sha: mergeSha,
+              })
+              const parentSha =
+                commit.data.parents[0] && commit.data.parents[0].sha
+              if (!parentSha) {
+                core.info('Merge commit has no parent; skipping')
+                return
+              }
+              const headCatalog = await readCatalog(mergeSha)
+              const baseCatalog = await readCatalog(parentSha)
+              const baseUrls = new Set(catalogEntries(baseCatalog).map((entry) => entry.url))
+              const baseNames = new Set(
+                catalogEntries(baseCatalog).map((entry) => entry.name),
+              )
+              addedEntries = catalogEntries(headCatalog).filter(
+                (entry) => !baseUrls.has(entry.url) && !baseNames.has(entry.name),
+              )
+            }
+
+            if (addedEntries.length === 0) {
+              core.info('No new catalog entry; skipping')
+              return
+            }
+            core.info(
+              `New catalog entries: ${addedEntries.map((entry) => entry.name).join(', ')}`,
+            )
+
+            if (await thankedWithinCooldown(login)) {
+              core.info(`Skipping; ${login} was thanked within ${cooldownDays} days`)
+              return
+            }
+
+            const body = [
+              marker,
+              'Thanks for adding this to SchemaStore.',
+              '',
+              "SchemaStore is volunteer-run and serves about 2 TB a day. If you'd like to support it: https://github.com/sponsors/SchemaStore",
+            ].join('\n')
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body,
+            })
+
+            async function readCatalog(ref) {
+              const response = await github.rest.repos.getContent({
+                owner,
+                repo,
+                path: catalogPath,
+                ref,
+                mediaType: { format: 'raw' },
+              })
+              return typeof response.data === 'string'
+                ? JSON.parse(response.data)
+                : response.data
+            }
+
+            async function thankedWithinCooldown(author) {
+              const cutoff = Date.now() - cooldownDays * 24 * 60 * 60 * 1000
+              const sinceDate = new Date(cutoff).toISOString().slice(0, 10)
+              const query = `repo:${owner}/${repo} is:pr author:"${author}" updated:>=${sinceDate}`
+              let cursor = null
+              for (let page = 0; page < 3; page++) {
+                const data = await github.graphql(
+                  `query($q: String!, $cursor: String) {
+                    search(query: $q, type: ISSUE, first: 20, after: $cursor) {
+                      pageInfo { hasNextPage endCursor }
+                      nodes {
+                        ... on PullRequest {
+                          comments(last: 100) {
+                            nodes { body createdAt }
+                          }
+                        }
+                      }
+                    }
+                  }`,
+                  { q: query, cursor },
+                )
+                const search = data.search
+                for (const node of search.nodes || []) {
+                  const nodes = node && node.comments && node.comments.nodes
+                  if (!nodes) continue
+                  for (const comment of nodes) {
+                    if (!comment || !(comment.body || '').includes(marker)) continue
+                    if (Date.parse(comment.createdAt) >= cutoff) return true
+                  }
+                }
+                if (!search.pageInfo.hasNextPage) return false
+                cursor = search.pageInfo.endCursor
+              }
+              core.info('Checked the 60 most recently updated PRs for this author')
+              return false
+            }
