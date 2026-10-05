@@ -1,0 +1,110 @@
+name: 'Maintenance: Sponsor thank-you'
+
+# After a human PR is merged, thank the author once.
+# pull_request_target, same as label-prs.yml and codeowners-merge.yml, so
+# GITHUB_TOKEN can comment on fork PRs. This job does not check out PR code.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  pull-requests: write
+
+concurrency:
+  group: sponsor-thanks-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  thanks:
+    if: github.repository == 'SchemaStore/schemastore' && github.event.pull_request.merged == true && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Post sponsor thank-you'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const marker = '<!-- schemastore-sponsor-thanks -->'
+            const cooldownDays = 90
+            const pr = context.payload.pull_request
+            const { owner, repo } = context.repo
+            const issue_number = pr.number
+            const login = pr.user && pr.user.login ? pr.user.login : ''
+
+            function isBotAuthor(user) {
+              const name = user && user.login ? user.login : ''
+              return (
+                (user && user.type === 'Bot') ||
+                /\[bot\]$/i.test(name) ||
+                /^(dependabot|renovate)(\[bot\])?$/i.test(name)
+              )
+            }
+
+            if (isBotAuthor(pr.user)) {
+              core.info(`Skipping bot author ${login}`)
+              return
+            }
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            )
+            if (comments.some((comment) => (comment.body || '').includes(marker))) {
+              core.info('Sponsor thank-you already exists on this PR')
+              return
+            }
+
+            if (await thankedWithinCooldown(login)) {
+              core.info(`Skipping; ${login} was thanked within ${cooldownDays} days`)
+              return
+            }
+
+            const body = [
+              marker,
+              'Thanks for adding this to SchemaStore.',
+              '',
+              "SchemaStore is volunteer-run and serves about 2 TB a day. If you'd like to support it: https://github.com/sponsors/SchemaStore",
+            ].join('\n')
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body,
+            })
+
+            async function thankedWithinCooldown(author) {
+              const cutoff = Date.now() - cooldownDays * 24 * 60 * 60 * 1000
+              const sinceDate = new Date(cutoff).toISOString().slice(0, 10)
+              const query = `repo:${owner}/${repo} is:pr author:"${author}" updated:>=${sinceDate}`
+              let cursor = null
+              for (let page = 0; page < 3; page++) {
+                const data = await github.graphql(
+                  `query($q: String!, $cursor: String) {
+                    search(query: $q, type: ISSUE, first: 20, after: $cursor) {
+                      pageInfo { hasNextPage endCursor }
+                      nodes {
+                        ... on PullRequest {
+                          comments(last: 100) {
+                            nodes { body createdAt }
+                          }
+                        }
+                      }
+                    }
+                  }`,
+                  { q: query, cursor },
+                )
+                const search = data.search
+                for (const node of search.nodes || []) {
+                  const nodes = node && node.comments && node.comments.nodes
+                  if (!nodes) continue
+                  for (const comment of nodes) {
+                    if (!comment || !(comment.body || '').includes(marker)) continue
+                    if (Date.parse(comment.createdAt) >= cutoff) return true
+                  }
+                }
+                if (!search.pageInfo.hasNextPage) return false
+                cursor = search.pageInfo.endCursor
+              }
+              core.info('Checked the 60 most recently updated PRs for this author')
+              return false
+            }
