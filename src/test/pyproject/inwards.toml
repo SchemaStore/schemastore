@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [tool.inwards]
 root = "src"
-required-version = "0.3.0"
+required-version = "0.5.0"
 ignore = ["migrations", "/shop.scripts"]
 generated = ["*_pb2", "_version"]
 namespace-packages = ["acme.platform"]
@@ -17,6 +17,8 @@ agent-suppressions = "deny"
 layers = [
   { name = "domain", modules = [
     "shop.*.domain",
+  ], extend-deny-libraries = [
+    "requests",
   ] },
   [
     { name = "billing", modules = [
@@ -24,6 +26,8 @@ layers = [
     ] },
     { name = "shipping", modules = [
       "shop.shipping",
+    ], allow-libraries = [
+      "httpx",
     ] },
   ],
   { name = "api", modules = [
@@ -38,6 +42,7 @@ layers = [
 
 [[tool.inwards.shape]]
 packages = ["shop.*"]
+allow = ["__init__", "service.py", "models/", "tests/"]
 require = ["__init__", "service.py"]
 forbid = ["utils/"]
 extra = "warning"
@@ -50,7 +55,7 @@ only-in = ["tests.**"]
 [[tool.inwards.contexts]]
 name = "orders"
 modules = ["shop.orders"]
-public = ["shop.orders.api"]
+public = ["=shop.orders", "shop.orders.api"]
 depends-on = ["users"]
 
 [[tool.inwards.contexts]]
@@ -63,22 +68,82 @@ public = ["router", "schemas"]
 require = ["__init__", "router"]
 
 [tool.inwards.rules]
-extend-select = ["INW010", "FAPI001", "FAPI002", "FAPI003"]
+extend-select = [
+  "INW010",
+  "INW011",
+  "INW012",
+  "INW013",
+  "FAPI001",
+  "FAPI002",
+  "FAPI003",
+  "FAPI005",
+  "FAPI006",
+  "FAPI007",
+  "FAPI008",
+  "FAPI009",
+]
 ignore = ["INW009"]
 severity = { INW006 = "warning" }
 
 [tool.inwards.rules.pure-domain]
 modules = ["shop.*.domain"]
+deny = [{ modules = ["shop.billing.rules"], libraries = ["stripe", "boto3"] }]
+
+[tool.inwards.rules.thin-endpoint]
+modules = ["shop.api"]
+max-statements = 8
+max-branches = false
+max-nesting = 3
+allow-loops = true
+allow-comprehensions = false
+extend-deny-calls = ["smtplib.*"]
+deny-receiver-types = ["sqlalchemy.orm.Session"]
+deny-receiver-params = ["db", "session"]
+delegate-to = ["app", "shop.*.service"]
+decorators = ["shop.http.endpoint"]
+frameworks = ["fastapi", "django"]
+base-classes = ["shop.views.BaseView"]
+
+[tool.inwards.rules.async-blocking]
+extend-blocking-calls = ["shop.legacy.fetch_sync"]
+extend-blocking-types = ["shop.legacy.Client"]
+follow-modules = ["shop.*.service", "shop.common"]
+
+[tool.inwards.rules.route-shadowing]
+modules = ["shop.api"]
+
+[tool.inwards.rules.lifespan-events]
+modules = ["shop.main"]
+
+[tool.inwards.rules.yield-dependency-swallows]
+modules = ["shop.api"]
+
+[tool.inwards.rules.duplicate-operation-id]
+modules = ["shop.api"]
+
+[tool.inwards.rules.depends-called]
+modules = ["shop.api"]
+
+[tool.inwards.rules.layer-dependency]
+modules = ["shop.*"]
 
 [tool.inwards.rules.endpoint-metadata]
 require-summary = false
 require-status-code = ["post", "delete"]
+require-response-model = false
+require-response-fields = ["description", "model"]
 require-tags = true
+require-operation-id = true
 
 [tool.inwards.rules.undocumented-error-response]
 codes = "4xx-5xx"
 max-depth = 3
+report-direct-raises = false
+handled-counts-as-documented = true
+explicit-422 = "report"
 
 [tool.inwards.rules.router-wiring]
 entrypoints = ["shop.main:app"]
+allow-unmounted = ["shop.experimental.*"]
 unresolved-includes = "silent"
+check-order = false

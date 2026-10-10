@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/partial-inwards.json",
-  "$comment": "tool.inwards table in pyproject.toml. Copied on 2026-09-29 from https://sircypkowskyy.github.io/inwards/schema/tool-inwards.json (source: https://github.com/SirCypkowskyy/inwards/blob/develop/schema/tool-inwards.schema.json).",
+  "$comment": "tool.inwards table in pyproject.toml. Copied on 2026-10-10 from https://sircypkowskyy.github.io/inwards/schema/tool-inwards.json (source: https://github.com/SirCypkowskyy/inwards/blob/develop/schema/tool-inwards.schema.json).",
   "description": "Configuration of Inwards, the architecture linter for Python, in pyproject.toml. The schema checks structure, types, enums and syntax; the parser also checks relations between entries (unique names, context ownership) and required-version.",
   "markdownDescription": "Configuration of Inwards, the architecture linter for Python, in pyproject.toml. The schema checks structure, types, enums and syntax; the parser also checks relations between entries (unique names, context ownership) and required-version.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#configuration-reference)",
   "type": "object",
@@ -146,6 +146,11 @@
       "type": "string",
       "pattern": "^[^.\\s*?\\[\\]/\\\\-]+(\\.[^.\\s*?\\[\\]/\\\\-]+)*$"
     },
+    "publicEntry": {
+      "description": "A public entry: a dotted module prefix such as shop.billing.api, or, with a leading =, that module alone without what lies under it, such as =shop.billing.",
+      "type": "string",
+      "pattern": "^=?[^.\\s*?\\[\\]/\\\\-]+(\\.[^.\\s*?\\[\\]/\\\\-]+)*$"
+    },
     "selector": {
       "description": "A package selector: a.b (exact), a.* (one level) or a.** (any depth).",
       "type": "string",
@@ -190,9 +195,16 @@
         "INW009",
         "INW010",
         "INW011",
+        "INW012",
+        "INW013",
         "FAPI001",
         "FAPI002",
-        "FAPI003"
+        "FAPI003",
+        "FAPI005",
+        "FAPI006",
+        "FAPI007",
+        "FAPI008",
+        "FAPI009"
       ]
     },
     "layer": {
@@ -429,7 +441,7 @@
           "$ref": "#/definitions/ruleOptions"
         },
         "pure-domain": {
-          "$ref": "#/definitions/ruleOptions"
+          "$ref": "#/definitions/pureDomainOptions"
         },
         "unassigned-module": {
           "$ref": "#/definitions/ruleOptions"
@@ -449,6 +461,12 @@
         "dynamic-import": {
           "$ref": "#/definitions/ruleOptions"
         },
+        "thin-endpoint": {
+          "$ref": "#/definitions/thinEndpointOptions"
+        },
+        "async-blocking": {
+          "$ref": "#/definitions/asyncBlockingOptions"
+        },
         "endpoint-metadata": {
           "$ref": "#/definitions/endpointMetadataOptions"
         },
@@ -457,6 +475,21 @@
         },
         "router-wiring": {
           "$ref": "#/definitions/routerWiringOptions"
+        },
+        "route-shadowing": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "lifespan-events": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "yield-dependency-swallows": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "duplicate-operation-id": {
+          "$ref": "#/definitions/ruleOptions"
+        },
+        "depends-called": {
+          "$ref": "#/definitions/ruleOptions"
         }
       }
     },
@@ -474,6 +507,230 @@
           "items": {
             "$ref": "#/definitions/layerEntry"
           }
+        }
+      }
+    },
+    "pureDomainOptions": {
+      "description": "INW005's options, [tool.inwards.rules.pure-domain]: modules, as for every rule, and deny.",
+      "markdownDescription": "INW005's options, [tool.inwards.rules.pure-domain]: modules, as for every rule, and deny.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "$ref": "#/definitions/ruleOptions/properties/modules"
+        },
+        "deny": {
+          "description": "Libraries denied to module prefixes that aren't whole layers, whether or not a layer owns them. The layer's allow-libraries doesn't undo them (INW005).",
+          "markdownDescription": "Libraries denied to module prefixes that aren't whole layers, whether or not a layer owns them. The layer's allow-libraries doesn't undo them (INW005).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["modules", "libraries"],
+            "properties": {
+              "modules": {
+                "description": "Module prefixes or selectors, as in layers[].modules, that may not import this entry's libraries.",
+                "markdownDescription": "Module prefixes or selectors, as in layers[].modules, that may not import this entry's libraries.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/definitions/layerEntry"
+                }
+              },
+              "libraries": {
+                "description": "Import names such as django or http.client; each covers its submodules, stdlib included.",
+                "markdownDescription": "Import names such as django or http.client; each covers its submodules, stdlib included.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#rules)",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/definitions/dottedName"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "asyncBlockingOptions": {
+      "description": "INW013 async-blocking's options, [tool.inwards.rules.async-blocking]. They don't turn the rule on: extend-select or select does.",
+      "markdownDescription": "INW013 async-blocking's options, [tool.inwards.rules.async-blocking]. They don't turn the rule on: extend-select or select does.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW013/)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "$ref": "#/definitions/ruleOptions/properties/modules"
+        },
+        "extend-blocking-calls": {
+          "description": "Calls that block when called inside async def, added to INW013's built-in list (sqlite3.connect, psycopg2.connect and the other DB-API drivers), by qualified name with * and ? wildcards.",
+          "markdownDescription": "Calls that block when called inside async def, added to INW013's built-in list (sqlite3.connect, psycopg2.connect and the other DB-API drivers), by qualified name with * and ? wildcards.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW013/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          },
+          "default": []
+        },
+        "extend-blocking-types": {
+          "description": "Types or factories whose every method blocks, added to INW013's built-in list (the sync SQLAlchemy Session and Engine, redis.Redis, boto3 clients, DB-API connections), by qualified name with * and ? wildcards. A parameter annotated with one, or a name bound from a call to one, is a blocking receiver.",
+          "markdownDescription": "Types or factories whose every method blocks, added to INW013's built-in list (the sync SQLAlchemy Session and Engine, redis.Redis, boto3 clients, DB-API connections), by qualified name with * and ? wildcards. A parameter annotated with one, or a name bound from a call to one, is a blocking receiver.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW013/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          },
+          "default": []
+        },
+        "follow-modules": {
+          "description": "Module prefixes or selectors, as in layers[].modules, of the first-party modules INW013 follows one hop into from an async def to find a sync helper that blocks; packages above them are read too, for re-exports. Unset follows every first-party module; [] keeps the check to the checked module.",
+          "markdownDescription": "Module prefixes or selectors, as in layers[].modules, of the first-party modules INW013 follows one hop into from an async def to find a sync helper that blocks; packages above them are read too, for re-exports. Unset follows every first-party module; [] keeps the check to the checked module.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW013/)",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/layerEntry"
+          }
+        }
+      }
+    },
+    "thinEndpointOptions": {
+      "description": "INW012 thin-endpoint's options, [tool.inwards.rules.thin-endpoint]. They don't turn the rule on: extend-select or select does.",
+      "markdownDescription": "INW012 thin-endpoint's options, [tool.inwards.rules.thin-endpoint]. They don't turn the rule on: extend-select or select does.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "$ref": "#/definitions/ruleOptions/properties/modules"
+        },
+        "max-statements": {
+          "description": "The most statements an endpoint's body may hold, nested ones included; guards that raise an HTTP error and the docstring don't count. false turns the check off.",
+          "markdownDescription": "The most statements an endpoint's body may hold, nested ones included; guards that raise an HTTP error and the docstring don't count. false turns the check off.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "const": false
+            }
+          ],
+          "default": 10
+        },
+        "max-branches": {
+          "description": "The most if/elif, case and except branches an endpoint may hold, guards left out. false turns the check off.",
+          "markdownDescription": "The most if/elif, case and except branches an endpoint may hold, guards left out. false turns the check off.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "const": false
+            }
+          ],
+          "default": 2
+        },
+        "max-nesting": {
+          "description": "How deep compound statements may nest in an endpoint. false turns the check off.",
+          "markdownDescription": "How deep compound statements may nest in an endpoint. false turns the check off.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "const": false
+            }
+          ],
+          "default": 2
+        },
+        "allow-loops": {
+          "description": "Whether an endpoint may hold for and while loops.",
+          "markdownDescription": "Whether an endpoint may hold for and while loops.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "boolean",
+          "default": false
+        },
+        "allow-comprehensions": {
+          "description": "Whether comprehensions and generator expressions are allowed; false counts them as loops.",
+          "markdownDescription": "Whether comprehensions and generator expressions are allowed; false counts them as loops.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "boolean",
+          "default": true
+        },
+        "deny-calls": {
+          "description": "Calls an endpoint may not make, by qualified name with * and ? wildcards. Replaces the default list (requests.*, httpx.*, sqlalchemy.* and others); [] turns the check off.",
+          "markdownDescription": "Calls an endpoint may not make, by qualified name with * and ? wildcards. Replaces the default list (requests.*, httpx.*, sqlalchemy.* and others); [] turns the check off.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          }
+        },
+        "extend-deny-calls": {
+          "description": "Calls added to deny-calls (or to its default list), by qualified name with * and ? wildcards.",
+          "markdownDescription": "Calls added to deny-calls (or to its default list), by qualified name with * and ? wildcards.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          }
+        },
+        "deny-receiver-types": {
+          "description": "Parameter types whose method calls are database work (db.execute, session.add), by qualified name. Default: the SQLAlchemy and SQLModel sessions.",
+          "markdownDescription": "Parameter types whose method calls are database work (db.execute, session.add), by qualified name. Default: the SQLAlchemy and SQLModel sessions.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          }
+        },
+        "deny-receiver-params": {
+          "description": "Parameter names whose method calls count as database work whatever their type, for untyped code, such as db or session.",
+          "markdownDescription": "Parameter names whose method calls count as database work whatever their type, for untyped code, such as db or session.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\d\\W]\\w*$"
+          },
+          "default": []
+        },
+        "delegate-to": {
+          "description": "Layer names, module prefixes or selectors the endpoint must call into at least once, such as application or shop.*.service.",
+          "markdownDescription": "Layer names, module prefixes or selectors the endpoint must call into at least once, such as application or shop.*.service.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        },
+        "decorators": {
+          "description": "Decorators that mark an endpoint besides the frameworks' own, by qualified name with * and ? wildcards, such as app.http.endpoint.",
+          "markdownDescription": "Decorators that mark an endpoint besides the frameworks' own, by qualified name with * and ? wildcards, such as app.http.endpoint.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          },
+          "default": []
+        },
+        "frameworks": {
+          "description": "The frameworks whose endpoints INW012 recognises: fastapi (with Starlette), flask, litestar and django (with Django REST framework). Default: every framework the file mentions.",
+          "markdownDescription": "The frameworks whose endpoints INW012 recognises: fastapi (with Starlette), flask, litestar and django (with Django REST framework). Default: every framework the file mentions.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["fastapi", "flask", "litestar", "django"]
+          }
+        },
+        "base-classes": {
+          "description": "In-house view base classes, by qualified name with * and ? wildcards: methods named after HTTP verbs or ViewSet actions on their subclasses are endpoints.",
+          "markdownDescription": "In-house view base classes, by qualified name with * and ? wildcards: methods named after HTTP verbs or ViewSet actions on their subclasses are endpoints.\n\n[Reference](https://sircypkowskyy.github.io/inwards/rules/INW012/)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^.\\s\\[\\]/\\\\:-]+(\\.[^.\\s\\[\\]/\\\\:-]+)*$"
+          },
+          "default": []
         }
       }
     },
@@ -540,11 +797,11 @@
           }
         },
         "public": {
-          "description": "Prefixes of this context's own modules that contexts depending on it may import. Absolute names, not relative to the context.",
-          "markdownDescription": "Prefixes of this context's own modules that contexts depending on it may import. Absolute names, not relative to the context.\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
+          "description": "Prefixes of this context's own modules that contexts depending on it may import. Absolute names, not relative to the context. Write =name to open that module alone, not what lies under it (a package facade).",
+          "markdownDescription": "Prefixes of this context's own modules that contexts depending on it may import. Absolute names, not relative to the context. Write =name to open that module alone, not what lies under it (a package facade).\n\n[Reference](https://sircypkowskyy.github.io/inwards/guides/configuration/#contexts)",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/dottedName"
+            "$ref": "#/definitions/publicEntry"
           },
           "default": []
         },
