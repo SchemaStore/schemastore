@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [tool.inwards]
 root = "src"
-required-version = "0.5.0"
+required-version = "0.6.0"
 ignore = ["migrations", "/shop.scripts"]
 generated = ["*_pb2", "_version"]
 namespace-packages = ["acme.platform"]
@@ -14,6 +14,7 @@ escalate-after = 3
 run-log = true
 stop-gate = "project"
 agent-suppressions = "deny"
+diagrams = ["docs/architecture.md", "docs/**/*.mmd"]
 layers = [
   { name = "domain", modules = [
     "shop.*.domain",
@@ -67,12 +68,22 @@ roles = ["models | schemas", "service", "router"]
 public = ["router", "schemas"]
 require = ["__init__", "router"]
 
+[tool.inwards.templates.fastapi-domain.rules]
+router = { async-blocking = true, thin-endpoint = { max-statements = 8 }, route-shadowing = "warning" }
+service = { construct-only-in = { allowed-in = ["shop.main"] } }
+models = { orm-naming = { table-name = "snake" } }
+
 [tool.inwards.rules]
 extend-select = [
   "INW010",
   "INW011",
   "INW012",
   "INW013",
+  "INW014",
+  "INW015",
+  "INW016",
+  "INW017",
+  "INW018",
   "FAPI001",
   "FAPI002",
   "FAPI003",
@@ -83,7 +94,7 @@ extend-select = [
   "FAPI009",
 ]
 ignore = ["INW009"]
-severity = { INW006 = "warning" }
+severity = { INW006 = "warning", INW016 = "warning" }
 
 [tool.inwards.rules.pure-domain]
 modules = ["shop.*.domain"]
@@ -108,6 +119,30 @@ base-classes = ["shop.views.BaseView"]
 extend-blocking-calls = ["shop.legacy.fetch_sync"]
 extend-blocking-types = ["shop.legacy.Client"]
 follow-modules = ["shop.*.service", "shop.common"]
+
+[tool.inwards.rules.ports-abstract]
+modules = ["shop.*.ports"]
+allow-bases = ["Exception", "*Error", "pydantic.BaseModel"]
+extend-allow-bases = ["shop.common.Value"]
+allow-decorators = ["dataclasses.dataclass", "attrs.frozen"]
+
+[tool.inwards.rules.construct-only-in]
+role = ["shop.*.adapters"]
+allowed-in = ["shop.main", "shop.di"]
+
+[tool.inwards.rules.orm-naming]
+modules = ["shop.*.models"]
+table-name = "snake_singular"
+datetime-suffix = "_at"
+date-suffix = false
+allow-tables = ["news", "series"]
+require-naming-convention = false
+
+[tool.inwards.rules.diagram-unknown-name]
+modules = ["shop"]
+
+[tool.inwards.rules.diagram-forbidden-edge]
+modules = ["shop"]
 
 [tool.inwards.rules.route-shadowing]
 modules = ["shop.api"]
