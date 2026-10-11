@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [tool.inwards]
 root = "src"
-required-version = "0.6.0"
+required-version = "0.7.0"
 ignore = ["migrations", "/shop.scripts"]
 generated = ["*_pb2", "_version"]
 namespace-packages = ["acme.platform"]
@@ -69,8 +69,10 @@ public = ["router", "schemas"]
 require = ["__init__", "router"]
 
 [tool.inwards.templates.fastapi-domain.rules]
-router = { async-blocking = true, thin-endpoint = { max-statements = 8 }, route-shadowing = "warning" }
-service = { construct-only-in = { allowed-in = ["shop.main"] } }
+router = { async-blocking = true, thin-endpoint = { max-statements = 8 }, route-shadowing = "warning", depends-called = { check-tests = true } }
+service = { construct-only-in = { allowed-in = [
+  "shop.main",
+], check-tests = true }, diagram-missing-dependency = "warning" }
 models = { orm-naming = { table-name = "snake" } }
 
 [tool.inwards.rules]
@@ -84,6 +86,7 @@ extend-select = [
   "INW016",
   "INW017",
   "INW018",
+  "INW019",
   "FAPI001",
   "FAPI002",
   "FAPI003",
@@ -102,6 +105,7 @@ deny = [{ modules = ["shop.billing.rules"], libraries = ["stripe", "boto3"] }]
 
 [tool.inwards.rules.thin-endpoint]
 modules = ["shop.api"]
+check-tests = true
 max-statements = 8
 max-branches = false
 max-nesting = 3
@@ -116,6 +120,7 @@ frameworks = ["fastapi", "django"]
 base-classes = ["shop.views.BaseView"]
 
 [tool.inwards.rules.async-blocking]
+check-tests = false
 extend-blocking-calls = ["shop.legacy.fetch_sync"]
 extend-blocking-types = ["shop.legacy.Client"]
 follow-modules = ["shop.*.service", "shop.common"]
@@ -125,13 +130,16 @@ modules = ["shop.*.ports"]
 allow-bases = ["Exception", "*Error", "pydantic.BaseModel"]
 extend-allow-bases = ["shop.common.Value"]
 allow-decorators = ["dataclasses.dataclass", "attrs.frozen"]
+check-tests = true
 
 [tool.inwards.rules.construct-only-in]
 role = ["shop.*.adapters"]
 allowed-in = ["shop.main", "shop.di"]
+check-tests = true
 
 [tool.inwards.rules.orm-naming]
 modules = ["shop.*.models"]
+check-tests = false
 table-name = "snake_singular"
 datetime-suffix = "_at"
 date-suffix = false
@@ -144,8 +152,12 @@ modules = ["shop"]
 [tool.inwards.rules.diagram-forbidden-edge]
 modules = ["shop"]
 
+[tool.inwards.rules.diagram-missing-dependency]
+modules = ["shop"]
+
 [tool.inwards.rules.route-shadowing]
 modules = ["shop.api"]
+check-tests = true
 
 [tool.inwards.rules.lifespan-events]
 modules = ["shop.main"]
@@ -158,11 +170,13 @@ modules = ["shop.api"]
 
 [tool.inwards.rules.depends-called]
 modules = ["shop.api"]
+check-tests = false
 
 [tool.inwards.rules.layer-dependency]
 modules = ["shop.*"]
 
 [tool.inwards.rules.endpoint-metadata]
+check-tests = true
 require-summary = false
 require-status-code = ["post", "delete"]
 require-response-model = false
@@ -171,6 +185,7 @@ require-tags = true
 require-operation-id = true
 
 [tool.inwards.rules.undocumented-error-response]
+check-tests = false
 codes = "4xx-5xx"
 max-depth = 3
 report-direct-raises = false
@@ -178,6 +193,7 @@ handled-counts-as-documented = true
 explicit-422 = "report"
 
 [tool.inwards.rules.router-wiring]
+check-tests = true
 entrypoints = ["shop.main:app"]
 allow-unmounted = ["shop.experimental.*"]
 unresolved-includes = "silent"
