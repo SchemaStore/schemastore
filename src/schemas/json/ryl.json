@@ -2,6 +2,10 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/ryl.json",
   "definitions": {
+    "CollectionStyleTarget": {
+      "enum": ["preserve", "block", "flow"],
+      "type": "string"
+    },
     "FilesTable": {
       "additionalProperties": false,
       "description": "File-to-source-kind glob mapping (ryl-only; TOML). Each kind selects which\nfiles are linted as that kind. A file matching more than one kind is an error.",
@@ -24,16 +28,18 @@
       "type": "object"
     },
     "FixRuleName": {
-      "description": "A fixable rule name accepted by `fix.unfixable`.",
+      "description": "A fixable rule name accepted by `lint.unfixable`.",
       "enum": [
         "braces",
         "brackets",
+        "colons",
         "commas",
         "comments",
         "comments-indentation",
         "document-end",
         "document-start",
         "empty-lines",
+        "hyphens",
         "key-ordering",
         "new-line-at-end-of-file",
         "new-lines",
@@ -45,7 +51,7 @@
     },
     "FixTable": {
       "additionalProperties": false,
-      "description": "TOML `[fix]` table.",
+      "description": "The deprecated `[fix]` table; its keys now live in `[lint]`.",
       "properties": {
         "fixable": {
           "items": {
@@ -63,17 +69,19 @@
       "type": "object"
     },
     "FixableRuleSelector": {
-      "description": "A rule selector accepted by `fix.fixable`.",
+      "description": "A rule selector accepted by `lint.fixable`.",
       "enum": [
         "ALL",
         "braces",
         "brackets",
+        "colons",
         "commas",
         "comments",
         "comments-indentation",
         "document-end",
         "document-start",
         "empty-lines",
+        "hyphens",
         "key-ordering",
         "new-line-at-end-of-file",
         "new-lines",
@@ -96,6 +104,87 @@
           "$ref": "#/definitions/ForbidMode"
         }
       ]
+    },
+    "FormatTable": {
+      "additionalProperties": false,
+      "description": "The `[format]` table: `ryl format`'s targets.",
+      "properties": {
+        "brace-spacing": {
+          "default": false,
+          "description": "Whether to pad the inside of a non-empty flow mapping's braces with one space.",
+          "type": "boolean"
+        },
+        "comment-spacing": {
+          "default": 2,
+          "description": "Exact number of spaces between content and an inline comment.",
+          "maximum": 255,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "comment-starting-space": {
+          "$ref": "#/definitions/MarkerTarget",
+          "default": "add",
+          "description": "Whether to add a missing space after a comment's `#`."
+        },
+        "dash-on-own-line": {
+          "default": false,
+          "description": "Whether a block mapping in a block sequence starts on the line after its `-`.",
+          "type": "boolean"
+        },
+        "document-end": {
+          "$ref": "#/definitions/MarkerTarget",
+          "default": "preserve",
+          "description": "Whether to add a missing `...` document end marker."
+        },
+        "document-start": {
+          "$ref": "#/definitions/MarkerTarget",
+          "default": "preserve",
+          "description": "Whether to add a missing `---` document start marker."
+        },
+        "fold-long-lines": {
+          "default": false,
+          "description": "Whether to split plain, quoted and `>` scalar lines longer than `line-length` at spaces.",
+          "type": "boolean"
+        },
+        "indent-sequences": {
+          "default": true,
+          "description": "Whether a block sequence under a mapping key is indented past the key.",
+          "type": "boolean"
+        },
+        "line-ending": {
+          "$ref": "#/definitions/LineEndingTarget",
+          "default": "lf",
+          "description": "Line ending; `native` is the platform's, `auto` the one most of the file uses."
+        },
+        "mapping-style": {
+          "$ref": "#/definitions/CollectionStyleTarget",
+          "default": "preserve",
+          "description": "Collection style for mappings; `preserve` leaves each as written."
+        },
+        "max-blank-lines": {
+          "default": 2,
+          "description": "Most consecutive blank lines kept between content lines.",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "preview": {
+          "default": false,
+          "description": "Opt in to unstable style changes before a minor release promotes them to stable.",
+          "type": "boolean"
+        },
+        "quote-style": {
+          "$ref": "#/definitions/QuoteStyleTarget",
+          "default": "single",
+          "description": "Preferred quote for strings that need quoting; `preserve` leaves quoting alone."
+        },
+        "sequence-style": {
+          "$ref": "#/definitions/CollectionStyleTarget",
+          "default": "preserve",
+          "description": "Collection style for sequences; `preserve` leaves each as written."
+        }
+      },
+      "type": "object"
     },
     "IndentSequencesMode": {
       "enum": ["whatever", "consistent"],
@@ -146,6 +235,59 @@
       "required": ["files", "path", "keys"],
       "type": "object"
     },
+    "LineEndingTarget": {
+      "enum": ["lf", "cr-lf", "native", "auto"],
+      "type": "string"
+    },
+    "LintTable": {
+      "additionalProperties": false,
+      "description": "The `[lint]` table.",
+      "properties": {
+        "fixable": {
+          "description": "Rules `--fix` may fix (default `[\"ALL\"]`).",
+          "items": {
+            "$ref": "#/definitions/FixableRuleSelector"
+          },
+          "type": ["array", "null"]
+        },
+        "per-file-ignores": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/RuleSelector"
+            },
+            "type": "array"
+          },
+          "description": "Per-file rule ignores.",
+          "type": ["object", "null"]
+        },
+        "per-line-ignores": {
+          "description": "Per-line rule ignores: suppress rules on lines/files matching a pattern.",
+          "items": {
+            "$ref": "#/definitions/PerLineIgnore"
+          },
+          "type": ["array", "null"]
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RulesTable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rule configuration table."
+        },
+        "unfixable": {
+          "description": "Rules `--fix` must not fix, overriding `fixable`.",
+          "items": {
+            "$ref": "#/definitions/FixRuleName"
+          },
+          "type": ["array", "null"]
+        }
+      },
+      "type": "object"
+    },
     "MarkdownTable": {
       "additionalProperties": false,
       "description": "Markdown embedding behaviour. ryl-only (TOML); yamllint has no equivalent.",
@@ -160,6 +302,10 @@
         }
       },
       "type": "object"
+    },
+    "MarkerTarget": {
+      "enum": ["add", "preserve"],
+      "type": "string"
     },
     "NewLinesType": {
       "enum": ["unix", "dos", "platform"],
@@ -278,6 +424,10 @@
       },
       "required": ["rules"],
       "type": "object"
+    },
+    "QuoteStyleTarget": {
+      "enum": ["single", "double", "preserve"],
+      "type": "string"
     },
     "QuoteType": {
       "enum": ["any", "single", "double", "consistent"],
@@ -1992,6 +2142,28 @@
   "additionalProperties": false,
   "description": "JSON Schema root for `ryl` TOML configuration.",
   "properties": {
+    "exclude": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StringOrVec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Files to skip, as one multi-line string or a list of gitignore-style patterns."
+    },
+    "exclude-from-file": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StringOrVec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Paths to files that contain exclude patterns, such as `.gitignore`."
+    },
     "files": {
       "anyOf": [
         {
@@ -2012,7 +2184,19 @@
           "type": "null"
         }
       ],
-      "description": "Native fix policy."
+      "deprecated": true,
+      "description": "Deprecated: use `lint.fixable` and `lint.unfixable`."
+    },
+    "format": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/FormatTable"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Formatter settings."
     },
     "ignore": {
       "anyOf": [
@@ -2023,7 +2207,8 @@
           "type": "null"
         }
       ],
-      "description": "Ignore patterns, either as one multi-line string or a list of patterns."
+      "deprecated": true,
+      "description": "Deprecated: use `exclude`."
     },
     "ignore-from-file": {
       "anyOf": [
@@ -2034,7 +2219,31 @@
           "type": "null"
         }
       ],
-      "description": "Paths to files that contain ignore patterns."
+      "deprecated": true,
+      "description": "Deprecated: use `exclude-from-file`."
+    },
+    "indent-width": {
+      "description": "The formatter's indent width, and the default for `[lint.rules.indentation] spaces`.",
+      "maximum": 255,
+      "minimum": 1,
+      "type": ["integer", "null"]
+    },
+    "line-length": {
+      "description": "The formatter's line length, and the default for `[lint.rules.line-length] max`.",
+      "maximum": 65535,
+      "minimum": 1,
+      "type": ["integer", "null"]
+    },
+    "lint": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LintTable"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Linter settings: rule configuration, fix policy, and rule ignores."
     },
     "locale": {
       "description": "Locale identifier used by diagnostics.",
@@ -2069,11 +2278,13 @@
         },
         "type": "array"
       },
-      "description": "Per-file rule ignores.",
+      "deprecated": true,
+      "description": "Deprecated: use `lint.per-file-ignores`.",
       "type": ["object", "null"]
     },
     "per-line-ignores": {
-      "description": "Per-line rule ignores: suppress rules on lines/files matching a pattern.",
+      "deprecated": true,
+      "description": "Deprecated: use `lint.per-line-ignores`.",
       "items": {
         "$ref": "#/definitions/PerLineIgnore"
       },
@@ -2088,7 +2299,8 @@
           "type": "null"
         }
       ],
-      "description": "Rule configuration table."
+      "deprecated": true,
+      "description": "Deprecated: use `lint.rules`."
     }
   },
   "title": "ryl TOML config",
