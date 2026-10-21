@@ -119,6 +119,50 @@
         "type": "string"
       }
     },
+    "include": {
+      "$comment": "https://pnpm.io/settings#splitting-settings-across-files",
+      "description": "Delegates settings to other YAML files and to config dependencies. Each entry is a path to a YAML file or the name of a config dependency; each source may define only the settings this manifest delegates to it, and every setting has exactly one owner. Commands that change settings write each one to the file that owns it. A relative path in an included file is relative to that file. Added in pnpm v12.15.0.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "bootConfig": {
+      "description": "Sets the release-age and trust policy pnpm applies when installing config dependencies and the pnpm version pinned by the packageManager field, before the regular configuration is loaded. Added in pnpm v12.15.0.",
+      "type": "object",
+      "properties": {
+        "minimumReleaseAge": {
+          "description": "The minimum number of minutes that must pass after a version is published before pnpm will install it.",
+          "type": "number"
+        },
+        "minimumReleaseAgeExclude": {
+          "description": "Packages that are exempt from the minimumReleaseAge check.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "trustPolicy": {
+          "description": "When set to no-downgrade, installation fails if a package's trust level has decreased compared to previous releases.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["off", "no-downgrade"]
+            }
+          ]
+        },
+        "trustPolicyExclude": {
+          "description": "Packages or versions that are allowed to install even if they don't satisfy the trust policy requirement.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "catalog": {
       "$comment": "https://pnpm.io/catalogs",
       "description": "Define dependency version ranges as reusable constants,\nfor later reference in package.json files.\nThis (singular) field creates a catalog named default.\n",
@@ -577,6 +621,11 @@
               "description": "When set to true, pnpm records autoDedupe, dedupeInjectedDeps, dedupePeerDependents and linkWorkspacePackages in the settings section of pnpm-lock.yaml. A lockfile that records other values than the current settings is outdated: pnpm install resolves it again, and pnpm install --frozen-lockfile fails. Added in pnpm v12.10.0.",
               "type": "boolean",
               "default": false
+            },
+            "integrityTarget": {
+              "description": "With integrityTarget: tar, pnpm-lock.yaml pins the hash of every package's uncompressed tar instead of the compressed .tgz, so the lockfile no longer changes when a registry recompresses its tarballs or serves them as tars. pnpm learns a version's tar hash from the store or by downloading it once, and pnpm audit signatures ties the tar hash to the signed .tgz integrity. Added in pnpm v12.15.0.",
+              "type": "string",
+              "enum": ["tar"]
             }
           }
         }
@@ -593,6 +642,11 @@
     "lockfileIncludeTarballUrl": {
       "description": "Add the full URL to the package's tarball to every entry in pnpm-lock.yaml.",
       "type": "boolean"
+    },
+    "maxTarballUnpackedSize": {
+      "description": "Caps the total number of bytes the files of one package may unpack to. Added in pnpm v12.15.0.",
+      "type": "number",
+      "default": 4294967296
     },
     "gitBranchLockfile": {
       "description": "When set to true, the generated lockfile name after installation will be named based on the current branch name to completely avoid merge conflicts.",
@@ -1407,9 +1461,9 @@
                 "enum": ["cargo"]
               },
               "serverType": {
-                "description": "The software serving this registry: `npm` behaves like registry.npmjs.org, which serves a scoped package from the percent-encoded path as well as the unencoded one; `artifactory` repeats the scope in a scoped package's tarball filename.",
+                "description": "The software serving this registry: `npm` behaves like registry.npmjs.org, which serves a scoped package from the percent-encoded path as well as the unencoded one; `artifactory` repeats the scope in a scoped package's tarball filename; `pnpr` serves uncompressed tars with zstd or gzip content coding, and keeps tarball URLs out of pnpm-lock.yaml (since pnpm v12.15.0).",
                 "type": "string",
-                "enum": ["npm", "artifactory"]
+                "enum": ["npm", "artifactory", "pnpr"]
               },
               "supportsTimeField": {
                 "description": "Whether this registry's abbreviated metadata carries the `time` field. registry.npmjs.org does not; Verdaccio and several proxies do.",
