@@ -261,6 +261,10 @@
           "description": "Verb of api rest",
           "enum": ["get", "post", "put", "delete", "patch"],
           "examples": ["post"]
+        },
+        "excludedLayers": {
+          "$ref": "#/definitions/layersDefinition",
+          "description": "Layers this additional API is NOT emitted in: rest (REST controller), graphql (resolver and its SDL field), api (shorthand for rest plus graphql), app (@app handler), ui (frontend GraphQL document). A layer is excluded only when listed"
         }
       }
     },
@@ -314,6 +318,28 @@
           "type": "boolean",
           "description": "Avoid constraint rules for this relationship"
         },
+        "onDelete": {
+          "type": "string",
+          "enum": [
+            "cascade",
+            "restrict",
+            "no-action",
+            "set-null",
+            "set-default"
+          ],
+          "description": "Referential action when the referenced row is deleted: cascade, restrict, no-action, set-null or set-default. Takes effect only when avoidConstraint is false; it is never inferred. When omitted, the database default (NO ACTION) applies"
+        },
+        "onUpdate": {
+          "type": "string",
+          "enum": [
+            "cascade",
+            "restrict",
+            "no-action",
+            "set-null",
+            "set-default"
+          ],
+          "description": "Referential action when the referenced key is updated: cascade, restrict, no-action, set-null or set-default. Takes effect only when avoidConstraint is false; it is never inferred. When omitted, the database default (NO ACTION) applies"
+        },
         "packageName": {
           "type": "string",
           "description": "Path to packageName where is the relationship, example: @aurora-ts/core",
@@ -322,6 +348,10 @@
         "isDenormalized": {
           "type": "boolean",
           "description": "Set many-to-many relationship as denormalized, creating a field to store the selected ids"
+        },
+        "traversableInTenantScope": {
+          "type": "boolean",
+          "description": "Declares that a tenant-scoped read (hasTenant: true) of this aggregate may cross this relation, one hop only. Deny by default: a relation without this key is rejected in where, relations, order and aggregation. It does not scope the target aggregate by tenant: the target's rows are reachable as the target defines them, so declare it only when that is acceptable. Applies to the FK side or the navigation side of the relationship"
         },
         "pivot": {
           "$ref": "#/definitions/pivotTableDefinition"
@@ -340,9 +370,11 @@
             "async-multiple-search-select",
             "async-search-select",
             "color-picker",
+            "dialog-string-list",
             "grid-elements-manager",
             "grid-select-element",
             "grid-select-multiple-elements",
+            "inline-string-list",
             "multiple-search-select",
             "multiple-select",
             "search-select",
@@ -396,6 +428,24 @@
           "description": "Per-property column span override on the form's 12-column grid. Integer 1-12. When omitted, the codegen picks a default by type (and by maxLength for varchar)",
           "minimum": 1,
           "maximum": 12
+        },
+        "hint": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Field help shown in a tooltip beside the form label. Both values are seeds of the module translation files: once seeded, the translation JSON owns them",
+          "required": ["text"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Help text of the field",
+              "minLength": 1
+            },
+            "example": {
+              "type": "string",
+              "description": "Optional example value, shown as an extra line in the tooltip",
+              "minLength": 1
+            }
+          }
         }
       },
       "if": {
@@ -415,9 +465,18 @@
         "required": ["displayFields"]
       }
     },
+    "layersDefinition": {
+      "type": "array",
+      "description": "Non-empty list of unique layers: rest, graphql, api (shorthand for rest plus graphql), app and ui",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["api", "rest", "graphql", "app", "ui"]
+      }
+    },
     "excludedOperationDefinition": {
       "type": "array",
-      "description": "Operations to be excluded from the module. A plain string excludes the operation from every layer; the object form { operation, layers } excludes it only from the listed layers: api (@api controller, resolver and SDL mutation), app (@app handler and service), ui (frontend route, button and mutation document)",
+      "description": "Operations to be excluded from the module. A plain string excludes the operation from every layer it has; the object form { operation, layers } excludes it only from the listed layers: rest (@api REST controller and its DTO), graphql (@api resolver and its SDL field), api (shorthand for rest plus graphql), app (@app handler and service), ui (frontend route, button and GraphQL document). A layer the operation does not have is a generation error",
       "examples": [
         ["create", "update", "delete"],
         ["create", "update", "delete", "findById"],
@@ -426,6 +485,16 @@
           {
             "operation": "create",
             "layers": ["api", "ui"]
+          }
+        ],
+        [
+          {
+            "operation": "findById",
+            "layers": ["rest"]
+          },
+          {
+            "operation": "paginate",
+            "layers": ["rest", "ui"]
           }
         ]
       ],
@@ -454,7 +523,7 @@
           },
           {
             "type": "object",
-            "description": "Excludes one operation from the listed layers only: api = @api controller, resolver and SDL mutation; app = @app handler and service; ui = frontend route, button and mutation document",
+            "description": "Excludes one operation from the listed layers only: rest = @api REST controller and its DTO; graphql = @api resolver and its SDL field; api = shorthand for rest plus graphql; app = @app handler and service; ui = frontend route, button and GraphQL document",
             "required": ["operation", "layers"],
             "additionalProperties": false,
             "properties": {
@@ -480,13 +549,8 @@
                 ]
               },
               "layers": {
-                "type": "array",
-                "description": "Layers the operation is excluded from",
-                "minItems": 1,
-                "uniqueItems": true,
-                "items": {
-                  "enum": ["api", "app", "ui"]
-                }
+                "$ref": "#/definitions/layersDefinition",
+                "description": "Layers the operation is excluded from"
               }
             }
           }
