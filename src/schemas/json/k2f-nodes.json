@@ -1,0 +1,663 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.schemastore.org/k2f-nodes.json",
+  "$defs": {
+    "pt_nonneg": {
+      "$ref": "https://www.schemastore.org/partial-k2f-visual-primitives.json#/$defs/pt_nonneg"
+    },
+    "align": {
+      "enum": ["start", "center", "end", "stretch"],
+      "default": "stretch"
+    },
+    "justify": {
+      "enum": ["start", "center", "end"],
+      "default": "start"
+    },
+    "cell_align": {
+      "type": "object",
+      "description": "Per-cell alignment. stretch (default) fills the cell so the child follows the track size; start/center/end keep the child's measured size (logos, short labels).",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/align"
+        },
+        "y": {
+          "$ref": "#/$defs/align"
+        }
+      },
+      "default": {
+        "x": "stretch",
+        "y": "stretch"
+      }
+    },
+    "grid_layout_track": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pt": {
+              "type": "integer"
+            }
+          },
+          "required": ["pt"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fr": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Integer weight of leftover space (not CSS 1.2fr)."
+            }
+          },
+          "required": ["fr"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto": {
+              "const": true
+            }
+          },
+          "required": ["auto"]
+        }
+      ]
+    },
+    "include_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Include a semantic subtree from another package file under content/. Resolved at pack time; not a SemanticNode.",
+      "properties": {
+        "include": {
+          "type": "string",
+          "pattern": "^content/[A-Za-z0-9][A-Za-z0-9_.-]*(\\/[A-Za-z0-9][A-Za-z0-9_.-]*)*\\.json$",
+          "not": {
+            "const": "content/root.json"
+          },
+          "description": "Package path to a single SemanticNode JSON file (not content/root.json)."
+        }
+      },
+      "required": ["include"]
+    },
+    "container_child": {
+      "oneOf": [
+        {
+          "$ref": "https://www.schemastore.org/k2f-nodes.json"
+        },
+        {
+          "$ref": "#/$defs/include_ref"
+        }
+      ]
+    }
+  },
+  "title": "K2F Semantic Nodes Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_]*(\\.[A-Za-z0-9][A-Za-z0-9_]*)*$",
+      "description": "Stable node ID. Dotted ASCII letters, digits, and underscore. Unique across the document."
+    },
+    "break_inside": {
+      "enum": ["auto", "avoid"],
+      "default": "auto",
+      "description": "Page split policy. auto: split at line or child boundaries when the remainder of the page is too small. avoid: never split; fail if taller than one page."
+    },
+    "break_before": {
+      "enum": ["auto", "page"],
+      "default": "auto",
+      "description": "When page, start this node on a new page when not already at the content top."
+    },
+    "keep_with_next": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, this node and the next sibling must start on the same page when they fit together."
+    },
+    "column_span": {
+      "enum": ["none", "all"],
+      "default": "none",
+      "description": "When all, this node spans the full width of an enclosing columns container. Must not be set on a columns container itself."
+    },
+    "colspan": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Table-cell occupancy along column_widths (same row only). Omit or 1 = one column. Illegal outside a table cell. Not rowspan; not columns-layout column_span."
+    },
+    "role": {
+      "type": "string",
+      "description": "Semantic role. Must be defined by the theme/tokens roles."
+    },
+    "variant": {
+      "type": ["string", "null"],
+      "description": "Optional visual variant name for this role. The allowed variants are defined by the theme."
+    },
+    "preserve_whitespace": {
+      "type": ["boolean", "null"],
+      "description": "Optional whitespace preservation hint. When role is \"code_block\", engine validation requires this to be true (or omitted)."
+    },
+    "list_id": {
+      "type": ["string", "null"],
+      "description": "Optional list group identifier. Required by engine validation when role is \"list_item\"."
+    },
+    "depth": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Optional nesting depth for list items. If omitted, the engine treats it as 0."
+    },
+    "marker_type": {
+      "type": ["string", "null"],
+      "enum": ["bullet", "number", null],
+      "description": "Optional marker style for list items. If omitted, the engine treats it as bullet."
+    },
+    "content": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "code_block"
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "math"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "description": "TeX-subset math source for display formulas."
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "form_field"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": ["text", "multiline", "checkbox"]
+                },
+                "value": {
+                  "type": "string"
+                },
+                "placeholder": {
+                  "type": "string"
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "lines": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "max_length": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["kind", "value"]
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "image"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "src": {
+                  "type": "string",
+                  "description": "Package path under assets/images/ (field name is src, not path). Supported: PNG, JPEG, WebP, SVG (engine rasterizes SVG). GIF is not supported."
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Deterministic image width in fixed-point Pt (1/1000 pt units)."
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Deterministic image height in fixed-point Pt (1/1000 pt units)."
+                }
+              },
+              "required": ["src", "width", "height"]
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "container"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "children": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/container_child"
+                  },
+                  "description": "Optional. Omitted or empty: no children (dividers, spacers)."
+                }
+              }
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "table"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "column_widths": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "pt": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": ["pt"]
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "fr": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Integer weight of leftover space (not CSS 1.2fr)."
+                          }
+                        },
+                        "required": ["fr"]
+                      }
+                    ]
+                  }
+                },
+                "header_rows": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "Number of leading header rows to repeat at page breaks. Integer count, not a row of cells."
+                },
+                "gap": {
+                  "type": "integer",
+                  "default": 0,
+                  "description": "Default gap between rows and columns in fixed-point Pt (1/1000 pt units). No colspan/rowspan — every row has exactly column_widths.length cells."
+                },
+                "row_gap": {
+                  "type": ["integer", "null"],
+                  "description": "Optional row gap override. Falls back to gap when omitted or null."
+                },
+                "column_gap": {
+                  "type": ["integer", "null"],
+                  "description": "Optional column gap override. Falls back to gap when omitted or null."
+                },
+                "data": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "inline"
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "https://www.schemastore.org/k2f-nodes.json"
+                            }
+                          }
+                        }
+                      },
+                      "required": ["type", "rows"]
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "asset"
+                        },
+                        "source": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "source"]
+                    }
+                  ]
+                }
+              },
+              "required": ["column_widths", "data"]
+            }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "table_reference"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "view_mode": {
+                  "type": "string"
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Deterministic table reference width in fixed-point Pt (1/1000 pt units)."
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Deterministic table reference height in fixed-point Pt (1/1000 pt units)."
+                }
+              },
+              "required": ["source", "view_mode", "width", "height"]
+            }
+          },
+          "required": ["type", "value"]
+        }
+      ]
+    },
+    "modifiers": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "range": {
+            "type": "array",
+            "description": "UTF-8 byte offsets [start, end) into the node text (must lie on character boundaries). Not character indices. A newline in the value is 1 byte. CJK/emoji/curly quotes are multi-byte.",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "type": {
+            "enum": [
+              "emphasis",
+              "link",
+              "underline",
+              "strikethrough",
+              "subscript",
+              "superscript",
+              "math",
+              "syntax_highlight"
+            ]
+          },
+          "intent": {
+            "type": "string",
+            "description": "Required. Must match a key under theme.modifiers.styles[type] (e.g. emphasis 'strong', underline 'default', link URL)."
+          }
+        },
+        "required": ["range", "type", "intent"]
+      },
+      "default": []
+    },
+    "layout": {
+      "description": "Optional deterministic layout hint for containers. On content/root.json, omit layout or use vertical stack only — nest grid, overlay, columns, and horizontal stacks under a child.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "stack",
+              "description": "Optional. Omitted layout type is stack (same as omitting layout entirely, plus size/gap)."
+            },
+            "direction": {
+              "enum": ["vertical", "horizontal"],
+              "default": "vertical"
+            },
+            "gap": {
+              "type": "integer",
+              "description": "Fixed-point Pt gap between children (1/1000 pt units).",
+              "default": 0
+            },
+            "align_items": {
+              "$ref": "#/$defs/align",
+              "description": "Cross-axis alignment for stack children."
+            },
+            "justify_content": {
+              "$ref": "#/$defs/justify",
+              "description": "Main-axis distribution: start, center, or end only. Not Flexbox (no space-between). Left/right split: catalog/content/ex_split_bar.json. Footer pinned to page bottom: catalog/content/ex_poster_shell.json."
+            },
+            "width": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/pt_nonneg"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional fixed outer width in fixed-point Pt (1/1000 pt units)."
+            },
+            "height": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/pt_nonneg"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional fixed outer height in fixed-point Pt (1/1000 pt units)."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "overlay",
+              "description": "Children are stacked visually in source order (first = back, last = front)."
+            },
+            "width": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/pt_nonneg"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional fixed outer width in fixed-point Pt (1/1000 pt units)."
+            },
+            "height": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/pt_nonneg"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional fixed outer height in fixed-point Pt (1/1000 pt units)."
+            }
+          },
+          "required": ["type"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "grid"
+            },
+            "gap": {
+              "type": "integer",
+              "description": "Default gap between rows and columns in fixed-point Pt (1/1000 pt units).",
+              "default": 0
+            },
+            "row_gap": {
+              "type": ["integer", "null"],
+              "description": "Optional row gap override. Falls back to gap when omitted or null."
+            },
+            "column_gap": {
+              "type": ["integer", "null"],
+              "description": "Optional column gap override. Falls back to gap when omitted or null."
+            },
+            "cell_align": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/cell_align"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default per-cell alignment for grid children. Null/omitted = stretch/stretch."
+            },
+            "width": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/pt_nonneg"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional fixed outer width in fixed-point Pt (1/1000 pt units). Enables fr columns when parent width is unbounded."
+            },
+            "height": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/pt_nonneg"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional fixed outer height in fixed-point Pt (1/1000 pt units). Enables fr rows when parent height is unbounded."
+            },
+            "columns": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/grid_layout_track"
+              }
+            },
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/grid_layout_track"
+              },
+              "description": "Optional. Omitted: engine fills {auto:true} rows to fit children (ceil(n/columns)). Declared rows are not grown. fr rows still need a finite outer height."
+            }
+          },
+          "required": ["type", "columns"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "columns",
+              "description": "Continuous multi-column flow. Children pack left-to-right across equal-width columns."
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 4,
+              "description": "Number of equal-width columns."
+            },
+            "gap": {
+              "type": "integer",
+              "default": 0,
+              "description": "Fixed-point Pt gap between columns (1/1000 pt units)."
+            }
+          },
+          "required": ["type", "count"]
+        }
+      ]
+    }
+  },
+  "required": ["id", "role", "content"]
+}

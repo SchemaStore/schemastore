@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.schemastore.org/partial-k2f-visual-primitives.json",
+  "$defs": {
+    "pt": {
+      "type": "integer",
+      "description": "Fixed-point Pt in 1/1000 pt units."
+    },
+    "pt_nonneg": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative fixed-point Pt in 1/1000 pt units."
+    },
+    "color_ref": {
+      "type": "string",
+      "description": "A palette key (e.g. 'ink') or a hex color ('#RRGGBB' / '#RRGGBBAA')."
+    },
+    "named_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Name of a theme primitive. Inline objects are forbidden in theme.json."
+    },
+    "text_align": {
+      "enum": ["start", "center", "end", "justify"],
+      "description": "Text alignment within the text box. justify stretches non-final lines by expanding U+0020 gaps."
+    },
+    "linear_gradient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "linear"
+        },
+        "angle_degrees": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360,
+          "description": "Degrees; 0 = toward +x (right), 90 = toward +y (down). Not CSS (CSS 180° = down)."
+        },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "pos": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000,
+                "description": "Stop position in 0..1000 (0 = start, 1000 = end)."
+              },
+              "color": {
+                "$ref": "#/$defs/color_ref"
+              }
+            },
+            "required": ["pos", "color"]
+          }
+        }
+      },
+      "required": ["type", "angle_degrees", "stops"]
+    },
+    "fill": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "solid"
+            },
+            "color": {
+              "$ref": "#/$defs/color_ref"
+            }
+          },
+          "required": ["type", "color"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "linear_gradient"
+            },
+            "value": {
+              "$ref": "#/$defs/linear_gradient"
+            }
+          },
+          "required": ["type", "value"]
+        }
+      ]
+    },
+    "border_edge": {
+      "enum": ["top", "right", "bottom", "left"],
+      "description": "Which side of the box receives the border stroke."
+    },
+    "border_style": {
+      "enum": ["solid", "dashed", "dotted"],
+      "description": "Stroke pattern. dashed = 3pt on / 2pt off; dotted = 1pt on / 1pt off (millipt-fixed)."
+    },
+    "border": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width_pt": {
+          "$ref": "#/$defs/pt_nonneg"
+        },
+        "color": {
+          "$ref": "#/$defs/color_ref"
+        },
+        "edges": {
+          "type": "array",
+          "description": "Sides that receive the stroke. Omit for all four sides.",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/border_edge"
+          }
+        },
+        "style": {
+          "$ref": "#/$defs/border_style",
+          "description": "Stroke pattern. Omit for solid."
+        }
+      },
+      "required": ["width_pt", "color"]
+    },
+    "edge_insets_pt": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "top": {
+              "$ref": "#/$defs/pt_nonneg"
+            },
+            "right": {
+              "$ref": "#/$defs/pt_nonneg"
+            },
+            "bottom": {
+              "$ref": "#/$defs/pt_nonneg"
+            },
+            "left": {
+              "$ref": "#/$defs/pt_nonneg"
+            }
+          },
+          "required": ["top", "right", "bottom", "left"]
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Uniform padding in fixed-point Pt (1/1000 pt units)."
+        },
+        {
+          "type": "array",
+          "description": "[top, right, bottom, left] in fixed-point Pt — same order as page_config.margin.",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/pt_nonneg"
+          }
+        }
+      ]
+    },
+    "shadow_layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "offset_x_pt": {
+          "$ref": "#/$defs/pt"
+        },
+        "offset_y_pt": {
+          "$ref": "#/$defs/pt"
+        },
+        "blur_radius_pt": {
+          "$ref": "#/$defs/pt_nonneg"
+        },
+        "spread_radius_pt": {
+          "$ref": "#/$defs/pt"
+        },
+        "color": {
+          "$ref": "#/$defs/color_ref"
+        }
+      },
+      "required": [
+        "offset_x_pt",
+        "offset_y_pt",
+        "blur_radius_pt",
+        "spread_radius_pt",
+        "color"
+      ]
+    },
+    "shadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/shadow_layer"
+          }
+        }
+      },
+      "required": ["layers"]
+    },
+    "blur": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "radius_pt": {
+          "$ref": "#/$defs/pt_nonneg"
+        }
+      },
+      "required": ["radius_pt"]
+    },
+    "box_decoration": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Theme-side decoration. Visual atoms are named primitive refs; padding is layout.",
+      "properties": {
+        "background": {
+          "$ref": "#/$defs/named_ref"
+        },
+        "border": {
+          "$ref": "#/$defs/named_ref"
+        },
+        "corner_radius": {
+          "$ref": "#/$defs/named_ref"
+        },
+        "padding_pt": {
+          "$ref": "#/$defs/edge_insets_pt"
+        },
+        "shadow": {
+          "$ref": "#/$defs/named_ref"
+        },
+        "blur": {
+          "$ref": "#/$defs/named_ref"
+        }
+      }
+    },
+    "text_style_patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font_family": {
+          "type": ["string", "null"]
+        },
+        "font_size": {
+          "type": ["integer", "null"]
+        },
+        "line_height_mult": {
+          "type": ["integer", "null"]
+        },
+        "letter_spacing_pt": {
+          "type": ["integer", "null"]
+        },
+        "color": {
+          "type": ["string", "null"]
+        },
+        "text_align": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/text_align"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bold": {
+          "type": ["boolean", "null"]
+        },
+        "italic": {
+          "type": ["boolean", "null"]
+        },
+        "strikethrough": {
+          "type": ["boolean", "null"]
+        },
+        "underline": {
+          "type": ["boolean", "null"]
+        }
+      }
+    }
+  },
+  "title": "K2F Visual Primitives Schema"
+}
