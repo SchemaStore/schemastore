@@ -1,0 +1,454 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/haijun-code-settings.json",
+  "$defs": {
+    "permissionRule": {
+      "type": "string",
+      "description": "Tool permission rule.\nSee https://code.haijun.my.id/docs/en/settings#permission-rule-syntax\nSee https://code.haijun.my.id/docs/en/tools-reference for full list of tools available to Haijun.",
+      "pattern": "^((Agent|Artifact|Bash|Cd|Edit|EnterWorktree|ExitPlanMode|Glob|Grep|KillShell|LSP|Monitor|MultiEdit|NotebookEdit|PowerShell|Read|ShareOnboardingGuide|Track|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Workflow|Write)(\\([^)]+\\))?|mcp__.*)$",
+      "examples": [
+        "Bash",
+        "Bash(npm run build)",
+        "Bash(git commit *)",
+        "Bash(npm run *)",
+        "Bash(ls*)",
+        "Bash(git * main)",
+        "Edit",
+        "Edit(/src/**/*.ts)",
+        "Read(*)",
+        "Track(*)",
+        "Read(./.env)",
+        "Read(./secrets/**)",
+        "Read(//Users/alice/secrets/**)",
+        "Read(~/Documents/*.pdf)",
+        "Agent(Explore)",
+        "WebFetch",
+        "WebFetch(domain:example.com)",
+        "mcp__puppeteer",
+        "mcp__github__search_repositories"
+      ]
+    },
+    "hookCommand": {
+      "anyOf": [
+        {
+          "type": "object",
+          "description": "Bash command hook",
+          "additionalProperties": false,
+          "required": ["type", "command"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "command"
+            },
+            "command": {
+              "type": "string",
+              "description": "Shell command to execute",
+              "minLength": 1
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 600; lowered to 30 on UserPromptSubmit and 10 on MessageDisplay)",
+              "exclusiveMinimum": 0
+            },
+            "async": {
+              "type": "boolean",
+              "description": "Run this hook asynchronously without blocking Haijun Code"
+            },
+            "asyncRewake": {
+              "type": "boolean",
+              "description": "When true, the hook runs in the background and wakes the model when it exits with code 2. Implies async."
+            },
+            "shell": {
+              "type": "string",
+              "enum": ["bash", "powershell"],
+              "description": "Shell interpreter for the command. \"bash\" uses the login shell (bash/zsh/sh); \"powershell\" uses pwsh. Defaults to bash."
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter (e.g., \"Bash(git *)\"). Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.haijun.my.id/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
+            "statusMessage": {
+              "type": "string",
+              "description": "Custom spinner message displayed while the hook runs"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Argument list for exec form. When present, spawns the command directly without shell interpretation — each element is passed as-is, so path placeholders never need quoting. See https://code.haijun.my.id/docs/en/hooks#command-hook-fields"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "LLM prompt hook. See https://code.haijun.my.id/docs/en/hooks#prompt-based-hooks",
+          "additionalProperties": false,
+          "required": ["type", "prompt"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "prompt"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Prompt to evaluate with LLM. Use $ARGUMENTS placeholder for hook input JSON.",
+              "minLength": 1
+            },
+            "model": {
+              "type": "string",
+              "description": "Model to use for evaluation. Defaults to a fast model"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 30)",
+              "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.haijun.my.id/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
+            "statusMessage": {
+              "type": "string",
+              "description": "Custom spinner message displayed while the hook runs"
+            },
+            "continueOnBlock": {
+              "type": "boolean",
+              "default": false,
+              "description": "When the prompt returns ok: false, feed the reason back to Haijun and continue the turn instead of stopping. Implemented as continue: true on the resulting decision: \"block\". See https://code.haijun.my.id/docs/en/hooks#prompt-hook-configuration"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Agent hook with multi-turn tool access for verification. See https://code.haijun.my.id/docs/en/hooks#agent-based-hooks",
+          "additionalProperties": false,
+          "required": ["type", "prompt"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "agent"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Prompt describing what to verify. Use $ARGUMENTS placeholder for hook input JSON.",
+              "minLength": 1
+            },
+            "model": {
+              "type": "string",
+              "description": "Model to use for evaluation. Defaults to a fast model"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 60)",
+              "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.haijun.my.id/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
+            "statusMessage": {
+              "type": "string",
+              "description": "Custom spinner message displayed while the hook runs"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "HTTP webhook hook. POST JSON to a URL and receive JSON response. See https://code.haijun.my.id/docs/en/hooks#http-hook-fields",
+          "additionalProperties": false,
+          "required": ["type", "url"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "http"
+            },
+            "url": {
+              "type": "string",
+              "description": "URL to POST hook input JSON to. Endpoint must accept POST requests and return JSON.",
+              "minLength": 1
+            },
+            "headers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Custom HTTP headers (e.g., Authorization: Bearer token). Values support $VAR_NAME or ${VAR_NAME} interpolation."
+            },
+            "allowedEnvVars": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "List of environment variable names permitted for interpolation in headers. If not set, no env var interpolation is allowed."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 600; lowered to 30 on UserPromptSubmit and 10 on MessageDisplay)",
+              "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.haijun.my.id/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
+            "statusMessage": {
+              "type": "string",
+              "description": "Custom spinner message displayed while the hook runs"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "MCP tool hook. Call a tool on an already-connected MCP server. See https://code.haijun.my.id/docs/en/hooks#mcp-tool-hook-fields",
+          "additionalProperties": false,
+          "required": ["type", "server", "tool"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Hook type",
+              "const": "mcp_tool"
+            },
+            "server": {
+              "type": "string",
+              "description": "Name of a configured MCP server (must already be connected)",
+              "minLength": 1
+            },
+            "tool": {
+              "type": "string",
+              "description": "Name of the tool to call on that server",
+              "minLength": 1
+            },
+            "input": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Arguments passed to the tool. String values support ${path} substitution from hook JSON input (e.g., ${tool_input.file_path}, ${cwd})"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Optional timeout in seconds (default: 600; lowered to 30 on UserPromptSubmit and 10 on MessageDisplay)",
+              "exclusiveMinimum": 0
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.haijun.my.id/docs/en/hooks-guide#filter-hooks-with-matchers"
+            },
+            "statusMessage": {
+              "type": "string",
+              "description": "Custom spinner message displayed while the hook runs"
+            }
+          }
+        }
+      ]
+    },
+    "hookMatcher": {
+      "type": "object",
+      "description": "Hook matcher configuration with multiple hooks",
+      "additionalProperties": false,
+      "required": ["hooks"],
+      "properties": {
+        "matcher": {
+          "type": "string",
+          "description": "Optional pattern to match event contexts, case-sensitive. Behavior depends on event type. See https://code.haijun.my.id/docs/en/hooks#matcher-patterns for event-specific details and examples"
+        },
+        "hooks": {
+          "type": "array",
+          "description": "Array of hooks to execute",
+          "items": {
+            "$ref": "#/$defs/hookCommand"
+          }
+        }
+      }
+    }
+  },
+  "description": "Configuration settings for Haijun Code. Learn more: https://code.haijun.my.id/docs/en/settings",
+  "additionalProperties": true,
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for Haijun Code settings"
+    },
+    "apiKeyHelper": {
+      "type": "string",
+      "description": "Path to a script that outputs authentication values. See https://code.haijun.my.id/docs/en/settings#available-settings",
+      "examples": ["/bin/generate_temp_api_key.sh"],
+      "minLength": 1
+    },
+    "autoMemoryEnabled": {
+      "type": "boolean",
+      "description": "Enable automatic memory saves that capture useful context to ~/.haijun/projects/<project>/memory/ (derived from the git repository, shared across worktrees). Also configurable via HAIJUN_CODE_DISABLE_AUTO_MEMORY environment variable (set to 1 to disable, 0 to enable). See https://code.haijun.my.id/docs/en/memory#storage-location",
+      "default": true
+    },
+    "autoUpdatesChannel": {
+      "type": "string",
+      "enum": ["stable", "latest"],
+      "description": "Release channel to follow for updates. Use \"stable\" for a version that is typically about one week old and skips versions with major regressions, or \"latest\" (default) for the most recent release. Set DISABLE_AUTOUPDATER=1 to disable background auto-updates, or DISABLE_UPDATES=1 to block all update paths including manual `haijun update`.",
+      "default": "latest"
+    },
+    "haijunMdExcludes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Glob patterns for HAIJUN.md files to exclude from loading. Useful in monorepos to skip irrelevant instructions from other teams. Patterns match against absolute file paths. Arrays merge across settings layers. Managed policy HAIJUN.md files cannot be excluded. See https://code.haijun.my.id/docs/en/memory#exclude-specific-haijun-md-files",
+      "examples": [
+        [
+          "**/monorepo/HAIJUN.md",
+          "/home/user/monorepo/other-team/.haijun/rules/**"
+        ]
+      ]
+    },
+    "cleanupPeriodDays": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of days to retain sessions, orphaned subagent worktrees, tasks, shell snapshots, and backups. Minimum is 1; setting 0 is rejected with a validation error. See https://code.haijun.my.id/docs/en/settings#available-settings",
+      "examples": [20, 30, 60],
+      "default": 30
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment variables to set for Haijun Code sessions. Many environment variables provide settings dimensions not available as dedicated settings.json properties (e.g., thinking tokens, prompt caching, bash timeouts, shell configuration). See https://code.haijun.my.id/docs/en/settings#environment-variables for the full list.",
+      "examples": [
+        {
+          "JUGLOW_MODEL": "haijun-opus-4-1",
+          "JUGLOW_SMALL_FAST_MODEL": "haijun-3-5-haiku-latest"
+        }
+      ],
+      "default": {},
+      "properties": {
+        "JUGLOW_API_KEY": {
+          "type": "string",
+          "description": "API key for JuGloW API authentication"
+        },
+        "JUGLOW_AUTH_TOKEN": {
+          "type": "string",
+          "description": "Custom Authorization header bearer token for API requests"
+        },
+        "JUGLOW_BASE_URL": {
+          "type": "string",
+          "description": "Override API endpoint URL for proxy or gateway routing"
+        },
+        "JUGLOW_MODEL": {
+          "type": "string",
+          "description": "Model to use (e.g., 'haijun-opus-4-1', 'haijun-sonnet-4-5-20250514', 'opus', 'sonnet', 'haiku')"
+        },
+        "JUGLOW_SMALL_FAST_MODEL": {
+          "type": "string",
+          "description": "Haiku-class model to use for background and low-complexity tasks"
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Event-driven hooks that run at specific points during Haijun Code's execution. See https://code.haijun.my.id/docs/en/hooks",
+      "properties": {
+        "PreToolUse": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PostToolUse": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "Notification": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "UserPromptSubmit": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "SessionStart": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "SessionEnd": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "Stop": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "SubagentStart": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "SubagentStop": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PreCompact": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PostCompact": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PermissionRequest": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        },
+        "PermissionDenied": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Tool permission configuration. See https://code.haijun.my.id/docs/en/settings#permissions",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/permissionRule"
+          },
+          "description": "Tools that are automatically allowed without prompting"
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/permissionRule"
+          },
+          "description": "Tools that are always blocked"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

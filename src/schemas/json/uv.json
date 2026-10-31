@@ -45,10 +45,10 @@
       ]
     },
     "build-constraint-dependencies": {
-      "description": "PEP 508-style requirements, e.g., `ruff==0.5.0`, or `ruff @ https://...`.",
+      "description": "Constraints to apply when solving build dependencies.\n\nBuild constraints are used to restrict the versions of build dependencies that are selected\nwhen building a package during resolution or installation.\n\nIncluding a package as a constraint will _not_ trigger installation of the package during\na build; instead, the package must be requested elsewhere in the project's build dependency\ngraph.\n\n!!! note\n    In `uv lock`, `uv sync`, and `uv run`, uv will only read `build-constraint-dependencies` from\n    the `pyproject.toml` at the workspace root, and will ignore any declarations in other\n    workspace members or `uv.toml` files.\n\nHashes can be included to verify downloaded build dependency archives. To provide hashes,\nuse a table with `requirement` and `hashes`. uv records these hashes in `uv.lock`.",
       "type": ["array", "null"],
       "items": {
-        "type": "string"
+        "$ref": "#/definitions/BuildConstraintDependency"
       }
     },
     "cache-dir": {
@@ -254,6 +254,10 @@
         }
       ]
     },
+    "graalpy-install-mirror": {
+      "description": "Mirror URL to use for downloading managed GraalPy installations.\n\nBy default, managed GraalPy installations are downloaded from [GitHub](https://github.com/oracle/graalpython/releases).\nThis variable can be set to a mirror URL to use a different source for GraalPy installations.\nThe provided URL will replace `https://github.com/oracle/graalpython/releases/download` in, e.g., `https://github.com/oracle/graalpython/releases/download/graal-24.2.2/graalpy-24.2.2-macos-aarch64.tar.gz`.\n\nDistributions can be read from a local directory by using the `file://` URL scheme.",
+      "type": ["string", "null"]
+    },
     "http-proxy": {
       "description": "The URL of the HTTP proxy to use.",
       "anyOf": [
@@ -332,6 +336,17 @@
       "description": "Whether the project is managed by uv. If `false`, uv will ignore the project when\n`uv run` is invoked.",
       "type": ["boolean", "null"]
     },
+    "minimum-libc-version": {
+      "description": "The minimum libc versions to support when resolving for Linux.\n\nDuring universal resolution, wheels must support the configured libc versions to satisfy\n`required-environments`. For example, `{ glibc = \"2.31\" }` accepts `manylinux_2_17` wheels\nas coverage, but not `manylinux_2_34` wheels. Both are retained in the lockfile so installation\ncan select the best wheel for the current machine. An omitted libc is not required.\n\nUse `required-environments` to specify the Linux architectures to support. Each configured\nlibc version needs compatible wheels for those environments. Generic Linux wheels do not\nconstrain libc and can satisfy either implementation. Packages with a usable source\ndistribution can still be selected.\n\nThis setting is respected by `uv lock` and `uv pip compile --universal`.\n\nThis option is in preview and may change in any future release. Use\n`--preview-features minimum-libc-version` or configure\n`preview-features = [\"minimum-libc-version\"]` to disable the warning.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/MinimumLibcVersion"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "native-tls": {
       "description": "Whether to load TLS certificates from the platform's native certificate store.\n\nBy default, uv uses bundled Mozilla root certificates. When enabled, this loads\ncertificates from the platform's native certificate store instead.\n\n(Deprecated: use `system-certs` instead.)",
       "type": ["boolean", "null"],
@@ -349,7 +364,7 @@
       }
     },
     "no-build": {
-      "description": "Don't build source distributions.\n\nWhen enabled, uv will reuse cached wheels from previously built source distributions, but\noperations that require building a source distribution will exit with an error. uv may\nstill build editable requirements, and their build backends may run arbitrary Python code.",
+      "description": "Don't build source distributions.\n\nWhen enabled, uv will reuse cached wheels from previously built source distributions, but\noperations that require building a source distribution will exit with an error. First-party\npackages, such as projects in the workspace, will still be built. uv will also still build\neditable requirements, and their build backends may run arbitrary Python code.",
       "type": ["boolean", "null"]
     },
     "no-build-isolation": {
@@ -364,7 +379,7 @@
       }
     },
     "no-build-package": {
-      "description": "Don't build source distributions for a specific package.",
+      "description": "Don't build source distributions for a specific package.\n\nFirst-party packages, such as projects in the workspace, will still be built.",
       "type": ["array", "null"],
       "items": {
         "$ref": "#/definitions/PackageName"
@@ -422,10 +437,21 @@
       ]
     },
     "prerelease": {
-      "description": "The strategy to use when considering pre-release versions.\n\nBy default, uv will accept pre-releases for packages that _only_ publish pre-releases,\nalong with first-party requirements that contain an explicit pre-release marker in the\ndeclared specifiers (`if-necessary-or-explicit`).",
+      "description": "The strategy to use when considering pre-release versions.\n\nBy default, uv will prefer stable candidates, falling back to pre-releases only after every\nstable candidate that satisfies the active constraints is rejected\n(`if-necessary`).",
       "anyOf": [
         {
           "$ref": "#/definitions/PrereleaseMode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "prerelease-package": {
+      "description": "The strategy to use when considering pre-release versions for specific packages.\n\nPackage-specific modes take precedence over the global [`prerelease`](#prerelease) mode.\nAccepts a dictionary mapping package names to any supported pre-release mode.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PrereleasePackage"
         },
         {
           "type": "null"
@@ -458,6 +484,10 @@
           "type": "null"
         }
       ]
+    },
+    "pyodide-install-mirror": {
+      "description": "Mirror URL to use for downloading managed Pyodide installations.\n\nBy default, managed Pyodide installations are downloaded from [GitHub](https://github.com/pyodide/pyodide/releases).\nThis variable can be set to a mirror URL to use a different source for Pyodide installations.\nThe provided URL will replace `https://github.com/pyodide/pyodide/releases/download` in, e.g., `https://github.com/pyodide/pyodide/releases/download/0.29.5/xbuildenv-0.29.5.tar.gz`.\n\nDistributions can be read from a local directory by using the `file://` URL scheme.",
+      "type": ["string", "null"]
     },
     "pypy-install-mirror": {
       "description": "Mirror URL to use for downloading managed PyPy installations.\n\nBy default, managed PyPy installations are downloaded from [downloads.python.org](https://downloads.python.org/).\nThis variable can be set to a mirror URL to use a different source for PyPy installations.\nThe provided URL will replace `https://downloads.python.org/pypy` in, e.g., `https://downloads.python.org/pypy/pypy3.8-v7.3.7-osx64.tar.bz2`.\n\nDistributions can be read from a\nlocal directory by using the `file://` URL scheme.",
@@ -503,6 +533,10 @@
       "items": {
         "$ref": "#/definitions/PackageName"
       }
+    },
+    "require-build-hashes": {
+      "description": "Require hashes for all build dependencies.\n\nuv checks hashes provided in `build-constraint-dependencies` when downloading build\ndependencies. Enable this setting to require a hash for every build dependency, including\ntransitive dependencies. You can also provide hashes as URL fragments in\n`build-system.requires`. Hashes returned by a build backend do not count.\n\nHashes are not required for the `uv_build` backend bundled in uv. When build isolation is\ndisabled, build dependencies must already be installed and their hashes are not checked.\nAlready-installed packages and previously built wheels are not checked.\n\nThis setting also applies to `uv pip` commands, where it can be overridden in `[tool.uv.pip]`.",
+      "type": ["boolean", "null"]
     },
     "required-environments": {
       "description": "A list of environment markers, e.g., `sys_platform == 'darwin'.",
@@ -595,11 +629,7 @@
   },
   "additionalProperties": false,
   "not": {
-    "properties": {
-      "preview": {},
-      "preview-features": {}
-    },
-    "required": ["preview", "preview-features"]
+    "$ref": "#/definitions/ConflictingPreviewOptions"
   },
   "definitions": {
     "AddBoundsKind": {
@@ -658,6 +688,21 @@
           "items": {
             "type": "string"
           }
+        },
+        "malware-check": {
+          "description": "Whether to run the automatic malware check during sync operations.",
+          "type": ["boolean", "null"]
+        },
+        "malware-check-url": {
+          "description": "The vulnerability service URL to use for automatic malware checks.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DisplaySafeUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -753,6 +798,35 @@
         }
       }
     },
+    "BuildConstraintDependency": {
+      "description": "A build constraint, optionally accompanied by archive hashes.",
+      "anyOf": [
+        {
+          "description": "A PEP 508 requirement without additional hashes.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Requirement"
+            }
+          ]
+        },
+        {
+          "description": "A PEP 508 requirement and its archive hashes.",
+          "type": "object",
+          "properties": {
+            "hashes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "requirement": {
+              "$ref": "#/definitions/Requirement"
+            }
+          },
+          "required": ["requirement", "hashes"]
+        }
+      ]
+    },
     "CacheKey": {
       "anyOf": [
         {
@@ -827,6 +901,14 @@
         "$ref": "#/definitions/ConfigSettingValue"
       }
     },
+    "ConflictingPreviewOptions": {
+      "type": "object",
+      "properties": {
+        "preview": {},
+        "preview-features": {}
+      },
+      "required": ["preview", "preview-features"]
+    },
     "DefaultGroups": {
       "description": "Either the literal \"all\" or a list of groups",
       "oneOf": [
@@ -882,6 +964,7 @@
       ]
     },
     "ExcludeNewerPackage": {
+      "description": "Package-specific `exclude-newer` settings.\n\nEntries are stored in package-name order for deterministic serialization.",
       "type": "object",
       "additionalProperties": {
         "$ref": "#/definitions/ExcludeNewerOverride"
@@ -1024,6 +1107,17 @@
           ],
           "default": "simple"
         },
+        "hash-algorithm": {
+          "description": "The hash algorithm that must be used for distributions resolved from this index.\n\nIf a distribution does not advertise a hash using this algorithm, lockfile generation\nwill fail.\n\nThis option is in preview and may change in any future release.\n\n```toml\n[[tool.uv.index]]\nname = \"my-index\"\nurl = \"https://<omitted>/simple\"\nhash-algorithm = \"sha256\"\n```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IndexHashAlgorithm"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "ignore-error-codes": {
           "description": "Status codes that uv should ignore when deciding whether to continue resolution after a\nrequest to this index fails.\n\n```toml\n[[tool.uv.index]]\nname = \"my-index\"\nurl = \"https://<omitted>/simple\"\nignore-error-codes = [401, 403]\n```",
           "type": ["array", "null"],
@@ -1092,6 +1186,11 @@
           "const": "flat"
         }
       ]
+    },
+    "IndexHashAlgorithm": {
+      "description": "A hash algorithm that can be required for distributions resolved from an index.",
+      "type": "string",
+      "enum": ["md5", "sha256", "sha384", "sha512", "blake2b"]
     },
     "IndexName": {
       "description": "The normalized name of an index.\n\nIndex names may contain letters, digits, hyphens, underscores, and periods, and must be ASCII.",
@@ -1163,6 +1262,19 @@
     "MarkerTree": {
       "description": "A PEP 508-compliant marker expression, e.g., `sys_platform == 'Darwin'`",
       "type": "string"
+    },
+    "MinimumLibcVersion": {
+      "description": "The oldest required release of each Linux libc.",
+      "type": "object",
+      "properties": {
+        "glibc": {
+          "type": ["string", "null"]
+        },
+        "musl": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
     },
     "ModuleName": {
       "description": "Whether to include a single module or multiple modules.",
@@ -1586,7 +1698,7 @@
           "type": ["string", "null"]
         },
         "prerelease": {
-          "description": "The strategy to use when considering pre-release versions.\n\nBy default, uv will accept pre-releases for packages that _only_ publish pre-releases,\nalong with first-party requirements that contain an explicit pre-release marker in the\ndeclared specifiers (`if-necessary-or-explicit`).",
+          "description": "The strategy to use when considering pre-release versions.\n\nBy default, uv will prefer stable candidates, falling back to pre-releases only after every\nstable candidate that satisfies the active constraints is rejected\n(`if-necessary`).",
           "anyOf": [
             {
               "$ref": "#/definitions/PrereleaseMode"
@@ -1632,6 +1744,10 @@
           "items": {
             "$ref": "#/definitions/PackageName"
           }
+        },
+        "require-build-hashes": {
+          "description": "Require hashes for all build dependencies in `uv pip` commands.\n\nOverrides `require-build-hashes` in `[tool.uv]`. This does not require hashes for runtime\ndependencies; use `require-hashes` for those.",
+          "type": ["boolean", "null"]
         },
         "require-hashes": {
           "description": "Require a matching hash for each requirement.\n\nHash-checking mode is all or nothing. If enabled, _all_ requirements must be provided\nwith a corresponding hash or set of hashes. Additionally, if enabled, _all_ requirements\nmust either be pinned to exact versions (e.g., `==1.0.0`), or be specified via direct URL.\n\nHash-checking mode introduces a number of additional constraints:\n\n- Git dependencies are not supported.\n- Editable installations are not supported.\n- Local dependencies are not supported, unless they point to a specific wheel (`.whl`) or\n  source archive (`.zip`, `.tar.gz`), as opposed to a directory.",
@@ -1709,21 +1825,29 @@
           "const": "allow"
         },
         {
-          "description": "Allow pre-release versions if all versions of a package are pre-release.",
+          "description": "Prefer stable versions, falling back to pre-release versions when necessary.",
           "type": "string",
           "const": "if-necessary"
         },
         {
-          "description": "Allow pre-release versions for first-party packages with explicit pre-release markers in\ntheir version requirements.",
+          "description": "Prefer stable versions for first-party packages with explicit pre-release specifiers,\nfalling back to pre-release versions when necessary. Disallow pre-release versions for all\nother packages.",
           "type": "string",
           "const": "explicit"
         },
         {
-          "description": "Allow pre-release versions if all versions of a package are pre-release, or if the package\nhas an explicit pre-release marker in its version requirements.",
+          "description": "Deprecated alias for `if-necessary`.",
           "type": "string",
-          "const": "if-necessary-or-explicit"
+          "const": "if-necessary-or-explicit",
+          "deprecated": true
         }
       ]
+    },
+    "PrereleasePackage": {
+      "description": "Pre-release selection policies that apply to individual packages.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/PrereleaseMode"
+      }
     },
     "PreviewFeature": {
       "type": "string",
@@ -1731,7 +1855,6 @@
         {
           "enum": [
             "python-install-default",
-            "python-upgrade",
             "json-output",
             "pylock",
             "add-bounds",
@@ -1742,13 +1865,13 @@
             "native-auth",
             "s3-endpoint",
             "cache-size",
+            "cache-physical-space",
             "init-project-flag",
             "workspace-metadata",
             "workspace-dir",
             "workspace-list",
             "sbom-export",
             "auth-helper",
-            "direct-publish",
             "target-workspace-discovery",
             "metadata-json",
             "gcs-endpoint",
@@ -1768,7 +1891,21 @@
             "centralized-project-envs",
             "tool-install-locks",
             "workspace-list-scripts",
-            "no-distutils-patch"
+            "index-hash-algorithm",
+            "lockfile-format-check",
+            "lockfile-normalization",
+            "lock-without-metadata",
+            "index-by-name",
+            "artifact-hash-filtering",
+            "content-addressed-cache",
+            "missing-exclude-newer-package-lock",
+            "resolution-inputs",
+            "batch-export",
+            "frozen-lockfile",
+            "minimum-libc-version",
+            "build-dependency-check",
+            "build-lazy-imports",
+            "build-dependency-hashes"
           ]
         },
         {
@@ -2157,8 +2294,12 @@
               "$ref": "#/definitions/MarkerTree"
             },
             "workspace": {
-              "description": "When set to `false`, the package will be fetched from the remote index, rather than\nincluded as a workspace package.",
-              "type": "boolean"
+              "description": "`true` selects the current workspace. A string selects another workspace discovered\nfrom the given path.\n\nWhen set to `false`, the package will be fetched from the remote index, rather than\nincluded as a workspace package.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/WorkspaceReference"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -2280,6 +2421,21 @@
           "description": "An `x86_64` Linux target.",
           "type": "string",
           "const": "x86_64-unknown-linux-musl"
+        },
+        {
+          "description": "An s390x Linux target. Equivalent to `s390x-manylinux_2_28`.",
+          "type": "string",
+          "const": "s390x-unknown-linux-gnu"
+        },
+        {
+          "description": "A little-endian `PowerPC64` Linux target. Equivalent to `ppc64le-manylinux_2_28`.",
+          "type": "string",
+          "const": "powerpc64le-unknown-linux-gnu"
+        },
+        {
+          "description": "A `LoongArch64` Linux target. Equivalent to `loongarch64-manylinux_2_36`.",
+          "type": "string",
+          "const": "loongarch64-unknown-linux-gnu"
         },
         {
           "description": "A RISCV64 Linux target.",
@@ -2415,6 +2571,161 @@
           "description": "An ARM64 target for the `manylinux_2_40` platform.",
           "type": "string",
           "const": "aarch64-manylinux_2_40"
+        },
+        {
+          "description": "An s390x target for the `manylinux2014` platform. Equivalent to `s390x-manylinux_2_17`.",
+          "type": "string",
+          "const": "s390x-manylinux2014"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_17` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_17"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_28` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_28"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_31` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_31"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_32` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_32"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_33` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_33"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_34` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_34"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_35` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_35"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_36` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_36"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_37` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_37"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_38` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_38"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_39` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_39"
+        },
+        {
+          "description": "An s390x target for the `manylinux_2_40` platform.",
+          "type": "string",
+          "const": "s390x-manylinux_2_40"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux2014` platform. Equivalent to `ppc64le-manylinux_2_17`.",
+          "type": "string",
+          "const": "ppc64le-manylinux2014"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_17` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_17"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_28` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_28"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_31` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_31"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_32` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_32"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_33` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_33"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_34` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_34"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_35` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_35"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_36` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_36"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_37` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_37"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_38` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_38"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_39` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_39"
+        },
+        {
+          "description": "A little-endian `PowerPC64` target for the `manylinux_2_40` platform.",
+          "type": "string",
+          "const": "ppc64le-manylinux_2_40"
+        },
+        {
+          "description": "A `LoongArch64` target for the `manylinux_2_36` platform.",
+          "type": "string",
+          "const": "loongarch64-manylinux_2_36"
+        },
+        {
+          "description": "A `LoongArch64` target for the `manylinux_2_37` platform.",
+          "type": "string",
+          "const": "loongarch64-manylinux_2_37"
+        },
+        {
+          "description": "A `LoongArch64` target for the `manylinux_2_38` platform.",
+          "type": "string",
+          "const": "loongarch64-manylinux_2_38"
+        },
+        {
+          "description": "A `LoongArch64` target for the `manylinux_2_39` platform.",
+          "type": "string",
+          "const": "loongarch64-manylinux_2_39"
+        },
+        {
+          "description": "A `LoongArch64` target for the `manylinux_2_40` platform.",
+          "type": "string",
+          "const": "loongarch64-manylinux_2_40"
         },
         {
           "description": "An ARM64 Android target.\n\nBy default uses Android API level 24, but respects\nthe `ANDROID_API_LEVEL` environment variable if set.",
@@ -2783,6 +3094,17 @@
         }
       },
       "additionalProperties": false
+    },
+    "WorkspaceReference": {
+      "description": "A reference to either the current workspace or a workspace discovered from a path.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/PortablePathBuf"
+        }
+      ]
     }
   }
 }

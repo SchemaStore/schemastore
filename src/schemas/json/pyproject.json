@@ -7,13 +7,11 @@
   "x-tombi-string-formats": ["email", "uri"],
   "additionalProperties": false,
   "definitions": {
-    "importNames": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "pattern": "^[A-Za-z_][A-Za-z_0-9]*(?:\\.[A-Za-z_][A-Za-z_0-9]*)*(?:\\s*;\\s*private)?$"
-      },
-      "x-tombi-array-values-order": "version-sort"
+    "entryPointName": {
+      "type": "string",
+      "not": {
+        "pattern": "(?:=|^\\[|^\\s|\\s$)"
+      }
     },
     "projectAuthor": {
       "type": "object",
@@ -34,7 +32,8 @@
       ],
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^[^,]*$"
         },
         "email": {
           "type": "string",
@@ -63,7 +62,6 @@
           "items": {
             "type": "string"
           },
-          "uniqueItems": true,
           "title": "Build system dependencies",
           "description": "List of strings following the version specifier specification, representing dependencies required to execute the build system.",
           "markdownDescription": "List of strings following the [version specifier specification](https://packaging.python.org/en/latest/specifications/version-specifiers/#version-specifiers), representing dependencies required to execute the build system.",
@@ -87,12 +85,16 @@
               "key": "https://peps.python.org/pep-0517/#source-trees"
             }
           },
-          "examples": ["setuptools.build_meta", "my_build_backend:backend"]
+          "examples": ["setuptools.build_meta", "my_build_backend:backend"],
+          "pattern": "^\\s*(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*(?:\\.(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*)*(?:\\s*:\\s*(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*(?:\\.(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*)*)?\\s*$"
         },
         "backend-path": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "not": {
+              "pattern": "^/"
+            }
           },
           "title": "Build backend directories",
           "description": "list of directories to prepend to `sys.path` when loading the build backend, relative to project root",
@@ -116,7 +118,6 @@
       "x-tombi-array-values-order": {
         "oneOf": ["version-sort", "ascending"]
       },
-      "uniqueItems": true,
       "items": {
         "oneOf": [
           {
@@ -128,13 +129,27 @@
             "properties": {
               "include-group": {
                 "type": "string",
-                "pattern": "^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9])$"
+                "pattern": "^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9])$",
+                "not": {
+                  "pattern": "[^A-Za-z0-9._-]"
+                }
               }
             },
-            "x-tombi-array-values-order-by": "include-group"
+            "x-tombi-array-values-order-by": "include-group",
+            "required": ["include-group"]
           }
         ]
       }
+    },
+    "importName": {
+      "$comment": "Validate ASCII identifier structure and allow non-ASCII characters conservatively to avoid rejecting identifiers supported by different Python and Unicode versions.",
+      "type": "string",
+      "pattern": "^(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*(?:\\.(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*)*(?:\\s*;\\s*private)?$"
+    },
+    "entryPointReference": {
+      "$comment": "Non-ASCII identifier characters are accepted conservatively, as in importName.",
+      "type": "string",
+      "pattern": "^\\s*(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*(?:\\.(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*)*(?:\\s*:\\s*(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*(?:\\.(?:[A-Za-z_]|[^\\u0000-\\u007F])(?:[A-Za-z_0-9]|[^\\u0000-\\u007F])*)*)?\\s*(?:\\[\\s*(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?(?:\\s*,\\s*[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)*)?\\s*\\]\\s*)?$"
     }
   },
   "properties": {
@@ -175,11 +190,14 @@
             }
           },
           "type": "string",
-          "pattern": "^([a-zA-Z\\d]|[a-zA-Z\\d][\\w.-]*[a-zA-Z\\d])$"
+          "pattern": "^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9])$",
+          "not": {
+            "pattern": "[^A-Za-z0-9._-]"
+          }
         },
         "version": {
           "type": "string",
-          "pattern": "^v?((([0-9]+)!)?([0-9]+(\\.[0-9]+)*)([-_\\.]?(alpha|a|beta|b|preview|pre|c|rc)[-_\\.]?([0-9]+)?)?((-([0-9]+))|([-_\\.]?(post|rev|r)[-_\\.]?([0-9]+)?))?([-_\\.]?(dev)[-_\\.]?([0-9]+)?)?)(\\+([a-zA-Z0-9]+([-_\\.][a-zA-Z0-9]+)*))?$",
+          "pattern": "^[\\u0009-\\u000d\\u001c-\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]*[vV]?((([0-9]+)!)?([0-9]+(\\.[0-9]+)*)([-_\\.]?([aA][lL][pP][hH][aA]|[aA]|[bB][eE][tT][aA]|[bB]|[pP][rR][eE][vV][iI][eE][wW]|[pP][rR][eE]|[cC]|[rR][cC])[-_\\.]?([0-9]+)?)?((-([0-9]+))|([-_\\.]?([pP][oO][sS][tT]|[rR][eE][vV]|[rR])[-_\\.]?([0-9]+)?))?([-_\\.]?([dD][eE][vV])[-_\\.]?([0-9]+)?)?)(\\+([a-zA-Z0-9]+([-_\\.][a-zA-Z0-9]+)*))?[\\u0009-\\u000d\\u001c-\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]*$",
           "title": "Project version",
           "description": "Version of the project, as defined in the [Version specifier specification](https://packaging.python.org/en/latest/specifications/version-specifiers/), and preferably [already normalized](https://packaging.python.org/en/latest/specifications/version-specifiers/#normalization).",
           "markdownDescription": "Version of the project, as defined in the [Version specifier specification](https://packaging.python.org/en/latest/specifications/version-specifiers/), and preferably [already normalized](https://packaging.python.org/en/latest/specifications/version-specifiers/#normalization).",
@@ -216,16 +234,22 @@
           "oneOf": [
             {
               "title": "README file path",
-              "type": "string"
+              "type": "string",
+              "not": {
+                "pattern": "^/"
+              }
             },
             {
               "additionalProperties": false,
               "type": "object",
-              "required": ["file"],
+              "required": ["file", "content-type"],
               "properties": {
                 "file": {
                   "title": "README file path",
-                  "type": "string"
+                  "type": "string",
+                  "not": {
+                    "pattern": "^/"
+                  }
                 },
                 "content-type": {
                   "title": "README content-type",
@@ -238,7 +262,7 @@
             {
               "additionalProperties": false,
               "type": "object",
-              "required": ["text"],
+              "required": ["text", "content-type"],
               "properties": {
                 "text": {
                   "title": "README text",
@@ -312,7 +336,10 @@
                 "file": {
                   "title": "License file path",
                   "description": "Deprecated per [PEP 639](https://peps.python.org/pep-0639/#add-license-file-key). Instead, list license file paths in the top-level `license-files` field and specify the license using an SPDX expression string in the `license` field.",
-                  "type": "string"
+                  "type": "string",
+                  "not": {
+                    "pattern": "^/"
+                  }
                 }
               }
             },
@@ -340,10 +367,20 @@
           ]
         },
         "license-files": {
-          "$comment": "Still provisional under PEP 639",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "allOf": [
+              {
+                "not": {
+                  "pattern": "^/|\\\\|(^|/)\\.\\.(/|$)|[\\u0000-\\u001f\\u007f]"
+                }
+              },
+              {
+                "pattern": "^(?:[A-Za-z0-9 _./*?\\-]|[^\\u0000-\\u007F]|\\[(?:[A-Za-z0-9 _.\\-]|[^\\u0000-\\u007F])+\\])*$"
+              }
+            ],
+            "minLength": 1
           },
           "title": "License files",
           "description": "Relative paths or globs to paths of license files. Can be an empty list.",
@@ -391,7 +428,6 @@
           "items": {
             "type": "string"
           },
-          "uniqueItems": true,
           "title": "Project keywords",
           "description": "List of keywords or tags that describe the project. They could be used by search engines to categorize the project.",
           "markdownDescription": "List of keywords or tags that describe the project. They could be used by search engines to categorize the project.",
@@ -408,7 +444,6 @@
           "items": {
             "type": "string"
           },
-          "uniqueItems": true,
           "title": "Applicable Trove classifiers",
           "description": "List of [Trove classifiers](https://pypi.org/classifiers/) that describe the project. PyPI use the classifiers to categorize projects.",
           "markdownDescription": "List of [Trove classifiers](https://pypi.org/classifiers/) that describe the project. PyPI use the classifiers to categorize projects.",
@@ -422,6 +457,9 @@
         },
         "urls": {
           "type": "object",
+          "propertyNames": {
+            "maxLength": 32
+          },
           "additionalProperties": {
             "type": "string",
             "format": "uri"
@@ -450,8 +488,11 @@
         },
         "scripts": {
           "type": "object",
+          "propertyNames": {
+            "$ref": "#/definitions/entryPointName"
+          },
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/definitions/entryPointReference"
           },
           "title": "Console scripts",
           "description": "Table of [entry points](https://packaging.python.org/en/latest/specifications/entry-points/) that allows package installers to create a command-line wrapper for. Each key is the name of the script to be created, and each value is the function or object to all, in form of either `importable.module` or `importable.module:object.attr`. Windows platform treats `console_scripts` specially in that they are wrapped in a console executable, so they are attached to a console and can use `sys.stdin`, `sys.stdout` and `sys.stderr` for I/O.",
@@ -472,8 +513,11 @@
         },
         "gui-scripts": {
           "type": "object",
+          "propertyNames": {
+            "$ref": "#/definitions/entryPointName"
+          },
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/definitions/entryPointReference"
           },
           "title": "GUI scripts",
           "description": "Table of [entry points](https://packaging.python.org/en/latest/specifications/entry-points/) that allows package installers to create a GUI wrapper for. Each key is the name of the script to be created, and each value is the function or object to all, in form of either `importable.module` or `importable.module:object.attr`. Windows platform treats `gui_scripts` specially in that they are wrapped in a GUI executable, so they can be started without a console, but cannot use standard streams unless application code redirects them.",
@@ -498,8 +542,11 @@
           "patternProperties": {
             "^\\w+(\\.\\w+)*$": {
               "type": "object",
+              "propertyNames": {
+                "$ref": "#/definitions/entryPointName"
+              },
               "additionalProperties": {
-                "type": "string"
+                "$ref": "#/definitions/entryPointReference"
               },
               "x-tombi-additional-key-label": "entry_point_name"
             }
@@ -540,7 +587,6 @@
           "items": {
             "type": "string"
           },
-          "uniqueItems": true,
           "title": "Project mandatory dependency requirements",
           "description": "An array of [dependency specifier](https://packaging.python.org/en/latest/specifications/dependency-specifiers/) strings, each representing a mandatory dependent package of the project.",
           "markdownDescription": "An array of [dependency specifier](https://packaging.python.org/en/latest/specifications/dependency-specifiers/) strings, each representing a mandatory dependent package of the project.",
@@ -578,10 +624,15 @@
             {
               "typing": ["boto3-stubs", "typing-extensions ~= 4.1"]
             }
-          ]
+          ],
+          "additionalProperties": false,
+          "propertyNames": {
+            "not": {
+              "pattern": "[^A-Za-z0-9._-]"
+            }
+          }
         },
         "import-names": {
-          "$ref": "#/definitions/importNames",
           "description": "An array of strings specifying the import names that the project exclusively provides when installed.",
           "markdownDescription": "An array of strings specifying the import names that the project exclusively provides when installed.",
           "x-intellij-html-description": "An array of strings specifying the import names that the project exclusively provides when installed.",
@@ -590,10 +641,23 @@
               "key": "https://packaging.python.org/en/latest/specifications/pyproject-toml/#import-names"
             }
           },
-          "examples": [["my_package", "_internal ; private"]]
+          "examples": [["my_package", "_internal ; private"]],
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?:\\s*;\\s*private)?$"
+              },
+              {
+                "$ref": "#/definitions/importName"
+              }
+            ]
+          },
+          "x-tombi-array-values-order": "version-sort"
         },
         "import-namespaces": {
-          "$ref": "#/definitions/importNames",
+          "minItems": 1,
           "description": "An array of strings specifying the import names that the project provides when installed, but not exclusively.",
           "markdownDescription": "An array of strings specifying the import names that the project provides when installed, but not exclusively.",
           "x-intellij-html-description": "An array of strings specifying the import names that the project provides when installed, but not exclusively.",
@@ -602,7 +666,12 @@
               "key": "https://packaging.python.org/en/latest/specifications/pyproject-toml/#import-namespaces"
             }
           },
-          "examples": [["my_package", "_internal ; private"]]
+          "examples": [["my_package", "_internal ; private"]],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/importName"
+          },
+          "x-tombi-array-values-order": "version-sort"
         },
         "dynamic": {
           "type": "array",
@@ -758,6 +827,11 @@
         "links": {
           "key": "https://peps.python.org/pep-0735/"
         }
+      },
+      "propertyNames": {
+        "not": {
+          "pattern": "[^A-Za-z0-9._-]"
+        }
       }
     },
     "build-system": {
@@ -766,8 +840,19 @@
     "tool": {
       "type": "object",
       "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "description": "An array of tables, e.g. `[[tool.dynamic-metadata]]`",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        ]
       },
       "title": "Tool-specific configuration",
       "description": "Every tool that is used by the project can have users specify configuration data as long as they use a sub-table within `[tool]`. Generally a project can use the subtable `tool.$NAME` if, and only if, they own the entry for `$NAME` in the Cheeseshop/PyPI.",
@@ -820,6 +905,11 @@
           "$ref": "ty.json",
           "title": "Type checker",
           "description": "An extremely fast Python type checker, written in Rust."
+        },
+        "complexipy": {
+          "$ref": "https://www.schemastore.org/complexipy.json",
+          "title": "Cognitive Complexity Analyzer",
+          "description": "Measures how hard Python code is for humans to understand."
         },
         "hatch": {
           "$ref": "hatch.json",
