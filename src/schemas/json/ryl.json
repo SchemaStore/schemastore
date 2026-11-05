@@ -6,6 +6,34 @@
       "enum": ["preserve", "block", "flow"],
       "type": "string"
     },
+    "DocumentStartTarget": {
+      "enum": ["add", "preserve", "remove"],
+      "type": "string"
+    },
+    "ExpandTarget": {
+      "description": "Whether a flow collection sits on one line or spreads one entry per line.",
+      "oneOf": [
+        {
+          "enum": ["preserve"],
+          "type": "string"
+        },
+        {
+          "const": "auto",
+          "description": "One line where it fits `line-length`, else one entry per line.",
+          "type": "string"
+        },
+        {
+          "const": "always",
+          "description": "One entry per line.",
+          "type": "string"
+        },
+        {
+          "const": "never",
+          "description": "One line.",
+          "type": "string"
+        }
+      ]
+    },
     "FilesTable": {
       "additionalProperties": false,
       "description": "File-to-source-kind glob mapping (ryl-only; TOML). Each kind selects which\nfiles are linted as that kind. A file matching more than one kind is an error.",
@@ -43,7 +71,9 @@
         "key-ordering",
         "new-line-at-end-of-file",
         "new-lines",
+        "octal-values",
         "quoted-strings",
+        "schema-dependent-values",
         "trailing-spaces",
         "truthy",
         "yaml-directive"
@@ -86,7 +116,9 @@
         "key-ordering",
         "new-line-at-end-of-file",
         "new-lines",
+        "octal-values",
         "quoted-strings",
+        "schema-dependent-values",
         "trailing-spaces",
         "truthy",
         "yaml-directive"
@@ -110,6 +142,13 @@
     "FormatTable": {
       "additionalProperties": false,
       "description": "The `[format]` table: `ryl format`'s targets.",
+      "not": {
+        "properties": {
+          "fold-long-lines": true,
+          "prose-wrap": true
+        },
+        "required": ["prose-wrap", "fold-long-lines"]
+      },
       "properties": {
         "brace-spacing": {
           "default": false,
@@ -139,24 +178,34 @@
           "description": "Whether to add a missing `...` document end marker."
         },
         "document-start": {
-          "$ref": "#/definitions/MarkerTarget",
+          "$ref": "#/definitions/DocumentStartTarget",
           "default": "preserve",
-          "description": "Whether to add a missing `---` document start marker."
+          "description": "Whether to add, preserve or remove an optional first `---` marker."
         },
         "fold-long-lines": {
           "default": false,
           "description": "Whether to split plain, quoted and `>` scalar lines longer than `line-length` at spaces.",
-          "type": "boolean"
+          "type": ["boolean", "null"]
         },
         "indent-sequences": {
           "default": true,
           "description": "Whether a block sequence under a mapping key is indented past the key.",
           "type": "boolean"
         },
+        "keep-quotes": {
+          "default": false,
+          "description": "Whether to keep optional quotes while selecting their quote style.",
+          "type": "boolean"
+        },
         "line-ending": {
           "$ref": "#/definitions/LineEndingTarget",
           "default": "lf",
           "description": "Line ending; `native` is the platform's, `auto` the one most of the file uses."
+        },
+        "mapping-expand": {
+          "$ref": "#/definitions/ExpandTarget",
+          "default": "preserve",
+          "description": "Line breaks inside flow mappings; `preserve` leaves each as written."
         },
         "mapping-style": {
           "$ref": "#/definitions/CollectionStyleTarget",
@@ -175,10 +224,32 @@
           "description": "Opt in to unstable style changes before a minor release promotes them to stable.",
           "type": "boolean"
         },
+        "property-order": {
+          "$ref": "#/definitions/PropertyOrderTarget",
+          "default": "preserve",
+          "description": "Order of a node's anchor and tag; `preserve` leaves each as written."
+        },
+        "prose-wrap": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProseWrap"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "preserve",
+          "description": "Whether to preserve, wrap or join physical prose lines."
+        },
         "quote-style": {
           "$ref": "#/definitions/QuoteStyleTarget",
           "default": "single",
           "description": "Preferred quote for strings that need quoting; `preserve` leaves quoting alone."
+        },
+        "sequence-expand": {
+          "$ref": "#/definitions/ExpandTarget",
+          "default": "preserve",
+          "description": "Line breaks inside flow sequences; `preserve` leaves each as written."
         },
         "sequence-style": {
           "$ref": "#/definitions/CollectionStyleTarget",
@@ -245,6 +316,13 @@
       "additionalProperties": false,
       "description": "The `[lint]` table.",
       "properties": {
+        "extend-safe-fixes": {
+          "description": "Rules whose unsafe fix `--fix` applies as if it were safe.",
+          "items": {
+            "$ref": "#/definitions/UnsafeFixRule"
+          },
+          "type": ["array", "null"]
+        },
         "fixable": {
           "description": "Rules `--fix` may fix (default `[\"ALL\"]`).",
           "items": {
@@ -430,6 +508,29 @@
       },
       "required": ["rules"],
       "type": "object"
+    },
+    "PropertyOrderTarget": {
+      "description": "The order a node's anchor and tag are written in.",
+      "oneOf": [
+        {
+          "enum": ["preserve"],
+          "type": "string"
+        },
+        {
+          "const": "anchor-first",
+          "description": "`&a !!seq`, as eemeli's `yaml` and libfyaml write them.",
+          "type": "string"
+        },
+        {
+          "const": "tag-first",
+          "description": "`!!seq &a`, as prettier and the YAML spec's examples write them.",
+          "type": "string"
+        }
+      ]
+    },
+    "ProseWrap": {
+      "enum": ["preserve", "always", "never"],
+      "type": "string"
     },
     "QuoteStyleTarget": {
       "enum": ["single", "double", "preserve"],
@@ -2169,7 +2270,7 @@
         "yaml-directive": {
           "anyOf": [
             {
-              "$ref": "#/definitions/RuleEntryForNoOptions"
+              "$ref": "#/definitions/RuleEntryForDocumentPresenceOptions"
             },
             {
               "type": "null"
@@ -2178,6 +2279,10 @@
         }
       },
       "type": "object"
+    },
+    "SourceVersion": {
+      "enum": ["1.1", "1.2"],
+      "type": "string"
     },
     "SpacesMode": {
       "enum": ["consistent"],
@@ -2237,6 +2342,11 @@
     "Unlisted": {
       "description": "Where keys missing from `keys` go: sorted after the listed keys, or kept in place.",
       "enum": ["sort", "keep"],
+      "type": "string"
+    },
+    "UnsafeFixRule": {
+      "description": "A rule with an unsafe fix, accepted by `lint.extend-safe-fixes`.",
+      "enum": ["octal-values", "schema-dependent-values", "truthy"],
       "type": "string"
     }
   },
@@ -2407,6 +2517,17 @@
       "deprecated": true,
       "description": "Deprecated: use `lint.rules`."
     },
+    "source-version": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SourceVersion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The YAML version an undeclared document's author meant; it steers only the\ndirection of unsafe fixes (default `\"1.2\"`)."
+    },
     "target-version": {
       "anyOf": [
         {
@@ -2417,6 +2538,10 @@
         }
       ],
       "description": "The oldest YAML version whose readers must load `ryl format` and `--fix` output\nto the same values (default `\"1.1\"`)."
+    },
+    "unsafe-fixes": {
+      "description": "Apply unsafe fixes with `--fix` and `--diff` (default false).",
+      "type": ["boolean", "null"]
     }
   },
   "title": "ryl TOML config",
