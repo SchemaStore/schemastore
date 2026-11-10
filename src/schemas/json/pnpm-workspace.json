@@ -446,29 +446,40 @@
       }
     },
     "supportedArchitectures": {
-      "description": "Specifies architectures for which you'd like to install optional dependencies, even if they don't match the architecture of the system running the install.",
-      "type": "object",
-      "properties": {
-        "os": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+      "description": "Specifies architectures for which you'd like to install optional dependencies, even if they don't match the architecture of the system running the install. Either a mapping of os, cpu, and libc lists, or a list of exact platform tags to prepare.",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "os": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cpu": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "libc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         },
-        "cpu": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "libc": {
+        {
+          "description": "Exact platforms to prepare, as platform tags: <os>-<cpu>, then the C library for Linux musl (linux-x64-musl), then floors and ABI such as linux-x64-manylinux_2_28, darwin-arm64-macos_14_0, win32-x64-windows_10_0, linux-x64-napi8, or linux-x64-node127. current includes the platform running the install. A list that names exactly one platform, without current, also decides which platform variant of a package pnpm links. Added in pnpm v12.5.0.",
           "type": "array",
           "items": {
             "type": "string"
           }
         }
-      },
-      "additionalProperties": false
+      ]
     },
     "ignoredOptionalDependencies": {
       "description": "A list of optional dependencies that the install should be skipped.",
@@ -523,11 +534,30 @@
       "type": "string"
     },
     "nodeLinker": {
-      "description": "Defines what linker should be used for installing Node packages.",
+      "description": "Defines what linker should be used for installing Node packages. loaded is an experimental linker that loads packages directly from the content-addressable store, without placing them in node_modules; it also accepts an object with type: loaded and an optional excluded list. Configuration sources replace the whole nodeLinker value: a higher-priority scalar, or an object without excluded, clears exclusions from lower-priority sources. The environment variable PNPM_CONFIG_NODE_LINKER and --config.node-linker accept the object as JSON.",
       "oneOf": [
         {
           "type": "string",
-          "enum": ["isolated", "hoisted", "pnp"]
+          "enum": ["isolated", "hoisted", "pnp", "loaded"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "description": "The linker type. Only the experimental loaded linker accepts the object form; other linker object forms are not supported yet.",
+              "type": "string",
+              "enum": ["loaded"]
+            },
+            "excluded": {
+              "description": "With nodeLinker.type: loaded, materialize these package names and their complete dependency trees in the global virtual store. Names match all installed versions and peer contexts. Packages outside these trees load directly from the store. Build approval settings still apply.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       ]
     },
@@ -658,6 +688,12 @@
               "description": "With integrityTarget: tar, pnpm-lock.yaml pins the hash of every package's uncompressed tar instead of the compressed .tgz, so the lockfile no longer changes when a registry recompresses its tarballs or serves them as tars. pnpm learns a version's tar hash from the store or by downloading it once, and pnpm audit signatures ties the tar hash to the signed .tgz integrity. Added in pnpm v12.15.0.",
               "type": "string",
               "enum": ["tar"]
+            },
+            "format": {
+              "description": "The format pnpm writes pnpm-lock.yaml in. v13 is the experimental JSON-like format planned for pnpm 13: JSON indented with tabs, with a trailing comma after every entry, which is still valid YAML. It has one packages entry per package version in place of the packages and snapshots sections, so updating a peer dependency changes only the lines that record its version. pnpm reads lockfiles in both formats whatever this setting is, but pnpm versions without this setting cannot read a v13 lockfile. Added in pnpm v12.19.0.",
+              "type": "string",
+              "enum": ["v9", "v13"],
+              "default": "v9"
             }
           }
         }
@@ -786,6 +822,11 @@
     "dedupePeerDependents": {
       "description": "When this setting is set to true, packages with peer dependencies will be deduplicated after peers resolution.",
       "type": "boolean"
+    },
+    "projectScopedOptionalPeers": {
+      "description": "When true, a project gets a missing optional peer dependency only if the project's own dependencies already install a version of it. The workspace root's dependencies also count if resolvePeersFromWorkspaceRoot is true; a version that only another workspace project's dependencies install does not. dedupePeerDependents keeps deduplicating everything else, and this setting has no effect when dedupePeerDependents is false, because optional peers are already resolved only from the project's own dependencies then. Changing this setting changes the lockfile. Added in pnpm v12.19.0.",
+      "type": "boolean",
+      "default": false
     },
     "addMissingPeerTypes": {
       "description": "When true, every peer dependency of a dependency also makes the matching @types package an optional peer of it: pnpm links the project's @types package (e.g. @types/react for a peer dependency on react) next to every package that peer-depends on the library, as with any optional peer dependency. This lets TypeScript find the types of a peer dependency when the global virtual store is on. A package that already declares the @types package keeps its own declaration, and no @types package nothing in the workspace depends on is installed. Changing this setting changes the lockfile. Added in pnpm v12.12.0.",
