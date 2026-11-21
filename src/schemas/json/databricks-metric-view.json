@@ -1,0 +1,541 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.schemastore.org/databricks-metric-view.json",
+  "title": "Databricks Unity Catalog metric view",
+  "description": "YAML definition of a Databricks Unity Catalog metric view (CREATE VIEW ... WITH METRICS LANGUAGE YAML)\nhttps://docs.databricks.com/aws/en/uc-semantics/metric-views/yaml-reference",
+  "type": "object",
+  "required": ["version", "source"],
+  "anyOf": [
+    {
+      "properties": {
+        "fields": true
+      },
+      "required": ["fields"]
+    },
+    {
+      "properties": {
+        "dimensions": true
+      },
+      "required": ["dimensions"]
+    },
+    {
+      "properties": {
+        "measures": true
+      },
+      "required": ["measures"]
+    }
+  ],
+  "properties": {
+    "version": {
+      "description": "metric view spec version",
+      "anyOf": [
+        {
+          "enum": [0.1, 1.1]
+        },
+        {
+          "enum": ["0.1", "1.1"]
+        }
+      ],
+      "default": 1.1
+    },
+    "comment": {
+      "type": "string",
+      "description": "description of the metric view (spec 1.1)"
+    },
+    "source": {
+      "type": "string",
+      "description": "catalog.schema.table (table, view or metric view) or a SQL query",
+      "examples": ["main.sales.orders"]
+    },
+    "filter": {
+      "type": "string",
+      "description": "SQL boolean expression applied to every query"
+    },
+    "parameters": {
+      "type": "array",
+      "description": "query parameters referenced by name in expressions",
+      "items": {
+        "type": "object",
+        "required": ["name", "data_type"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "parameter name"
+          },
+          "data_type": {
+            "type": "string",
+            "description": "SQL type, e.g. INT, DATE, STRING"
+          },
+          "default": {
+            "description": "default value, castable to data_type"
+          },
+          "comment": {
+            "type": "string",
+            "description": "description of the parameter"
+          }
+        }
+      }
+    },
+    "joins": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/join"
+      }
+    },
+    "fields": {
+      "type": "array",
+      "description": "dimensions to group and filter by",
+      "items": {
+        "$ref": "#/definitions/field"
+      }
+    },
+    "dimensions": {
+      "type": "array",
+      "description": "synonym of fields, kept for backward compatibility",
+      "items": {
+        "$ref": "#/definitions/field"
+      }
+    },
+    "measures": {
+      "type": "array",
+      "description": "aggregated values",
+      "items": {
+        "$ref": "#/definitions/measure"
+      }
+    },
+    "materialization": {
+      "type": "object",
+      "description": "pre-computed aggregations\nhttps://docs.databricks.com/aws/en/uc-semantics/metric-views/materialization",
+      "required": ["mode", "materialized_views"],
+      "properties": {
+        "mode": {
+          "const": "relaxed"
+        },
+        "schedule": {
+          "type": "string",
+          "description": "refresh schedule, e.g. every 6 hours"
+        },
+        "materialized_views": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "name of the materialized view"
+              },
+              "type": {
+                "enum": ["aggregated", "unaggregated"]
+              },
+              "dimensions": {
+                "type": "array",
+                "description": "field names to pre-aggregate by; '*' or '* EXCEPT (a, b)' for all",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "measures": {
+                "type": "array",
+                "description": "measure names to pre-aggregate; '*' or '* EXCEPT (a, b)' for all",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cluster_by": {
+                "type": "object",
+                "properties": {
+                  "cols": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "auto": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "partition_by": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "refresh_policy": {
+                "type": "string",
+                "description": "auto, incremental, incremental strict or full (spec 1.1)",
+                "examples": [
+                  "auto",
+                  "incremental",
+                  "incremental strict",
+                  "full"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "field": {
+      "type": "object",
+      "description": "dimension column",
+      "required": ["expr"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "unique name of the column (case-insensitive across fields and measures)"
+        },
+        "expr": {
+          "type": "string",
+          "description": "SQL expression; may reference source columns, join columns (alias.column) and earlier fields\nhttps://docs.databricks.com/aws/en/uc-semantics/metric-views/yaml-reference"
+        },
+        "comment": {
+          "type": "string",
+          "description": "description of the column (spec 1.1)"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "human-readable label shown in tools (spec 1.1)",
+          "maxLength": 255
+        },
+        "format": {
+          "$ref": "#/definitions/format"
+        },
+        "synonyms": {
+          "type": "array",
+          "description": "alternative names that help AI tools such as Genie find this column (spec 1.1)",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          }
+        }
+      }
+    },
+    "measure": {
+      "type": "object",
+      "description": "aggregated column; expr must use an aggregate function or MEASURE()",
+      "required": ["expr"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "unique name of the column (case-insensitive across fields and measures)"
+        },
+        "expr": {
+          "type": "string",
+          "description": "SQL expression; may reference source columns, join columns (alias.column) and earlier fields\nhttps://docs.databricks.com/aws/en/uc-semantics/metric-views/yaml-reference"
+        },
+        "comment": {
+          "type": "string",
+          "description": "description of the column (spec 1.1)"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "human-readable label shown in tools (spec 1.1)",
+          "maxLength": 255
+        },
+        "format": {
+          "$ref": "#/definitions/format"
+        },
+        "synonyms": {
+          "type": "array",
+          "description": "alternative names that help AI tools such as Genie find this column (spec 1.1)",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "window": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "window spec for a measure\nhttps://docs.databricks.com/aws/en/uc-semantics/metric-views/advanced-techniques",
+            "required": ["order", "range"],
+            "properties": {
+              "order": {
+                "type": "string",
+                "description": "name of the field that orders the window (usually a date field)"
+              },
+              "range": {
+                "type": "string",
+                "description": "current, cumulative, all, or trailing|leading <n> [day|month|year] [inclusive|exclusive]",
+                "examples": [
+                  "current",
+                  "cumulative",
+                  "trailing 7 day",
+                  "leading 3 month inclusive"
+                ]
+              },
+              "semiadditive": {
+                "description": "which value to keep when the measure can't be summed over the order field",
+                "enum": ["first", "last"],
+                "default": "last"
+              },
+              "offset": {
+                "description": "shift the window, e.g. -12 month for year over year (spec 1.1)",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "examples": ["-1 year", "-12 month", -1]
+              }
+            }
+          }
+        }
+      }
+    },
+    "join": {
+      "type": "object",
+      "description": "LEFT OUTER join to another table\nhttps://docs.databricks.com/aws/en/uc-semantics/metric-views/joins",
+      "required": ["name", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "alias used to reference the joined table as <name>.<column>"
+        },
+        "source": {
+          "type": "string",
+          "description": "catalog.schema.table name or SQL query"
+        },
+        "on": {
+          "type": "string",
+          "description": "join condition; qualify the parent side with source. (or the parent join name)"
+        },
+        "using": {
+          "type": "array",
+          "description": "columns that exist on both sides of the join",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "cardinality": {
+          "description": "relationship from the parent to this table (spec 1.1 for one_to_many)",
+          "enum": ["many_to_one", "one_to_many"],
+          "default": "many_to_one"
+        },
+        "rely": {
+          "type": "object",
+          "description": "optimizer hints that are trusted, not validated",
+          "properties": {
+            "at_most_one_match": {
+              "type": "boolean",
+              "description": "each row matches at most one row on the other side",
+              "default": false
+            }
+          }
+        },
+        "joins": {
+          "type": "array",
+          "description": "nested (snowflake) joins",
+          "items": {
+            "$ref": "#/definitions/join"
+          }
+        }
+      }
+    },
+    "format": {
+      "type": "object",
+      "description": "display format used by BI and AI tools (spec 1.1)\nhttps://docs.databricks.com/aws/en/uc-semantics/agent-metadata",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "description": "kind of value being formatted",
+          "enum": [
+            "number",
+            "currency",
+            "percentage",
+            "byte",
+            "date",
+            "date_time"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "number"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "decimal_places": {
+                "$ref": "#/definitions/decimalPlaces"
+              },
+              "hide_group_separator": {
+                "type": "boolean",
+                "description": "hide the thousands separator"
+              },
+              "abbreviation": {
+                "description": "how large numbers are abbreviated",
+                "enum": ["none", "compact", "scientific"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "currency"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "decimal_places": {
+                "$ref": "#/definitions/decimalPlaces"
+              },
+              "hide_group_separator": {
+                "type": "boolean",
+                "description": "hide the thousands separator"
+              },
+              "abbreviation": {
+                "description": "how large numbers are abbreviated",
+                "enum": ["none", "compact", "scientific"]
+              },
+              "currency_code": {
+                "type": "string",
+                "description": "ISO 4217 currency code",
+                "pattern": "^[A-Z]{3}$",
+                "examples": ["USD"]
+              }
+            },
+            "required": ["currency_code"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "percentage"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "decimal_places": {
+                "$ref": "#/definitions/decimalPlaces"
+              },
+              "hide_group_separator": {
+                "type": "boolean",
+                "description": "hide the thousands separator"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "byte"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "decimal_places": {
+                "$ref": "#/definitions/decimalPlaces"
+              },
+              "hide_group_separator": {
+                "type": "boolean",
+                "description": "hide the thousands separator"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "date"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "date_format": {
+                "enum": [
+                  "locale_short_month",
+                  "locale_long_month",
+                  "year_month_day",
+                  "locale_number_month",
+                  "year_week"
+                ]
+              },
+              "leading_zeros": {
+                "type": "boolean"
+              }
+            },
+            "required": ["date_format"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "date_time"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "date_format": {
+                "enum": [
+                  "locale_short_month",
+                  "locale_long_month",
+                  "year_month_day",
+                  "locale_number_month",
+                  "year_week",
+                  "no_date"
+                ]
+              },
+              "time_format": {
+                "enum": [
+                  "no_time",
+                  "locale_hour_minute",
+                  "locale_hour_minute_second"
+                ]
+              },
+              "leading_zeros": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "decimalPlaces": {
+      "type": "object",
+      "description": "how many decimal places to show",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": ["max", "exact", "all"]
+        },
+        "places": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    }
+  }
+}
