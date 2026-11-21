@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../schemas/json/databricks-metric-view.json
+version: 1.1
+source: main.ops.shipments
+filter: weight_kg > 0
+parameters:
+  - name: lookback
+    data_type: INT
+    default: 30
+fields:
+  - name: carrier
+    expr: carrier_name
+  - name: ship_date
+    expr: CAST(shipped_at AS DATE)
+    format:
+      type: date_time
+      date_format: year_month_day
+      time_format: no_time
+measures:
+  - name: shipments
+    expr: COUNT(1)
+    format:
+      type: number
+      decimal_places:
+        type: all
+      abbreviation: compact
+  - name: on_time_rate
+    expr: AVG(CASE WHEN delivered_at <= promised_at THEN 1 ELSE 0 END)
+    format:
+      type: percentage
+      decimal_places:
+        type: max
+        places: 1
+  - name: weight_ytd
+    expr: SUM(weight_kg)
+    window:
+      - order: ship_date
+        range: cumulative
+        semiadditive: last
+      - order: ship_date
+        range: current
+        offset: -1 year
+materialization:
+  schedule: every 6 hours
+  mode: relaxed
+  materialized_views:
+    - name: by_carrier
+      type: aggregated
+      dimensions:
+        - carrier
+      measures:
+        - '*'
+      cluster_by:
+        cols:
+          - carrier
+      refresh_policy: incremental
