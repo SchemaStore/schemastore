@@ -82,6 +82,66 @@
         }
       ]
     },
+    "DependencyTable": {
+      "description": "Cargo is configured to look for dependencies on [crates.io](https://crates.io) by default. Only\nthe name and a version string are required in this case. In [the cargo\nguide](https://doc.rust-lang.org/cargo/guide/index.html), we specified a dependency on the `time` crate:\n\n```toml\n[dependencies]\ntime = \"0.1.12\"\n```\n\nThe string `\"0.1.12\"` is a [semver](https://github.com/steveklabnik/semver#requirements) version requirement. Since this\nstring does not have any operators in it, it is interpreted the same way as\nif we had specified `\"^0.1.12\"`, which is called a caret requirement.\n\nA dependency can also be defined by a table with additional options:\n\n```toml\n[dependencies]\ntime = { path = \"../time\", version = \"0.1.12\" }\n```",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Dependency"
+      },
+      "x-tombi-additional-key-label": "crate_name",
+      "x-tombi-table-keys-order": "version-sort",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html"
+        }
+      }
+    },
+    "DevDependencyTable": {
+      "description": "The format of `[dev-dependencies]` is equivalent to `[dependencies]`:\n\n```toml\n[dev-dependencies]\ntempdir = \"0.3\"\n```\n\nDev-dependencies are not used when compiling\na package for building, but are used for compiling tests, examples, and\nbenchmarks.\n\nThese dependencies are *not* propagated to other packages which depend on this\npackage.\n\nYou can also have target-specific development dependencies by using\n`dev-dependencies` in the target section header instead of `dependencies`. For\nexample:\n\n```toml\n[target.'cfg(unix)'.dev-dependencies]\nmio = \"0.0.1\"\n```\n\n> **Note**: When a package is published, only dev-dependencies that specify a\n> `version` will be included in the published crate. For most use cases,\n> dev-dependencies are not needed when published, though some users (like OS\n> packagers) may want to run tests within a crate, so providing a `version` if\n> possible can still be beneficial.\n",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Dependency"
+      },
+      "x-tombi-additional-key-label": "crate_name",
+      "x-tombi-table-keys-order": "version-sort",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies"
+        },
+        "plugins": ["crates"],
+        "crates": {
+          "schemas": "dependencies"
+        }
+      }
+    },
+    "BuildDependencyTable": {
+      "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Dependency"
+      },
+      "x-tombi-additional-key-label": "crate_name",
+      "x-tombi-table-keys-order": "version-sort",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
+        },
+        "plugins": ["crates"],
+        "crates": {
+          "schemas": "dependencies"
+        }
+      }
+    },
+    "HiddenDependencyTable": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Dependency"
+      },
+      "x-tombi-table-keys-order": "version-sort",
+      "x-taplo": {
+        "hidden": true
+      }
+    },
     "DetailedDependency": {
       "title": "Detailed Dependency",
       "type": "object",
@@ -274,7 +334,46 @@
           }
         }
       },
-      "minProperties": 1,
+      "allOf": [
+        {
+          "anyOf": [
+            { "properties": { "version": true }, "required": ["version"] },
+            { "properties": { "path": true }, "required": ["path"] },
+            { "properties": { "git": true }, "required": ["git"] },
+            { "properties": { "workspace": true }, "required": ["workspace"] }
+          ]
+        },
+        {
+          "not": {
+            "properties": { "git": true, "path": true },
+            "required": ["git", "path"]
+          }
+        },
+        {
+          "not": {
+            "properties": { "registry": true, "registry-index": true },
+            "required": ["registry", "registry-index"]
+          }
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "properties": { "branch": true, "tag": true },
+                "required": ["branch", "tag"]
+              },
+              {
+                "properties": { "branch": true, "rev": true },
+                "required": ["branch", "rev"]
+              },
+              {
+                "properties": { "tag": true, "rev": true },
+                "required": ["tag", "rev"]
+              }
+            ]
+          }
+        }
+      ],
       "additionalProperties": false,
       "x-tombi-table-keys-order": "schema",
       "x-taplo": {
@@ -828,74 +927,19 @@
       "type": "object",
       "properties": {
         "dependencies": {
-          "description": "Cargo is configured to look for dependencies on [crates.io](https://crates.io) by default. Only\nthe name and a version string are required in this case. In [the cargo\nguide](https://doc.rust-lang.org/cargo/guide/index.html), we specified a dependency on the `time` crate:\n\n```toml\n[dependencies]\ntime = \"0.1.12\"\n```\n\nThe string `\"0.1.12\"` is a [semver](https://github.com/steveklabnik/semver#requirements) version requirement. Since this\nstring does not have any operators in it, it is interpreted the same way as\nif we had specified `\"^0.1.12\"`, which is called a caret requirement.\n\nA dependency can also be defined by a table with additional options:\n\n```toml\n[dependencies]\ntime = { path = \"../time\", version = \"0.1.12\" }\n```",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-additional-key-label": "crate_name",
-          "x-tombi-table-keys-order": "version-sort",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html"
-            }
-          }
+          "$ref": "#/definitions/DependencyTable"
         },
         "dev-dependencies": {
-          "description": "The format of `[dev-dependencies]` is equivalent to `[dependencies]`:\n\n```toml\n[dev-dependencies]\ntempdir = \"0.3\"\n```\n\nDev-dependencies are not used when compiling\na package for building, but are used for compiling tests, examples, and\nbenchmarks.\n\nThese dependencies are *not* propagated to other packages which depend on this\npackage.\n\nYou can also have target-specific development dependencies by using\n`dev-dependencies` in the target section header instead of `dependencies`. For\nexample:\n\n```toml\n[target.'cfg(unix)'.dev-dependencies]\nmio = \"0.0.1\"\n```\n\n> **Note**: When a package is published, only dev-dependencies that specify a\n> `version` will be included in the published crate. For most use cases,\n> dev-dependencies are not needed when published, though some users (like OS\n> packagers) may want to run tests within a crate, so providing a `version` if\n> possible can still be beneficial.\n",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-additional-key-label": "crate_name",
-          "x-tombi-table-keys-order": "version-sort",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies"
-            },
-            "plugins": ["crates"],
-            "crates": {
-              "schemas": "dependencies"
-            }
-          }
+          "$ref": "#/definitions/DevDependencyTable"
         },
         "dev_dependencies": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-table-keys-order": "version-sort",
-          "x-taplo": {
-            "hidden": true
-          }
+          "$ref": "#/definitions/HiddenDependencyTable"
         },
         "build-dependencies": {
-          "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-additional-key-label": "crate_name",
-          "x-tombi-table-keys-order": "version-sort",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
-            },
-            "plugins": ["crates"],
-            "crates": {
-              "schemas": "dependencies"
-            }
-          }
+          "$ref": "#/definitions/BuildDependencyTable"
         },
         "build_dependencies": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Dependency"
-          },
-          "x-tombi-table-keys-order": "version-sort",
-          "x-taplo": {
-            "hidden": true
-          }
+          "$ref": "#/definitions/HiddenDependencyTable"
         }
       },
       "x-tombi-table-keys-order": "schema"
@@ -1667,15 +1711,17 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "description": "You can explicitly specify that a set of file patterns should be ignored or\nincluded for the purposes of packaging. The patterns specified in the\n`exclude` field identify a set of files that are not included, and the\npatterns in `include` specify files that are explicitly included.\n\nThe patterns should be [gitignore](https://git-scm.com/docs/gitignore)-style patterns. Briefly:\n\n- `foo` matches any file or directory with the name `foo` anywhere in the\n  package. This is equivalent to the pattern `**/foo`.\n- `/foo` matches any file or directory with the name `foo` only in the root of\n  the package.\n- `foo/` matches any *directory* with the name `foo` anywhere in the package.\n- Common glob patterns like `*`, `?`, and `[]` are supported:\n  - `*` matches zero or more characters except `/`.  For example, `*.html`\n    matches any file or directory with the `.html` extension anywhere in the\n    package.\n  - `?` matches any character except `/`. For example, `foo?` matches `food`,\n    but not `foo`.\n  - `[]` allows for matching a range of characters. For example, `[ab]`\n    matches either `a` or `b`. `[a-z]` matches letters a through z.\n- `**/` prefix matches in any directory. For example, `**/foo/bar` matches the\n  file or directory `bar` anywhere that is directly under directory `foo`.\n- `/**` suffix matches everything inside. For example, `foo/**` matches all\n  files inside directory `foo`, including all files in subdirectories below\n  `foo`.\n- `/**/` matches zero or more directories. For example, `a/**/b` matches\n  `a/b`, `a/x/b`, `a/x/y/b`, and so on.\n- `!` prefix negates a pattern. For example, a pattern of `src/**.rs` and\n  `!foo.rs` would match all files with the `.rs` extension inside the `src`\n  directory, except for any file named `foo.rs`.\n\nIf git is being used for a package, the `exclude` field will be seeded with\nthe `gitignore` settings from the repository.\n\n```toml\n[package]\n# ...\nexclude = [\"build/**/*.o\", \"doc/**/*.html\"]\n```\n\n```toml\n[package]\n# ...\ninclude = [\"src/**/*\", \"Cargo.toml\"]\n```\n\nThe options are mutually exclusive: setting `include` will override an\n`exclude`. Note that `include` must be an exhaustive list of files as otherwise\nnecessary source files may not be included. The package's `Cargo.toml` is\nautomatically included.\n\nThe include/exclude list is also used for change tracking in some situations.\nFor targets built with `rustdoc`, it is used to determine the list of files to\ntrack to determine if the target should be rebuilt. If the package has a\n[build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) that does not emit any `rerun-if-*` directives, then the\ninclude/exclude list is used for tracking if the build script should be re-run\nif any of those files change.",
-        "type": "string",
-        "x-taplo": {
-          "links": {
-            "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
-          }
-        }
+        "$ref": "#/definitions/PackagePathPattern"
       },
-      "x-tombi-array-values-order": "version-sort",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
+        }
+      }
+    },
+    "PackagePathPattern": {
+      "description": "You can explicitly specify that a set of file patterns should be ignored or\nincluded for the purposes of packaging. The patterns specified in the\n`exclude` field identify a set of files that are not included, and the\npatterns in `include` specify files that are explicitly included.\n\nThe patterns should be [gitignore](https://git-scm.com/docs/gitignore)-style patterns. Briefly:\n\n- `foo` matches any file or directory with the name `foo` anywhere in the\n  package. This is equivalent to the pattern `**/foo`.\n- `/foo` matches any file or directory with the name `foo` only in the root of\n  the package.\n- `foo/` matches any *directory* with the name `foo` anywhere in the package.\n- Common glob patterns like `*`, `?`, and `[]` are supported:\n  - `*` matches zero or more characters except `/`.  For example, `*.html`\n    matches any file or directory with the `.html` extension anywhere in the\n    package.\n  - `?` matches any character except `/`. For example, `foo?` matches `food`,\n    but not `foo`.\n  - `[]` allows for matching a range of characters. For example, `[ab]`\n    matches either `a` or `b`. `[a-z]` matches letters a through z.\n- `**/` prefix matches in any directory. For example, `**/foo/bar` matches the\n  file or directory `bar` anywhere that is directly under directory `foo`.\n- `/**` suffix matches everything inside. For example, `foo/**` matches all\n  files inside directory `foo`, including all files in subdirectories below\n  `foo`.\n- `/**/` matches zero or more directories. For example, `a/**/b` matches\n  `a/b`, `a/x/b`, `a/x/y/b`, and so on.\n- `!` prefix negates a pattern. For example, a pattern of `src/**.rs` and\n  `!foo.rs` would match all files with the `.rs` extension inside the `src`\n  directory, except for any file named `foo.rs`.\n\nIf git is being used for a package, the `exclude` field will be seeded with\nthe `gitignore` settings from the repository.\n\n```toml\n[package]\n# ...\nexclude = [\"build/**/*.o\", \"doc/**/*.html\"]\n```\n\n```toml\n[package]\n# ...\ninclude = [\"src/**/*\", \"Cargo.toml\"]\n```\n\nThe options are mutually exclusive: setting `include` will override an\n`exclude`. Note that `include` must be an exhaustive list of files as otherwise\nnecessary source files may not be included. The package's `Cargo.toml` is\nautomatically included.\n\nThe include/exclude list is also used for change tracking in some situations.\nFor targets built with `rustdoc`, it is used to determine the list of files to\ntrack to determine if the target should be rebuilt. If the package has a\n[build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) that does not emit any `rerun-if-*` directives, then the\ninclude/exclude list is used for tracking if the build script should be re-run\nif any of those files change.",
+      "type": "string",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
@@ -1697,15 +1743,8 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "description": "You can explicitly specify that a set of file patterns should be ignored or\nincluded for the purposes of packaging. The patterns specified in the\n`exclude` field identify a set of files that are not included, and the\npatterns in `include` specify files that are explicitly included.\n\nThe patterns should be [gitignore](https://git-scm.com/docs/gitignore)-style patterns. Briefly:\n\n- `foo` matches any file or directory with the name `foo` anywhere in the\n  package. This is equivalent to the pattern `**/foo`.\n- `/foo` matches any file or directory with the name `foo` only in the root of\n  the package.\n- `foo/` matches any *directory* with the name `foo` anywhere in the package.\n- Common glob patterns like `*`, `?`, and `[]` are supported:\n  - `*` matches zero or more characters except `/`.  For example, `*.html`\n    matches any file or directory with the `.html` extension anywhere in the\n    package.\n  - `?` matches any character except `/`. For example, `foo?` matches `food`,\n    but not `foo`.\n  - `[]` allows for matching a range of characters. For example, `[ab]`\n    matches either `a` or `b`. `[a-z]` matches letters a through z.\n- `**/` prefix matches in any directory. For example, `**/foo/bar` matches the\n  file or directory `bar` anywhere that is directly under directory `foo`.\n- `/**` suffix matches everything inside. For example, `foo/**` matches all\n  files inside directory `foo`, including all files in subdirectories below\n  `foo`.\n- `/**/` matches zero or more directories. For example, `a/**/b` matches\n  `a/b`, `a/x/b`, `a/x/y/b`, and so on.\n- `!` prefix negates a pattern. For example, a pattern of `src/**.rs` and\n  `!foo.rs` would match all files with the `.rs` extension inside the `src`\n  directory, except for any file named `foo.rs`.\n\nIf git is being used for a package, the `exclude` field will be seeded with\nthe `gitignore` settings from the repository.\n\n```toml\n[package]\n# ...\nexclude = [\"build/**/*.o\", \"doc/**/*.html\"]\n```\n\n```toml\n[package]\n# ...\ninclude = [\"src/**/*\", \"Cargo.toml\"]\n```\n\nThe options are mutually exclusive: setting `include` will override an\n`exclude`. Note that `include` must be an exhaustive list of files as otherwise\nnecessary source files may not be included. The package's `Cargo.toml` is\nautomatically included.\n\nThe include/exclude list is also used for change tracking in some situations.\nFor targets built with `rustdoc`, it is used to determine the list of files to\ntrack to determine if the target should be rebuilt. If the package has a\n[build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) that does not emit any `rerun-if-*` directives, then the\ninclude/exclude list is used for tracking if the build script should be re-run\nif any of those files change.",
-        "type": "string",
-        "x-taplo": {
-          "links": {
-            "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
-          }
-        }
+        "$ref": "#/definitions/PackagePathPattern"
       },
-      "x-tombi-array-values-order": "version-sort",
       "x-taplo": {
         "links": {
           "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields"
@@ -1889,24 +1928,10 @@
           "description": "Optional. A second content warning that displays on a second screen when the user launches your game for the first time. The user will have the option of backing out and not launching your game if they choose.\n\nNote: `content-warning2` will only display if a `content-warning` attribute is also specified.\n\nThe string displayed on the content warning screen can only be so long before it will be truncated with an \"…\" character. Be sure to keep this in mind when designing your `content-warning` and `content-warning2` text."
         },
         "assets": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/PlaydateMetadataAssetsMap"
-            },
-            {
-              "$ref": "#/definitions/PlaydateMetadataAssetsArray"
-            }
-          ]
+          "$ref": "#/definitions/PlaydateMetadataAssets"
         },
         "dev-assets": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/PlaydateMetadataAssetsMap"
-            },
-            {
-              "$ref": "#/definitions/PlaydateMetadataAssetsArray"
-            }
-          ]
+          "$ref": "#/definitions/PlaydateMetadataAssets"
         },
         "options": {
           "$ref": "#/definitions/PlaydateMetadataOptions"
@@ -1935,6 +1960,16 @@
       "x-taplo-info": {
         "authors": ["Alex Koz. (https://github.com/boozook)"]
       }
+    },
+    "PlaydateMetadataAssets": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PlaydateMetadataAssetsMap"
+        },
+        {
+          "$ref": "#/definitions/PlaydateMetadataAssetsArray"
+        }
+      ]
     },
     "PlaydateMetadataAssetsArray": {
       "type": "array",
@@ -2052,8 +2087,73 @@
         "hidden": true
       }
     },
-    "workspace": {
-      "$ref": "#/definitions/Workspace"
+    "badges": {
+      "description": "[crates.io](https://crates.io) can display various badges for build status, test coverage, etc. for\neach crate. All badges are optional.\n\n- The badges pertaining to build status that are currently available are\n  Appveyor, CircleCI, Cirrus CI, GitLab, Azure DevOps, Travis CI and Bitbucket\n  Pipelines.\n- Available badges pertaining to code test coverage are Codecov and Coveralls.\n- There are also maintenance-related badges based on isitmaintained.com\n  which state the issue resolution time, percent of open issues, and future\n  maintenance intentions.\n\nMost badge specifications require a `repository` key. It is expected to be in\n`user/repo` format.\n\n```toml\n[badges]\n\n# Appveyor: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`; `id` is optional; you can specify the appveyor project id if you\n# want to use that instead. `project_name` is optional; use when the repository\n# name differs from the appveyor project name.\nappveyor = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Circle CI: `repository` is required. `branch` is optional; default is `master`\ncircle-ci = { repository = \"...\", branch = \"master\" }\n\n# Cirrus CI: `repository` is required. `branch` is optional; default is `master`\ncirrus-ci = { repository = \"...\", branch = \"master\" }\n\n# GitLab: `repository` is required. `branch` is optional; default is `master`\ngitlab = { repository = \"...\", branch = \"master\" }\n\n# Azure DevOps: `project` is required. `pipeline` is required. `build` is optional; default is `1`\n# Note: project = `organization/project`, pipeline = `name_of_pipeline`, build = `definitionId`\nazure-devops = { project = \"...\", pipeline = \"...\", build=\"2\" }\n\n# Travis CI: `repository` in format \"<user>/<project>\" is required.\n# `branch` is optional; default is `master`\ntravis-ci = { repository = \"...\", branch = \"master\" }\n\n# Bitbucket Pipelines: `repository` is required. `branch` is required\nbitbucket-pipelines = { repository = \"...\", branch = \"master\" }\n\n# Codecov: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`.\ncodecov = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Coveralls: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default) and `bitbucket`.\ncoveralls = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Is it maintained resolution time: `repository` is required.\nis-it-maintained-issue-resolution = { repository = \"...\" }\n\n# Is it maintained percentage of open issues: `repository` is required.\nis-it-maintained-open-issues = { repository = \"...\" }\n\n# Maintenance: `status` is required. Available options are:\n# - `actively-developed`: New features are being added and bugs are being fixed.\n# - `passively-maintained`: There are no plans for new features, but the maintainer intends to\n#   respond to issues that get filed.\n# - `as-is`: The crate is feature complete, the maintainer does not intend to continue working on\n#   it or providing support, but it works for the purposes it was designed for.\n# - `experimental`: The author wants to share it with the community but is not intending to meet\n#   anyone's particular use case.\n# - `looking-for-maintainer`: The current maintainer would like to transfer the crate to someone\n#   else.\n# - `deprecated`: The maintainer does not recommend using this crate (the description of the crate\n#   can describe why, there could be a better solution available or there could be problems with\n#   the crate that the author does not want to fix).\n# - `none`: Displays no badge on crates.io, since the maintainer has not chosen to specify\n#   their intentions, potential crate users will need to investigate on their own.\nmaintenance = { status = \"...\" }\n```",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "x-tombi-table-keys-order": "version-sort"
+      },
+      "x-tombi-additional-key-label": "badge_name",
+      "x-tombi-table-keys-order": "version-sort",
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section"
+        }
+      }
+    },
+    "features": {
+      "description": "Cargo supports features to allow expression of:\n\n* conditional compilation options (usable through `cfg` attributes);\n* optional dependencies, which enhance a package, but are not required; and\n* clusters of optional dependencies, such as `postgres-all`, that would include the\n  `postgres` package, the `postgres-macros` package, and possibly other packages\n  (such as development-time mocking libraries, debugging tools, etc.).\n\nA feature of a package is either an optional dependency, or a set of other\nfeatures.\n",
+      "type": "object",
+      "properties": {
+        "default": {
+          "title": "Default Feature",
+          "description": "The default features of the crate.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "anyOf": [
+              { "type": "string", "pattern": "^dep:.+" },
+              { "type": "string" }
+            ]
+          },
+          "x-tombi-array-values-order": {
+            "anyOf": ["version-sort", "version-sort"]
+          },
+          "x-taplo": {
+            "links": {
+              "key": "https://doc.rust-lang.org/cargo/reference/features.html#the-default-feature"
+            }
+          }
+        }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "anyOf": [
+            { "type": "string", "pattern": "^default$" },
+            { "type": "string", "pattern": "^dep:.+" },
+            { "type": "string" }
+          ]
+        },
+        "x-tombi-array-values-order": {
+          "anyOf": ["ascending", "version-sort", "version-sort"]
+        }
+      },
+      "x-tombi-additional-key-label": "feature_name",
+      "x-tombi-table-keys-order": {
+        "properties": "schema",
+        "additionalProperties": "version-sort"
+      },
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/cargo/reference/features.html"
+        }
+      }
     },
     "lib": {
       "$ref": "#/definitions/Target",
@@ -2143,36 +2243,10 @@
       }
     },
     "dependencies": {
-      "description": "Cargo is configured to look for dependencies on [crates.io](https://crates.io) by default. Only\nthe name and a version string are required in this case. In [the cargo\nguide](https://doc.rust-lang.org/cargo/guide/index.html), we specified a dependency on the `time` crate:\n\n```toml\n[dependencies]\ntime = \"0.1.12\"\n```\n\nThe string `\"0.1.12\"` is a [semver](https://github.com/steveklabnik/semver#requirements) version requirement. Since this\nstring does not have any operators in it, it is interpreted the same way as\nif we had specified `\"^0.1.12\"`, which is called a caret requirement.\n\nA dependency can also be defined by a table with additional options:\n\n```toml\n[dependencies]\ntime = { path = \"../time\", version = \"0.1.12\" }\n```",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Dependency"
-      },
-      "x-tombi-additional-key-label": "crate_name",
-      "x-tombi-table-keys-order": "version-sort",
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html"
-        }
-      }
+      "$ref": "#/definitions/DependencyTable"
     },
     "dev-dependencies": {
-      "description": "The format of `[dev-dependencies]` is equivalent to `[dependencies]`:\n\n```toml\n[dev-dependencies]\ntempdir = \"0.3\"\n```\n\nDev-dependencies are not used when compiling\na package for building, but are used for compiling tests, examples, and\nbenchmarks.\n\nThese dependencies are *not* propagated to other packages which depend on this\npackage.\n\nYou can also have target-specific development dependencies by using\n`dev-dependencies` in the target section header instead of `dependencies`. For\nexample:\n\n```toml\n[target.'cfg(unix)'.dev-dependencies]\nmio = \"0.0.1\"\n```\n\n> **Note**: When a package is published, only dev-dependencies that specify a\n> `version` will be included in the published crate. For most use cases,\n> dev-dependencies are not needed when published, though some users (like OS\n> packagers) may want to run tests within a crate, so providing a `version` if\n> possible can still be beneficial.\n",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Dependency"
-      },
-      "x-tombi-additional-key-label": "crate_name",
-      "x-tombi-table-keys-order": "version-sort",
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies"
-        },
-        "plugins": ["crates"],
-        "crates": {
-          "schemas": "dependencies"
-        }
-      }
+      "$ref": "#/definitions/DevDependencyTable"
     },
     "dev_dependencies": {
       "type": "object",
@@ -2187,22 +2261,7 @@
       }
     },
     "build-dependencies": {
-      "description": "You can depend on other Cargo-based crates for use in your build scripts.\nDependencies are declared through the `build-dependencies` section of the\nmanifest:\n\n```toml\n[build-dependencies]\ncc = \"1.0.3\"\n```\n\nThe build script **does not** have access to the dependencies listed\nin the `dependencies` or `dev-dependencies` section. Build\ndependencies will likewise not be available to the package itself\nunless listed under the `dependencies` section as well. A package\nitself and its build script are built separately, so their\ndependencies need not coincide. Cargo is kept simpler and cleaner by\nusing independent dependencies for independent purposes.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Dependency"
-      },
-      "x-tombi-additional-key-label": "crate_name",
-      "x-tombi-table-keys-order": "version-sort",
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies"
-        },
-        "plugins": ["crates"],
-        "crates": {
-          "schemas": "dependencies"
-        }
-      }
+      "$ref": "#/definitions/BuildDependencyTable"
     },
     "build_dependencies": {
       "type": "object",
@@ -2222,63 +2281,6 @@
       "x-tombi-table-keys-order": "version-sort",
       "additionalProperties": {
         "$ref": "#/definitions/Platform"
-      }
-    },
-    "badges": {
-      "description": "[crates.io](https://crates.io) can display various badges for build status, test coverage, etc. for\neach crate. All badges are optional.\n\n- The badges pertaining to build status that are currently available are\n  Appveyor, CircleCI, Cirrus CI, GitLab, Azure DevOps, Travis CI and Bitbucket\n  Pipelines.\n- Available badges pertaining to code test coverage are Codecov and Coveralls.\n- There are also maintenance-related badges based on isitmaintained.com\n  which state the issue resolution time, percent of open issues, and future\n  maintenance intentions.\n\nMost badge specifications require a `repository` key. It is expected to be in\n`user/repo` format.\n\n```toml\n[badges]\n\n# Appveyor: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`; `id` is optional; you can specify the appveyor project id if you\n# want to use that instead. `project_name` is optional; use when the repository\n# name differs from the appveyor project name.\nappveyor = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Circle CI: `repository` is required. `branch` is optional; default is `master`\ncircle-ci = { repository = \"...\", branch = \"master\" }\n\n# Cirrus CI: `repository` is required. `branch` is optional; default is `master`\ncirrus-ci = { repository = \"...\", branch = \"master\" }\n\n# GitLab: `repository` is required. `branch` is optional; default is `master`\ngitlab = { repository = \"...\", branch = \"master\" }\n\n# Azure DevOps: `project` is required. `pipeline` is required. `build` is optional; default is `1`\n# Note: project = `organization/project`, pipeline = `name_of_pipeline`, build = `definitionId`\nazure-devops = { project = \"...\", pipeline = \"...\", build=\"2\" }\n\n# Travis CI: `repository` in format \"<user>/<project>\" is required.\n# `branch` is optional; default is `master`\ntravis-ci = { repository = \"...\", branch = \"master\" }\n\n# Bitbucket Pipelines: `repository` is required. `branch` is required\nbitbucket-pipelines = { repository = \"...\", branch = \"master\" }\n\n# Codecov: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default), `bitbucket`, and\n# `gitlab`.\ncodecov = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Coveralls: `repository` is required. `branch` is optional; default is `master`\n# `service` is optional; valid values are `github` (default) and `bitbucket`.\ncoveralls = { repository = \"...\", branch = \"master\", service = \"github\" }\n\n# Is it maintained resolution time: `repository` is required.\nis-it-maintained-issue-resolution = { repository = \"...\" }\n\n# Is it maintained percentage of open issues: `repository` is required.\nis-it-maintained-open-issues = { repository = \"...\" }\n\n# Maintenance: `status` is required. Available options are:\n# - `actively-developed`: New features are being added and bugs are being fixed.\n# - `passively-maintained`: There are no plans for new features, but the maintainer intends to\n#   respond to issues that get filed.\n# - `as-is`: The crate is feature complete, the maintainer does not intend to continue working on\n#   it or providing support, but it works for the purposes it was designed for.\n# - `experimental`: The author wants to share it with the community but is not intending to meet\n#   anyone's particular use case.\n# - `looking-for-maintainer`: The current maintainer would like to transfer the crate to someone\n#   else.\n# - `deprecated`: The maintainer does not recommend using this crate (the description of the crate\n#   can describe why, there could be a better solution available or there could be problems with\n#   the crate that the author does not want to fix).\n# - `none`: Displays no badge on crates.io, since the maintainer has not chosen to specify\n#   their intentions, potential crate users will need to investigate on their own.\nmaintenance = { status = \"...\" }\n```",
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": {
-          "type": "string"
-        },
-        "x-tombi-table-keys-order": "version-sort"
-      },
-      "x-tombi-additional-key-label": "badge_name",
-      "x-tombi-table-keys-order": "version-sort",
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section"
-        }
-      }
-    },
-    "features": {
-      "description": "Cargo supports features to allow expression of:\n\n* conditional compilation options (usable through `cfg` attributes);\n* optional dependencies, which enhance a package, but are not required; and\n* clusters of optional dependencies, such as `postgres-all`, that would include the\n  `postgres` package, the `postgres-macros` package, and possibly other packages\n  (such as development-time mocking libraries, debugging tools, etc.).\n\nA feature of a package is either an optional dependency, or a set of other\nfeatures.\n",
-      "type": "object",
-      "properties": {
-        "default": {
-          "title": "Default Feature",
-          "description": "The default features of the crate.",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          },
-          "x-tombi-array-values-order": "version-sort",
-          "x-taplo": {
-            "links": {
-              "key": "https://doc.rust-lang.org/cargo/reference/features.html#the-default-feature"
-            }
-          }
-        }
-      },
-      "additionalProperties": {
-        "type": "array",
-        "uniqueItems": true,
-        "items": {
-          "type": "string"
-        },
-        "x-tombi-array-values-order": "version-sort"
-      },
-      "x-tombi-additional-key-label": "feature_name",
-      "x-tombi-table-keys-order": {
-        "properties": "schema",
-        "additionalProperties": "version-sort"
-      },
-      "x-taplo": {
-        "links": {
-          "key": "https://doc.rust-lang.org/cargo/reference/features.html"
-        }
       }
     },
     "lints": {
@@ -2305,6 +2307,26 @@
           "key": "https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-lints-section"
         }
       }
+    },
+    "hints": {
+      "description": "Hints for compiling this package. Cargo warns about and ignores unknown hints or hint values.",
+      "type": "object",
+      "properties": {
+        "min-opt-level": true,
+        "mostly-unused": true
+      },
+      "additionalProperties": true,
+      "x-taplo": {
+        "links": {
+          "key": "https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-hints-section"
+        }
+      }
+    },
+    "workspace": {
+      "$ref": "#/definitions/Workspace"
+    },
+    "profile": {
+      "$ref": "#/definitions/Profiles"
     },
     "patch": {
       "description": "The `[patch]` section of `Cargo.toml` can be used to override dependencies\nwith other copies. The syntax is similar to the\n[`[dependencies]`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html) section.\n\n",
@@ -2340,17 +2362,7 @@
       }
     },
     "replace": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Dependency"
-      },
-      "x-tombi-table-keys-order": "version-sort",
-      "x-taplo": {
-        "hidden": true
-      }
-    },
-    "profile": {
-      "$ref": "#/definitions/Profiles"
+      "$ref": "#/definitions/HiddenDependencyTable"
     }
   },
   "title": "Cargo.toml",

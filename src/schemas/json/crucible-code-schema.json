@@ -10,6 +10,25 @@
     "$comment": {
       "type": "string"
     },
+    "agents": {
+      "additionalProperties": false,
+      "description": "What crucible does about the installed coding agents it can update",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "$comment": {
+          "type": "string"
+        },
+        "update": {
+          "default": "ask",
+          "description": "Whether an update of an installed coding agent to a version the reviewed catalog lists is put to you (ask) or taken without asking (reviewed). A first install, a rollback and a removal are always asked. Read only from the configuration file in your home directory",
+          "enum": ["ask", "reviewed"],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "compaction": {
       "additionalProperties": false,
       "description": "What happens when the model's window fills up",
@@ -21,16 +40,19 @@
           "type": "string"
         },
         "askOnResume": {
+          "default": 60000,
           "description": "How large a session has to be, in tokens, before picking it up asks whether to carry it whole. Zero never asks",
           "minimum": 0,
           "type": "integer"
         },
         "keep": {
+          "default": 20000,
           "description": "How many tokens of recent turns are kept word for word after the rest becomes a recap",
           "minimum": 0,
           "type": "integer"
         },
         "recap": {
+          "default": 10240,
           "description": "Maximum tokens a structured compaction recap may produce; ordinary recaps stop earlier",
           "minimum": 0,
           "type": "integer"
@@ -54,11 +76,33 @@
       },
       "type": "object"
     },
+    "contentUse": {
+      "additionalProperties": false,
+      "description": "What you have said about vendors that may use what is sent to them",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "$comment": {
+          "type": "string"
+        },
+        "accepted": {
+          "description": "Routes you have said yes to sending on, though their vendor says it may use what is sent to train or improve its models; crucible writes this when you choose Use it anyway. Read only from the configuration file in your home directory",
+          "items": {
+            "examples": ["key:google", "subscription:moonshot@kimi.ai"],
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "type": "object"
+    },
     "env": {
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Environment variables for the commands crucible runs. A file under the working directory may set only crucible's own CRUCIBLE_CODE_ names",
+      "description": "Environment variables for the commands crucible runs, and crucible's own settings under CRUCIBLE_CODE_ names. A file under the working directory may set only those",
       "properties": {
         "$schema": {
           "type": "string"
@@ -67,10 +111,19 @@
           "type": "string"
         },
         "CRUCIBLE_CODE_MOUSE_SCROLL_SPEED": {
+          "anyOf": [
+            {
+              "maximum": 30,
+              "minimum": 3,
+              "type": "integer"
+            },
+            {
+              "pattern": "^([3-9]|[12][0-9]|30)$",
+              "type": "string"
+            }
+          ],
           "default": "6",
-          "description": "How many rows of the transcript one notch of the wheel moves",
-          "pattern": "^\\+?0*(?:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30)$",
-          "type": "string"
+          "description": "How many rows or list entries one notch of the wheel moves, wherever the wheel scrolls"
         }
       },
       "propertyNames": {
@@ -132,6 +185,96 @@
       },
       "type": "object"
     },
+    "externalAgents": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "type": "string"
+          },
+          "$comment": {
+            "type": "string"
+          },
+          "agent": {
+            "description": "For a catalog agent, and required for one: the key the catalog reviewed it under, 1 to 32 lowercase letters, digits and hyphens, never a driver's word. Read only from the configuration file in your home directory",
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "type": "string"
+          },
+          "authentication": {
+            "default": "account",
+            "description": "How the agent signs in: account, its own account login, with no API key from crucible's environment. Read only from the configuration file in your home directory",
+            "enum": ["account"],
+            "type": "string"
+          },
+          "cloudLocation": {
+            "description": "For an antigravity agent: the Google Cloud location its business sign-in is billed in, such as us-central1, written with cloudProject and only with it. One host name label of 1 to 63 lowercase letters, digits and hyphens, neither starting nor ending with a hyphen. Takes effect at the next business sign-in. Read only from the configuration file in your home directory",
+            "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "cloudProject": {
+            "description": "For an antigravity agent: the ID of the Google Cloud project its business sign-in is billed to, written with cloudLocation and only with it. 6 to 30 lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen. Takes effect at the next business sign-in. Read only from the configuration file in your home directory",
+            "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$",
+            "type": "string"
+          },
+          "configDir": {
+            "description": "For a claude agent: an absolute path to the configuration directory it signs in and keeps its state under. Left off, its usual one. Read only from the configuration file in your home directory",
+            "type": "string"
+          },
+          "driver": {
+            "description": "Which agent this is, and so how crucible speaks to it. Read only from the configuration file in your home directory",
+            "enum": ["claude", "antigravity", "catalog"],
+            "examples": ["claude"],
+            "type": "string"
+          },
+          "effort": {
+            "description": "For a claude agent: how hard it thinks before answering, chosen with /effort. Left off, the default rung of the model it is started with. Read only from the configuration file in your home directory",
+            "enum": ["low", "medium", "high", "xhigh", "max"],
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "description": "Whether new work may be sent through this agent. false keeps the entry and the providers that name it, and sends them nothing. Read only from the configuration file in your home directory",
+            "type": "boolean"
+          },
+          "executable": {
+            "description": "The agent's program. An absolute path, or a bare program name for PATH to answer. Read only from the configuration file in your home directory",
+            "examples": ["claude"],
+            "type": "string"
+          },
+          "model": {
+            "description": "For a claude agent: the model it is started with, as its provider names it, chosen with /model from that provider's list. Left off, the provider's default model. Letters, digits and . _ - : @ / [ ] only, not starting with -. Read only from the configuration file in your home directory",
+            "type": "string"
+          },
+          "profileDir": {
+            "description": "For an antigravity agent, and required for one, or a catalog agent: an absolute path to the profile directory it signs in and keeps its state under. Read only from the configuration file in your home directory",
+            "type": "string"
+          }
+        },
+        "required": ["driver", "executable"],
+        "type": "object"
+      },
+      "description": "Installed coding agents a provider's access may name, keyed by the name access.instance uses. Nothing is started by being written here. Read only from the configuration file in your home directory",
+      "maxProperties": 32,
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "$comment": {
+          "type": "string"
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "pattern": "^[^$]"
+          },
+          {
+            "enum": ["$schema", "$comment"]
+          }
+        ]
+      },
+      "type": "object"
+    },
     "input": {
       "additionalProperties": false,
       "description": "What the keyboard does",
@@ -144,7 +287,7 @@
         },
         "send": {
           "default": "enter",
-          "description": "Which press sends a prompt: enter sends and Shift+Enter, Alt+Enter or Ctrl+J opens a line; altEnter swaps the two, for a terminal that keeps Enter for itself",
+          "description": "Which press sends a prompt: enter sends and Shift+Enter, Alt+Enter or Ctrl+J opens a line; altEnter swaps the two, for a terminal that keeps Shift+Enter for itself",
           "enum": ["enter", "altEnter"],
           "type": "string"
         }
@@ -247,7 +390,7 @@
               },
               "handshakeSeconds": {
                 "default": 10,
-                "description": "How long to wait for the server to agree a protocol version before giving up on it. Read only from the configuration file in your home directory",
+                "description": "How long to wait for the server to agree a protocol version, and for each step of starting its sandbox, before giving up on it. Read only from the configuration file in your home directory",
                 "minimum": 0,
                 "type": "integer"
               },
@@ -315,8 +458,14 @@
         },
         "color": {
           "default": "auto",
-          "description": "Whether to write colour: auto follows the terminal and NO_COLOR, always and never override it",
+          "description": "Whether a terminal is written in colour: auto follows NO_COLOR, always and never override it; a file or pipe gets none",
           "enum": ["auto", "always", "never"],
+          "type": "string"
+        },
+        "diagrams": {
+          "default": "image",
+          "description": "How a diagram in an answer is drawn: written shows each diagram exactly as the model wrote it; text draws it as characters; image draws it as a picture where one can be shown and as text everywhere else",
+          "enum": ["written", "text", "image"],
           "type": "string"
         },
         "glyphs": {
@@ -324,6 +473,36 @@
           "description": "Which characters crucible draws with: unicode for box drawing, ascii for a font that lacks it",
           "enum": ["unicode", "ascii"],
           "type": "string"
+        },
+        "images": {
+          "default": "auto",
+          "description": "How pictures are drawn: auto asks the terminal at start, only where its environment names a terminal pictures were seen to draw right on and no multiplexer is in between; kitty, iterm2 or sixel uses that protocol without asking where it was seen to draw right, and text elsewhere; off draws text",
+          "enum": ["auto", "kitty", "iterm2", "sixel", "off"],
+          "type": "string"
+        },
+        "math": {
+          "default": "image",
+          "description": "How math in an answer is drawn: written shows each formula exactly as the model wrote it; text draws it as characters; image draws it as a picture where one can be shown and as text everywhere else",
+          "enum": ["written", "text", "image"],
+          "type": "string"
+        },
+        "pinAfterSeconds": {
+          "default": 3,
+          "description": "How many seconds a running tool call waits before it is drawn above the working row with its output and ctrl+b; one that finishes sooner is only written to the transcript, and 0 draws every call at once",
+          "maximum": 60,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "screen": {
+          "default": "fullscreen",
+          "description": "Where crucible draws, read at start: fullscreen takes a screen of its own with its own scrollback, rail and selection; native draws in the terminal's own buffer and leaves scrolling, selection and copy to the terminal",
+          "enum": ["fullscreen", "native"],
+          "type": "string"
+        },
+        "scrollRail": {
+          "default": true,
+          "description": "Whether the transcript has a one-column rail on its right edge showing where the screen is and where each prompt was; a click or a drag on it scrolls there",
+          "type": "boolean"
         },
         "syntaxTheme": {
           "default": "Monokai Extended",
@@ -348,6 +527,12 @@
           "default": "compact",
           "description": "How much of a tool call and its result one line shows",
           "enum": ["compact", "full"],
+          "type": "string"
+        },
+        "transcriptColours": {
+          "default": "calm",
+          "description": "How many of the theme's colours the transcript spends: calm on code, paths and links, balanced on versions and a call's path or address too, rich on headings, lists, quotes and figures as well",
+          "enum": ["calm", "balanced", "rich"],
           "type": "string"
         }
       },
@@ -448,8 +633,9 @@
           "type": "string"
         },
         "namespace": {
-          "description": "Bounded opaque user-owned label included in cache scope identity; never a provider cache key",
+          "description": "Opaque user-owned label of 1 to 64 ASCII letters, digits, '.', '-' or '_', included in cache scope identity; never a provider cache key. Read only from the configuration file in your home directory",
           "examples": ["personal"],
+          "pattern": "^[A-Za-z0-9._-]{1,64}$",
           "type": "string"
         },
         "persistentResources": {
@@ -488,8 +674,9 @@
               "type": "string"
             },
             "maxSeconds": {
-              "description": "Hard maximum provider retention in seconds; required for ephemeral and extended retention",
-              "minimum": 0,
+              "description": "Hard maximum provider retention in seconds, at most a year; required for ephemeral and extended retention, and refused with providerDefault",
+              "maximum": 31536000,
+              "minimum": 1,
               "type": "integer"
             }
           },
@@ -512,12 +699,36 @@
           "$comment": {
             "type": "string"
           },
+          "access": {
+            "additionalProperties": false,
+            "description": "How this provider is reached: a subscription signed in with /login, an API key, or an installed coding agent named under externalAgents. Left off, a subscription where one is signed in and no baseUrl is set, then the API key. Read only from the configuration file in your home directory",
+            "properties": {
+              "$schema": {
+                "type": "string"
+              },
+              "$comment": {
+                "type": "string"
+              },
+              "instance": {
+                "description": "The externalAgents entry this provider is reached through; written with externalAgent and only with it",
+                "type": "string"
+              },
+              "type": {
+                "description": "subscription for the account /login signed in, apiKey for the API key, externalAgent for the installed agent named by instance. Nothing falls back from one to another",
+                "enum": ["subscription", "apiKey", "externalAgent"],
+                "examples": ["subscription"],
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
           "apiKeyEnv": {
-            "description": "Name of the environment variable holding this provider's API key — the name, never the key",
+            "description": "Name of the environment variable holding this provider's API key — the name, never the key. Read only from the configuration file in your home directory",
             "type": "string"
           },
           "baseUrl": {
-            "description": "Address to send this provider's requests to instead of the vendor's, for a gateway or a proxy",
+            "description": "Address to send this provider's requests to instead of the vendor's, for a gateway or a proxy. Read only from the configuration file in your home directory",
             "examples": ["https://gateway.example/v1/messages"],
             "type": "string"
           },
@@ -526,7 +737,7 @@
               "minimum": 0,
               "type": "integer"
             },
-            "description": "The context-window size in tokens, keyed by model name; an explicit value may opt into a larger native window",
+            "description": "The context-window size in tokens, keyed by model name; an explicit value replaces the model's native window, lower or higher",
             "properties": {
               "$schema": {
                 "type": "string"
@@ -556,6 +767,10 @@
             "description": "How hard to think before answering, when --effort does not say. Left off, the vendor's own default for whichever model is being asked",
             "enum": ["low", "medium", "high", "xhigh", "max"],
             "type": "string"
+          },
+          "fast": {
+            "description": "Whether to ask the model named beside it to answer fast, where its vendor serves a fast form at a higher price. Read only with that model in force; left off, standard speed. Read only from the configuration file in your home directory",
+            "type": "boolean"
           },
           "model": {
             "description": "The model to ask when --model does not name one",

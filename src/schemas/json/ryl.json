@@ -2,10 +2,37 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://json.schemastore.org/ryl.json",
   "definitions": {
-    "AllRulesSelector": {
-      "description": "The `ALL` keyword accepted in a `per-line-ignores` `rules` list.",
-      "enum": ["ALL"],
+    "CollectionStyleTarget": {
+      "enum": ["preserve", "block", "flow"],
       "type": "string"
+    },
+    "DocumentStartTarget": {
+      "enum": ["add", "preserve", "remove"],
+      "type": "string"
+    },
+    "ExpandTarget": {
+      "description": "Whether a flow collection sits on one line or spreads one entry per line.",
+      "oneOf": [
+        {
+          "enum": ["preserve"],
+          "type": "string"
+        },
+        {
+          "const": "auto",
+          "description": "One line where it fits `line-length`, else one entry per line.",
+          "type": "string"
+        },
+        {
+          "const": "always",
+          "description": "One entry per line.",
+          "type": "string"
+        },
+        {
+          "const": "never",
+          "description": "One line.",
+          "type": "string"
+        }
+      ]
     },
     "FilesTable": {
       "additionalProperties": false,
@@ -29,26 +56,33 @@
       "type": "object"
     },
     "FixRuleName": {
-      "description": "A fixable rule name accepted by `fix.unfixable`.",
+      "description": "A fixable rule name accepted by `lint.unfixable`.",
       "enum": [
         "braces",
         "brackets",
+        "colons",
         "commas",
         "comments",
         "comments-indentation",
         "document-end",
         "document-start",
         "empty-lines",
+        "hyphens",
+        "key-ordering",
         "new-line-at-end-of-file",
         "new-lines",
+        "octal-values",
         "quoted-strings",
-        "trailing-spaces"
+        "schema-dependent-values",
+        "trailing-spaces",
+        "truthy",
+        "yaml-directive"
       ],
       "type": "string"
     },
     "FixTable": {
       "additionalProperties": false,
-      "description": "TOML `[fix]` table.",
+      "description": "The deprecated `[fix]` table; its keys now live in `[lint]`.",
       "properties": {
         "fixable": {
           "items": {
@@ -66,21 +100,28 @@
       "type": "object"
     },
     "FixableRuleSelector": {
-      "description": "A rule selector accepted by `fix.fixable`.",
+      "description": "A rule selector accepted by `lint.fixable`.",
       "enum": [
         "ALL",
         "braces",
         "brackets",
+        "colons",
         "commas",
         "comments",
         "comments-indentation",
         "document-end",
         "document-start",
         "empty-lines",
+        "hyphens",
+        "key-ordering",
         "new-line-at-end-of-file",
         "new-lines",
+        "octal-values",
         "quoted-strings",
-        "trailing-spaces"
+        "schema-dependent-values",
+        "trailing-spaces",
+        "truthy",
+        "yaml-directive"
       ],
       "type": "string"
     },
@@ -98,6 +139,133 @@
         }
       ]
     },
+    "FormatTable": {
+      "additionalProperties": false,
+      "description": "The `[format]` table: `ryl format`'s targets.",
+      "not": {
+        "properties": {
+          "fold-long-lines": true,
+          "prose-wrap": true
+        },
+        "required": ["prose-wrap", "fold-long-lines"]
+      },
+      "properties": {
+        "brace-spacing": {
+          "default": false,
+          "description": "Whether to pad the inside of a non-empty flow mapping's braces with one space.",
+          "type": "boolean"
+        },
+        "comment-spacing": {
+          "default": 2,
+          "description": "Exact number of spaces between content and an inline comment.",
+          "maximum": 255,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "comment-starting-space": {
+          "$ref": "#/definitions/MarkerTarget",
+          "default": "add",
+          "description": "Whether to add a missing space after a comment's `#`."
+        },
+        "dash-on-own-line": {
+          "default": false,
+          "description": "Whether a block mapping in a block sequence starts on the line after its `-`.",
+          "type": "boolean"
+        },
+        "document-end": {
+          "$ref": "#/definitions/MarkerTarget",
+          "default": "preserve",
+          "description": "Whether to add a missing `...` document end marker."
+        },
+        "document-start": {
+          "$ref": "#/definitions/DocumentStartTarget",
+          "default": "preserve",
+          "description": "Whether to add, preserve or remove an optional first `---` marker."
+        },
+        "fold-long-lines": {
+          "default": false,
+          "description": "Whether to split plain, quoted and `>` scalar lines longer than `line-length` at spaces.",
+          "type": ["boolean", "null"]
+        },
+        "indent-sequences": {
+          "default": true,
+          "description": "Whether a block sequence under a mapping key is indented past the key.",
+          "type": "boolean"
+        },
+        "keep-quotes": {
+          "default": false,
+          "description": "Whether to keep optional quotes while selecting their quote style.",
+          "type": "boolean"
+        },
+        "line-ending": {
+          "$ref": "#/definitions/LineEndingTarget",
+          "default": "lf",
+          "description": "Line ending; `native` is the platform's, `auto` the one most of the file uses."
+        },
+        "mapping-expand": {
+          "$ref": "#/definitions/ExpandTarget",
+          "default": "preserve",
+          "description": "Line breaks inside flow mappings; `preserve` leaves each as written."
+        },
+        "mapping-style": {
+          "$ref": "#/definitions/CollectionStyleTarget",
+          "default": "preserve",
+          "description": "Collection style for mappings; `preserve` leaves each as written."
+        },
+        "max-blank-lines": {
+          "default": 2,
+          "description": "Most consecutive blank lines kept between content lines.",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "preview": {
+          "default": false,
+          "description": "Opt in to unstable style changes before a minor release promotes them to stable.",
+          "type": "boolean"
+        },
+        "property-order": {
+          "$ref": "#/definitions/PropertyOrderTarget",
+          "default": "preserve",
+          "description": "Order of a node's anchor and tag; `preserve` leaves each as written."
+        },
+        "prose": {
+          "description": "First-match scalar wrapping preferences; active only with `prose-wrap = \"always\"`.",
+          "items": {
+            "$ref": "#/definitions/ProseEntry"
+          },
+          "type": "array"
+        },
+        "prose-wrap": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProseWrap"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "preserve",
+          "description": "Whether to preserve, wrap or join physical prose lines."
+        },
+        "quote-style": {
+          "$ref": "#/definitions/QuoteStyleTarget",
+          "default": "single",
+          "description": "Preferred quote for strings that need quoting; `preserve` leaves quoting alone."
+        },
+        "sequence-expand": {
+          "$ref": "#/definitions/ExpandTarget",
+          "default": "preserve",
+          "description": "Line breaks inside flow sequences; `preserve` leaves each as written."
+        },
+        "sequence-style": {
+          "$ref": "#/definitions/CollectionStyleTarget",
+          "default": "preserve",
+          "description": "Collection style for sequences; `preserve` leaves each as written."
+        }
+      },
+      "type": "object"
+    },
     "IndentSequencesMode": {
       "enum": ["whatever", "consistent"],
       "type": "string"
@@ -111,6 +279,105 @@
           "$ref": "#/definitions/IndentSequencesMode"
         }
       ]
+    },
+    "KeyOrderEntry": {
+      "additionalProperties": false,
+      "description": "A configured key order for the mappings that both `files` and `path` select.",
+      "properties": {
+        "files": {
+          "description": "Globs matched like `per-file-ignores` keys; `!` excludes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "keys": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "path": {
+          "description": "`JSONPath` subset: `$`, `.name`, `['name']`, `[*]`, `.*`.",
+          "type": "string"
+        },
+        "unlisted": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Unlisted"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["files", "path", "keys"],
+      "type": "object"
+    },
+    "LineEndingTarget": {
+      "enum": ["lf", "cr-lf", "native", "auto"],
+      "type": "string"
+    },
+    "LintTable": {
+      "additionalProperties": false,
+      "description": "The `[lint]` table.",
+      "properties": {
+        "extend-safe-fixes": {
+          "description": "Rules whose unsafe fix `--fix` applies as if it were safe.",
+          "items": {
+            "$ref": "#/definitions/UnsafeFixRule"
+          },
+          "type": ["array", "null"]
+        },
+        "fixable": {
+          "description": "Rules `--fix` may fix (default `[\"ALL\"]`).",
+          "items": {
+            "$ref": "#/definitions/FixableRuleSelector"
+          },
+          "type": ["array", "null"]
+        },
+        "per-file-ignores": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/RuleSelector"
+            },
+            "type": "array"
+          },
+          "description": "Per-file rule ignores.",
+          "type": ["object", "null"]
+        },
+        "per-line-ignores": {
+          "description": "Per-line rule ignores: suppress rules on lines/files matching a pattern.",
+          "items": {
+            "$ref": "#/definitions/PerLineIgnore"
+          },
+          "type": ["array", "null"]
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RulesTable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rule configuration table."
+        },
+        "strict": {
+          "description": "Return exit code 2 when only warnings (no errors) are found (default false).",
+          "type": ["boolean", "null"]
+        },
+        "unfixable": {
+          "description": "Rules `--fix` must not fix, overriding `fixable`.",
+          "items": {
+            "$ref": "#/definitions/FixRuleName"
+          },
+          "type": ["array", "null"]
+        }
+      },
+      "type": "object"
     },
     "MarkdownTable": {
       "additionalProperties": false,
@@ -126,6 +393,10 @@
         }
       },
       "type": "object"
+    },
+    "MarkerTarget": {
+      "enum": ["add", "preserve"],
+      "type": "string"
     },
     "NewLinesType": {
       "enum": ["unix", "dos", "platform"],
@@ -237,7 +508,7 @@
         },
         "rules": {
           "items": {
-            "$ref": "#/definitions/PerLineRule"
+            "$ref": "#/definitions/RuleSelector"
           },
           "type": "array"
         }
@@ -245,16 +516,67 @@
       "required": ["rules"],
       "type": "object"
     },
-    "PerLineRule": {
-      "anyOf": [
+    "PropertyOrderTarget": {
+      "description": "The order a node's anchor and tag are written in.",
+      "oneOf": [
         {
-          "$ref": "#/definitions/AllRulesSelector"
+          "enum": ["preserve"],
+          "type": "string"
         },
         {
-          "$ref": "#/definitions/RuleName"
+          "const": "anchor-first",
+          "description": "`&a !!seq`, as eemeli's `yaml` and libfyaml write them.",
+          "type": "string"
+        },
+        {
+          "const": "tag-first",
+          "description": "`!!seq &a`, as prettier and the YAML spec's examples write them.",
+          "type": "string"
         }
-      ],
-      "description": "A `per-line-ignores` rule selector: a built-in rule name, or `ALL` to suppress\nevery rule on a matching line. Untagged so `\"ALL\"` and rule names share one list."
+      ]
+    },
+    "ProseEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "break-before": {
+          "description": "Literal tokens before which an existing single space may become a line break.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "files": {
+          "description": "File globs relative to the config directory; `!` excludes.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "path": {
+          "description": "`JSONPath` subset: `$`, `.name`, `['name']`, `[*]`, `.*`.",
+          "type": "string"
+        },
+        "protected-patterns": {
+          "default": [],
+          "description": "Regex matches in decoded scalar content are opaque to wrapping.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["files", "path", "break-before"],
+      "type": "object"
+    },
+    "ProseWrap": {
+      "enum": ["preserve", "always", "never"],
+      "type": "string"
+    },
+    "QuoteStyleTarget": {
+      "enum": ["single", "double", "preserve"],
+      "type": "string"
     },
     "QuoteType": {
       "enum": ["any", "single", "double", "consistent"],
@@ -330,20 +652,6 @@
       ],
       "description": "Common rule entry shape used by TOML config."
     },
-    "RuleEntryForCommentsOptions": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "$ref": "#/definitions/RuleSwitch"
-        },
-        {
-          "$ref": "#/definitions/RuleOptionsForCommentsOptions"
-        }
-      ],
-      "description": "Common rule entry shape used by TOML config."
-    },
     "RuleEntryForDocumentPresenceOptions": {
       "anyOf": [
         {
@@ -414,20 +722,6 @@
       ],
       "description": "Common rule entry shape used by TOML config."
     },
-    "RuleEntryForKeyOrderingOptions": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "$ref": "#/definitions/RuleSwitch"
-        },
-        {
-          "$ref": "#/definitions/RuleOptionsForKeyOrderingOptions"
-        }
-      ],
-      "description": "Common rule entry shape used by TOML config."
-    },
     "RuleEntryForLineLengthOptions": {
       "anyOf": [
         {
@@ -484,6 +778,34 @@
       ],
       "description": "Common rule entry shape used by TOML config."
     },
+    "RuleEntryForSchemaDependentValuesOptions": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/RuleSwitch"
+        },
+        {
+          "$ref": "#/definitions/RuleOptionsForSchemaDependentValuesOptions"
+        }
+      ],
+      "description": "Common rule entry shape used by TOML config."
+    },
+    "RuleEntryForSchemaOptions": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/RuleSwitch"
+        },
+        {
+          "$ref": "#/definitions/RuleOptionsForSchemaOptions"
+        }
+      ],
+      "description": "Common rule entry shape used by TOML config."
+    },
     "RuleEntryForTagsOptions": {
       "anyOf": [
         {
@@ -512,6 +834,20 @@
       ],
       "description": "Common rule entry shape used by TOML config."
     },
+    "RuleEntryForTomlCommentsOptions": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/RuleSwitch"
+        },
+        {
+          "$ref": "#/definitions/RuleOptionsForTomlCommentsOptions"
+        }
+      ],
+      "description": "Common rule entry shape used by TOML config."
+    },
     "RuleEntryForTomlHyphensOptions": {
       "anyOf": [
         {
@@ -536,6 +872,20 @@
         },
         {
           "$ref": "#/definitions/RuleOptionsForTomlKeyDuplicatesOptions"
+        }
+      ],
+      "description": "Common rule entry shape used by TOML config."
+    },
+    "RuleEntryForTomlKeyOrderingOptions": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/RuleSwitch"
+        },
+        {
+          "$ref": "#/definitions/RuleOptionsForTomlKeyOrderingOptions"
         }
       ],
       "description": "Common rule entry shape used by TOML config."
@@ -571,39 +921,6 @@
     "RuleLevel": {
       "description": "Rule severity override.",
       "enum": ["error", "warning"],
-      "type": "string"
-    },
-    "RuleName": {
-      "description": "A built-in lint rule name.",
-      "enum": [
-        "anchors",
-        "block-scalar-chomping",
-        "braces",
-        "brackets",
-        "colons",
-        "commas",
-        "comments",
-        "comments-indentation",
-        "document-end",
-        "document-start",
-        "empty-lines",
-        "empty-values",
-        "float-values",
-        "hyphens",
-        "indentation",
-        "key-duplicates",
-        "key-ordering",
-        "line-length",
-        "merge-keys",
-        "new-line-at-end-of-file",
-        "new-lines",
-        "octal-values",
-        "quoted-strings",
-        "tags",
-        "trailing-spaces",
-        "truthy",
-        "unicode-line-breaks"
-      ],
       "type": "string"
     },
     "RuleOptionsForBraceLikeOptions": {
@@ -790,52 +1107,6 @@
               "type": "null"
             }
           ]
-        }
-      },
-      "type": "object"
-    },
-    "RuleOptionsForCommentsOptions": {
-      "additionalProperties": false,
-      "description": "Common rule fields plus rule-specific options.",
-      "properties": {
-        "ignore": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/StringOrVec"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ignore-from-file": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/StringOrVec"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ignore-shebangs": {
-          "type": ["boolean", "null"]
-        },
-        "level": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RuleLevel"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "min-spaces-from-content": {
-          "type": ["integer", "null"]
-        },
-        "require-starting-space": {
-          "type": ["boolean", "null"]
         }
       },
       "type": "object"
@@ -1081,49 +1352,6 @@
       },
       "type": "object"
     },
-    "RuleOptionsForKeyOrderingOptions": {
-      "additionalProperties": false,
-      "description": "Common rule fields plus rule-specific options.",
-      "properties": {
-        "ignore": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/StringOrVec"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ignore-from-file": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/StringOrVec"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ignored-keys": {
-          "items": {
-            "type": "string"
-          },
-          "type": ["array", "null"]
-        },
-        "level": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RuleLevel"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "type": "object"
-    },
     "RuleOptionsForLineLengthOptions": {
       "additionalProperties": false,
       "description": "Common rule fields plus rule-specific options.",
@@ -1297,6 +1525,110 @@
       },
       "type": "object"
     },
+    "RuleOptionsForSchemaDependentValuesOptions": {
+      "additionalProperties": false,
+      "description": "Common rule fields plus rule-specific options.",
+      "properties": {
+        "forbid-leading-zero-decimals": {
+          "type": ["boolean", "null"]
+        },
+        "forbid-sexagesimal": {
+          "type": ["boolean", "null"]
+        },
+        "forbid-single-letter-booleans": {
+          "type": ["boolean", "null"]
+        },
+        "forbid-timestamps": {
+          "type": ["boolean", "null"]
+        },
+        "forbid-underscored-numbers": {
+          "type": ["boolean", "null"]
+        },
+        "ignore": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-from-file": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "RuleOptionsForSchemaOptions": {
+      "additionalProperties": false,
+      "description": "Common rule fields plus rule-specific options.",
+      "properties": {
+        "directives": {
+          "type": ["boolean", "null"]
+        },
+        "ignore": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-from-file": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pins": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": ["object", "null"]
+        },
+        "schemas": {
+          "items": {
+            "$ref": "#/definitions/SchemaAssociation"
+          },
+          "type": ["array", "null"]
+        }
+      },
+      "type": "object"
+    },
     "RuleOptionsForTagsOptions": {
       "additionalProperties": false,
       "description": "Common rule fields plus rule-specific options.",
@@ -1350,7 +1682,13 @@
       "additionalProperties": false,
       "description": "Common rule fields plus rule-specific options.",
       "properties": {
+        "forbid-aliases": {
+          "type": ["boolean", "null"]
+        },
         "forbid-ambiguous-anchor-alias-names": {
+          "type": ["boolean", "null"]
+        },
+        "forbid-anchors-and-aliases": {
           "type": ["boolean", "null"]
         },
         "forbid-duplicated-anchors": {
@@ -1391,6 +1729,55 @@
               "type": "null"
             }
           ]
+        }
+      },
+      "type": "object"
+    },
+    "RuleOptionsForTomlCommentsOptions": {
+      "additionalProperties": false,
+      "description": "Common rule fields plus rule-specific options.",
+      "properties": {
+        "ignore": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-from-file": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-shebangs": {
+          "type": ["boolean", "null"]
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max-spaces-from-content": {
+          "type": ["integer", "null"]
+        },
+        "min-spaces-from-content": {
+          "type": ["integer", "null"]
+        },
+        "require-starting-space": {
+          "type": ["boolean", "null"]
         }
       },
       "type": "object"
@@ -1484,6 +1871,55 @@
       },
       "type": "object"
     },
+    "RuleOptionsForTomlKeyOrderingOptions": {
+      "additionalProperties": false,
+      "description": "Common rule fields plus rule-specific options.",
+      "properties": {
+        "ignore": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignore-from-file": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StringOrVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ignored-keys": {
+          "items": {
+            "type": "string"
+          },
+          "type": ["array", "null"]
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "orders": {
+          "items": {
+            "$ref": "#/definitions/KeyOrderEntry"
+          },
+          "type": ["array", "null"]
+        }
+      },
+      "type": "object"
+    },
     "RuleOptionsForTomlQuotedStringsOptions": {
       "additionalProperties": false,
       "description": "Common rule fields plus rule-specific options.",
@@ -1504,6 +1940,12 @@
           "type": ["array", "null"]
         },
         "extra-required": {
+          "items": {
+            "type": "string"
+          },
+          "type": ["array", "null"]
+        },
+        "extra-required-flow": {
           "items": {
             "type": "string"
           },
@@ -1608,6 +2050,43 @@
       },
       "type": "object"
     },
+    "RuleSelector": {
+      "description": "A rule id, or `ALL` for every rule.",
+      "enum": [
+        "ALL",
+        "anchors",
+        "block-scalar-chomping",
+        "braces",
+        "brackets",
+        "colons",
+        "commas",
+        "comments",
+        "comments-indentation",
+        "document-end",
+        "document-start",
+        "empty-lines",
+        "empty-values",
+        "float-values",
+        "hyphens",
+        "indentation",
+        "key-duplicates",
+        "key-ordering",
+        "line-length",
+        "merge-keys",
+        "new-line-at-end-of-file",
+        "new-lines",
+        "octal-values",
+        "quoted-strings",
+        "schema-dependent-values",
+        "tags",
+        "schema",
+        "trailing-spaces",
+        "truthy",
+        "unicode-line-breaks",
+        "yaml-directive"
+      ],
+      "type": "string"
+    },
     "RuleSwitch": {
       "description": "Shorthand rule enable/disable syntax.",
       "enum": ["enable", "disable"],
@@ -1616,6 +2095,16 @@
     "RulesTable": {
       "description": "Built-in rule table for TOML config.",
       "properties": {
+        "ALL": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleSwitch"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "anchors": {
           "anyOf": [
             {
@@ -1679,7 +2168,7 @@
         "comments": {
           "anyOf": [
             {
-              "$ref": "#/definitions/RuleEntryForCommentsOptions"
+              "$ref": "#/definitions/RuleEntryForTomlCommentsOptions"
             },
             {
               "type": "null"
@@ -1779,7 +2268,7 @@
         "key-ordering": {
           "anyOf": [
             {
-              "$ref": "#/definitions/RuleEntryForKeyOrderingOptions"
+              "$ref": "#/definitions/RuleEntryForTomlKeyOrderingOptions"
             },
             {
               "type": "null"
@@ -1846,6 +2335,26 @@
             }
           ]
         },
+        "schema": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleEntryForSchemaOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema-dependent-values": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleEntryForSchemaDependentValuesOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "tags": {
           "anyOf": [
             {
@@ -1885,9 +2394,56 @@
               "type": "null"
             }
           ]
+        },
+        "yaml-directive": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RuleEntryForDocumentPresenceOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "type": "object"
+    },
+    "SchemaAssociation": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "path": {}
+          },
+          "required": ["path"]
+        },
+        {
+          "properties": {
+            "url": {}
+          },
+          "required": ["url"]
+        }
+      ],
+      "properties": {
+        "files": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "path": {
+          "type": ["string", "null"]
+        },
+        "url": {
+          "type": ["string", "null"]
+        }
+      },
+      "type": "object"
+    },
+    "SourceVersion": {
+      "enum": ["1.1", "1.2"],
+      "type": "string"
     },
     "SpacesMode": {
       "enum": ["consistent"],
@@ -1917,6 +2473,10 @@
       ],
       "description": "A TOML field that accepts either one string or a list of strings."
     },
+    "TargetVersion": {
+      "enum": ["1.1", "1.2"],
+      "type": "string"
+    },
     "TruthyAllowedValue": {
       "enum": [
         "YES",
@@ -1939,11 +2499,47 @@
         "off"
       ],
       "type": "string"
+    },
+    "Unlisted": {
+      "description": "Where keys missing from `keys` go: sorted after the listed keys, or kept in place.",
+      "enum": ["sort", "keep"],
+      "type": "string"
+    },
+    "UnsafeFixRule": {
+      "description": "A rule with an unsafe fix, accepted by `lint.extend-safe-fixes`.",
+      "enum": ["octal-values", "schema-dependent-values", "truthy"],
+      "type": "string"
     }
   },
   "additionalProperties": false,
   "description": "JSON Schema root for `ryl` TOML configuration.",
   "properties": {
+    "cache-dir": {
+      "description": "Directory for the on-disk result cache.",
+      "type": ["string", "null"]
+    },
+    "exclude": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StringOrVec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Files to skip, as one multi-line string or a list of gitignore-style patterns."
+    },
+    "exclude-from-file": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StringOrVec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Paths to files that contain exclude patterns, such as `.gitignore`."
+    },
     "files": {
       "anyOf": [
         {
@@ -1964,7 +2560,19 @@
           "type": "null"
         }
       ],
-      "description": "Native fix policy."
+      "deprecated": true,
+      "description": "Deprecated: use `lint.fixable` and `lint.unfixable`."
+    },
+    "format": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/FormatTable"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Formatter settings."
     },
     "ignore": {
       "anyOf": [
@@ -1975,7 +2583,8 @@
           "type": "null"
         }
       ],
-      "description": "Ignore patterns, either as one multi-line string or a list of patterns."
+      "deprecated": true,
+      "description": "Deprecated: use `exclude`."
     },
     "ignore-from-file": {
       "anyOf": [
@@ -1986,7 +2595,31 @@
           "type": "null"
         }
       ],
-      "description": "Paths to files that contain ignore patterns."
+      "deprecated": true,
+      "description": "Deprecated: use `exclude-from-file`."
+    },
+    "indent-width": {
+      "description": "The formatter's indent width, and the default for `[lint.rules.indentation] spaces`.",
+      "maximum": 255,
+      "minimum": 1,
+      "type": ["integer", "null"]
+    },
+    "line-length": {
+      "description": "The formatter's line length, and the default for `[lint.rules.line-length] max`.",
+      "maximum": 65535,
+      "minimum": 1,
+      "type": ["integer", "null"]
+    },
+    "lint": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LintTable"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Linter settings: rule configuration, fix policy, and rule ignores."
     },
     "locale": {
       "description": "Locale identifier used by diagnostics.",
@@ -2017,15 +2650,17 @@
     "per-file-ignores": {
       "additionalProperties": {
         "items": {
-          "$ref": "#/definitions/RuleName"
+          "$ref": "#/definitions/RuleSelector"
         },
         "type": "array"
       },
-      "description": "Per-file rule ignores.",
+      "deprecated": true,
+      "description": "Deprecated: use `lint.per-file-ignores`.",
       "type": ["object", "null"]
     },
     "per-line-ignores": {
-      "description": "Per-line rule ignores: suppress rules on lines/files matching a pattern.",
+      "deprecated": true,
+      "description": "Deprecated: use `lint.per-line-ignores`.",
       "items": {
         "$ref": "#/definitions/PerLineIgnore"
       },
@@ -2040,7 +2675,34 @@
           "type": "null"
         }
       ],
-      "description": "Rule configuration table."
+      "deprecated": true,
+      "description": "Deprecated: use `lint.rules`."
+    },
+    "source-version": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SourceVersion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The YAML version an undeclared document's author meant; it steers only the\ndirection of unsafe fixes (default `\"1.2\"`)."
+    },
+    "target-version": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TargetVersion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The oldest YAML version whose readers must load `ryl format` and `--fix` output\nto the same values (default `\"1.1\"`)."
+    },
+    "unsafe-fixes": {
+      "description": "Apply unsafe fixes with `--fix` and `--diff` (default false).",
+      "type": ["boolean", "null"]
     }
   },
   "title": "ryl TOML config",

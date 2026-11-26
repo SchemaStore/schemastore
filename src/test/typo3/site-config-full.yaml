@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=../../schemas/json/typo3.json
+imports:
+  - resource: 'EXT:my_sitepackage/Configuration/Routes/Default.yaml'
+rootPageId: 1
+base: 'https://www.example.com/'
+baseVariants:
+  - base: 'https://example.ddev.site/'
+    condition: 'applicationContext == "Development"'
+  - base: 'https://staging.example.com/'
+    condition: 'applicationContext == "Production/Staging"'
+websiteTitle: 'Example Inc.'
+dependencies:
+  - typo3/fluid-styled-content
+  - typo3/seo-sitemap
+  - my-vendor/my-sitepackage
+languages:
+  - title: English
+    enabled: true
+    languageId: 0
+    base: /
+    locale: en_US.UTF-8
+    navigationTitle: English
+    hreflang: en-US
+    flag: us
+    websiteTitle: ''
+  - title: Deutsch
+    enabled: true
+    languageId: 1
+    base: /de/
+    locale: de_DE.UTF-8
+    navigationTitle: Deutsch
+    hreflang: de-DE
+    flag: de
+    fallbackType: fallback
+    fallbacks: '0'
+    baseVariants:
+      - base: 'https://example.ddev.site/de/'
+        condition: 'applicationContext == "Development"'
+  - title: Français
+    enabled: false
+    languageId: 2
+    base: /fr/
+    locale: fr-FR
+    flag: fr
+    fallbackType: strict
+    fallbacks: [1, 0]
+errorHandling:
+  - errorCode: 404
+    errorHandler: Page
+    errorContentSource: 't3://page?uid=10'
+  - errorCode: 403
+    errorHandler: LoginRedirect
+    loginRedirectTarget: 't3://page?uid=20'
+    loginRedirectParameter: redirect_url
+  - errorCode: 503
+    errorHandler: Fluid
+    errorFluidTemplate: 'EXT:my_sitepackage/Resources/Private/Templates/Error/Maintenance.fluid.html'
+    errorFluidTemplatesRootPath: 'EXT:my_sitepackage/Resources/Private/Templates/Error/'
+    errorFluidLayoutsRootPath: 'EXT:my_sitepackage/Resources/Private/Layouts/'
+    errorFluidPartialsRootPath: 'EXT:my_sitepackage/Resources/Private/Partials/'
+  - errorCode: 0
+    errorHandler: PHP
+    errorPhpClassFQCN: 'MyVendor\MySitepackage\Error\PageErrorHandler'
+routes:
+  - route: robots.txt
+    type: staticText
+    content: |
+      User-agent: *
+      Disallow: /typo3/
+      Sitemap: https://www.example.com/sitemap.xml
+  - route: sitemap.xml
+    type: uri
+    source: 't3://page?uid=1&type=1533906435'
+  - route: favicon.ico
+    type: asset
+    asset: 'EXT:my_sitepackage/Resources/Public/Icons/favicon.ico'
+routeEnhancers:
+  News:
+    type: Extbase
+    limitToPages:
+      - 12
+      - 'page["doktype"] == 254'
+    extension: News
+    plugin: Pi1
+    routes:
+      - routePath: '/'
+        _controller: 'News::list'
+      - routePath: '/page-{page}'
+        _controller: 'News::list'
+        _arguments:
+          page: currentPage
+      - routePath: '/{news-title}'
+        _controller: 'News::detail'
+        _arguments:
+          news-title: news
+    defaultController: 'News::list'
+    defaults:
+      page: '0'
+    requirements:
+      page: '\d+'
+    aspects:
+      news-title:
+        type: PersistedAliasMapper
+        tableName: tx_news_domain_model_news
+        routeFieldName: path_segment
+      page:
+        type: StaticRangeMapper
+        start: '1'
+        end: '100'
+  PageTypeSuffix:
+    type: PageType
+    default: '/'
+    index: ''
+    map:
+      '/': 0
+      sitemap.xml: 1533906435
+      feed.xml: 9818
+settings:
+  redirects:
+    autoUpdateSlugs: true
+    autoCreateRedirects: true
+    redirectTTL: 0
+    httpStatusCode: 301

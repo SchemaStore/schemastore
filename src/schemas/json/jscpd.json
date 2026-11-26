@@ -323,6 +323,71 @@
           "type": "string"
         }
       ]
+    },
+    "crossFormats": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "identifierMatching": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "enum": ["blind", "consistent"]
+        }
+      ]
+    },
+    "isolationGroups": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "deadCodeCategories": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "all",
+          "unused-export",
+          "unused-file",
+          "unused-import",
+          "unused-member",
+          "unused-symbol"
+        ]
+      }
+    },
+    "deadCodeSection": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        }
+      ]
     }
   },
   "properties": {
@@ -587,6 +652,184 @@
       "default": false,
       "description": "show debug information and do not run detection in v4; silently ignored by v5 config compatibility handling"
     },
+    "crossFormats": {
+      "$ref": "#/definitions/crossFormats",
+      "description": "detect clones across formats: semicolon-separated groups of comma-separated formats (e.g. javascript,typescript;css,scss), or the groups as an array; the preset js-ts stands for javascript,jsx,typescript,tsx"
+    },
+    "sarifErrorTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "report SARIF results as error for clones with at least this many tokens; smaller clones stay warning"
+    },
+    "skipIsolated": {
+      "$ref": "#/definitions/isolationGroups",
+      "description": "skip clones between different folders of the same isolation group, e.g. [[\"packages/a\", \"packages/b\"]]"
+    },
+    "baseline": {
+      "type": "string",
+      "description": "clone baseline file (e.g. .jscpd-baseline.json): clones whose fingerprint is absent from it are reported as new; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#baseline"
+    },
+    "baselineFromRef": {
+      "type": "string",
+      "description": "compare against an ephemeral baseline built from a git ref's tree (e.g. origin/main): clones absent from it are reported as new"
+    },
+    "failOnNewClones": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "exit with code 1 when more than this many new clones are found; needs baseline, baselineFromRef or --changed"
+    },
+    "ignoreIdentifiers": {
+      "$ref": "#/definitions/identifierMatching",
+      "default": false,
+      "description": "treat identifiers as equal, so clones that differ only in variable, function or type names are found; true or consistent matches only where every name stands for one name on the other side, blind lets any name match any other"
+    },
+    "ignoreLiterals": {
+      "type": "boolean",
+      "default": false,
+      "description": "treat all string literals as equal and all numeric literals as equal"
+    },
+    "ignoreAnnotations": {
+      "type": "boolean",
+      "default": false,
+      "description": "skip annotations and decorators (@Name, @Name(...)) before detection"
+    },
+    "maxGapLines": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "merge clones of one file pair separated by at most this many unmatched lines in both files into one near-miss clone, reported as similar; 0 disables"
+    },
+    "similarity": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "description": "report pairs of functions whose normalized syntax trees have at least this share of subtrees in common as similar clones"
+    },
+    "failOnEmpty": {
+      "type": "boolean",
+      "default": false,
+      "description": "exit with code 1 when the scan analyzes no files"
+    },
+    "history": {
+      "type": "string",
+      "description": "git revision range scanned by --history for the duplication and health trend (e.g. v5.0.0..HEAD); see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#history"
+    },
+    "historySince": {
+      "type": "string",
+      "description": "select the commits of --history since this date (e.g. 2026-01-01)"
+    },
+    "historyEvery": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 1,
+      "description": "keep every Nth commit of the --history series, counted from the newest"
+    },
+    "historyLimit": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 30,
+      "description": "maximum number of commits in the --history series"
+    },
+    "deadCode": {
+      "$ref": "#/definitions/deadCodeSection",
+      "description": "dead-code settings; true is the short form of {\"enabled\": true}, which runs dead-code detection instead of clone detection; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#in-the-config-file"
+    },
+    "basta": {
+      "$ref": "#/definitions/deadCodeSection",
+      "description": "alias for deadCode. dead-code settings; true is the short form of {\"enabled\": true}, which runs dead-code detection instead of clone detection; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#in-the-config-file"
+    },
+    "deadCodeCategories": {
+      "$ref": "#/definitions/deadCodeCategories",
+      "description": "dead-code findings to report"
+    },
+    "entry": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "treat files matching these globs as dead-code entry points"
+    },
+    "health": {
+      "type": "object",
+      "description": "tuning of the health score: halfLife and weight of duplication, deadCode and complexity, complexFile, and metrics from other tools; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#health-score"
+    },
+    "healthInput": {
+      "type": "string",
+      "description": "JSON file with metrics from other tools (coverage, tests, security) to include in the health score"
+    },
+    "includeTests": {
+      "type": "boolean",
+      "default": false,
+      "description": "report dead code inside test, fixture and example files"
+    },
+    "includeEntryExports": {
+      "type": "boolean",
+      "default": false,
+      "description": "report exports of entry-point files, which are usually a public API"
+    },
+    "kind": {
+      "type": "array",
+      "items": {
+        "enum": ["ast", "exact", "gap", "renamed", "semantic", "similar"]
+      },
+      "description": "report only clones of these kinds (default: all); see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#filtering-by-kind-with---kind"
+    },
+    "minConfidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "drop dead-code findings below this confidence"
+    },
+    "semantic": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        }
+      ],
+      "description": "find semantic clones (experimental) with a code embedding model: true, or an object of semantic-clone settings; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#semantic-clones-with---semantic-experimental"
+    },
+    "lsp": {
+      "type": "object",
+      "description": "the analyses --lsp runs in this project: clones, ast, semantic, deadCode and complexity; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#editors-with---lsp"
+    },
+    "minNodes": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 20,
+      "description": "the fewest nodes a function's normalized syntax tree needs for similarity to compare it"
+    },
+    "reportName": {
+      "type": "string",
+      "minLength": 1,
+      "default": "jscpd-report",
+      "description": "base name of the report files, without the extension"
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "rules that keep the code of a module, a folder, a file or a method out of other places; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#boundaries"
+    },
+    "summary": {
+      "type": "boolean",
+      "default": false,
+      "description": "print a codebase summary: top files and folders by tokens, lines, size and complexity"
+    },
+    "summaryTop": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 10,
+      "description": "number of entries in each summary top list"
+    },
+    "summaryBy": {
+      "enum": ["complexity", "lines", "size", "tokens"],
+      "default": "tokens",
+      "description": "summary sort metric"
+    },
     "min-tokens": {
       "type": "integer",
       "default": 50,
@@ -667,6 +910,105 @@
       "$ref": "#/definitions/formatMapping",
       "default": {},
       "description": "v5 kebab-case alias for formatsNames. custom mapping from formats to exact filenames without relying on extensions (e.g. makefile:Makefile,GNUmakefile); see https://github.com/kucherenko/jscpd/blob/master/FORMATS.md"
+    },
+    "max-gap-lines": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "v5 kebab-case alias for maxGapLines. merge clones of one file pair separated by at most this many unmatched lines in both files into one near-miss clone, reported as similar; 0 disables"
+    },
+    "min-nodes": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 20,
+      "description": "v5 kebab-case alias for minNodes. the fewest nodes a function's normalized syntax tree needs for similarity to compare it"
+    },
+    "health-input": {
+      "type": "string",
+      "description": "v5 kebab-case alias for healthInput. JSON file with metrics from other tools (coverage, tests, security) to include in the health score"
+    },
+    "ignore-identifiers": {
+      "$ref": "#/definitions/identifierMatching",
+      "default": false,
+      "description": "v5 kebab-case alias for ignoreIdentifiers. treat identifiers as equal, so clones that differ only in variable, function or type names are found; true or consistent matches only where every name stands for one name on the other side, blind lets any name match any other"
+    },
+    "ignore-literals": {
+      "type": "boolean",
+      "default": false,
+      "description": "v5 kebab-case alias for ignoreLiterals. treat all string literals as equal and all numeric literals as equal"
+    },
+    "ignore-annotations": {
+      "type": "boolean",
+      "default": false,
+      "description": "v5 kebab-case alias for ignoreAnnotations. skip annotations and decorators (@Name, @Name(...)) before detection"
+    },
+    "skip-isolated": {
+      "$ref": "#/definitions/isolationGroups",
+      "description": "v5 kebab-case alias for skipIsolated. skip clones between different folders of the same isolation group, e.g. [[\"packages/a\", \"packages/b\"]]"
+    },
+    "cross-formats": {
+      "$ref": "#/definitions/crossFormats",
+      "description": "v5 kebab-case alias for crossFormats. detect clones across formats: semicolon-separated groups of comma-separated formats (e.g. javascript,typescript;css,scss), or the groups as an array; the preset js-ts stands for javascript,jsx,typescript,tsx"
+    },
+    "sarif-error-tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "v5 kebab-case alias for sarifErrorTokens. report SARIF results as error for clones with at least this many tokens; smaller clones stay warning"
+    },
+    "report-name": {
+      "type": "string",
+      "minLength": 1,
+      "default": "jscpd-report",
+      "description": "v5 kebab-case alias for reportName. base name of the report files, without the extension"
+    },
+    "fail-on-new-clones": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "v5 kebab-case alias for failOnNewClones. exit with code 1 when more than this many new clones are found; needs baseline, baselineFromRef or --changed"
+    },
+    "baseline-from-ref": {
+      "type": "string",
+      "description": "v5 kebab-case alias for baselineFromRef. compare against an ephemeral baseline built from a git ref's tree (e.g. origin/main): clones absent from it are reported as new"
+    },
+    "history-since": {
+      "type": "string",
+      "description": "v5 kebab-case alias for historySince. select the commits of --history since this date (e.g. 2026-01-01)"
+    },
+    "history-every": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 1,
+      "description": "v5 kebab-case alias for historyEvery. keep every Nth commit of the --history series, counted from the newest"
+    },
+    "history-limit": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 30,
+      "description": "v5 kebab-case alias for historyLimit. maximum number of commits in the --history series"
+    },
+    "dead-code": {
+      "$ref": "#/definitions/deadCodeSection",
+      "description": "v5 kebab-case alias for deadCode. dead-code settings; true is the short form of {\"enabled\": true}, which runs dead-code detection instead of clone detection; see https://github.com/kucherenko/jscpd/blob/master/docs/rust.md#in-the-config-file"
+    },
+    "dead-code-categories": {
+      "$ref": "#/definitions/deadCodeCategories",
+      "description": "v5 kebab-case alias for deadCodeCategories. dead-code findings to report"
+    },
+    "min-confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "v5 kebab-case alias for minConfidence. drop dead-code findings below this confidence"
+    },
+    "include-tests": {
+      "type": "boolean",
+      "default": false,
+      "description": "v5 kebab-case alias for includeTests. report dead code inside test, fixture and example files"
+    },
+    "include-entry-exports": {
+      "type": "boolean",
+      "default": false,
+      "description": "v5 kebab-case alias for includeEntryExports. report exports of entry-point files, which are usually a public API"
     }
   },
   "type": "object"

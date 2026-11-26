@@ -2,18 +2,34 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://www.schemastore.org/commit-check.json",
   "title": "commit-check",
-  "description": "Configuration for commit-check, a commit message, branch naming, and push linter\nhttps://github.com/commit-check/commit-check",
+  "description": "Configuration for commit-check, a commit message, branch naming, and push linter\nhttps://commit-check.com/configuration/",
   "type": "object",
   "additionalProperties": true,
   "properties": {
     "inherit_from": {
       "type": "string",
-      "description": "Inherit configuration from a parent file. Supports github: shorthand (e.g., github:owner/repo:path/to/cchk.toml), HTTPS URL, or local file path.\nhttps://github.com/commit-check/commit-check/blob/main/docs/configuration.rst#organization-level-configuration-inherit_from"
+      "description": "Inherit configuration from a parent file, whose settings this file overrides. Supports github: shorthand (e.g., github:owner/repo:path/to/cchk.toml or github:owner/repo@ref:path/to/cchk.toml), an HTTPS URL, or a local file path. Only one level is followed.\nhttps://commit-check.com/configuration/#inheriting-a-shared-config"
+    },
+    "warn": {
+      "description": "Checks or rule IDs (in any case) to report without failing the run, e.g. [\"branch\", \"CC003\"]. A name that matches no rule is a configuration error.\nhttps://commit-check.com/configuration/#report-a-rule-without-enforcing-it",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string",
+          "description": "A single check or rule ID."
+        }
+      ],
+      "default": []
     },
     "commit": {
       "type": "object",
       "title": "Commit rules",
-      "description": "Settings for commit message validation.\nhttps://github.com/commit-check/commit-check/blob/main/docs/configuration.rst",
+      "description": "Settings for commit message validation.\nhttps://commit-check.com/configuration/#commit",
       "additionalProperties": true,
       "properties": {
         "conventional_commits": {
@@ -24,31 +40,44 @@
         "message_pattern": {
           "type": "string",
           "default": "",
-          "description": "Custom regex pattern for commit message validation. When set (non-empty), this replaces the auto-generated Conventional Commits regex entirely. Useful for enforcing custom formats such as JIRA smart commits (e.g., ^PROJ-\\\\d+: .+)."
+          "description": "Custom regex pattern for commit message validation. When set (non-empty), this replaces the auto-generated Conventional Commits regex entirely. Useful for enforcing custom formats such as JIRA smart commits (e.g., ^PROJ-\\d+: .+).\nhttps://commit-check.com/rules/#cc001"
         },
         "subject_capitalized": {
           "type": "boolean",
-          "default": true,
-          "description": "Subject must start with a capital letter."
+          "default": false,
+          "description": "Subject must start with a capital letter.\nhttps://commit-check.com/rules/#cc002"
         },
         "subject_imperative": {
           "type": "boolean",
-          "default": true,
-          "description": "Subject must be in imperative mood.\nhttps://github.com/commit-check/commit-check/blob/main/commit_check/imperatives.py"
+          "default": false,
+          "description": "Subject must be in imperative mood.\nhttps://commit-check.com/rules/#cc003"
         },
         "subject_max_length": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Maximum length of the subject line. No limit by default."
+          "minimum": 0,
+          "default": 80,
+          "description": "Maximum length of the subject line, not counting the \" (#123)\" a GitHub squash merge adds. Commits by dependabot[bot] and renovate[bot] skip it. 0 turns the check off.\nhttps://commit-check.com/rules/#cc004"
         },
         "subject_min_length": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Minimum length of the subject line. No limit by default."
+          "minimum": 0,
+          "default": 5,
+          "description": "Minimum length of the subject line, not counting the \" (#123)\" a GitHub squash merge adds. Commits by dependabot[bot] and renovate[bot] skip it. 0 turns the check off.\nhttps://commit-check.com/rules/#cc005"
         },
         "allow_commit_types": {
-          "type": "array",
-          "items": { "type": "string" },
+          "description": "Allowed commit types when conventional_commits is true.\nhttps://commit-check.com/rules/#cc001",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string",
+              "description": "A comma-separated list."
+            }
+          ],
           "default": [
             "feat",
             "fix",
@@ -59,57 +88,107 @@
             "chore",
             "perf",
             "build",
-            "ci"
-          ],
-          "description": "Allowed commit types when conventional_commits is true."
+            "ci",
+            "revert"
+          ]
         },
         "allow_merge_commits": {
           "type": "boolean",
           "default": true,
-          "description": "Allow merge commits."
+          "description": "Allow merge commits.\nhttps://commit-check.com/rules/#cc006"
         },
         "allow_revert_commits": {
           "type": "boolean",
           "default": true,
-          "description": "Allow revert commits."
+          "description": "Allow the Revert \"...\" and Reapply \"...\" commits git revert writes.\nhttps://commit-check.com/rules/#cc007"
         },
         "allow_empty_commits": {
           "type": "boolean",
-          "default": false,
-          "description": "Allow empty commits."
+          "default": true,
+          "description": "Allow empty commits.\nhttps://commit-check.com/rules/#cc008"
         },
         "allow_fixup_commits": {
           "type": "boolean",
           "default": true,
-          "description": "Allow fixup commits (e.g., fixup! <commit message>)."
+          "description": "Allow fixup commits: fixup!, squash! and amend! subjects.\nhttps://commit-check.com/rules/#cc009"
         },
         "allow_wip_commits": {
           "type": "boolean",
-          "default": false,
-          "description": "Allow work-in-progress commits (e.g., WIP: <commit message>)."
+          "default": true,
+          "description": "Allow work-in-progress commits (e.g., WIP: <commit message>).\nhttps://commit-check.com/rules/#cc010"
         },
         "require_body": {
           "type": "boolean",
           "default": false,
-          "description": "Require a body in the commit message."
+          "description": "Require a body in the commit message.\nhttps://commit-check.com/rules/#cc011"
+        },
+        "body_max_line_length": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Maximum length of a body line. Lines with a URL, a single word with no space (a path, a hash) and the trailer block are not counted, and commits by dependabot[bot] and renovate[bot] skip it. 0 turns the check off.\nhttps://commit-check.com/rules/#cc018"
         },
         "require_signed_off_by": {
           "type": "boolean",
           "default": false,
-          "description": "Require Signed-off-by line in the commit message footer."
+          "description": "Require Signed-off-by line in the commit message footer.\nhttps://commit-check.com/rules/#cc012"
         },
         "ignore_authors": {
+          "description": "List of commit authors or co-authors (Co-authored-by: lines) to bypass all commit checks. Useful for bots (e.g., dependabot[bot], coderabbitai[bot]).\nhttps://commit-check.com/configuration/#commit",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string",
+              "description": "A comma-separated list."
+            }
+          ],
+          "default": []
+        },
+        "author_email_pattern": {
+          "type": "string",
+          "default": "^.+@.+$",
+          "description": "Custom regex for the author email check (--author-email).\nhttps://commit-check.com/rules/#cc102"
+        },
+        "author_name_pattern": {
+          "type": "string",
+          "default": "",
+          "description": "Custom regex for the author name check (--author-name). When empty, the built-in default pattern is used.\nhttps://commit-check.com/rules/#cc101"
+        },
+        "ai_attribution": {
+          "description": "AI attribution policy. \"forbid\" rejects any commit carrying AI attribution (CC013). \"disclose\" accepts AI assistance disclosed with one of ai_disclosure_trailers (CC014) and rejects the tool as a co-author (CC015) or sign-off (CC016). \"ignore\" disables the check.\nhttps://commit-check.com/guides/policies/#ai-attribution",
+          "type": "string",
+          "enum": ["ignore", "forbid", "disclose"],
+          "default": "ignore"
+        },
+        "ai_disclosure_trailers": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": [],
-          "description": "List of commit authors or co-authors (Co-authored-by: lines) to bypass all commit checks. Useful for bots (e.g., dependabot[bot], coderabbitai[bot])."
+          "items": {
+            "type": "string"
+          },
+          "default": ["Assisted-by", "Generated-by"],
+          "description": "The trailers that disclose AI assistance when ai_attribution is \"disclose\". The first one is what a correction is written with. Signed-off-by is refused.\nhttps://commit-check.com/rules/#cc014"
+        },
+        "ai_disclosure_pattern": {
+          "type": "string",
+          "default": "",
+          "description": "A regex the disclosure trailer's value must match when ai_attribution is \"disclose\", e.g. ^\\S+/\\S+$ for an agent/model format. Empty accepts any value.\nhttps://commit-check.com/rules/#cc014"
+        },
+        "require_verified": {
+          "type": "boolean",
+          "default": false,
+          "description": "GitHub App only. Every commit has to show Verified on GitHub. The CLI and the Action do not check signatures.\nhttps://commit-check.com/guides/github-app/#verified-commits"
         }
       }
     },
     "branch": {
       "type": "object",
       "title": "Branch rules",
-      "description": "Settings for branch naming validation.\nhttps://conventional-branch.github.io/",
+      "description": "Settings for branch naming validation.\nhttps://commit-check.com/configuration/#branch",
       "additionalProperties": true,
       "properties": {
         "conventional_branch": {
@@ -117,9 +196,25 @@
           "default": true,
           "description": "Enforce Conventional Branch specification.\nhttps://conventional-branch.github.io/"
         },
+        "require_description_grammar": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also hold the description after <type>/ to the Conventional Branch grammar: lowercase letters and digits, words joined by single hyphens, dots only inside a word.\nhttps://commit-check.com/rules/#cc201"
+        },
         "allow_branch_types": {
-          "type": "array",
-          "items": { "type": "string" },
+          "description": "Allowed branch types when conventional_branch is true. The default is a superset of the Conventional Branch spec's types.\nhttps://commit-check.com/rules/#cc201",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string",
+              "description": "A comma-separated list."
+            }
+          ],
           "default": [
             "feature",
             "bugfix",
@@ -127,38 +222,196 @@
             "release",
             "chore",
             "feat",
-            "fix"
-          ],
-          "description": "Allowed branch types when conventional_branch is true."
+            "fix",
+            "build",
+            "ci",
+            "docs",
+            "perf",
+            "refactor",
+            "test",
+            "style",
+            "ai",
+            "claude",
+            "codex",
+            "copilot",
+            "cursor",
+            "agents",
+            "dependabot",
+            "renovate"
+          ]
         },
         "allow_branch_names": {
-          "type": "array",
-          "items": { "type": "string" },
-          "default": [],
-          "description": "Additional standalone branch names allowed when conventional_branch is true (e.g., [\"develop\", \"staging\"]). By default, master, main, HEAD, and PR-* are always allowed."
+          "description": "Additional standalone branch names allowed when conventional_branch is true (e.g., [\"staging\", \"production\"]). main, master, develop, HEAD, PR-* and gh-readonly-queue/* are always allowed.\nhttps://commit-check.com/rules/#cc201",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string",
+              "description": "A comma-separated list."
+            }
+          ],
+          "default": []
         },
         "require_rebase_target": {
           "type": "string",
-          "description": "Target branch for rebase requirement. If not set, no rebase validation is performed."
+          "default": "",
+          "description": "Target branch for rebase requirement. If not set, no rebase validation is performed.\nhttps://commit-check.com/rules/#cc202"
         },
         "ignore_authors": {
-          "type": "array",
-          "items": { "type": "string" },
-          "default": [],
-          "description": "List of authors to bypass branch checks."
+          "description": "List of authors to bypass branch checks.\nhttps://commit-check.com/configuration/#branch",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string",
+              "description": "A comma-separated list."
+            }
+          ],
+          "default": []
         }
       }
     },
     "push": {
       "type": "object",
       "title": "Push rules",
-      "description": "Settings for push validation (pre-push hook).\nhttps://github.com/commit-check/commit-check",
+      "description": "Settings for push validation (pre-push hook).\nhttps://commit-check.com/configuration/#push",
       "additionalProperties": true,
       "properties": {
         "allow_force_push": {
           "type": "boolean",
           "default": true,
-          "description": "Allow force pushes. Set to false to block force pushes when used as a pre-push hook or with --no-force-push."
+          "description": "Allow force pushes. Set to false to block force pushes when used as a pre-push hook or with --no-force-push.\nhttps://commit-check.com/rules/#cc301"
+        }
+      }
+    },
+    "tag": {
+      "type": "object",
+      "title": "Tag rules",
+      "description": "Settings for tag name validation.\nhttps://commit-check.com/configuration/#tag",
+      "additionalProperties": true,
+      "properties": {
+        "regex": {
+          "type": "string",
+          "default": "^v?(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$",
+          "description": "Pattern a tag name must match. The default is the official SemVer pattern with an optional leading v. An empty value disables the pattern match.\nhttps://commit-check.com/rules/#cc401"
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "title": "File rules",
+      "description": "Settings for the committed files checks.\nhttps://commit-check.com/configuration/#files",
+      "additionalProperties": true,
+      "properties": {
+        "max_size": {
+          "description": "Largest a committed file may be, in bytes or with a B, KB, MB or GB suffix (binary units, so 5MB is 5 x 1024^2). Empty disables the rule.\nhttps://commit-check.com/rules/#cc302",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "A size in bytes."
+            }
+          ],
+          "default": ""
+        },
+        "prohibited_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "fnmatch patterns a committed path may not match, e.g. [\"*.pem\", \".env\", \"id_rsa*\"]. A bare pattern also matches the file name at any depth. Empty disables the rule.\nhttps://commit-check.com/rules/#cc303"
+        },
+        "max_path_length": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Longest a committed file path may be, in characters. 0 disables the rule.\nhttps://commit-check.com/rules/#cc304"
+        }
+      }
+    },
+    "pull_request": {
+      "type": "object",
+      "title": "Pull request rules",
+      "description": "Settings for pull requests, read by the GitHub App and, for ai_declaration_checkboxes, by the CLI and the Action.\nhttps://commit-check.com/configuration/#pull_request",
+      "additionalProperties": true,
+      "properties": {
+        "check": {
+          "description": "GitHub App only. \"commits\" checks every commit of a pull request on its own; \"squash\" checks the one message a squash merge would land.\nhttps://commit-check.com/configuration/#pull-requests-every-commit-or-the-squash-message",
+          "type": "string",
+          "enum": ["commits", "squash"],
+          "default": "commits"
+        },
+        "ai_declaration_checkboxes": {
+          "description": "The texts of the AI declaration boxes in the pull request template, one per box. When set, a pull request description must tick exactly one of them.\nhttps://commit-check.com/rules/#cc501",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "A single box's text."
+            }
+          ],
+          "default": []
+        },
+        "body_ai_attribution": {
+          "type": "boolean",
+          "default": false,
+          "description": "GitHub App only. Check the pull request description against the AI rules (CC013 to CC016), and its AI declaration boxes when ai_declaration_checkboxes is set.\nhttps://commit-check.com/guides/github-app/#ai-written-pull-requests"
+        },
+        "ai_label": {
+          "description": "GitHub App only. Label a pull request an AI tool wrote any of: true for the ai-assisted label, or the label's name. Labels are only added, never removed.\nhttps://commit-check.com/guides/github-app/#ai-written-pull-requests",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "The label's name."
+            }
+          ],
+          "default": false
+        }
+      }
+    },
+    "jira": {
+      "type": "object",
+      "title": "Jira rules",
+      "description": "GitHub App only; the CLI and the Action ignore this section.\nhttps://commit-check.com/guides/github-app/#jira-ticket-references",
+      "additionalProperties": true,
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Every commit message, or the squash message, has to reference a Jira ticket.\nhttps://commit-check.com/guides/github-app/#jira-ticket-references"
+        },
+        "pattern": {
+          "type": "string",
+          "default": "[A-Z]+-\\d+",
+          "description": "Regex for a ticket reference, e.g. PROJ-\\d+ for one project.\nhttps://commit-check.com/guides/github-app/#jira-ticket-references"
+        },
+        "suggestion": {
+          "type": "string",
+          "default": "",
+          "description": "The fix shown when the reference is missing. Empty uses the built-in text.\nhttps://commit-check.com/guides/github-app/#jira-ticket-references"
         }
       }
     }

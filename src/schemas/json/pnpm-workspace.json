@@ -6,6 +6,12 @@
   "description": "JSON schema for pnpm-workspace.yaml files",
   "type": "object",
   "definitions": {
+    "envVariable": {
+      "$comment": "https://pnpm.io/settings",
+      "description": "An environment variable placeholder that pnpm expands when it reads the file: ${NAME}, ${NAME-fallback} (fallback when NAME is unset) or ${NAME:-fallback} (fallback when NAME is unset or empty).",
+      "type": "string",
+      "pattern": "^\\$\\{[^${}]+\\}$"
+    },
     "dependency": {
       "$comment": "https://www.schemastore.org/package.json",
       "description": "Dependencies are specified with a simple hash of package name to version range.\nThe version range is a string which has one or more space-separated descriptors.\nDependencies can also be identified with a tarball or git URL.\n",
@@ -108,6 +114,14 @@
           ]
         }
       }
+    },
+    "includedSettings": {
+      "description": "Settings delegated to an included source.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
     }
   },
   "properties": {
@@ -117,6 +131,65 @@
       "uniqueItems": true,
       "items": {
         "type": "string"
+      }
+    },
+    "include": {
+      "$comment": "https://pnpm.io/config-includes",
+      "description": "Delegates settings to other YAML files and to config dependencies. Added in pnpm v12.15.0.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "patternProperties": {
+        "^\\.\\.?/.*\\.(ya?ml)$": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/includedSettings"
+            },
+            {
+              "const": "*"
+            }
+          ]
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/includedSettings"
+      }
+    },
+    "bootConfig": {
+      "description": "Sets the release-age and trust policy pnpm applies when installing config dependencies and the pnpm version pinned by the packageManager field, before the regular configuration is loaded. Added in pnpm v12.15.0.",
+      "type": "object",
+      "properties": {
+        "minimumReleaseAge": {
+          "description": "The minimum number of minutes that must pass after a version is published before pnpm will install it.",
+          "type": "number"
+        },
+        "minimumReleaseAgeExclude": {
+          "description": "Packages that are exempt from the minimumReleaseAge check.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "trustPolicy": {
+          "description": "When set to no-downgrade, installation fails if a package's trust level has decreased compared to previous releases.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["off", "no-downgrade"]
+            }
+          ]
+        },
+        "trustPolicyExclude": {
+          "description": "Packages or versions that are allowed to install even if they don't satisfy the trust policy requirement.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "catalog": {
@@ -159,6 +232,11 @@
     "overrides": {
       "description": "Used to override any dependency in the dependency graph.",
       "type": "object"
+    },
+    "warnUnusedOverrides": {
+      "description": "When true, an install that resolves the whole dependency graph warns about every entry in overrides that matched no dependency. Only overrides declared in pnpm-workspace.yaml are checked; entries added by a config dependency or an updateConfig hook are not. Added in pnpm v12.23.0.",
+      "type": "boolean",
+      "default": true
     },
     "packageExtensions": {
       "description": "Used to extend the existing package definitions with additional information.",
@@ -373,29 +451,40 @@
       }
     },
     "supportedArchitectures": {
-      "description": "Specifies architectures for which you'd like to install optional dependencies, even if they don't match the architecture of the system running the install.",
-      "type": "object",
-      "properties": {
-        "os": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+      "description": "Specifies architectures for which you'd like to install optional dependencies, even if they don't match the architecture of the system running the install. Either a mapping of os, cpu, and libc lists, or a list of exact platform tags to prepare.",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "os": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cpu": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "libc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         },
-        "cpu": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "libc": {
+        {
+          "description": "Exact platforms to prepare, as platform tags: <os>-<cpu>, then the C library for Linux musl (linux-x64-musl), then floors and ABI such as linux-x64-manylinux_2_28, darwin-arm64-macos_14_0, win32-x64-windows_10_0, linux-x64-napi8, or linux-x64-node127. current includes the platform running the install. A list that names exactly one platform, without current, also decides which platform variant of a package pnpm links. Added in pnpm v12.5.0.",
           "type": "array",
           "items": {
             "type": "string"
           }
         }
-      },
-      "additionalProperties": false
+      ]
     },
     "ignoredOptionalDependencies": {
       "description": "A list of optional dependencies that the install should be skipped.",
@@ -403,6 +492,11 @@
       "items": {
         "type": "string"
       }
+    },
+    "forceIgnoresPlatform": {
+      "description": "When true, pnpm install --force also installs optional dependencies whose os, cpu, or libc do not match the host. When false, --force refetches every package but still skips optional dependencies built for other platforms. pnpm v11 behaved as if this setting were true; prefer supportedArchitectures to install optional dependencies for other platforms on purpose. Added in pnpm v12.7.0.",
+      "type": "boolean",
+      "default": false
     },
     "executionEnv": {
       "type": "object",
@@ -445,22 +539,113 @@
       "type": "string"
     },
     "nodeLinker": {
-      "description": "Defines what linker should be used for installing Node packages.",
+      "description": "Defines what linker should be used for installing Node packages. Scalar values remain supported. The object form selects a linker with type and groups linker-specific options with it: isolated accepts hoist, hoisted accepts hoistingLimits, and loaded accepts excluded. Configuration sources replace the selected linker; options from a higher-priority object override the same options from lower-priority sources. PNPM_CONFIG_NODE_LINKER and --config.node-linker accept the object as JSON.",
       "oneOf": [
         {
           "type": "string",
-          "enum": ["isolated", "hoisted", "pnp"]
+          "enum": ["isolated", "hoisted", "pnp", "loaded"]
+        },
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "isolated"
+                },
+                "hoist": {
+                  "description": "true selects the defaults: public: [] and private: ['*']. false disables both. An object sets the public and private pattern lists; public patterns take precedence when both match.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "public": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "private": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "hoisted"
+                },
+                "hoistingLimits": {
+                  "description": "none hoists as far as possible, workspaces only as far as each workspace package, dependencies only up to each workspace package's direct dependencies.",
+                  "type": "string",
+                  "enum": ["none", "workspaces", "dependencies"]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "loaded"
+                },
+                "excluded": {
+                  "description": "With nodeLinker.type: loaded, materialize these package names and their complete dependency trees in the global virtual store. Names match all installed versions and peer contexts. Packages outside these trees load directly from the store. Build approval settings still apply.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
         }
       ]
     },
     "nodeExperimentalPackageMap": {
-      "description": "When true, pnpm injects the generated node_modules/.package-map.json into pnpm-managed Node.js script environments by adding Node's --experimental-package-map option to NODE_OPTIONS. see https://pnpm.io/settings/node-modules#nodeexperimentalpackagemap",
+      "description": "When true, pnpm injects the generated node_modules/.package-map.json into pnpm-managed Node.js script environments by adding Node's --experimental-package-map option to NODE_OPTIONS. see https://pnpm.io/settings/node-modules#nodeexperimentalpackagemap. Deprecated since pnpm v12.13.0: use nodePackageMap.mode instead. true is the same as mode: load and false the same as mode: off; nodePackageMap wins when both are set in the same place.",
       "type": "boolean"
     },
     "nodePackageMapType": {
-      "description": "Controls how node_modules/.package-map.json is generated. standard - only declared dependencies are available through the package map. loose - also maps packages that are reachable through the installed node_modules layout, which can allow undeclared hoisted dependencies to resolve.",
+      "description": "Controls how node_modules/.package-map.json is generated. standard - only declared dependencies are available through the package map. loose - also maps packages that are reachable through the installed node_modules layout, which can allow undeclared hoisted dependencies to resolve. Deprecated since pnpm v12.13.0: use nodePackageMap.type instead; nodePackageMap wins when both are set in the same place.",
       "type": "string",
       "enum": ["standard", "loose"]
+    },
+    "nodePackageMap": {
+      "description": "Groups the package-map settings, which control node_modules/.package-map.json during isolated and hoisted installs. Replaces nodeExperimentalPackageMap and nodePackageMapType, which still work; nodePackageMap takes precedence when both are set in the same place. Added in pnpm v12.13.0.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "off - pnpm writes no package map, and an install removes a map that an earlier install left. write-only - pnpm writes the package map for other tools to read; Node.js does not load it. load - pnpm also adds Node's --experimental-package-map option to NODE_OPTIONS in pnpm-managed Node.js script environments.",
+          "type": "string",
+          "enum": ["off", "write-only", "load"],
+          "default": "off"
+        },
+        "type": {
+          "description": "Controls how node_modules/.package-map.json is generated. standard - only declared dependencies are available through the package map. loose - also maps packages that are reachable through the installed node_modules layout, which can allow undeclared hoisted dependencies to resolve.",
+          "type": "string",
+          "enum": ["standard", "loose"],
+          "default": "standard"
+        }
+      }
     },
     "symlink": {
       "description": "When symlink is set to false, pnpm creates a virtual store directory without any symlinks. It is a useful setting together with nodeLinker=pnp.",
@@ -484,11 +669,14 @@
       "type": "number"
     },
     "virtualStoreType": {
-      "description": "Determines where the virtual store is located. When set to project, a separate virtual store is created in each project's node_modules/.pnpm. When set to global, a single store is shared by every project on the machine, with each project's node_modules holding only symlinks into it. Added in pnpm v11.23.0.",
+      "description": "Determines where the virtual store is located. When set to project, a separate virtual store is created in each project's node_modules/.pnpm. When set to global, a single store is shared by every project on the machine, with each project's node_modules holding only symlinks into it. The value may also be an environment variable placeholder such as ${PNPM_VIRTUAL_STORE_TYPE:-global}. Added in pnpm v11.23.0.",
       "oneOf": [
         {
           "type": "string",
           "enum": ["project", "global"]
+        },
+        {
+          "$ref": "#/definitions/envVariable"
         }
       ]
     },
@@ -525,6 +713,12 @@
       "description": "Makes pnpm install work against a read-only package store (such as a Nix store or OCI image layer). When enabled, pnpm opens the store's SQLite database in immutable mode and never writes to the store. Works best together with --offline and --frozen-lockfile; incompatible with --force. Added in pnpm v11.7.0.",
       "type": "boolean"
     },
+    "storeIndexFormat": {
+      "description": "How the store records which files each package has. sqlite - one index.db database; SQLite's locking only works between processes on one machine, so this format is for a store on a local disk. files - one file per package in the store's index directory, for a store on a network filesystem that several machines use at once, such as a store shared by CI jobs; each entry is written to a temporary file and renamed into place, so concurrent jobs need no locks. The format belongs to the store: once the index directory exists, every pnpm process uses it whatever its own setting says, and the packages recorded in an existing index.db are not carried over when switching. pnpm v11 reads only index.db. Added in pnpm v12.13.0.",
+      "type": "string",
+      "enum": ["sqlite", "files"],
+      "default": "sqlite"
+    },
     "strictStorePkgContentCheck": {
       "description": "Some registries allow the exact same content to be published under different package names and/or versions. ",
       "type": "boolean"
@@ -535,6 +729,40 @@
     },
     "lockfile": {
       "description": "When set to false, pnpm won't read or generate a pnpm-lock.yaml file.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "includeResolutionSettings": {
+              "description": "When set to true, pnpm records autoDedupe, dedupeInjectedDeps, dedupePeerDependents and linkWorkspacePackages in the settings section of pnpm-lock.yaml. A lockfile that records other values than the current settings is outdated: pnpm install resolves it again, and pnpm install --frozen-lockfile fails. Added in pnpm v12.10.0.",
+              "type": "boolean",
+              "default": false
+            },
+            "integrityTarget": {
+              "description": "With integrityTarget: tar, pnpm-lock.yaml pins the hash of every package's uncompressed tar instead of the compressed .tgz, so the lockfile no longer changes when a registry recompresses its tarballs or serves them as tars. pnpm learns a version's tar hash from the store or by downloading it once, and pnpm audit signatures ties the tar hash to the signed .tgz integrity. Added in pnpm v12.15.0.",
+              "type": "string",
+              "enum": ["tar"]
+            },
+            "format": {
+              "description": "The format pnpm writes pnpm-lock.yaml in. v13 is the experimental JSON-like format planned for pnpm 13: JSON indented with tabs, with a trailing comma after every entry, which is still valid YAML. It has one packages entry per package version in place of the packages and snapshots sections, so updating a peer dependency changes only the lines that record its version. pnpm reads lockfiles in both formats whatever this setting is, but pnpm versions without this setting cannot read a v13 lockfile. Added in pnpm v12.19.0.",
+              "type": "string",
+              "enum": ["v9", "v13"],
+              "default": "v9"
+            }
+          }
+        }
+      ]
+    },
+    "lockfileDir": {
+      "description": "The directory in which pnpm-lock.yaml is written, instead of the directory of pnpm-workspace.yaml. A lockfileDir that points at the default lockfile directory installs the same way as leaving it unset.",
+      "type": "string"
+    },
+    "frozenLockfile": {
+      "description": "When true, installation fails if the lockfile is missing or needs to be updated.",
       "type": "boolean"
     },
     "preferFrozenLockfile": {
@@ -544,6 +772,11 @@
     "lockfileIncludeTarballUrl": {
       "description": "Add the full URL to the package's tarball to every entry in pnpm-lock.yaml.",
       "type": "boolean"
+    },
+    "maxTarballUnpackedSize": {
+      "description": "Caps the total number of bytes the files of one package may unpack to. Added in pnpm v12.15.0.",
+      "type": "number",
+      "default": 4294967296
     },
     "gitBranchLockfile": {
       "description": "When set to true, the generated lockfile name after installation will be named based on the current branch name to completely avoid merge conflicts.",
@@ -605,8 +838,18 @@
       "type": "number"
     },
     "noProxy": {
-      "description": "A comma-separated string of domain extensions that a proxy should not be used for.",
-      "type": "string"
+      "description": "A comma-separated string of domain extensions that a proxy should not be used for, or a boolean. A null value leaves the setting unset. Since pnpm v12.23.0, any other type fails validation.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "strictSsl": {
       "description": "Whether or not to do SSL key validation when making requests to the registry via HTTPS.",
@@ -648,9 +891,24 @@
       "description": "When true, any missing non-optional peer dependencies are automatically installed.",
       "type": "boolean"
     },
+    "autoInstallPeersFromHighestMatch": {
+      "description": "When set to true, pnpm joins conflicting peer dependency ranges with || and installs the highest version that satisfies any of them. For example, if one dependency requires react@^16.0.0 and another requires react@^17.0.0, pnpm installs the highest react@17. Only semver ranges can be joined; conflicting paths, aliases, or tags leave the peer dependency missing, and identical non-semver specifiers are preserved.",
+      "type": "boolean",
+      "default": false
+    },
     "dedupePeerDependents": {
       "description": "When this setting is set to true, packages with peer dependencies will be deduplicated after peers resolution.",
       "type": "boolean"
+    },
+    "projectScopedOptionalPeers": {
+      "description": "When true, a project gets a missing optional peer dependency only if the project's own dependencies already install a version of it. The workspace root's dependencies also count if resolvePeersFromWorkspaceRoot is true; a version that only another workspace project's dependencies install does not. dedupePeerDependents keeps deduplicating everything else, and this setting has no effect when dedupePeerDependents is false, because optional peers are already resolved only from the project's own dependencies then. Changing this setting changes the lockfile. Added in pnpm v12.19.0.",
+      "type": "boolean",
+      "default": false
+    },
+    "addMissingPeerTypes": {
+      "description": "When true, every peer dependency of a dependency also makes the matching @types package an optional peer of it: pnpm links the project's @types package (e.g. @types/react for a peer dependency on react) next to every package that peer-depends on the library, as with any optional peer dependency. This lets TypeScript find the types of a peer dependency when the global virtual store is on. A package that already declares the @types package keeps its own declaration, and no @types package nothing in the workspace depends on is installed. Changing this setting changes the lockfile. Added in pnpm v12.12.0.",
+      "type": "boolean",
+      "default": false
     },
     "strictPeerDependencies": {
       "description": "If this is enabled, commands will fail if there is a missing or invalid peer dependency in the tree.",
@@ -668,6 +926,11 @@
           "enum": ["always", "auto", "never"]
         }
       ]
+    },
+    "progress": {
+      "description": "Controls whether dependency and download progress lines are printed during installation. When set to false (or --no-progress is passed), progress output is suppressed. Warnings, lifecycle script output, and the dependency summary are still printed. Added in pnpm v12.6.0.",
+      "type": "boolean",
+      "default": true
     },
     "loglevel": {
       "description": "Any logs at or higher than the given level will be shown. ",
@@ -741,8 +1004,15 @@
               "description": "Save a package's build output to the cache. Default true.",
               "type": "boolean"
             },
+            "exclude": {
+              "description": "Packages whose build depends on something pnpm cannot include in the cache key, such as the system libraries a native addon links against. pnpm builds the listed packages in every project and never restores or saves their builds through the side-effects cache, locally or on a remoteCache server. Entries use the same name, @scope/*, and name@version patterns as minimumReleaseAgeExclude. Added in pnpm v12.14.0.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "remote": {
-              "description": "Reuse builds across machines by restoring signed, organization-scoped artifacts through a pnpr server instead of running the package's lifecycle scripts locally. Added in pnpm v11.25.0 and v12.0.0. Fields describing the act of signing (publish, keyId, builderId, imageDigest, architectureBaseline, buildEnv, trustedKeys, privateKey) are refused in pnpm-workspace.yaml and read from the global configuration file or the environment instead.",
+              "description": "Reuse builds across machines by restoring signed, organization-scoped artifacts instead of running the package's lifecycle scripts locally. The artifacts live on the server remoteCache names: a pnpr server, or, since pnpm v12.12.0, a server that speaks the Turborepo Remote Cache API. Added in pnpm v11.25.0 and v12.0.0. The organization and the trust material are set under remoteCache since pnpm v12.12.0 and can still be set here, where they lived before; remoteCache wins where both set a field. Fields describing the act of signing (publish, keyId, builderId, imageDigest, architectureBaseline, buildEnv, trustedKeys, privateKey) are refused in pnpm-workspace.yaml and read from the global configuration file or the environment instead.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -766,6 +1036,17 @@
     "sideEffectsCacheReadonly": {
       "description": "Only use the side effects cache if present, do not create it for new packages. The older spelling of sideEffectsCache: { read: true, write: false }.",
       "type": "boolean"
+    },
+    "remoteCache": {
+      "description": "The server that shares task results and dependency builds between machines, and the keys every shared artifact is signed and verified with. Read by both sideEffectsCache.remote and the task cache of pnpm pipeline. Only org may be set in pnpm-workspace.yaml; the fields naming the server and its trust material (url, team, trustedKeys, publish, privateKey, keyId, builderId, imageDigest, architectureBaseline, buildEnv) are read from the global configuration file or the PNPM_REMOTE_CACHE_* environment variables instead, and setting them here fails with ERR_PNPM_WORKSPACE_REMOTE_CACHE_TRUST. Added in pnpm v12.12.0.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "org": {
+          "description": "The organization that owns the artifacts. On a pnpr server, one of the organizations it declares under artifacts.orgs. It also names the organization pnpm pipeline --report records a run under.",
+          "type": "string"
+        }
+      }
     },
     "unsafePerm": {
       "description": "Set to true to enable UID/GID switching when running package scripts. If set explicitly to false, then installing as a non-root user will fail.",
@@ -966,6 +1247,27 @@
       "description": "If true, pnpm will fail if no packages match the filter",
       "default": false
     },
+    "changedFilesIgnorePattern": {
+      "description": "Glob patterns of changed files to ignore when filtering for the projects changed since a commit or branch.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "testPattern": {
+      "description": "Glob patterns of test files. When the changed files of a project all match them, the \"changed since\" filter leaves out the projects that depend on it.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "legacyDirFiltering": {
+      "description": "When true, `{<dir>}` filter selectors use the legacy behavior: the selector names a directory and matches every project in the subtree below it. By default `{<dir>}` is matched as a glob pattern, so `{packages/*}` selects the projects one level below packages/ and a `**` reaches deeper. Only applies to user-written selectors; the workspace-root selectors pnpm generates are always matched as globs.",
+      "type": "boolean",
+      "default": false
+    },
     "forceLegacyDeploy": {
       "description": "By default, pnpm deploy will try creating a dedicated lockfile from a shared lockfile for deployment. If this setting is set to true, the legacy deploy behavior will be used.",
       "type": "boolean"
@@ -979,8 +1281,13 @@
         }
       ]
     },
+    "saveTypes": {
+      "description": "When set to true, pnpm add saves available @types/* packages in devDependencies alongside registry dependencies. Packages that declare bundled TypeScript types are skipped. Added in pnpm v12.6.0.",
+      "type": "boolean",
+      "default": false
+    },
     "tag": {
-      "description": "If you pnpm add a package and you don't provide a specific version, then it will install the package at the version registered under the tag from this setting.",
+      "description": "If you pnpm add a package and you don't provide a specific version, then it will install the package at the version registered under the tag from this setting. Since pnpm v12.23.0, pnpm publish also reads it from pnpm-workspace.yaml, the global config.yaml, or PNPM_CONFIG_TAG when --tag is not passed.",
       "type": "string"
     },
     "globalDir": {
@@ -1033,6 +1340,23 @@
       "description": "Explicitly tells pnpm whether the current environment is a Continuous Integration system, overriding pnpm's automatic CI detection. Added in pnpm v10.12.1.",
       "type": "boolean"
     },
+    "macosBackup": {
+      "description": "On macOS, exclude newly created pnpm directories from Time Machine backups by marking them with the com.apple.metadata:com_apple_backup_excludeItem extended attribute. Read from the global configuration file or the PNPM_CONFIG_MACOS_BACKUP_* environment variables; ignored in project pnpm-workspace.yaml files. Added in pnpm v12.6.0.",
+      "type": "object",
+      "properties": {
+        "excludeModulesDir": {
+          "description": "When true on macOS, newly created node_modules, virtual-store, and similar directories are marked so Time Machine skips them.",
+          "type": "boolean",
+          "default": false
+        },
+        "excludeStoreDir": {
+          "description": "When true on macOS, newly created package-store directories are marked so Time Machine skips them.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
     "preferSymlinkedExecutables": {
       "description": "Create symlinks to executables in node_modules/.bin instead of command shims. This setting is ignored on Windows, where only command shims work.",
       "type": "boolean"
@@ -1062,6 +1386,11 @@
       "description": "When deploying a package or installing a local package, all files of the package are copied.",
       "type": "boolean"
     },
+    "autoDedupe": {
+      "description": "When set to true, pnpm install and pnpm add deduplicate compatible dependency versions during installation. If a dependency appears at multiple versions and one version satisfies every range in the workspace, pnpm picks that version for all of them. Frozen installs (--frozen-lockfile) leave the lockfile unchanged; deduplication only runs when the lockfile is being written. Added in pnpm v12.6.0.",
+      "type": "boolean",
+      "default": false
+    },
     "dedupeDirectDeps": {
       "description": "When set to true, dependencies that are already symlinked to the root node_modules directory of the workspace will not be symlinked to subproject node_modules directories.",
       "type": "boolean"
@@ -1083,8 +1412,18 @@
       "type": "boolean"
     },
     "publishBranch": {
-      "description": "The primary branch of the repository which is used for publishing the latest changes.",
+      "description": "The primary branch of the repository which is used for publishing the latest changes. Since pnpm v12.23.0, an empty value allows both master and main.",
       "type": "string"
+    },
+    "publishWaitTimeout": {
+      "description": "After uploading a package, wait up to this many milliseconds for the published version and its tarball to become available from the registry. If they are not available in time, the command fails. 0 disables the check. When publishing recursively, pnpm confirms that a package is available before it publishes the packages that depend on it. Added in pnpm v12.7.0.",
+      "type": "number",
+      "default": 0
+    },
+    "access": {
+      "description": "Sets the default for pnpm publish --access. When set, it takes precedence over publishConfig.access. Configure it in pnpm-workspace.yaml or the global config.yaml, or with PNPM_CONFIG_ACCESS. Read from configuration since pnpm v12.23.0.",
+      "type": "string",
+      "enum": ["public", "restricted"]
     },
     "versioning": {
       "description": "Versioning settings for pnpm's native workspace release management, used by `pnpm change` and recursive `pnpm version`.",
@@ -1106,6 +1445,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "includePrivatePackages": {
+          "description": "When false, pnpm change leaves private packages out of the packages it offers, and naming one on the command line fails. A private package can still be bumped as a dependent. Added in pnpm v12.23.0.",
+          "type": "boolean",
+          "default": true
         },
         "maxBump": {
           "description": "Caps the bump that a release from the current checkout may apply, after dependent propagation and fixed-group resolution.",
@@ -1193,7 +1537,7 @@
       "type": "boolean"
     },
     "minimumReleaseAge": {
-      "description": "minimumReleaseAge defines the minimum number of minutes that must pass after a version is published before pnpm will install it. This applies to all dependencies, including transitive ones.",
+      "description": "minimumReleaseAge defines the minimum number of minutes that must pass after a version is published before pnpm will install it. This applies to all dependencies, including transitive ones. The age is counted back from referenceTime when that setting is set.",
       "type": "number"
     },
     "minimumReleaseAgeExclude": {
@@ -1203,6 +1547,11 @@
       "items": {
         "type": "string"
       }
+    },
+    "referenceTime": {
+      "description": "The reference time, as an RFC 3339 timestamp, used to evaluate time-dependent settings. minimumReleaseAge and trustPolicyIgnoreAfter count back from this time during resolution and lockfile verification. When unset, pnpm uses the current time. Set it in pnpm-workspace.yaml or with PNPM_CONFIG_REFERENCE_TIME; the global config.yaml does not apply it. A value that is not a timestamp, or is more than 10 minutes in the future, fails the command. Added in pnpm v12.23.0.",
+      "type": "string",
+      "format": "date-time"
     },
     "minimumReleaseAgeStrict": {
       "description": "Controls how pnpm behaves when no version of a dependency satisfies the minimumReleaseAge constraint within the requested range.\nhttps://pnpm.io/settings#minimumreleaseagestrict",
@@ -1246,7 +1595,7 @@
       "type": "boolean"
     },
     "trustPolicyIgnoreAfter": {
-      "description": "Allows ignoring the trust policy check for packages published more than the specified number of minutes ago. This is useful when enabling strict trust policies, as it allows older versions of packages (which may lack a process for publishing with signatures or provenance) to be installed without manual exclusion, assuming they are safe due to their age.",
+      "description": "Allows ignoring the trust policy check for packages published more than the specified number of minutes ago. This is useful when enabling strict trust policies, as it allows older versions of packages (which may lack a process for publishing with signatures or provenance) to be installed without manual exclusion, assuming they are safe due to their age. The age is counted back from referenceTime when that setting is set.",
       "type": "number"
     },
     "auditLevel": {
@@ -1298,9 +1647,9 @@
                 "enum": ["cargo"]
               },
               "serverType": {
-                "description": "The software serving this registry: `npm` behaves like registry.npmjs.org, which serves a scoped package from the percent-encoded path as well as the unencoded one; `artifactory` repeats the scope in a scoped package's tarball filename.",
+                "description": "The software serving this registry: `npm` behaves like registry.npmjs.org, which serves a scoped package from the percent-encoded path as well as the unencoded one; `artifactory` repeats the scope in a scoped package's tarball filename; `pnpr` serves uncompressed tars with zstd or gzip content coding, and keeps tarball URLs out of pnpm-lock.yaml (since pnpm v12.15.0).",
                 "type": "string",
-                "enum": ["npm", "artifactory"]
+                "enum": ["npm", "artifactory", "pnpr"]
               },
               "supportsTimeField": {
                 "description": "Whether this registry's abbreviated metadata carries the `time` field. registry.npmjs.org does not; Verdaccio and several proxies do.",
@@ -1327,6 +1676,11 @@
         "type": "string",
         "format": "uri"
       }
+    },
+    "pnprServer": {
+      "description": "URL of a pnpr server for install acceleration. When set, pnpm install offloads dependency resolution to the remote server: pnpm sends its workspace manifests and registry configuration, the server resolves the dependency graph and returns the lockfile, while tarballs are downloaded directly from their registries. If the server refuses a setting the install uses, or cannot return the lockfile format pnpm reads, pnpm prints a warning and resolves locally. May also be set with the --config.pnprServer=<url> command-line option or the PNPM_CONFIG_PNPR_SERVER environment variable.",
+      "type": "string",
+      "format": "uri"
     },
     "virtualStoreOnly": {
       "description": "When set to true, pnpm populates the virtual store without creating importer symlinks, hoisting, bin links, or running lifecycle scripts. This is useful for pre-populating a store (e.g., in Nix builds) without creating unnecessary project-level artifacts. pnpm fetch uses this mode internally.",
@@ -1373,6 +1727,58 @@
           "enum": ["none", "workspaces", "dependencies"]
         }
       ]
+    },
+    "permissions": {
+      "description": "What each dependency may do, keyed by package. The keys have the same forms as the keys of allowBuilds. false records a denial, so the package is not offered for approval again. pnpm approve writes these entries. Added in pnpm v12.11.0.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "build": {
+            "description": "The package may run its build scripts. Outranks the package's allowBuilds entry.",
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "skills": {
+            "description": "pnpm may link the agent skills the package ships into the project's agent skill directories. true links every skill the package ships, false links none, and a list of skill names links exactly those. A skill outside the list is not offered for approval again. The list form was added in pnpm v12.18.0.",
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "skills": {
+      "description": "Agent skills that approved dependencies ship. Added in pnpm v12.11.0.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dirs": {
+          "description": "The directories, relative to the workspace root, that pnpm links approved agent skills into. When set, it replaces the detected directories, and pnpm creates the ones that are missing. An empty list turns agent skills off.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "additionalProperties": false

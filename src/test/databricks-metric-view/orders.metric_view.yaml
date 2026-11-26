@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=../../schemas/json/databricks-metric-view.json
+# A metric view over an e-commerce orders table.
+version: 1.1
+comment: Order KPIs for the commerce team
+source: main.commerce.orders
+filter: source.is_test = false
+
+joins:
+  - name: customer
+    source: main.commerce.customers
+    'on': source.customer_id = customer.id
+    joins:
+      - name: country
+        source: main.commerce.countries
+        'on': customer.country_code = country.code
+
+fields:
+  - name: order_date
+    expr: CAST(source.ordered_at AS DATE)
+    display_name: Order date
+    format:
+      type: date
+      date_format: year_month_day
+  - name: country
+    expr: country.name
+    synonyms: [market, nation]
+
+measures:
+  - name: revenue
+    expr: SUM(source.amount)
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places: { type: exact, places: 2 }
+  - name: order_count
+    expr: COUNT(DISTINCT source.order_id)
+  - name: average_order_value
+    expr: MEASURE(revenue) / MEASURE(order_count)
+  - name: revenue_trailing_7d
+    expr: MEASURE(revenue)
+    window:
+      - order: order_date
+        range: trailing 7 day
