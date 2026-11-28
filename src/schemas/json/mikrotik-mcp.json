@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://www.schemastore.org/mikrotik-mcp.json",
-  "$comment": "Derived from MikrotikConfigSchema (Zod input, draft-7) in https://github.com/mikrotik-mcp/mikrotik-mcp/blob/925f11ee62fa17a02f84b8c6dc4bc9455972dd35/src/config.ts. Resolved object defaults and host-specific paths are omitted. Supports structured configuration and legacy bare device maps.",
+  "$comment": "Derived from MikrotikConfigSchema (Zod input, draft-7) in https://github.com/mikrotik-mcp/mikrotik-mcp/blob/5910fd719d29749af8c2ee45cbd6b723ac4667c3/src/config.ts. Resolved object defaults and host-specific paths are omitted. Supports structured configuration and legacy bare device maps. Voucher issuance requires token or tokenFrom, as checked by the runtime refinement.",
   "title": "MikroTik MCP configuration",
   "description": "Configuration for @usex/mikrotik-mcp. Use the structured devices form when including $schema or server settings.\nhttps://mikrotik-mcp.usestrict.dev/docs/guides/configuration",
   "type": "object",
@@ -128,11 +128,30 @@
               "default": "",
               "type": "string"
             },
+            "sessionIdleTimeout": {
+              "default": 86400000,
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
             "toolPageSize": {
               "default": 0,
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
+            },
+            "toolSurface": {
+              "default": "auto",
+              "type": "string",
+              "enum": ["auto", "full", "core"]
+            },
+            "semanticSearch": {
+              "default": true,
+              "type": "boolean"
+            },
+            "coreTools": {
+              "default": "",
+              "type": "string"
             },
             "appViews": {
               "default": false,
@@ -227,6 +246,14 @@
               "type": "integer",
               "exclusiveMinimum": 0,
               "maximum": 10000
+            },
+            "terminal": {
+              "default": true,
+              "type": "boolean"
+            },
+            "files": {
+              "default": true,
+              "type": "boolean"
             }
           },
           "description": "Optional local observability dashboard and storage settings."
@@ -278,6 +305,52 @@
                   },
                   "required": ["url"]
                 },
+                "telegram": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "chatId": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": ["token", "chatId"]
+                },
+                "email": {
+                  "type": "object",
+                  "properties": {
+                    "host": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "port": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "secure": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "password": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "to": {
+                      "type": "string",
+                      "minLength": 3
+                    }
+                  },
+                  "required": ["host", "from", "to"]
+                },
                 "webhook": {
                   "type": "object",
                   "properties": {
@@ -311,8 +384,200 @@
               "type": "integer",
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991
+            },
+            "digest": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "hour": {
+                  "default": 8,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 23
+                },
+                "channels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "slack",
+                      "discord",
+                      "ntfy",
+                      "telegram",
+                      "email",
+                      "webhook",
+                      "mcp"
+                    ]
+                  }
+                }
+              }
             }
           }
+        },
+        "audit": {
+          "type": "object",
+          "properties": {
+            "syslog": {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "port": {
+                  "default": 514,
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "protocol": {
+                  "default": "udp",
+                  "type": "string",
+                  "enum": ["udp", "tcp"]
+                },
+                "facility": {
+                  "default": 13,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 23
+                },
+                "appName": {
+                  "default": "mikrotik-mcp",
+                  "type": "string"
+                },
+                "includeInput": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "writesOnly": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "required": ["host"]
+            }
+          }
+        },
+        "approvals": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            },
+            "minRisk": {
+              "default": "DESTRUCTIVE",
+              "type": "string",
+              "enum": ["WRITE", "DESTRUCTIVE", "DANGEROUS"]
+            },
+            "ttlMinutes": {
+              "default": 30,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1440
+            },
+            "notify": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "slack",
+                  "discord",
+                  "ntfy",
+                  "telegram",
+                  "email",
+                  "webhook",
+                  "mcp"
+                ]
+              }
+            }
+          }
+        },
+        "vouchers": {
+          "type": "object",
+          "properties": {
+            "issue": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "minLength": 16
+                },
+                "tokenFrom": {
+                  "type": "string",
+                  "pattern": "^(?:env:[A-Za-z_][A-Za-z0-9_]*|file:.+|keyring:[A-Za-z0-9][A-Za-z0-9._@-]{0,63}\\/[A-Za-z0-9][A-Za-z0-9._@-]{0,63})$"
+                },
+                "device": {
+                  "type": "string"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "uptimeLimit": {
+                  "type": "string",
+                  "pattern": "^\\d+[wdhms](?:\\d+[wdhms])*$"
+                },
+                "batch": {
+                  "default": "sold",
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,30}$"
+                },
+                "codePrefix": {
+                  "default": "g",
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9]{0,6}$"
+                },
+                "maxPerMinute": {
+                  "default": 30,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 600
+                }
+              },
+              "anyOf": [
+                {
+                  "required": ["token"],
+                  "properties": {
+                    "token": {}
+                  }
+                },
+                {
+                  "required": ["tokenFrom"],
+                  "properties": {
+                    "tokenFrom": {}
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "gitMirror": {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "default": true,
+              "type": "boolean"
+            },
+            "push": {
+              "default": false,
+              "type": "boolean"
+            },
+            "sortSections": {
+              "default": false,
+              "type": "boolean"
+            },
+            "author": {
+              "type": "string"
+            }
+          },
+          "required": ["dir"]
         },
         "flows": {
           "type": "object",
@@ -510,6 +775,10 @@
           "type": "boolean",
           "description": "Expose only read-only tools when enabled."
         },
+        "verifyWrites": {
+          "default": true,
+          "type": "boolean"
+        },
         "access": {
           "type": "object",
           "properties": {
@@ -599,12 +868,29 @@
           },
           "description": "Persistent network knowledge and memory settings."
         },
+        "feedback": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "type": "boolean"
+            },
+            "dbPath": {
+              "type": "string"
+            }
+          }
+        },
         "backupDir": {
           "type": "string"
         },
         "disableUpdateCheck": {
           "default": false,
           "type": "boolean"
+        },
+        "logLevel": {
+          "default": "error",
+          "type": "string",
+          "enum": ["error", "warn", "info", "debug"]
         }
       },
       "required": ["devices"]
@@ -682,6 +968,25 @@
         },
         "keyPassphrase": {
           "type": "string"
+        },
+        "passwordFrom": {
+          "type": "string",
+          "pattern": "^(?:env:[A-Za-z_][A-Za-z0-9_]*|file:.+|keyring:[A-Za-z0-9][A-Za-z0-9._@-]{0,63}\\/[A-Za-z0-9][A-Za-z0-9._@-]{0,63})$",
+          "description": "Read the router password from an env:NAME, file:path, or keyring:service/account reference."
+        },
+        "keyPassphraseFrom": {
+          "type": "string",
+          "pattern": "^(?:env:[A-Za-z_][A-Za-z0-9_]*|file:.+|keyring:[A-Za-z0-9][A-Za-z0-9._@-]{0,63}\\/[A-Za-z0-9][A-Za-z0-9._@-]{0,63})$",
+          "description": "Read the private key passphrase from an env:NAME, file:path, or keyring:service/account reference."
+        },
+        "sshAgent": {
+          "type": "boolean",
+          "description": "Use the SSH agent available through SSH_AUTH_SOCK."
+        },
+        "hostKeySha256": {
+          "type": "string",
+          "pattern": "^(?:SHA256:)?[A-Za-z0-9+/]{43}=?$",
+          "description": "Pin the SSH server host key by its SHA-256 fingerprint."
         },
         "timeoutMs": {
           "default": 10000,
